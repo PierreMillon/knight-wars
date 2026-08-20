@@ -159,6 +159,7 @@ function hexCorners(cx, cy, size) {
 let hexes = {};          // key "q,r" -> {q,r,x,y,territoryId}
 let territories = [];    // {id, hexKeys[], owner, force, cx, cy, neighbors:Set}
 let players = [];        // per-royaume runtime state
+let territoryBorderSegments = []; // [[x1,y1],[x2,y2]] edges between two different territories, precomputed once
 
 function rand(n) { return Math.floor(Math.random() * n); }
 function pick(arr) { return arr[rand(arr.length)]; }
@@ -246,22 +247,58 @@ function generateTerritories() {
     t.cx = c.x; t.cy = c.y;
   }
 
-  // adjacency
+  // adjacency + the shared edge (for a visible territory border) between
+  // every pair of hexes that belong to two different territories
+  territoryBorderSegments = [];
+  const seenPairs = new Set();
   for (const key in hexes) {
     const h = hexes[key];
     for (const nk of neighborsOf(h.q, h.r)) {
       const nh = hexes[nk];
       if (nh && nh.territoryId !== h.territoryId) {
         territories[h.territoryId].neighbors.add(nh.territoryId);
+        const pairKey = key < nk ? `${key}|${nk}` : `${nk}|${key}`;
+        if (!seenPairs.has(pairKey)) {
+          seenPairs.add(pairKey);
+          const edge = sharedHexEdge(h, nh);
+          if (edge) territoryBorderSegments.push(edge);
+        }
       }
     }
   }
 }
 
+// the two corners two adjacent hexes have in common — i.e. the edge between them.
+// Uses the exact (non-inflated) hex size: the fill pass inflates corners by
+// +0.6 to hide seams, which also means two neighbors' corners no longer land
+// on the same point, so that inflated size can't be used to detect sharing.
+function sharedHexEdge(hexA, hexB) {
+  const cornersA = hexCorners(hexA.x, hexA.y, HEX_SIZE);
+  const cornersB = hexCorners(hexB.x, hexB.y, HEX_SIZE);
+  const shared = [];
+  for (const pa of cornersA) {
+    for (const pb of cornersB) {
+      if (Math.abs(pa[0] - pb[0]) < 0.01 && Math.abs(pa[1] - pb[1]) < 0.01) shared.push(pa);
+    }
+  }
+  return shared.length === 2 ? shared : null;
+}
+
 function centroidOf(terr) {
   let sx = 0, sy = 0;
   for (const hk of terr.hexKeys) { sx += hexes[hk].x; sy += hexes[hk].y; }
-  return { x: sx / terr.hexKeys.length, y: sy / terr.hexKeys.length };
+  const avgX = sx / terr.hexKeys.length, avgY = sy / terr.hexKeys.length;
+  // territories are irregular, sometimes concave blobs — the raw average can
+  // land in a gap between lobes, outside the territory's own hexes. Snap to
+  // whichever of its hexes is closest, so anything drawn at (cx,cy) — the
+  // force icon in particular — always sits on a hex that's actually ours.
+  let best = hexes[terr.hexKeys[0]], bestD = Infinity;
+  for (const hk of terr.hexKeys) {
+    const h = hexes[hk];
+    const d = (h.x - avgX) ** 2 + (h.y - avgY) ** 2;
+    if (d < bestD) { bestD = d; best = h; }
+  }
+  return { x: best.x, y: best.y };
 }
 
 function assignRoyaumes() {
@@ -518,37 +555,38 @@ function render() {
     ctx.closePath();
     ctx.fillStyle = roy.color;
     ctx.fill();
-    ctx.strokeStyle = "rgba(20,16,12,0.35)";
-    ctx.lineWidth = 0.6;
+    // faint texture on every hex edge, incl. hexes within the same territory
+    ctx.strokeStyle = "rgba(20,16,12,0.15)";
+    ctx.lineWidth = 0.5;
     ctx.stroke();
   }
 
-  // territory outlines (thicker) + selection highlight
+  // territory borders: the one thing that actually matters for reading the
+  // map — a territory is every hex sharing one color blob, and this is the
+  // only line telling you where one blob (and its tap target) stops and the
+  // next starts, so it's drawn clearly and always-on, not just on hover/select.
+  ctx.strokeStyle = "rgba(20,16,12,0.85)";
+  ctx.lineWidth = 1.6;
+  ctx.lineCap = "round";
+  for (const [[x1, y1], [x2, y2]] of territoryBorderSegments) {
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+  }
+
+  // selection highlight, drawn on top of the border above
   for (const t of territories) {
+    if (t.id !== selected) continue;
     ctx.beginPath();
     for (const hk of t.hexKeys) {
       const h2 = hexes[hk];
       const pts = hexCorners(h2.x, h2.y, HEX_SIZE + 0.6);
       pts.forEach(([x, y], i) => i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y));
     }
-    if (t.id === selected) {
-      ctx.strokeStyle = "#f2ede2";
-      ctx.lineWidth = 2.4;
-      ctx.stroke();
-    }
-  }
-
-  // border between different territories
-  ctx.strokeStyle = "rgba(20,16,12,0.55)";
-  ctx.lineWidth = 1.1;
-  for (const key in hexes) {
-    const h2 = hexes[key];
-    for (const nk of neighborsOf(h2.q, h2.r)) {
-      const nh = hexes[nk];
-      if (nh && nh.territoryId !== h2.territoryId) {
-        // draw the shared edge — approximate via midpoint segment between hex centers' perpendicular
-      }
-    }
+    ctx.strokeStyle = "#f2ede2";
+    ctx.lineWidth = 2.4;
+    ctx.stroke();
   }
 
   // force icons
