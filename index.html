@@ -122,8 +122,13 @@ function resize() {
   canvas.width = w * dpr; canvas.height = h * dpr;
   canvas.style.width = w + "px"; canvas.style.height = h + "px";
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  centerX = w / 2; centerY = h / 2 + 10;
-  viewScale = Math.min(w, h) / (MAP_PIXEL_RADIUS * 2.3);
+  // reserve room for the HUD (its height varies — the royaume indicator row
+  // can wrap to two lines) so the map never renders underneath/crowding it,
+  // measured live rather than a guessed constant
+  const hudInset = document.getElementById("hud").offsetHeight + 6;
+  const availH = h - hudInset;
+  centerX = w / 2; centerY = hudInset + availH / 2;
+  viewScale = Math.min(w, availH) / (MAP_PIXEL_RADIUS * 2.3);
   render();
 }
 window.addEventListener("resize", resize);
@@ -161,13 +166,40 @@ function hexCorners(cx, cy, size) {
   return pts;
 }
 
+/* ---------- SEEDED RNG ---------- */
+// mulberry32 — small, fast, deterministic PRNG. Every source of randomness in
+// the game (map generation, dice, AI mistakes) goes through this instead of
+// Math.random(), so an entire match can be reproduced byte-for-byte from one
+// 32-bit seed. That's what makes a cheap "replay code" possible later: share
+// the seed + the human player's own move list instead of every dice roll.
+let rngState = 0;
+function seedRNG(seed) {
+  rngState = seed >>> 0;
+}
+function rngFloat() {
+  rngState |= 0; rngState = (rngState + 0x6D2B79F5) | 0;
+  let t = Math.imul(rngState ^ (rngState >>> 15), 1 | rngState);
+  t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+}
+// only used to pick an unpredictable *starting* seed for a fresh game —
+// never called during actual map/combat generation, so it doesn't break
+// reproducibility of the seed it hands out
+function randomSeed() {
+  if (window.crypto && crypto.getRandomValues) {
+    return crypto.getRandomValues(new Uint32Array(1))[0];
+  }
+  return (Date.now() ^ (performance.now() * 1000)) >>> 0;
+}
+
 /* ---------- MAP GENERATION ---------- */
 let hexes = {};          // key "q,r" -> {q,r,x,y,territoryId}
 let territories = [];    // {id, hexKeys[], owner, force, cx, cy, neighbors:Set}
 let players = [];        // per-royaume runtime state
 let territoryBorderSegments = []; // [[x1,y1],[x2,y2]] edges between two different territories, precomputed once
+let currentSeed = 0;     // the seed this match was generated from — the whole match is reproducible from this + the human's move list
 
-function rand(n) { return Math.floor(Math.random() * n); }
+function rand(n) { return Math.floor(rngFloat() * n); }
 function pick(arr) { return arr[rand(arr.length)]; }
 
 function generateHexGrid() {
@@ -178,8 +210,8 @@ function generateHexGrid() {
   // recomputed each new game so the outer contour differs from one game to the next
   const harmonics = [2, 3, 4, 5].map(freq => ({
     freq,
-    phase: Math.random() * Math.PI * 2,
-    amp: 0.05 + Math.random() * 0.07,
+    phase: rngFloat() * Math.PI * 2,
+    amp: 0.05 + rngFloat() * 0.07,
   }));
   function radialJitter(theta) {
     let j = 1;
@@ -202,7 +234,7 @@ function generateHexGrid() {
 function generateTerritories() {
   const keys = Object.keys(hexes);
   const seeds = [];
-  const shuffled = keys.slice().sort(() => Math.random() - 0.5);
+  const shuffled = keys.slice().sort(() => rngFloat() - 0.5);
   for (let i = 0; i < TERRITORY_COUNT && i < shuffled.length; i++) seeds.push(shuffled[i]);
 
   territories = seeds.map((key, id) => {
@@ -340,7 +372,7 @@ function assignRoyaumes() {
     const w = (royId === NEUTRAL_ID) ? neutralWeight : royWeight;
     for (let i = 0; i < w; i++) growthOrder.push(royId);
   }
-  growthOrder.sort(() => Math.random() - 0.5);
+  growthOrder.sort(() => rngFloat() - 0.5);
 
   let claimedCount = seeds.length;
   const total = territories.length;
@@ -581,7 +613,7 @@ function runAI() {
   }
 
   const mv = bestMove();
-  if (mv && Math.random() >= AI_MISTAKE_RATE) {
+  if (mv && rngFloat() >= AI_MISTAKE_RATE) {
     attack(mv.from, mv.to);
     setTimeout(runAI, 450);
   } else {
@@ -791,15 +823,18 @@ function logMsg(msg) {
 }
 
 /* ---------- BOOT ---------- */
-function startGame() {
+function startGame(seed) {
   document.getElementById("winbanner").style.display = "none";
   document.getElementById("endturn").disabled = false;
   gameOver = false; selected = -1; currentPlayer = 0; aiRunning = false;
+  currentSeed = seed === undefined ? randomSeed() : seed;
+  seedRNG(currentSeed);
   generateHexGrid();
   generateTerritories();
   assignRoyaumes();
   updateStatus();
   logMsg("Nouvelle partie.");
+  updateGroups(); // populate before resize() measures the HUD's real height
   resize();
 }
 
