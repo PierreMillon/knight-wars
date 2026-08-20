@@ -753,19 +753,30 @@ const UNIT_ASPECT = {
   square: 441 / 873,
   circle: 540 / 820,
 };
+// fraction of each source bitmap's own height actually occupied by the
+// character (measured via pixel-density scan). The chevalier sprite was cut
+// from a larger repeating cross-stitch pattern — its dense knight-on-horse
+// core is only ~62% of the image height, the rest is a thin banner/weapon
+// tip up top and legs/hooves at the bottom. Drawing all three sprites at the
+// same nominal height therefore made the knight look much smaller than the
+// gueux/archer, whose source art is cropped tight to the figure (~91-100%).
+// Scaling each sprite's drawn height by 1/fraction keeps their *visible*
+// figures a consistent size instead of their raw bitmaps.
+const UNIT_CONTENT_FRACTION = { triangle: 1.0, square: 0.91, circle: 0.62 };
 
 function drawForceIcon(t) {
   const shapes = decompose(t.force);
-  const h = 13;
-  const widths = shapes.map(s => h * UNIT_ASPECT[s]);
+  const baseH = 13;
+  const heights = shapes.map(s => baseH / UNIT_CONTENT_FRACTION[s]);
+  const widths = shapes.map((s, i) => heights[i] * UNIT_ASPECT[s]);
   const gap = 1.5;
   const totalW = widths.reduce((a, b) => a + b, 0) + gap * (shapes.length - 1);
   let x = t.cx - totalW / 2;
-  const y = t.cy - h / 2;
+  const yBottom = t.cy + baseH / 2; // all icons share the same "ground line"
   for (let i = 0; i < shapes.length; i++) {
     const img = UNIT_IMG[shapes[i]];
-    const w = widths[i];
-    if (img.complete && img.naturalWidth) ctx.drawImage(img, x, y, w, h);
+    const w = widths[i], h = heights[i];
+    if (img.complete && img.naturalWidth) ctx.drawImage(img, x, yBottom - h, w, h);
     x += w + gap;
   }
   ctx.fillStyle = "#f2ede2";
@@ -773,8 +784,8 @@ function drawForceIcon(t) {
   ctx.lineWidth = 2;
   ctx.font = "bold 7px -apple-system, sans-serif";
   ctx.textAlign = "center";
-  ctx.strokeText(String(t.force), t.cx, t.cy + h / 2 + 8);
-  ctx.fillText(String(t.force), t.cx, t.cy + h / 2 + 8);
+  ctx.strokeText(String(t.force), t.cx, yBottom + 8);
+  ctx.fillText(String(t.force), t.cx, yBottom + 8);
 }
 
 /* ---------- INPUT ---------- */
