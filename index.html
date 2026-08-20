@@ -414,28 +414,39 @@ function totalForce(royId) {
   return s;
 }
 
-// brief non-blocking glow on territories that just received reinforcement —
-// makes "why did this go from 2 to 6" visible without pausing the game
+// brief non-blocking visual effects (reinforcement glow, combat flash) —
+// makes "why did this go from 2 to 6" / "who just won that fight" visible
+// without pausing the game or adding any confirmation step
 const PULSE_DURATION = 500;
+const COMBAT_FX_DURATION = 550;
 let pulseTiles = []; // [{id, start}]
-let pulseRAFRunning = false;
+let combatFX = null; // {fromId, toId, atk, def, win, start}
+let fxRAFRunning = false;
+function ensureFXLoop() {
+  if (!fxRAFRunning) {
+    fxRAFRunning = true;
+    requestAnimationFrame(fxStep);
+  }
+}
 function triggerPulse(ids) {
   if (!ids.length) return;
   const now = performance.now();
   pulseTiles = ids.map(id => ({ id, start: now }));
-  if (!pulseRAFRunning) {
-    pulseRAFRunning = true;
-    requestAnimationFrame(pulseStep);
-  }
+  ensureFXLoop();
 }
-function pulseStep() {
+function triggerCombatFX(fromId, toId, atk, def, win) {
+  combatFX = { fromId, toId, atk, def, win, start: performance.now() };
+  ensureFXLoop();
+}
+function fxStep() {
   const now = performance.now();
   pulseTiles = pulseTiles.filter(p => now - p.start < PULSE_DURATION);
+  if (combatFX && now - combatFX.start >= COMBAT_FX_DURATION) combatFX = null;
   render();
-  if (pulseTiles.length) {
-    requestAnimationFrame(pulseStep);
+  if (pulseTiles.length || combatFX) {
+    requestAnimationFrame(fxStep);
   } else {
-    pulseRAFRunning = false;
+    fxRAFRunning = false;
   }
 }
 
@@ -451,6 +462,7 @@ function attack(fromId, toId) {
   const def = rollSum(to.force);
   const win = atk > def;
   logMsg(`${ROYAUMES[from.owner].name} attaque ${ROYAUMES[to.owner].name} — ${atk} vs ${def} — ${win ? "victoire" : "échec"}`);
+  triggerCombatFX(fromId, toId, atk, def, win);
   if (win) {
     to.owner = from.owner;
     to.force = Math.max(1, from.force - 1);
@@ -648,6 +660,41 @@ function render() {
     ctx.strokeStyle = `rgba(255, 214, 92, ${1 - progress})`;
     ctx.lineWidth = 2.5;
     ctx.stroke();
+  }
+
+  // combat flash — the atk/def rolls float briefly over both territories,
+  // with a ring on whichever tile the outcome actually changed
+  if (combatFX && pulseNow - combatFX.start < COMBAT_FX_DURATION) {
+    const progress = (pulseNow - combatFX.start) / COMBAT_FX_DURATION;
+    const alpha = 1 - progress;
+    const fromT = territories[combatFX.fromId];
+    const toT = territories[combatFX.toId];
+    const floatY = -14 - progress * 10;
+
+    ctx.font = "bold 11px -apple-system, sans-serif";
+    ctx.textAlign = "center";
+    ctx.lineWidth = 2.5;
+    if (fromT) {
+      ctx.strokeStyle = `rgba(20,16,12,${alpha * 0.8})`;
+      ctx.strokeText(String(combatFX.atk), fromT.cx, fromT.cy + floatY);
+      ctx.fillStyle = `rgba(242,237,226,${alpha})`;
+      ctx.fillText(String(combatFX.atk), fromT.cx, fromT.cy + floatY);
+    }
+    if (toT) {
+      ctx.strokeStyle = `rgba(20,16,12,${alpha * 0.8})`;
+      ctx.strokeText(String(combatFX.def), toT.cx, toT.cy + floatY);
+      ctx.fillStyle = `rgba(242,237,226,${alpha})`;
+      ctx.fillText(String(combatFX.def), toT.cx, toT.cy + floatY);
+    }
+
+    const ringT = combatFX.win ? toT : fromT;
+    if (ringT) {
+      ctx.beginPath();
+      ctx.arc(ringT.cx, ringT.cy, 11 + progress * 6, 0, Math.PI * 2);
+      ctx.strokeStyle = combatFX.win ? `rgba(90,200,120,${alpha})` : `rgba(200,70,60,${alpha})`;
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+    }
   }
 
   ctx.restore();
