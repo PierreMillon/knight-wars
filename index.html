@@ -458,7 +458,10 @@ function runAI() {
   if (gameOver || ROYAUMES[royId].human) { aiRunning = false; return; }
 
   function bestMove() {
-    let best = null, bestAdv = -Infinity;
+    const territoryCount = {};
+    for (const t of territories) territoryCount[t.owner] = (territoryCount[t.owner] || 0) + 1;
+
+    let best = null, bestScore = -Infinity;
     for (const t of territories) {
       if (t.owner !== royId || t.force <= 1) continue;
       for (const nId of t.neighbors) {
@@ -466,7 +469,22 @@ function runAI() {
         if (n.owner === royId) continue;
         const adv = t.force - n.force;
         if (adv < AI_AGGRESSION_THRESHOLD) continue;
-        if (adv > bestAdv) { bestAdv = adv; best = { from: t.id, to: nId }; }
+
+        // prefer finishing off a nearly-eliminated royaume over a marginally
+        // better trade elsewhere
+        let score = adv + (territoryCount[n.owner] <= 2 ? 2 : 0);
+
+        // attacking always drops `from` to force 1 (win or lose) — penalize
+        // leaving it exposed to a strong hostile neighbor other than the target
+        let exposure = 0;
+        for (const oId of t.neighbors) {
+          if (oId === nId) continue;
+          const o = territories[oId];
+          if (o.owner !== royId) exposure = Math.max(exposure, o.force);
+        }
+        score -= exposure * 0.3;
+
+        if (score > bestScore) { bestScore = score; best = { from: t.id, to: nId }; }
       }
     }
     return best;
