@@ -14,15 +14,20 @@
   canvas { display: block; background: #2b3d52; }
   #hud {
     position: absolute; top: 0; left: 0; right: 0;
-    display: flex; justify-content: space-between; align-items: center;
+    display: flex; justify-content: space-between; align-items: flex-start;
     padding: 10px 14px; box-sizing: border-box;
     color: #f2ede2; text-shadow: 0 1px 2px rgba(0,0,0,.6);
     pointer-events: none;
   }
+  #hud > div:first-child { flex: 1 1 auto; min-width: 0; }
   #status { font-size: 15px; font-weight: 600; }
   #log { font-size: 12px; opacity: .85; margin-top: 2px; }
+  #groups { display: flex; flex-wrap: wrap; gap: 6px 10px; margin-top: 5px; }
+  .chip { display: flex; align-items: center; gap: 4px; font-size: 10.5px; white-space: nowrap; }
+  .chip .swatch { width: 8px; height: 8px; border-radius: 2px; flex: none; box-shadow: 0 0 0 1px rgba(0,0,0,.5); }
+  .chip .n { font-weight: 700; }
   #endturn {
-    pointer-events: auto;
+    pointer-events: auto; flex: none; white-space: nowrap;
     background: #9c1c1c; color: #f2ede2; border: none; border-radius: 8px;
     padding: 10px 18px; font-size: 15px; font-weight: 700;
     box-shadow: 0 2px 6px rgba(0,0,0,.4);
@@ -47,6 +52,7 @@
     <div>
       <div id="status">—</div>
       <div id="log"></div>
+      <div id="groups"></div>
     </div>
     <button id="endturn">Fin du tour</button>
   </div>
@@ -402,6 +408,37 @@ function largestConnectedGroup(royId) {
   return best;
 }
 
+function totalForce(royId) {
+  let s = 0;
+  for (const t of territories) if (t.owner === royId) s += t.force;
+  return s;
+}
+
+// brief non-blocking glow on territories that just received reinforcement —
+// makes "why did this go from 2 to 6" visible without pausing the game
+const PULSE_DURATION = 500;
+let pulseTiles = []; // [{id, start}]
+let pulseRAFRunning = false;
+function triggerPulse(ids) {
+  if (!ids.length) return;
+  const now = performance.now();
+  pulseTiles = ids.map(id => ({ id, start: now }));
+  if (!pulseRAFRunning) {
+    pulseRAFRunning = true;
+    requestAnimationFrame(pulseStep);
+  }
+}
+function pulseStep() {
+  const now = performance.now();
+  pulseTiles = pulseTiles.filter(p => now - p.start < PULSE_DURATION);
+  render();
+  if (pulseTiles.length) {
+    requestAnimationFrame(pulseStep);
+  } else {
+    pulseRAFRunning = false;
+  }
+}
+
 function rollSum(n) {
   let s = 0;
   for (let i = 0; i < n; i++) s += 1 + rand(6);
@@ -432,15 +469,19 @@ function endTurn() {
   const reinforcement = largestConnectedGroup(royId);
   let pts = reinforcement;
   let guardCount = 0;
+  const reinforcedIds = [];
   while (pts > 0 && guardCount < 500) {
     guardCount++;
     const owned = territories.filter(t => t.owner === royId && t.force < 9);
     if (!owned.length) break;
-    pick(owned).force++;
+    const chosen = pick(owned);
+    chosen.force++;
+    reinforcedIds.push(chosen.id);
     pts--;
   }
   logMsg(`${ROYAUMES[royId].name} reçoit ${reinforcement} renfort(s).`);
   selected = -1;
+  triggerPulse(reinforcedIds);
   advanceTurn();
 }
 
@@ -594,7 +635,37 @@ function render() {
     drawForceIcon(t);
   }
 
+  // reinforcement pulse — a brief fading ring on territories that just gained force
+  const pulseNow = performance.now();
+  for (const p of pulseTiles) {
+    const t = territories[p.id];
+    if (!t) continue;
+    const elapsed = pulseNow - p.start;
+    if (elapsed >= PULSE_DURATION) continue;
+    const progress = elapsed / PULSE_DURATION;
+    ctx.beginPath();
+    ctx.arc(t.cx, t.cy, 10 + progress * 10, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(255, 214, 92, ${1 - progress})`;
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+  }
+
   ctx.restore();
+  updateGroups();
+}
+
+function updateGroups() {
+  const el = document.getElementById("groups");
+  let html = "";
+  for (let royId = 0; royId < ROYAUME_COUNT - 1; royId++) { // exclude neutral (last)
+    if (!isAlive(royId)) continue;
+    const roy = ROYAUMES[royId];
+    const connected = largestConnectedGroup(royId);
+    const force = totalForce(royId);
+    html += `<span class="chip"><span class="swatch" style="background:${roy.color}"></span>` +
+      `${roy.name} <span class="n">${connected}</span>·${force}</span>`;
+  }
+  el.innerHTML = html;
 }
 
 const UNIT_IMG = { triangle: GUEUX_IMG, square: ARCHER_IMG, circle: CHEVALIER_IMG };
