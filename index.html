@@ -112,6 +112,14 @@
   #settingsPanel label { display: flex; align-items: center; gap: 8px; font-size: 14px; margin-bottom: 16px; }
   .fieldGroup { margin-bottom: 16px; }
   .fieldLabel { font-size: 13px; opacity: .75; margin-bottom: 6px; }
+  /* separates the persistent preferences above (difficulty, map size, sound,
+     accessibility...) from the one-off actions on the current match below
+     (new war, surrender...) — without this the whole panel read as one flat
+     pile of unrelated buttons under a single "Réglages" heading */
+  .settingsSectionLabel {
+    font-size: 11px; text-transform: uppercase; letter-spacing: .06em; opacity: .6;
+    margin: 4px 0 10px; padding-top: 14px; border-top: 1px solid rgba(43,29,16,.25);
+  }
   #royaumesList { display: flex; flex-direction: column; gap: 5px; }
   .royaumeRow { display: flex; align-items: baseline; gap: 7px; font-size: 13px; }
   .royaumeRow .swatch { width: 11px; height: 11px; border-radius: 50%; flex: none; box-shadow: 0 0 0 1px rgba(43,29,16,.5); align-self: center; }
@@ -249,7 +257,7 @@
   <div id="gueuxBadge"></div>
   <div id="onboardingHint"></div>
   <button id="endturn">Fin de bataille</button>
-  <button id="rerollBtn">⚜ Nouveau royaume</button>
+  <button id="rerollBtn">🔀 Changer la carte</button>
   <div id="winbanner">
     <div class="box">
       <h1 id="wintext"></h1>
@@ -350,10 +358,11 @@
       <label><input type="checkbox" id="instantBattlesToggle"> Batailles instantanées — les tours adverses se résolvent sans attendre</label>
       <label><input type="checkbox" id="tapOnlyToggle"> Accessibilité : remplacer le glisser par un appui simple — touchez votre province, puis la case ennemie à attaquer</label>
       <label><input type="checkbox" id="metaProgressToggle"> Progression du gueux — gagnez un gueux à chaque victoire</label>
-      <button id="newWarBtn">⚔ Nouvelle guerre</button>
+      <div class="settingsSectionLabel">Partie en cours</div>
+      <button id="newWarBtn">⚔ Nouvelle guerre — abandonne la partie et recommence</button>
       <button id="conseilsBtn">🎓 Conseils</button>
       <button id="loreBtn">📜 Le lore</button>
-      <button id="surrenderBtn">💀 Abandonner</button>
+      <button id="surrenderBtn">💀 Abandonner — capituler tout de suite</button>
     </div>
   </div>
 </div>
