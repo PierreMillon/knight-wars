@@ -119,7 +119,7 @@
   #winbanner h1 { margin: 0; font-size: 24px; max-width: 260px; }
   #winSubtext { margin: -6px 0 0; font-size: 13px; font-style: italic; opacity: .8; max-width: 260px; }
   #winbanner img { width: 96px; height: auto; image-rendering: pixelated; }
-  #statChart { background: rgba(0,0,0,.05); border-radius: 8px; }
+  #statChart { background: rgba(0,0,0,.05); border-radius: 8px; touch-action: none; } /* otherwise a scrub drag gets read as a page gesture */
   .winButtons { display: flex; gap: 10px; }
   #watchReplay { background: #5a4a1c; }
   #winbanner button {
@@ -766,7 +766,11 @@ function balanceStartingForces() {
     const target = grandTotal * weights[royId] / weightSum;
     const blended = current + (target - current) * BALANCE_STRENGTH;
     const scale = blended / current;
-    for (const t of owned[royId]) t.force = Math.max(1, Math.round(t.force * scale));
+    // clamp to FORCE_CAP — a royaume with very few starting territories can
+    // otherwise get scaled well past it in one shot (e.g. a single-territory
+    // AI royaume at Seigneur's 80% target bonus), which looked like a
+    // territory instantly maxed out before a single turn had been played
+    for (const t of owned[royId]) t.force = Math.max(1, Math.min(FORCE_CAP, Math.round(t.force * scale)));
   }
 }
 
@@ -935,7 +939,7 @@ function ensureAudioCtx() {
   return audioCtx;
 }
 function playTone(freq, duration, opts = {}) {
-  if (!soundEnabled || replaying) return;
+  if (!soundEnabled) return; // sounds now play during replay too, per request
   const ac = ensureAudioCtx();
   if (!ac) return;
   const t0 = ac.currentTime;
@@ -1014,6 +1018,12 @@ function attack(fromId, toId) {
 // before (it was never something the player controlled anyway).
 function pickReinforceTarget(royId, owned) {
   if (royId === humanRoyId) return pick(owned);
+  // The smart frontier-stacking below only ramps in with difficulty — at
+  // Page (DIFFICULTY 0) the AI places reinforcements just as randomly as
+  // the player, so it can't quietly field a much more effective army
+  // through better logistics alone while still "feeling" passive in its
+  // attack decisions.
+  if (rngFloat() > DIFFICULTY) return pick(owned);
   let best = null, bestScore = -Infinity;
   for (const t of owned) {
     let score = -1;
@@ -1060,11 +1070,20 @@ function advanceTurn() {
     guard++;
   } while ((!isAlive(next) || ROYAUMES[next].neutral) && guard <= ROYAUME_COUNT);
   currentPlayer = next;
-  if (currentPlayer === humanRoyId && !replaying) {
+  if (currentPlayer === humanRoyId) {
+    // roundNumber must advance identically during a replay too, or
+    // escalated() (which reads it) diverges from the original match the
+    // instant it's re-simulated — this was a real bug: replaying a match
+    // could produce a *different* winner than the original game, because
+    // roundNumber stayed frozen at whatever the original game ended on
+    // instead of counting back up from 0, throwing escalation off from the
+    // very first replayed AI turn.
     roundNumber++;
-    recordRoundSnapshot();
-    checkStalemate();
-    if (gameOver) return;
+    if (!replaying) {
+      recordRoundSnapshot();
+      checkStalemate();
+      if (gameOver) return;
+    }
   }
   updateStatus();
   render();
@@ -1170,13 +1189,24 @@ function showWin(royId) {
       refreshGueuxBadge();
     }
   }
+  // checkWinner() only ever fires once a single non-neutral royaume remains,
+  // so if it isn't the human's, the human was necessarily wiped out — that
+  // deserves its own defeated, humiliated tone (with a small note of hope)
+  // rather than the generic "X l'emporte."
+  const humanLost = !truceEnded && royId !== humanRoyId;
   const text = truceEnded
     ? "Match nul — la paix, l'affaire des gueux."
+    : humanLost
+    ? "Vous avez tout donné, tout dépensé, et voilà : plus de terre, plus de soldats, seul et honteux devant vos pairs. " +
+      "Mais un seigneur déchu n'est pas un seigneur mort — quelque part, vous rêvez déjà de lever une nouvelle armée, " +
+      "ou de trouver des alliés assez généreux pour vous aider à vous relever."
     : lastAttackWasGrind
     ? "Bravo seigneur, vous avez guerroyé férocement aujourd'hui, la dernière bataille était dure !"
-    : (royId === humanRoyId) ? `Victoire, ${ROYAUMES[royId].name} !` : `${ROYAUMES[royId].name} l'emporte.`;
+    : `Victoire, ${ROYAUMES[royId].name} !`;
   document.getElementById("wintext").textContent = text;
-  document.getElementById("winSubtext").textContent = personalPerformanceLine();
+  // skip the extra performance line on a defeat — the loss message above
+  // already carries that beat, no need to pile on a second dig
+  document.getElementById("winSubtext").textContent = humanLost ? "" : personalPerformanceLine();
   document.getElementById("endturn").disabled = true;
   drawStatChart();
   document.getElementById("watchReplay").disabled = moveLog.length === 0;
@@ -1184,6 +1214,13 @@ function showWin(royId) {
 }
 
 // --- end-of-match stats chart (AoE2-style: territories + force over rounds) ---
+// -1 when idle; while the player is dragging a finger across the chart,
+// the index into statHistory currently under the touch — drives the live
+// scrub readout (see the pointer handlers below drawStatChart's definition)
+let statChartScrubIndex = -1;
+const STAT_CHART_W = 280, STAT_CHART_H = 150;
+const STAT_CHART_PANEL_X = 6, STAT_CHART_PANEL_W = STAT_CHART_W - 12;
+
 function drawStatChart() {
   const canvas = document.getElementById("statChart");
   const c = canvas.getContext("2d");
@@ -1191,7 +1228,7 @@ function drawStatChart() {
   // store gets stretched by the browser on any high-DPI (retina) phone
   // screen, which is what made the chart's labels/lines look pixelated
   const dpr = window.devicePixelRatio || 1;
-  const W = 280, H = 150; // logical size, stays constant regardless of dpr
+  const W = STAT_CHART_W, H = STAT_CHART_H; // logical size, stays constant regardless of dpr
   if (canvas.width !== W * dpr || canvas.height !== H * dpr) {
     canvas.width = W * dpr;
     canvas.height = H * dpr;
@@ -1208,58 +1245,114 @@ function drawStatChart() {
   const royIdSet = new Set();
   for (const entry of statHistory) for (const k of Object.keys(entry.stats)) royIdSet.add(Number(k));
   const royIds = [...royIdSet];
-  const panels = [
-    { key: "territories", x: 6, w: W / 2 - 10, label: "Territoires" },
-    { key: "force", x: W / 2 + 4, w: W / 2 - 10, label: "Force" },
-  ];
-  const top = 18, bottom = H - 6, plotH = bottom - top;
 
-  for (const panel of panels) {
-    c.strokeStyle = "rgba(43,29,16,.3)";
-    c.lineWidth = 1;
-    c.beginPath();
-    c.moveTo(panel.x, top); c.lineTo(panel.x, bottom); c.lineTo(panel.x + panel.w, bottom);
-    c.stroke();
+  // a single full-width "Territoires" panel — force is available on demand
+  // via the interactive scrub readout below instead of a whole second panel
+  const panelX = STAT_CHART_PANEL_X, panelW = STAT_CHART_PANEL_W;
+  const top = 18, bottom = H - 24, plotH = bottom - top; // room left at the bottom for the scrub readout
+  const xForIndex = (i) => panelX + (i / (statHistory.length - 1)) * panelW;
 
-    let maxVal = 1;
-    for (const entry of statHistory) {
-      for (const royId of royIds) {
-        const s = entry.stats[royId];
-        if (s) maxVal = Math.max(maxVal, s[panel.key]);
-      }
-    }
+  c.strokeStyle = "rgba(43,29,16,.3)";
+  c.lineWidth = 1;
+  c.beginPath();
+  c.moveTo(panelX, top); c.lineTo(panelX, bottom); c.lineTo(panelX + panelW, bottom);
+  c.stroke();
 
+  let maxVal = 1;
+  for (const entry of statHistory) {
     for (const royId of royIds) {
-      const pts = [];
-      statHistory.forEach((entry, i) => {
-        const s = entry.stats[royId];
-        if (!s) return; // this royaume was already eliminated — line just stops
-        const x = panel.x + (i / (statHistory.length - 1)) * panel.w;
-        const y = bottom - (s[panel.key] / maxVal) * plotH;
-        pts.push([x, y]);
-      });
-      if (!pts.length) continue;
-      const tracePath = () => {
-        c.beginPath();
-        pts.forEach(([x, y], i) => i === 0 ? c.moveTo(x, y) : c.lineTo(x, y));
-      };
-      // a dark halo pass first — some royaume colors (Châteauvieux's near-white)
-      // would otherwise nearly vanish against the parchment card background
-      tracePath();
-      c.strokeStyle = "rgba(43,29,16,.5)";
-      c.lineWidth = 3.4;
-      c.stroke();
-      tracePath();
-      c.strokeStyle = ROYAUMES[royId].color;
-      c.lineWidth = 1.8;
-      c.stroke();
+      const s = entry.stats[royId];
+      if (s) maxVal = Math.max(maxVal, s.territories);
     }
-
-    c.fillStyle = "rgba(43,29,16,.8)";
-    c.font = "10px -apple-system, sans-serif";
-    c.textAlign = "left";
-    c.fillText(panel.label, panel.x, 10);
   }
+
+  for (const royId of royIds) {
+    const pts = [];
+    statHistory.forEach((entry, i) => {
+      const s = entry.stats[royId];
+      if (!s) return; // this royaume was already eliminated — line just stops
+      pts.push([xForIndex(i), bottom - (s.territories / maxVal) * plotH]);
+    });
+    if (!pts.length) continue;
+    const tracePath = () => {
+      c.beginPath();
+      pts.forEach(([x, y], i) => i === 0 ? c.moveTo(x, y) : c.lineTo(x, y));
+    };
+    // a dark halo pass first — some royaume colors (Châteauvieux's near-white)
+    // would otherwise nearly vanish against the parchment card background
+    tracePath();
+    c.strokeStyle = "rgba(43,29,16,.5)";
+    c.lineWidth = 3.4;
+    c.stroke();
+    tracePath();
+    c.strokeStyle = ROYAUMES[royId].color;
+    c.lineWidth = 1.8;
+    c.stroke();
+  }
+
+  c.fillStyle = "rgba(43,29,16,.8)";
+  c.font = "10px -apple-system, sans-serif";
+  c.textAlign = "left";
+  c.fillText("Territoires", panelX, 10);
+
+  // interactive scrub: drag a finger across the chart to see each living
+  // royaume's FORCE at that exact round, following the touch in real time
+  if (statChartScrubIndex >= 0 && statChartScrubIndex < statHistory.length) {
+    const idx = statChartScrubIndex;
+    const x = xForIndex(idx);
+    c.save();
+    c.strokeStyle = "rgba(43,29,16,.55)";
+    c.lineWidth = 1;
+    c.setLineDash([3, 3]);
+    c.beginPath(); c.moveTo(x, top); c.lineTo(x, bottom); c.stroke();
+    c.restore();
+
+    const entry = statHistory[idx];
+    const parts = royIds.filter(royId => entry.stats[royId]).map(royId => ({ royId, force: entry.stats[royId].force }));
+    const ty = bottom + 15;
+    const n = Math.max(1, parts.length);
+    parts.forEach((p, i) => {
+      const cx = panelX + (i + 0.5) * (panelW / n);
+      c.beginPath();
+      c.arc(cx - 9, ty - 3, 3, 0, Math.PI * 2);
+      c.fillStyle = ROYAUMES[p.royId].color;
+      c.fill();
+      c.strokeStyle = "rgba(43,29,16,.5)";
+      c.lineWidth = 0.5;
+      c.stroke();
+      c.font = "bold 11px -apple-system, sans-serif";
+      c.textAlign = "left";
+      c.fillStyle = "rgba(43,29,16,.9)";
+      c.fillText(String(p.force), cx - 2, ty);
+    });
+  }
+}
+
+function statChartIndexAtClientX(clientX) {
+  const canvas = document.getElementById("statChart");
+  const rect = canvas.getBoundingClientRect();
+  // canvas.style.width is set to STAT_CHART_W px, so client coordinates map
+  // 1:1 to the logical chart space regardless of devicePixelRatio
+  const localX = clientX - rect.left;
+  const frac = (localX - STAT_CHART_PANEL_X) / STAT_CHART_PANEL_W;
+  return Math.max(0, Math.min(statHistory.length - 1, Math.round(frac * (statHistory.length - 1))));
+}
+{
+  const statChartEl = document.getElementById("statChart");
+  statChartEl.addEventListener("pointerdown", (e) => {
+    if (statHistory.length < 2) return;
+    statChartScrubIndex = statChartIndexAtClientX(e.clientX);
+    drawStatChart();
+  });
+  statChartEl.addEventListener("pointermove", (e) => {
+    if (statChartScrubIndex === -1) return; // only while actively dragging
+    statChartScrubIndex = statChartIndexAtClientX(e.clientX);
+    drawStatChart();
+  });
+  const endScrub = () => { if (statChartScrubIndex !== -1) { statChartScrubIndex = -1; drawStatChart(); } };
+  statChartEl.addEventListener("pointerup", endScrub);
+  statChartEl.addEventListener("pointerleave", endScrub);
+  statChartEl.addEventListener("pointercancel", endScrub);
 }
 
 // --- fast in-app replay: re-simulate the same seed + difficulty, feeding
@@ -1275,7 +1368,7 @@ function playReplay(seed, difficulty, replayHumanRoyId, log, onFinish) {
   // an escape hatch — tapping it aborts the replay and jumps straight into
   // a fresh game instead of forcing the player to watch it through
   replaying = true;
-  replaySpeed = 6;
+  replaySpeed = 3; // was 6 — slowed by 50% per request, and sounds now play during it
   humanRoyId = replayHumanRoyId;
   applyDifficulty(difficulty);
   startGame(seed);
@@ -1484,11 +1577,27 @@ function render() {
   // perimeter, not every individual hex inside it (that was the original
   // bug: it used to stroke each hex's own hexagon, drawing a full honeycomb
   // grid instead of one outline around the selected village). Also used live
-  // during a drag-to-attack gesture: one outline on the territory the finger
-  // came down on, another following whichever territory it's currently over.
+  // during a drag-to-attack gesture: every territory in the planned chain
+  // gets outlined, connected by a dashed line so the whole attack line reads
+  // clearly as one gesture.
   if (selected !== -1) drawSilverOutline(selected);
-  if (dragFromId !== -1 && dragFromId !== selected) drawSilverOutline(dragFromId);
-  if (dragToId !== -1 && dragToId !== selected && dragToId !== dragFromId) drawSilverOutline(dragToId);
+  for (const tId of dragPath) {
+    if (tId !== selected) drawSilverOutline(tId);
+  }
+  if (dragPath.length >= 2) {
+    ctx.beginPath();
+    const p0 = territories[dragPath[0]];
+    ctx.moveTo(p0.cx, p0.cy);
+    for (let i = 1; i < dragPath.length; i++) {
+      const p = territories[dragPath[i]];
+      ctx.lineTo(p.cx, p.cy);
+    }
+    ctx.strokeStyle = "rgba(244,246,249,0.85)";
+    ctx.lineWidth = 2;
+    ctx.setLineDash([5, 4]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
 
   // force icons
   for (const t of territories) {
@@ -1702,6 +1811,7 @@ let suppressNextClick = false;
 // and kicks the turn sequence off.
 function pickFaction(royId) {
   humanRoyId = royId;
+  currentPlayer = royId; // whichever royaume is picked always plays first, not whatever seat happened to be numbered 0
   awaitingFactionPick = false;
   // authoritative hide, independent of *what* the player does next (attack,
   // end turn, open settings...) — previously this only hid on a follow-up
@@ -1717,10 +1827,8 @@ function pickFaction(royId) {
   updateStatus();
   updateGroups();
   render();
-  if (currentPlayer !== humanRoyId && !ROYAUMES[currentPlayer].neutral) {
-    aiRunning = true;
-    scheduleTurn(runAI, 350 / replaySpeed);
-  }
+  // currentPlayer === humanRoyId now (just set above), so it's always the
+  // player's own turn first — no AI kickoff needed here any more.
 }
 
 function handlePointer(clientX, clientY) {
@@ -1763,64 +1871,82 @@ function handlePointer(clientX, clientY) {
 }
 canvas.addEventListener("click", (e) => handlePointer(e.clientX, e.clientY));
 
-// --- optional drag-to-attack: drag from an owned territory straight onto an
-// adjacent enemy one to attack, instead of the default tap-then-tap. Off by
-// default (settings toggle) so it never changes behavior unless opted into.
+// --- optional drag-to-attack: drag from an owned territory across a chain
+// of adjacent enemy ones to attack them all in sequence, instead of the
+// default tap-then-tap. Off by default (settings toggle) so it never
+// changes behavior unless opted into.
 let dragToAttackEnabled = false;
 try { dragToAttackEnabled = localStorage.getItem("kw_dragToAttack") === "1"; } catch (e) { /* ignore */ }
 const DRAG_THRESHOLD = 18; // px in screen space, below this it's treated as a plain tap
-let dragStart = null; // {tId, x, y}
+let dragStartPos = null; // {x, y} — just for measuring the initial threshold
 let dragActive = false;
-// live silver-outline feedback while a drag-to-attack gesture is in progress
-// (separate from `selected` — a drag is not a tap-to-select) — set as soon as
-// the finger lands, not just once the drag threshold is crossed, so small
-// territories give immediate confirmation of what's under the finger
-let dragFromId = -1, dragToId = -1;
+// the planned attack chain for this gesture: territory ids in order, first
+// one owned by the player. Drawn live (see render()) so small territories
+// give immediate confirmation of what's under the finger, and dragging back
+// onto the previous node undoes that hop instead of forcing a restart.
+let dragPath = [];
 canvas.addEventListener("pointerdown", (e) => {
   if (!dragToAttackEnabled || replaying || gameOver || aiRunning || currentPlayer !== humanRoyId) return;
   const t = territoryAtClientPoint(e.clientX, e.clientY);
   if (t && t.owner === currentPlayer && t.force > 1) {
-    dragStart = { tId: t.id, x: e.clientX, y: e.clientY };
+    dragStartPos = { x: e.clientX, y: e.clientY };
     dragActive = false;
-    dragFromId = t.id;
+    dragPath = [t.id];
     render();
   }
 });
 canvas.addEventListener("pointermove", (e) => {
-  if (!dragStart) return;
-  if (Math.hypot(e.clientX - dragStart.x, e.clientY - dragStart.y) > DRAG_THRESHOLD) dragActive = true;
+  if (!dragStartPos) return;
+  if (Math.hypot(e.clientX - dragStartPos.x, e.clientY - dragStartPos.y) > DRAG_THRESHOLD) dragActive = true;
   const hoverT = territoryAtClientPoint(e.clientX, e.clientY);
-  const newDragToId = (hoverT && hoverT.id !== dragFromId) ? hoverT.id : -1;
-  if (newDragToId !== dragToId) { dragToId = newDragToId; render(); }
-});
-canvas.addEventListener("pointerup", (e) => {
-  if (!dragStart) return;
-  const from = dragStart, wasActive = dragActive;
-  dragStart = null; dragActive = false;
-  dragFromId = -1; dragToId = -1;
-  if (!wasActive) { render(); return; } // short movement — let the plain click handler treat it as a tap
-  suppressNextClick = true;
-  const fromT = territories[from.tId];
-  const targetT = territoryAtClientPoint(e.clientX, e.clientY);
-  if (!targetT || targetT.id === from.tId || targetT.owner === currentPlayer || !fromT.neighbors.has(targetT.id) || fromT.force <= 1) {
+  if (!hoverT) return;
+  const lastId = dragPath[dragPath.length - 1];
+  if (hoverT.id === lastId) return;
+  if (dragPath.length >= 2 && hoverT.id === dragPath[dragPath.length - 2]) {
+    dragPath.pop(); // dragged back onto the previous node — undo that hop
     render();
     return;
   }
-  if (onboarding) { onboarding = false; try { localStorage.setItem("kw_playedBefore", "1"); } catch (err) { /* ignore */ } }
-  if (!replaying) moveLog.push({ a: from.tId, b: targetT.id });
-  attack(from.tId, targetT.id);
-  selected = -1;
+  if (dragPath.includes(hoverT.id)) return; // no cycles
+  if (hoverT.owner === currentPlayer) return; // can't attack your own territory
+  if (!territories[lastId].neighbors.has(hoverT.id)) return; // must extend one adjacent hop at a time
+  dragPath.push(hoverT.id);
   render();
+});
+canvas.addEventListener("pointerup", () => {
+  if (!dragStartPos) return;
+  const path = dragPath, wasActive = dragActive;
+  dragStartPos = null; dragActive = false; dragPath = [];
+  if (!wasActive || path.length < 2) { render(); return; } // short movement / no valid hop — let the plain click handler treat it as a tap
+  suppressNextClick = true;
+  if (onboarding) { onboarding = false; try { localStorage.setItem("kw_playedBefore", "1"); } catch (err) { /* ignore */ } }
+  selected = -1;
+  executeAttackChain(path);
 });
 // the browser can cancel an in-progress touch instead of ever delivering
 // pointerup (e.g. it decided the gesture was a scroll, or another touch
-// interrupted it) — without this, dragStart/dragFromId could get stuck set,
-// making the next real tap misbehave until reset
+// interrupted it) — without this, dragPath could get stuck set, making the
+// next real tap misbehave until reset
 canvas.addEventListener("pointercancel", () => {
-  dragStart = null; dragActive = false;
-  dragFromId = -1; dragToId = -1;
+  dragStartPos = null; dragActive = false; dragPath = [];
   render();
 });
+
+// Runs each hop of a dragged attack chain in sequence. A hop can only
+// continue from the territory the *previous* hop just won — attacking your
+// own territory makes no sense, and losing a hop drops that stack back to
+// force 1 — so the chain naturally (and correctly) stops at the first
+// failed attack instead of trying to push on regardless.
+function executeAttackChain(path, i = 0) {
+  if (i >= path.length - 1 || gameOver) { render(); return; }
+  const fromId = path[i], toId = path[i + 1];
+  const fromT = territories[fromId];
+  if (fromT.owner !== currentPlayer || fromT.force <= 1 || !fromT.neighbors.has(toId)) { render(); return; }
+  if (!replaying) moveLog.push({ a: fromId, b: toId });
+  const win = attack(fromId, toId);
+  if (!win || gameOver) { render(); return; }
+  executeAttackChain(path, i + 1);
+}
 
 document.getElementById("endturn").addEventListener("click", () => {
   if (replaying || gameOver) return;
@@ -1992,15 +2118,22 @@ function startGame(seed) {
   document.getElementById("winbanner").style.display = "none";
   document.getElementById("truceOverlay").style.display = "none";
   document.getElementById("endturn").disabled = false;
-  gameOver = false; selected = -1; currentPlayer = 0; aiRunning = false;
+  gameOver = false; selected = -1; aiRunning = false;
   allCappedStreak = 0; truceEnded = false; truceWinnerId = -1;
+  // must reset even during a replay — it re-simulates from round 0, and
+  // leaving this at the original match's final value threw off escalated()
+  // (and thus the AI's behavior, and thus the outcome) from the first
+  // replayed turn on
+  roundNumber = 0;
   currentSeed = seed === undefined ? randomSeed() : seed;
   seedRNG(currentSeed);
   if (replaying) {
     awaitingFactionPick = false; // humanRoyId was already set by playReplay() before this call
+    currentPlayer = humanRoyId; // reproduce the exact same turn order as the original match (see pickFaction())
   } else {
     humanRoyId = -1; // nobody's picked a camp yet on a fresh game
     awaitingFactionPick = true;
+    currentPlayer = 0; // arbitrary until pickFaction() sets it to whichever seat is chosen
   }
   // authoritative visibility, tied to actual state rather than a one-shot
   // session flag — shown again on every fresh map, hidden the moment a pick
@@ -2012,21 +2145,17 @@ function startGame(seed) {
   generateTerritories();
   assignRoyaumes(); // with humanRoyId === -1 this comes out an equal split (no AI edge) until the pick
   if (!replaying) {
-    statHistory = []; roundNumber = 0; moveLog = []; gameStartDifficulty = DIFFICULTY;
+    statHistory = []; moveLog = []; gameStartDifficulty = DIFFICULTY;
     recordRoundSnapshot();
   }
   updateStatus();
   logMsg(awaitingFactionPick ? "Choisissez votre camp : touchez un territoire." : "Nouvelle partie.");
   updateGroups(); // populate before resize() measures the HUD's real height
   resize();
-  // seat 0 always plays first regardless of which royaume is human-controlled
-  // — if that's an AI seat, kick its turn off (advanceTurn only does this on
-  // *later* turn changes, not the very first one). Held off entirely while
-  // still awaiting the player's camp pick.
-  if (!awaitingFactionPick && currentPlayer !== humanRoyId && !ROYAUMES[currentPlayer].neutral) {
-    aiRunning = true;
-    scheduleTurn(runAI, 350 / replaySpeed);
-  }
+  // currentPlayer is already humanRoyId at this point (fresh games: set by
+  // pickFaction() right after this call; replays: set above from the
+  // recorded seat) — the human's own turn is always first, so there's
+  // nothing to kick off here.
 }
 
 const pendingSharedReplay = tryParseSharedReplay();
