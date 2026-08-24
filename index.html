@@ -106,6 +106,11 @@
   #settingsPanel label { display: flex; align-items: center; gap: 8px; font-size: 14px; margin-bottom: 16px; }
   .fieldGroup { margin-bottom: 16px; }
   .fieldLabel { font-size: 13px; opacity: .75; margin-bottom: 6px; }
+  #royaumesList { display: flex; flex-direction: column; gap: 5px; }
+  .royaumeRow { display: flex; align-items: baseline; gap: 7px; font-size: 13px; }
+  .royaumeRow .swatch { width: 11px; height: 11px; border-radius: 50%; flex: none; box-shadow: 0 0 0 1px rgba(43,29,16,.5); align-self: center; }
+  .royaumeRow .rname { font-weight: 700; }
+  .royaumeRow .repithet { font-style: italic; opacity: .75; }
   .levelRow { display: flex; gap: 6px; flex-wrap: wrap; }
   #settingsPanel .levelBtn {
     background: rgba(43,29,16,.08); color: #2b1d10; border: 1px solid rgba(43,29,16,.35);
@@ -216,6 +221,10 @@
         </div>
       </div>
       <div class="fieldGroup">
+        <div class="fieldLabel">Les royaumes</div>
+        <div id="royaumesList"></div>
+      </div>
+      <div class="fieldGroup">
         <div class="fieldLabel">Classer les royaumes par</div>
         <div id="sortLevels" class="levelRow">
           <button data-sort="territories" class="levelBtn">Villages</button>
@@ -262,6 +271,25 @@ const ROYAUMES = [
   { id: 2, name: "Montherlant",  color: "#c6a15b", accent: "#f7f0f5", chief: "#931f1d" },
   { id: 3, name: "Beaumanoir",   color: "#001f54", accent: "#f7f0f5", chief: "#c6a15b" },
   { id: 4, name: "Neutre",       color: "#6b7280", accent: "#4a5568", chief: "#4a5568", neutral: true }, // lightened from #0a1128 — too close to the canvas/background at full darkness
+];
+
+// A fixed personality per royaume (indexed by id, not by "whichever 3 are AI
+// this game" — the human can pick any of the 4, so whichever royaume ends up
+// AI-controlled keeps its own traits). Pure, deterministic offsets on top of
+// the existing difficulty-driven thresholds/mistake rate — no new source of
+// randomness, so replay determinism is untouched.
+// - aggressionDelta shifts the minimum force advantage required to attack
+//   (negative = attacks more readily, even at parity or a slight disadvantage)
+// - mistakeDelta shifts the chance of skipping an available good move
+// - exposureWeight scales how much leaving the attacking tile exposed to
+//   another neighbor counts against a move
+// - finishOffBonus is the score bonus for attacking a royaume down to its
+//   last couple of territories, instead of a marginally better trade elsewhere
+const AI_PERSONALITIES = [
+  { epithet: "les Prudents",  aggressionDelta: +0.6, mistakeDelta: -0.03, exposureWeight: 1.0, finishOffBonus: 2.0 }, // Châteauvieux — cautious, rarely overextends
+  { epithet: "les Enragés",   aggressionDelta: -0.6, mistakeDelta: +0.05, exposureWeight: 0.4, finishOffBonus: 2.0 }, // Villiers — reckless, attacks at the slightest opening
+  { epithet: "les Marchands", aggressionDelta: 0,    mistakeDelta: 0,     exposureWeight: 0.8, finishOffBonus: 3.5 }, // Montherlant — opportunistic, hunts weak royaumes down
+  { epithet: "les Stratèges", aggressionDelta: +0.2, mistakeDelta: -0.05, exposureWeight: 1.6, finishOffBonus: 2.0 }, // Beaumanoir — calculating, plays the long game
 ];
 
 // Difficulty: still a continuous 0-1 value under the hood (driving AI traits
@@ -1355,19 +1383,26 @@ function showWin(royId) {
   // deserves its own defeated, humiliated tone (with a small note of hope)
   // rather than the generic "X l'emporte."
   const humanLost = !truceEnded && royId !== humanRoyId;
+  // showWin() only ever fires with royId === humanRoyId in the victory
+  // branch below (checkWinner() only calls it once a single royaume remains
+  // — either it's the human's own, or the human was already wiped out and
+  // this is the humanLost branch instead) — so royId here always names the
+  // player's OWN kingdom, not a defeated rival.
+  const pers = AI_PERSONALITIES[royId];
   // several grave, lore-flavored victory lines rather than one flat
   // "Victoire, X !" — picked deterministically from the seed and winner (not
   // Math.random()) so a replay of the same match always shows the same one
   const VICTORY_LINES = [
-    `Victoire, seigneur ! ${ROYAUMES[royId].name} s'incline devant votre bannière — mais un trône ne se garde pas, il se défend. D'autres couronnes attendent d'être prises.`,
-    `Le sang a coulé, les bannières de ${ROYAUMES[royId].name} sont tombées. Votre nom sera chanté dans les tavernes... jusqu'à la prochaine guerre.`,
-    `Victoire ! ${ROYAUMES[royId].name} n'est plus. Gravez ce jour dans la pierre, puis reprenez l'épée — la conquête ne s'arrête jamais.`,
-    `${ROYAUMES[royId].name} est vaincu, sa terre est vôtre. Un royaume de plus sous votre étendard, et déjà l'horizon en réclame un autre.`,
+    `Victoire, seigneur ! Sous la bannière de ${ROYAUMES[royId].name}, plus une seule couronne rivale ne tient debout. Mais un trône ne se garde pas, il se défend — d'autres terres attendent d'être prises.`,
+    `Le sang a coulé, les dernières bannières rivales sont tombées. ${ROYAUMES[royId].name} règne seul, et ${pers.epithet} n'y sont pas pour rien. Votre nom sera chanté dans les tavernes... jusqu'à la prochaine guerre.`,
+    `Victoire ! Plus aucun ennemi ne conteste ${ROYAUMES[royId].name}. Gravez ce jour dans la pierre, puis reprenez l'épée — la conquête ne s'arrête jamais.`,
+    `Toutes les terres sont vôtres, seigneur de ${ROYAUMES[royId].name}. Un royaume de plus sous votre étendard, et déjà l'horizon en réclame un autre.`,
   ];
   const text = truceEnded
     ? "Match nul — la paix, l'affaire des gueux."
     : humanLost
-    ? "Vous avez tout donné, tout dépensé, et voilà : plus de terre, plus de soldats, seul et honteux devant vos pairs. " +
+    ? `${ROYAUMES[royId].name} et ${pers.epithet} ne vous ont laissé ni terre ni honneur. ` +
+      "Vous avez tout donné, tout dépensé, et voilà : plus de terre, plus de soldats, seul et honteux devant vos pairs. " +
       "Mais un seigneur déchu n'est pas un seigneur mort — quelque part, vous rêvez déjà de lever une nouvelle armée, " +
       "ou de trouver des alliés assez généreux pour vous aider à vous relever."
     : lastAttackWasGrind
@@ -1640,6 +1675,7 @@ document.getElementById("playInstead").addEventListener("click", () => {
 function runAI() {
   const royId = currentPlayer;
   if (gameOver || royId === humanRoyId) { aiRunning = false; return; }
+  const pers = AI_PERSONALITIES[royId];
 
   function bestMove() {
     const territoryCount = {};
@@ -1652,11 +1688,11 @@ function runAI() {
         const n = territories[nId];
         if (n.owner === royId) continue;
         const adv = t.force - n.force;
-        if (adv < escalated(AI_AGGRESSION_THRESHOLD, -1)) continue;
+        if (adv < escalated(AI_AGGRESSION_THRESHOLD, -1) + pers.aggressionDelta) continue;
 
         // prefer finishing off a nearly-eliminated royaume over a marginally
         // better trade elsewhere
-        let score = adv + (territoryCount[n.owner] <= 2 ? 2 : 0);
+        let score = adv + (territoryCount[n.owner] <= 2 ? pers.finishOffBonus : 0);
 
         // attacking always drops `from` to force 1 (win or lose) — penalize
         // leaving it exposed to a strong hostile neighbor other than the target
@@ -1666,7 +1702,7 @@ function runAI() {
           const o = territories[oId];
           if (o.owner !== royId) exposure = Math.max(exposure, o.force);
         }
-        score -= exposure * 0.3;
+        score -= exposure * 0.3 * pers.exposureWeight;
 
         if (score > bestScore) { bestScore = score; best = { from: t.id, to: nId }; }
       }
@@ -1675,7 +1711,8 @@ function runAI() {
   }
 
   const mv = bestMove();
-  if (mv && rngFloat() >= escalated(AI_MISTAKE_RATE, 0.05)) {
+  const mistakeRate = Math.max(0, Math.min(1, escalated(AI_MISTAKE_RATE, 0.05) + pers.mistakeDelta));
+  if (mv && rngFloat() >= mistakeRate) {
     attack(mv.from, mv.to);
     scheduleTurn(runAI, 315 / replaySpeed); // 450 * 0.7
   } else {
@@ -2244,6 +2281,17 @@ dragToAttackToggle.addEventListener("change", () => {
   try { localStorage.setItem("kw_dragToAttack", dragToAttackEnabled ? "1" : "0"); } catch (e) { /* ignore */ }
   sfxToggle();
 });
+
+// static (never changes mid-game), so populated once — each royaume's fixed
+// personality, so the player knows what to expect from whichever 3 of the 4
+// end up AI-controlled once they pick their own
+document.getElementById("royaumesList").innerHTML = ROYAUMES.slice(0, ROYAUME_COUNT - 1).map(roy => `
+  <div class="royaumeRow">
+    <span class="swatch" style="background:${roy.color}"></span>
+    <span class="rname">${roy.name}</span>
+    <span class="repithet">${AI_PERSONALITIES[roy.id].epithet}</span>
+  </div>
+`).join("");
 
 const metaProgressToggle = document.getElementById("metaProgressToggle");
 metaProgressToggle.checked = metaProgressEnabled;
