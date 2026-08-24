@@ -26,6 +26,7 @@
   .chip { display: flex; align-items: center; gap: 4px; font-size: 10.5px; white-space: nowrap; }
   .chip .swatch { width: 8px; height: 8px; border-radius: 2px; flex: none; box-shadow: 0 0 0 1px rgba(0,0,0,.5); }
   .chip .n { font-weight: 700; }
+  .hudRight { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex: none; }
   #endturn {
     pointer-events: auto; flex: none; white-space: nowrap;
     background: #9c1c1c; color: #f2ede2; border: none; border-radius: 8px;
@@ -33,6 +34,23 @@
     box-shadow: 0 2px 6px rgba(0,0,0,.4);
   }
   #endturn:disabled { background: #5a5044; opacity: .6; }
+  #settingsBtn {
+    pointer-events: auto; background: rgba(20,16,12,.55); color: #f2ede2;
+    border: 1px solid rgba(242,237,226,.35); border-radius: 8px;
+    width: 34px; height: 34px; font-size: 16px; line-height: 1;
+  }
+  #settingsPanel {
+    position: absolute; inset: 0; display: none;
+    align-items: center; justify-content: center;
+    background: rgba(10,8,6,.82); color: #f2ede2; text-align: left;
+  }
+  #settingsPanel .box { background: #241d16; border-radius: 12px; padding: 20px 22px; max-width: 320px; }
+  #settingsPanel h2 { margin: 0 0 14px; font-size: 18px; }
+  #settingsPanel label { display: flex; align-items: center; gap: 8px; font-size: 14px; margin-bottom: 16px; }
+  #settingsPanel button {
+    background: #1c3f8f; color: #fff; border: none; border-radius: 8px;
+    padding: 8px 16px; font-size: 14px; font-weight: 700;
+  }
   #winbanner {
     position: absolute; inset: 0; display: none;
     align-items: center; justify-content: center; flex-direction: column;
@@ -54,11 +72,21 @@
       <div id="log"></div>
       <div id="groups"></div>
     </div>
-    <button id="endturn">Fin du tour</button>
+    <div class="hudRight">
+      <button id="settingsBtn" aria-label="Réglages">⚙</button>
+      <button id="endturn">Fin du tour</button>
+    </div>
   </div>
   <div id="winbanner">
     <h1 id="wintext"></h1>
     <button id="restart">Rejouer</button>
+  </div>
+  <div id="settingsPanel">
+    <div class="box">
+      <h2>Réglages</h2>
+      <label><input type="checkbox" id="deterministicToggle"> Combat sans hasard (test) — la plus grande force gagne toujours</label>
+      <button id="closeSettings">Fermer</button>
+    </div>
   </div>
 </div>
 
@@ -66,22 +94,33 @@
 "use strict";
 
 /* ---------- CONFIG ---------- */
-const HEX_SIZE = 16;
-const MAP_PIXEL_RADIUS = 210;
+const HEX_SIZE = 20;          // was 16 — bigger tap targets on phone
+const MAP_PIXEL_RADIUS = 230; // was 210 — grown a bit alongside HEX_SIZE so
+                               // territories keep a similar hex count/shape
 const TERRITORY_COUNT = 26;
 const ROYAUME_COUNT = 5; // joueur + 3 IA + 1 neutre
 
+// force tiers: gueux=1, archer=4 (4 gueux), chevalier=12 (3 archers) — was
+// 1/3/9. Raised so the top tier takes longer to reach.
+const FORCE_CAP = 12;
+const ARCHER_THRESHOLD = 4;
+
+// temporary: character sprites are disabled (plain numbers only) per request
+// — kept fully in place so they can be switched back on later.
+const SHOW_UNIT_SPRITES = false;
+
+// palette per https://coolors.co/0a1128-001f54-931f1d-c6a15b-f7f0f5
 const ROYAUMES = [
-  { id: 0, name: "Châteauvieux", color: "#e6e1d3", accent: "#1c3f8f", chief: "#9c1c1c", human: true },
-  { id: 1, name: "Villiers",     color: "#9c2b1c", accent: "#e0a838", chief: "#1a1410", human: false },
-  { id: 2, name: "Montherlant",  color: "#2f6b3a", accent: "#e6e1d3", chief: "#9c1c1c", human: false },
-  { id: 3, name: "Beaumanoir",   color: "#26468f", accent: "#e6e1d3", chief: "#c8a13c", human: false },
-  { id: 4, name: "Neutre",       color: "#7a7568", accent: "#5a5648", chief: "#5a5648", human: false, neutral: true },
+  { id: 0, name: "Châteauvieux", color: "#f7f0f5", accent: "#001f54", chief: "#931f1d", human: true },
+  { id: 1, name: "Villiers",     color: "#931f1d", accent: "#c6a15b", chief: "#0a1128", human: false },
+  { id: 2, name: "Montherlant",  color: "#c6a15b", accent: "#f7f0f5", chief: "#931f1d", human: false },
+  { id: 3, name: "Beaumanoir",   color: "#001f54", accent: "#f7f0f5", chief: "#c6a15b", human: false },
+  { id: 4, name: "Neutre",       color: "#6b7280", accent: "#4a5568", chief: "#4a5568", human: false, neutral: true }, // lightened from #0a1128 — too close to the canvas/background at full darkness
 ];
 
 // Difficulty: continuous slider (0 = easiest, 1 = hardest), driving AI traits
 // and the share of neutral territories — no fixed tiers, per design decision.
-let DIFFICULTY = 0.5;
+let DIFFICULTY = 0.4; // was 0.5 — lowered 20% per request
 let NEUTRAL_FRACTION = 0.2;
 let AI_AGGRESSION_THRESHOLD = 0;
 let AI_MISTAKE_RATE = 0.15;
@@ -128,7 +167,7 @@ function resize() {
   const hudInset = document.getElementById("hud").offsetHeight + 6;
   const availH = h - hudInset;
   centerX = w / 2; centerY = hudInset + availH / 2;
-  viewScale = Math.min(w, availH) / (MAP_PIXEL_RADIUS * 2.3);
+  viewScale = Math.min(w, availH) / (MAP_PIXEL_RADIUS * 2.0); // was 2.3 — fills more of the screen
   render();
 }
 window.addEventListener("resize", resize);
@@ -211,7 +250,7 @@ function generateHexGrid() {
   const harmonics = [2, 3, 4, 5].map(freq => ({
     freq,
     phase: rngFloat() * Math.PI * 2,
-    amp: 0.05 + rngFloat() * 0.07,
+    amp: 0.03 + rngFloat() * 0.05, // was 0.05-0.12 — less shrinkage variance, island stays closer to filling its full radius
   }));
   function radialJitter(theta) {
     let j = 1;
@@ -326,15 +365,25 @@ function centroidOf(terr) {
   let sx = 0, sy = 0;
   for (const hk of terr.hexKeys) { sx += hexes[hk].x; sy += hexes[hk].y; }
   const avgX = sx / terr.hexKeys.length, avgY = sy / terr.hexKeys.length;
-  // territories are irregular, sometimes concave blobs — the raw average can
-  // land in a gap between lobes, outside the territory's own hexes. Snap to
-  // whichever of its hexes is closest, so anything drawn at (cx,cy) — the
-  // force icon in particular — always sits on a hex that's actually ours.
-  let best = hexes[terr.hexKeys[0]], bestD = Infinity;
+  // Territories are irregular, sometimes concave (C-shaped) blobs. Snapping to
+  // whichever hex is merely *closest to the average* can still land right up
+  // against another royaume's border on a concave shape, making the force
+  // number look like it belongs to the neighboring territory. Instead, pick
+  // the hex most surrounded by its own territory (most same-territory
+  // neighbors out of 6) — the most "interior" spot — breaking ties by
+  // distance to the average.
+  let best = hexes[terr.hexKeys[0]], bestScore = -1, bestD = Infinity;
   for (const hk of terr.hexKeys) {
     const h = hexes[hk];
+    let interior = 0;
+    for (const nk of neighborsOf(h.q, h.r)) {
+      const nh = hexes[nk];
+      if (nh && nh.territoryId === h.territoryId) interior++;
+    }
     const d = (h.x - avgX) ** 2 + (h.y - avgY) ** 2;
-    if (d < bestD) { bestD = d; best = h; }
+    if (interior > bestScore || (interior === bestScore && d < bestD)) {
+      best = h; bestScore = interior; bestD = d;
+    }
   }
   return { x: best.x, y: best.y };
 }
@@ -403,12 +452,12 @@ function assignRoyaumes() {
 
 /* ---------- FORCE ICON DECOMPOSITION ---------- */
 function decompose(force) {
-  let n9 = Math.floor(force / 9); let rem = force % 9;
-  let n3 = Math.floor(rem / 3); rem = rem % 3;
+  let n12 = Math.floor(force / FORCE_CAP); let rem = force % FORCE_CAP;
+  let n4 = Math.floor(rem / ARCHER_THRESHOLD); rem = rem % ARCHER_THRESHOLD;
   let n1 = rem;
   const shapes = [];
-  for (let i = 0; i < n9; i++) shapes.push("circle");
-  for (let i = 0; i < n3; i++) shapes.push("square");
+  for (let i = 0; i < n12; i++) shapes.push("circle");
+  for (let i = 0; i < n4; i++) shapes.push("square");
   for (let i = 0; i < n1; i++) shapes.push("triangle");
   return shapes;
 }
@@ -488,10 +537,15 @@ function rollSum(n) {
   return s;
 }
 
+let DETERMINISTIC_COMBAT = false; // testable via the ⚙ menu — bigger force always wins, no dice
+try {
+  if (localStorage.getItem("kw_deterministicCombat") === "1") DETERMINISTIC_COMBAT = true;
+} catch (e) { /* storage unavailable — keep the default */ }
+
 function attack(fromId, toId) {
   const from = territories[fromId], to = territories[toId];
-  const atk = rollSum(from.force);
-  const def = rollSum(to.force);
+  const atk = DETERMINISTIC_COMBAT ? from.force : rollSum(from.force);
+  const def = DETERMINISTIC_COMBAT ? to.force : rollSum(to.force);
   const win = atk > def;
   logMsg(`${ROYAUMES[from.owner].name} attaque ${ROYAUMES[to.owner].name} — ${atk} vs ${def} — ${win ? "victoire" : "échec"}`);
   triggerCombatFX(fromId, toId, atk, def, win);
@@ -516,7 +570,7 @@ function endTurn() {
   const reinforcedIds = [];
   while (pts > 0 && guardCount < 500) {
     guardCount++;
-    const owned = territories.filter(t => t.owner === royId && t.force < 9);
+    const owned = territories.filter(t => t.owner === royId && t.force < FORCE_CAP);
     if (!owned.length) break;
     const chosen = pick(owned);
     chosen.force++;
@@ -765,6 +819,21 @@ const UNIT_ASPECT = {
 const UNIT_CONTENT_FRACTION = { triangle: 1.0, square: 0.91, circle: 0.62 };
 
 function drawForceIcon(t) {
+  ctx.textAlign = "center";
+
+  if (!SHOW_UNIT_SPRITES) {
+    // Sprites temporarily disabled per request — plain (double-size) number
+    // only. The sprite-drawing code below is left in place, untouched, to
+    // switch back on later by flipping SHOW_UNIT_SPRITES.
+    ctx.font = "bold 14px -apple-system, sans-serif";
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = "rgba(20,16,12,0.85)";
+    ctx.fillStyle = "#f2ede2";
+    ctx.strokeText(String(t.force), t.cx, t.cy + 5);
+    ctx.fillText(String(t.force), t.cx, t.cy + 5);
+    return;
+  }
+
   const shapes = decompose(t.force);
   const baseH = 13;
   const heights = shapes.map(s => baseH / UNIT_CONTENT_FRACTION[s]);
@@ -782,8 +851,7 @@ function drawForceIcon(t) {
   ctx.fillStyle = "#f2ede2";
   ctx.strokeStyle = "rgba(20,16,12,0.8)";
   ctx.lineWidth = 2;
-  ctx.font = "bold 7px -apple-system, sans-serif";
-  ctx.textAlign = "center";
+  ctx.font = "bold 14px -apple-system, sans-serif";
   ctx.strokeText(String(t.force), t.cx, yBottom + 8);
   ctx.fillText(String(t.force), t.cx, yBottom + 8);
 }
@@ -823,6 +891,20 @@ document.getElementById("endturn").addEventListener("click", () => {
   if (!gameOver && !aiRunning && ROYAUMES[currentPlayer].human) endTurn();
 });
 document.getElementById("restart").addEventListener("click", () => startGame());
+
+const settingsPanel = document.getElementById("settingsPanel");
+const deterministicToggle = document.getElementById("deterministicToggle");
+deterministicToggle.checked = DETERMINISTIC_COMBAT;
+document.getElementById("settingsBtn").addEventListener("click", () => {
+  settingsPanel.style.display = "flex";
+});
+document.getElementById("closeSettings").addEventListener("click", () => {
+  settingsPanel.style.display = "none";
+});
+deterministicToggle.addEventListener("change", () => {
+  DETERMINISTIC_COMBAT = deterministicToggle.checked;
+  try { localStorage.setItem("kw_deterministicCombat", DETERMINISTIC_COMBAT ? "1" : "0"); } catch (e) { /* ignore */ }
+});
 
 /* ---------- STATUS / LOG ---------- */
 function updateStatus() {
