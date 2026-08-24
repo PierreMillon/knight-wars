@@ -1646,14 +1646,41 @@ function sfxEndTurn() { playTone(120, 0.14, { type: "sine", cutoff: 480, volume:
 // alone: C5, E5, G5, Bb5.
 const REINFORCE_ROOT_HZ = [523.25, 659.25, 783.99, 932.33];
 const REINFORCE_CHORD_RATIOS = [1, Math.pow(2, 4 / 12), Math.pow(2, 7 / 12), 2]; // root, major third, fifth, octave
+// Queued, not fire-and-forget: every royaume's turn already gets a short
+// perceivable pause before play continues (see endTurn()/REINFORCE_PAUSE_MS),
+// but that pause is much shorter than the full note-per-point melody a big
+// reinforcement used to play — back to back, the next royaume's chime
+// started right over the tail of the previous one, blurring their
+// otherwise-distinct root notes together instead of reading as separate
+// "voices". Now only a short taste of each royaume's melody plays (not the
+// whole count-scaled run), followed by its own pause, before the next
+// queued royaume's chime starts. Runs independently of — and can lag
+// slightly behind — the actual turn-advance pacing above, since all this
+// queue does is eventually play a sound; it never blocks or delays the game
+// itself.
+const REINFORCE_CHIME_QUEUE_NOTES = 2; // "une première section courte" — enough to place the melody, not the whole run
+const REINFORCE_CHIME_GAP_MS = 130; // silent gap between one royaume's chime and the next
+let reinforceSoundQueue = []; // [{count, royId}]
+let reinforceSoundPlaying = false;
 function sfxReinforce(count, royId = humanRoyId) {
-  const n = Math.min(count, 10); // a fast run, not a whole scale marathon, on a very large windfall
+  reinforceSoundQueue.push({ count, royId });
+  processReinforceSoundQueue();
+}
+function processReinforceSoundQueue() {
+  if (reinforceSoundPlaying || !reinforceSoundQueue.length) return;
+  reinforceSoundPlaying = true;
+  const { count, royId } = reinforceSoundQueue.shift();
+  const n = Math.min(count, REINFORCE_CHIME_QUEUE_NOTES);
   const root = REINFORCE_ROOT_HZ[royId] ?? REINFORCE_ROOT_HZ[0];
   for (let i = 0; i < n; i++) {
-    const ratio = REINFORCE_CHORD_RATIOS[i % REINFORCE_CHORD_RATIOS.length] * (1 + Math.floor(i / REINFORCE_CHORD_RATIOS.length) * 0.5);
-    const freq = root * ratio;
-    setTimeout(() => playTone(freq, 0.16, { type: "sine", cutoff: 2400, volume: 0.06 }), i * 110);
+    const ratio = REINFORCE_CHORD_RATIOS[i % REINFORCE_CHORD_RATIOS.length];
+    setTimeout(() => playTone(root * ratio, 0.16, { type: "sine", cutoff: 2400, volume: 0.06 }), i * 110);
   }
+  const noteSpanMs = (n - 1) * 110 + 160; // last note's own start offset + its own duration
+  setTimeout(() => {
+    reinforceSoundPlaying = false;
+    processReinforceSoundQueue();
+  }, noteSpanMs + REINFORCE_CHIME_GAP_MS);
 }
 // Win/loss/truce stingers reuse the same two building blocks the rest of the
 // combat sounds already established: each royaume's own root note
@@ -3337,8 +3364,14 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.3";
+const GAME_VERSION = "1.4";
 const CHANGELOG = [
+  {
+    version: "1.4",
+    notes: [
+      "Correction : les carillons de renfort de plusieurs royaumes à la suite se chevauchaient — ils s'enchaînent désormais proprement, chacun son tour",
+    ],
+  },
   {
     version: "1.3",
     notes: [
@@ -3645,6 +3678,9 @@ function startGame(seed) {
   document.getElementById("endturn").disabled = false;
   gameOver = false; selected = -1; aiRunning = false;
   allCappedStreak = 0; lastStalemateFingerprint = null; truceEnded = false; truceWinnerId = -1; humanSurrendered = false;
+  // a stray queued chime from a just-abandoned match (e.g. "Nouvelle
+  // guerre" tapped mid AI-cascade) shouldn't bleed into the new one
+  reinforceSoundQueue = []; reinforceSoundPlaying = false;
   // must reset even during a replay — it re-simulates from round 0, and
   // leaving this at the original match's final value threw off escalated()
   // (and thus the AI's behavior, and thus the outcome) from the first
