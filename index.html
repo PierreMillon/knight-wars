@@ -1673,6 +1673,14 @@ function personalPerformanceLine() {
 
 function showWin(royId) {
   document.getElementById("winbanner").style.display = "flex";
+  // The last recorded snapshot is from the *start* of the round the match
+  // actually ended in (recordRoundSnapshot() only runs when play returns to
+  // the human — the deciding attack itself ends the match before that ever
+  // happens again) — without one final snapshot here, the chart's right
+  // edge (and the scrub reading at the very end) showed the board from
+  // just before the last few moves, not the true final territory split
+  // (e.g. 96/4 instead of the actual 100/0 on a clean sweep).
+  recordRoundSnapshot();
   // right before the player is likely to hit "Rejouer"/"Nouvelle guerre" —
   // give the update check a head start so it's ready by the time they click
   checkForUpdate();
@@ -1873,9 +1881,8 @@ function drawStatChart() {
     const idx = statChartScrubIndex;
     const x = xForIndex(idx);
     c.save();
-    c.strokeStyle = "rgba(43,29,16,.55)";
-    c.lineWidth = 1;
-    c.setLineDash([3, 3]);
+    c.strokeStyle = "#ffffff";
+    c.lineWidth = 2;
     c.beginPath(); c.moveTo(x, top); c.lineTo(x, bottom); c.stroke();
     c.restore();
 
@@ -1906,7 +1913,7 @@ function drawStatChart() {
   document.getElementById("chartLegend").innerHTML = [...royIdSet].sort((a, b) => a - b).concat(neutralId).map(id => `
     <div class="royaumeRow">
       <span class="swatch" style="background:${ROYAUMES[id].color}"></span>
-      <span class="rname">${ROYAUMES[id].name}</span>
+      <span class="rname">${ROYAUMES[id].name}${id === humanRoyId ? " (Vous, Monseigneur !)" : ""}</span>
     </div>
   `).join("");
 }
