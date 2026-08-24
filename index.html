@@ -82,6 +82,18 @@
   #groups {
     display: flex; flex-direction: column; align-items: flex-start; gap: 4px;
   }
+  /* mirrors #topBar on the opposite corner — nothing else lives up there, so
+     no equivalent of the settingsBtn top-padding offset is needed */
+  #topBarRight {
+    position: absolute; right: 0; top: 0;
+    padding: calc(8px + env(safe-area-inset-top, 0px)) 14px 6px 0;
+    box-sizing: border-box; pointer-events: none;
+    display: flex; flex-direction: column; align-items: flex-end;
+    color: #f2ede2; text-shadow: 0 1px 2px rgba(0,0,0,.6);
+  }
+  #forcePercents {
+    display: flex; flex-direction: column; align-items: flex-end; gap: 4px;
+  }
   .chip { display: flex; align-items: center; gap: 5px; font-size: 12px; white-space: nowrap; flex: none; }
   .chip .swatch { width: 11px; height: 11px; border-radius: 50%; flex: none; box-shadow: 0 0 0 1px rgba(0,0,0,.5); }
   .chip .n { font-weight: 700; }
@@ -252,6 +264,9 @@
   <div id="log"></div>
   <div id="topBar">
     <div id="groups"></div>
+  </div>
+  <div id="topBarRight">
+    <div id="forcePercents"></div>
   </div>
   <button id="settingsBtn" aria-label="Réglages"><img id="settingsBtnImg" alt=""></button>
   <div id="gueuxBadge"></div>
@@ -2349,6 +2364,28 @@ function updateGroups() {
   el.innerHTML = rows.map(r =>
     `<span class="chip"><span class="swatch" style="background:${r.roy.color}"></span>` +
     `<span class="n">${r.connected}</span>·${r.force}</span>`
+  ).join("");
+  updateForcePercents();
+}
+
+// Top-right stat: each seigneur's current army as a % of the max they could
+// field on the land they actually hold right now (every owned province at
+// FORCE_CAP) — how full their war chest is, distinct from the left-side
+// stats which are about how much land/how many soldiers, not how "topped up".
+function updateForcePercents() {
+  const el = document.getElementById("forcePercents");
+  if (!el) return;
+  const rows = [];
+  for (let royId = 0; royId < ROYAUME_COUNT - 1; royId++) { // exclude neutral (last)
+    if (!isAlive(royId)) continue;
+    const ownedCount = territories.reduce((n, t) => n + (t.owner === royId ? 1 : 0), 0);
+    const maxForce = ownedCount * FORCE_CAP;
+    const pct = maxForce > 0 ? Math.round((totalForce(royId) / maxForce) * 100) : 0;
+    rows.push({ roy: ROYAUMES[royId], pct });
+  }
+  rows.sort((a, b) => b.pct - a.pct);
+  el.innerHTML = rows.map(r =>
+    `<span class="chip"><span class="swatch" style="background:${r.roy.color}"></span>${r.pct}%</span>`
   ).join("");
 }
 
