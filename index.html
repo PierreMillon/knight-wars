@@ -162,6 +162,17 @@
     background: #1c3f8f; color: #fff; border: none; border-radius: 8px;
     padding: 10px 20px; font-size: 15px; font-weight: 700;
   }
+  /* small first-game-only tutorial banner — same materials as the other HUD
+     buttons, just top-center and text-only, out of the way of the map */
+  #onboardingHint {
+    position: absolute; top: calc(10px + env(safe-area-inset-top, 0px)); left: 50%;
+    transform: translateX(-50%); z-index: 5;
+    display: none; pointer-events: none; max-width: 78vw; text-align: center;
+    background: rgba(20,16,12,.75); color: #f2ede2; font-size: 13px; font-weight: 600;
+    padding: 8px 14px; border-radius: 10px; border: 1px solid #8a6d3b;
+    box-shadow: 0 0 0 1px rgba(20,16,12,.7), 0 2px 6px rgba(0,0,0,.45);
+    font-family: Georgia, "Iowan Old Style", Palatino, "Times New Roman", serif;
+  }
 </style>
 </head>
 <body>
@@ -176,6 +187,7 @@
   </div>
   <button id="settingsBtn" aria-label="Réglages"><img id="settingsBtnImg" alt=""></button>
   <div id="gueuxBadge"></div>
+  <div id="onboardingHint"></div>
   <button id="endturn">Fin de bataille</button>
   <button id="rerollBtn">⚜ Nouveau royaume</button>
   <div id="winbanner">
@@ -2052,6 +2064,7 @@ function pickFaction(royId) {
   // ownership itself isn't touched by the pick or by balanceStartingForces()
   humanStartTerritories = territories.filter(t => t.owner === royId).length;
   logMsg(`Vous jouez ${ROYAUMES[royId].name}.`);
+  if (onboarding) showOnboardingHint("Touchez un de vos territoires pour le sélectionner.");
   updateStatus();
   updateGroups();
   render();
@@ -2085,7 +2098,7 @@ function handlePointer(clientX, clientY) {
   if (selected === -1) {
     if (t.owner === currentPlayer && t.force > 1) {
       selected = tId;
-      if (onboarding) logMsg("Cliquez pour attaquer une zone ennemie adjacente.");
+      if (onboarding) showOnboardingHint("Touchez un territoire ennemi adjacent (contour doré) pour l'attaquer.");
     }
   } else if (selected === tId) {
     selected = -1;
@@ -2095,6 +2108,8 @@ function handlePointer(clientX, clientY) {
       if (onboarding) {
         onboarding = false;
         try { localStorage.setItem("kw_playedBefore", "1"); } catch (e) { /* ignore */ }
+        showOnboardingHint("Touchez « Fin de bataille » quand vous avez terminé vos attaques.");
+        setTimeout(hideOnboardingHint, 4500);
       }
       if (!replaying) moveLog.push({ a: selected, b: tId });
       attack(selected, tId);
@@ -2164,7 +2179,12 @@ canvas.addEventListener("pointerup", (e) => {
   dragStartPos = null; dragActive = false; dragPath = [];
   if (wasActive && path.length >= 2) {
     // a real attack-chain drag
-    if (onboarding) { onboarding = false; try { localStorage.setItem("kw_playedBefore", "1"); } catch (err) { /* ignore */ } }
+    if (onboarding) {
+      onboarding = false;
+      try { localStorage.setItem("kw_playedBefore", "1"); } catch (err) { /* ignore */ }
+      showOnboardingHint("Touchez « Fin de bataille » quand vous avez terminé vos attaques.");
+      setTimeout(hideOnboardingHint, 4500);
+    }
     selected = -1;
     executeAttackChain(path);
     return;
@@ -2393,6 +2413,18 @@ function logMsg(msg) {
   document.getElementById("log").textContent = msg;
 }
 
+// Small first-game-only tutorial banner (see `onboarding`) — #log/#status
+// are internal-only (display:none), so this is the only actually-visible
+// instructional text in the game.
+function showOnboardingHint(msg) {
+  const el = document.getElementById("onboardingHint");
+  el.textContent = msg;
+  el.style.display = "block";
+}
+function hideOnboardingHint() {
+  document.getElementById("onboardingHint").style.display = "none";
+}
+
 function refreshGueuxBadge() {
   const el = document.getElementById("gueuxBadge");
   el.style.display = (metaProgressEnabled && !replaying) ? "flex" : "none";
@@ -2448,6 +2480,8 @@ function startGame(seed) {
   }
   updateStatus();
   logMsg(awaitingFactionPick ? "Choisissez votre camp : touchez un territoire." : "Nouvelle partie.");
+  if (onboarding && awaitingFactionPick) showOnboardingHint("Touchez un territoire pour choisir votre camp.");
+  else hideOnboardingHint();
   updateGroups(); // populate before resize() measures the HUD's real height
   resize();
   // currentPlayer is already humanRoyId at this point (fresh games: set by
