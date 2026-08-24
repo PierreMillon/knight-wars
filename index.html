@@ -32,7 +32,7 @@
     font-family: Georgia, "Iowan Old Style", Palatino, "Times New Roman", serif;
   }
   #settingsBtn {
-    position: absolute; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); left: 14px;
+    position: absolute; top: calc(8px + env(safe-area-inset-top, 0px)); left: 10px;
     pointer-events: auto; background: rgba(20,16,12,.55);
     width: 34px; height: 34px; padding: 3px;
   }
@@ -59,7 +59,9 @@
     .sideArt { display: block; }
   }
   #gueuxBadge {
-    position: absolute; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); left: 54px;
+    /* reclaims the bottom-left slot #settingsBtn vacated when it moved to
+       the top-left corner */
+    position: absolute; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); left: 14px;
     display: none; align-items: center; pointer-events: auto; cursor: pointer;
     background: rgba(20,16,12,.55);
     color: #f2ede2; font-size: 12px; padding: 8px 12px; font-weight: 700;
@@ -70,7 +72,9 @@
   #endturn:disabled { background: #5a5044 !important; color: #f2ede2 !important; opacity: .6; }
   #topBar {
     position: absolute; left: 0; top: 0;
-    padding: calc(8px + env(safe-area-inset-top, 0px)) 0 6px 14px;
+    /* top padding cleared to sit below #settingsBtn now that it lives in this
+       same corner, instead of overlapping it */
+    padding: calc(50px + env(safe-area-inset-top, 0px)) 0 6px 14px;
     box-sizing: border-box; pointer-events: none;
     display: flex; flex-direction: column; align-items: flex-start;
     color: #f2ede2; text-shadow: 0 1px 2px rgba(0,0,0,.6);
@@ -119,21 +123,29 @@
     border-radius: 6px; padding: 6px 10px; font-size: 13px; font-weight: 400;
   }
   #settingsPanel .levelBtn.active { background: #1c3f8f; color: #fff; border-color: #1c3f8f; font-weight: 700; }
-  #newWarBtn, #loreBtn { margin-bottom: 10px; display: block; }
+  #newWarBtn, #conseilsBtn, #loreBtn, #surrenderBtn { margin-bottom: 10px; display: block; }
+  /* top-of-panel close button, not a stacked action row — small and pulled
+     to the left edge instead of taking a full-width row like the buttons
+     below it */
+  #closeSettings { display: block; margin: 0 0 16px; padding: 6px 14px; font-size: 13px; }
   #winbanner {
     position: absolute; inset: 0; display: none;
     align-items: center; justify-content: center; flex-direction: column;
     background: rgba(10,8,6,.82); text-align: center;
   }
-  #winbanner .box { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+  #winbanner .box { display: flex; flex-direction: column; align-items: center; gap: 14px; max-height: 88vh; overflow-y: auto; }
   #rerollBtn {
     position: absolute; right: 14px; /* bottom is set in JS, stacked just above #endturn */
     pointer-events: auto; background: rgba(20,16,12,.6); color: #f2ede2;
     padding: 8px 16px; font-size: 13px; white-space: nowrap; font-weight: 700;
   }
-  #winbanner h1 { margin: 0; font-size: 24px; max-width: 260px; }
+  /* was a flat 24px — fine for a short line, but the longer victory/loss
+     lines wrap to 6-7 lines at that size and push the chart + buttons far
+     enough down that they needed scrolling to reach on some phones. Scales
+     down on narrow viewports instead (clamp, not just a smaller flat size,
+     so it still reads as a headline on a wider screen). */
+  #winbanner h1 { margin: 0; font-size: clamp(16px, 5.2vw, 22px); line-height: 1.25; max-width: 290px; }
   #winSubtext { margin: -6px 0 0; font-size: 13px; font-style: italic; opacity: .8; max-width: 260px; }
-  #winbanner img { width: 96px; height: auto; image-rendering: pixelated; }
   #statChart { background: rgba(0,0,0,.05); border-radius: 8px; touch-action: none; } /* otherwise a scrub drag gets read as a page gesture */
   /* full family-branch names for the chart above — the chart itself only has
      room for colors, and "Villiers"/"Beaumanoir" alone don't read as
@@ -168,14 +180,46 @@
   #lorePersonalities .personalityRow { font-size: 13px; line-height: 1.5; }
   #lorePersonalities .personalityRow .rname { font-weight: 700; }
   #lorePersonalities .personalityRow .repithet { font-style: italic; }
+  #conseilsOverlay {
+    position: absolute; inset: 0; display: none;
+    align-items: center; justify-content: center;
+    background: rgba(10,8,6,.88); text-align: left; z-index: 10;
+  }
+  #conseilsOverlay .box { max-height: 80vh; overflow-y: auto; }
+  #conseilsOverlay h2 { margin: 0 0 10px; font-size: 20px; text-align: center; }
+  #conseilsOverlay .conseilsIntro { font-size: 13px; font-style: italic; opacity: .8; line-height: 1.5; margin: 0 0 16px; text-align: center; }
+  #conseilsOverlay button { display: block; margin: 0 auto; }
+  /* mini schematic: village -> province -> royaume -> pays, each level
+     visually nested inside the next (wider padding, one step further right)
+     so the containment reads at a glance instead of needing four separate
+     sentences to explain who contains what */
+  #conseilsHierarchy { margin: 0 0 18px; }
+  .hLevel {
+    display: flex; justify-content: space-between; align-items: baseline; gap: 10px;
+    border: 1px solid rgba(43,29,16,.35); border-radius: 8px;
+    padding: 8px 12px; margin-bottom: 6px; font-size: 12.5px;
+    background: rgba(43,29,16,.05);
+  }
+  .hLevel .hName { font-weight: 700; white-space: nowrap; }
+  .hLevel .hDesc { opacity: .75; text-align: right; }
+  .hVillage { margin-left: 0; }
+  .hProvince { margin-left: 12px; }
+  .hRoyaume { margin-left: 24px; }
+  .hPays { margin-left: 36px; }
+  #conseilsMechanics p { font-size: 13.5px; line-height: 1.55; margin: 0 0 12px; }
+  #conseilsMechanics strong { color: #6b2318; }
   #truceOverlay p { font-size: 14px; line-height: 1.5; opacity: .9; margin: 0 0 18px; }
   #continueSiegeQuote { font-style: italic; font-size: 13px; }
   /* every action button across every menu/overlay — settings, win banner,
      truce, lore — shares this one appearance now instead of each panel
      (or, for share/replay/nouvelle-guerre, each individual button)
-     redeclaring its own slightly-different color and padding */
-  #settingsPanel button, #winbanner button, #truceOverlay button, #loreOverlay button {
-    background: #1c3f8f; color: #fff; border: none; border-radius: 8px;
+     redeclaring its own slightly-different color and padding. Flat gold,
+     same gradient as the selected-territory outline on the map
+     (OUTLINE_GRADIENTS.gold), so the two "this is the important thing"
+     treatments actually match instead of one being gold and the other blue. */
+  #settingsPanel button, #winbanner button, #truceOverlay button, #loreOverlay button, #conseilsOverlay button {
+    background: linear-gradient(135deg, #fff3c4, #e8c468, #a97e2a);
+    color: #2b1d10; border: 1px solid #8a6d3b; border-radius: 8px;
     padding: 10px 20px; font-size: 15px; font-weight: 700;
   }
   /* small first-game-only tutorial banner — same materials as the other HUD
@@ -208,7 +252,6 @@
   <button id="rerollBtn">⚜ Nouveau royaume</button>
   <div id="winbanner">
     <div class="box">
-      <img id="winKnight" alt="">
       <h1 id="wintext"></h1>
       <p id="winSubtext"></p>
       <canvas id="statChart" width="280" height="150"></canvas>
@@ -252,9 +295,29 @@
       <button id="closeLore">Fermer</button>
     </div>
   </div>
+  <div id="conseilsOverlay">
+    <div class="box">
+      <h2>🎓 Conseils</h2>
+      <p class="conseilsIntro">Ce que le jeu ne vous dit jamais franchement — les règles qui décident vraiment de chaque bataille.</p>
+      <div id="conseilsHierarchy">
+        <div class="hLevel hVillage"><span class="hName">Village</span><span class="hDesc">une case hexagonale</span></div>
+        <div class="hLevel hProvince"><span class="hName">Province</span><span class="hDesc">un groupe de villages voisins de même couleur, contour marqué</span></div>
+        <div class="hLevel hRoyaume"><span class="hName">Royaume</span><span class="hDesc">toutes les provinces d'une même couleur</span></div>
+        <div class="hLevel hPays"><span class="hName">Pays</span><span class="hDesc">toute la carte, une fois qu'un seul royaume reste debout</span></div>
+      </div>
+      <div id="conseilsMechanics">
+        <p><strong>La force est plafonnée à 12</strong> par province — impossible d'empiler plus haut, quelle que soit la taille de votre royaume.</p>
+        <p><strong>Le combat est sans hasard</strong> : la plus grande force gagne toujours. Seule exception — attaquant ET défenseur tous les deux au plafond (12 contre 12) : là, et seulement là, les dés tranchent, sinon une frontière bloquée au plafond des deux côtés ne pourrait jamais bouger.</p>
+        <p><strong>Le renfort de fin de tour</strong> dépend de la taille (en villages) de votre plus grand groupe connecté de provinces — mais adouci par une racine carrée, pour qu'un grand royaume ne s'envole pas trop vite non plus.</p>
+        <p><strong>La trêve</strong> se déclenche quand toutes les frontières sont bloquées au plafond et que rien ne bouge depuis plusieurs tours d'affilée — signe qu'aucune attaque n'a de chance d'aboutir. Vous pouvez l'accepter (match nul) ou continuer le siège en espérant un 12 contre 12 favorable.</p>
+      </div>
+      <button id="closeConseils">Fermer</button>
+    </div>
+  </div>
   <div id="settingsPanel">
     <div class="box">
       <h2>Réglages</h2>
+      <button id="closeSettings">Fermer</button>
       <div class="fieldGroup">
         <div class="fieldLabel">Difficulté</div>
         <div id="difficultyLevels" class="levelRow">
@@ -262,6 +325,14 @@
           <button data-level="1" class="levelBtn">Écuyer</button>
           <button data-level="2" class="levelBtn">Chevalier</button>
           <button data-level="3" class="levelBtn">Seigneur</button>
+        </div>
+      </div>
+      <div class="fieldGroup">
+        <div class="fieldLabel">Taille de la carte — s'applique à la prochaine guerre</div>
+        <div id="mapSizeLevels" class="levelRow">
+          <button data-mapsize="small" class="levelBtn">Escarmouche</button>
+          <button data-mapsize="medium" class="levelBtn">Campagne</button>
+          <button data-mapsize="large" class="levelBtn">Grande Campagne</button>
         </div>
       </div>
       <div class="fieldGroup">
@@ -277,12 +348,12 @@
       </div>
       <label><input type="checkbox" id="soundToggle"> Sons</label>
       <label><input type="checkbox" id="instantBattlesToggle"> Batailles instantanées — les tours adverses se résolvent sans attendre</label>
-      <label><input type="checkbox" id="tapOnlyToggle"> Accessibilité : remplacer le glisser par un appui simple — touchez votre territoire, puis la case ennemie à attaquer</label>
+      <label><input type="checkbox" id="tapOnlyToggle"> Accessibilité : remplacer le glisser par un appui simple — touchez votre province, puis la case ennemie à attaquer</label>
       <label><input type="checkbox" id="metaProgressToggle"> Progression du gueux — gagnez un gueux à chaque victoire</label>
       <button id="newWarBtn">⚔ Nouvelle guerre</button>
+      <button id="conseilsBtn">🎓 Conseils</button>
       <button id="loreBtn">📜 Le lore</button>
       <button id="surrenderBtn">💀 Abandonner</button>
-      <button id="closeSettings">Fermer</button>
     </div>
   </div>
 </div>
@@ -292,10 +363,45 @@
 
 /* ---------- CONFIG ---------- */
 const HEX_SIZE = 26;          // was 20, +30% per request — bigger tap targets on phone
-const MAP_PIXEL_RADIUS = 230; // was 210 — grown a bit alongside HEX_SIZE so
-                               // territories keep a similar hex count/shape
-const TERRITORY_COUNT = 26;
+// MAP_PIXEL_RADIUS/TERRITORY_COUNT are `let`, not `const`: applyMapSize()
+// below reassigns them per the chosen map-size setting. resize()'s viewScale
+// already fits whatever island generateHexGrid() produces to the actual
+// available screen space, so every tier already reads as "fills the phone
+// screen" — the real difference between them is hex/province density.
+let MAP_PIXEL_RADIUS = 230; // was 210 — grown a bit alongside HEX_SIZE so
+                             // territories keep a similar hex count/shape
+let TERRITORY_COUNT = 26;
 const ROYAUME_COUNT = 5; // joueur + 3 IA + 1 neutre
+
+// Small keeps only 2 of the 4 real royaume slots actually on the map (the
+// other 2 start with zero territory — see mergeDownToActiveRoyaumes()), so
+// whichever one the human ends up picking, exactly one AI opponent remains:
+// isAlive()/checkWinner() already treat zero-territory royaumes as
+// eliminated (the same code path a mid-game elimination goes through), so
+// this needs no new game-logic branch, just fewer seats actually populated.
+const MAP_SIZES = {
+  small: { label: "Escarmouche", territoryCount: 6, radius: 95, activeRoyaumes: 2 },
+  medium: { label: "Campagne", territoryCount: 26, radius: 230, activeRoyaumes: 4 },
+  large: { label: "Grande Campagne", territoryCount: 55, radius: 340, activeRoyaumes: 4 },
+};
+let mapSize = "medium";
+try {
+  const savedMapSize = localStorage.getItem("kw_mapSize");
+  if (savedMapSize && MAP_SIZES[savedMapSize]) mapSize = savedMapSize;
+} catch (e) { /* ignore */ }
+function applyMapSize(size) {
+  const cfg = MAP_SIZES[size] || MAP_SIZES.medium;
+  mapSize = MAP_SIZES[size] ? size : "medium";
+  TERRITORY_COUNT = cfg.territoryCount;
+  MAP_PIXEL_RADIUS = cfg.radius;
+  try { localStorage.setItem("kw_mapSize", mapSize); } catch (e) { /* ignore */ }
+}
+function mergeDownToActiveRoyaumes(activeCount) {
+  for (let royId = activeCount; royId < ROYAUME_COUNT - 1; royId++) {
+    const target = royId % activeCount;
+    for (const t of territories) if (t.owner === royId) t.owner = target;
+  }
+}
 
 // force tiers: gueux=1, archer=4 (4 gueux), chevalier=12 (3 archers) — was
 // 1/3/9. Raised so the top tier takes longer to reach.
@@ -410,6 +516,7 @@ try {
   if (saved !== null) difficultyLevel = Math.max(0, Math.min(DIFFICULTY_LEVELS.length - 1, Number(saved)));
 } catch (e) { /* ignore */ }
 applyDifficulty(DIFFICULTY_LEVELS[difficultyLevel].value);
+applyMapSize(mapSize);
 
 const GUEUX_IMG_SRC = "data:image/png;base64,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soMGiBJogCiBBogSaIAogQaIEmiAKIEGiBJogKhFB1VGTmEYefh/jQ/tOy3lfEve09q9WPKzj/wNjpyosqnGfhsfT36H386wlp0dO2iALIEGiBJogCiBBogSaIAogQaIEmiAKIEGiJptUOVgf2/y4e0RaxxCqfEdsm1qw0dzsYMGiBJogCiBBogSaIAogQaIEmiAKIEGiBJogKjZBlWOT04nT2F4c+A0By5u5KH9h/eOFljJ8jZ1YIHzbepwlh00QJRAA0QJNECUQANECTRAlEADRAk0QJRAA0TNNqgCl80QCtvGDhogSqABogQaIEqgAaIEGiBKoAGiBBogSqABomYbVDnY35s8LWXJQYNNPWFhxBo/+xqHUNb4PW+q2u/n3//jP2d5HTtogCiBBogSaIAogQaIEmiAKIEGiBJogCiBBoiabVDl9VdenLzGg/3AZci15aWXZnkZO2iAKIEGiBJogCiBBogSaIAogQaIEmiAKIEGiNpd8s0O37gxeerKXB4++36pt9p58/r6/s8t+f2MWON3ONcpHrUhi8NHj2fpwlx/7yO/1drv59uBQZVPv/h68ntufSoA/o9AA0QJNECUQANECTRAlEADRAk0QJRAA0TlBlXmevh/xO17R7O8Tu0h+doQyojad7hGcw2YLOlgf2+yCSOnNS3p6MtvJr/nO7duTn4ugyoAKybQAFECDRAl0ABRAg0QJdAAUQINECXQAFEvLPlmf3rhF0u+3aQH9+9OXjMyzDLXYMjp0+ezvM6IvZevLfZeI5/r4c5y66mZ676PDH0cn5yubpjlnffevuol/MDRlx8s9l520ABRAg0QJdAAUQINECXQAFECDRAl0ABRAg0QteigSu2B8xEjJ32s8QSTkeGIkWGWuYYslhzSoWNkWKxmrtNSRthBA0QJNECUQANECTRAlEADRAk0QJRAA0QJNEDUooMqa1QbQllyeGRT+Q47Rk4sWuMwy1zsoAGiBBogSqABogQaIEqgAaIEGiBKoAGiBBogaqsHVUYekl/SyADFXK8z1yBG7b3mYpiFAjtogCiBBogSaIAogQaIEmiAKIEGiBJogCiBBoja6kGVbbbk0MemMszCZbODBogSaIAogQaIEmiAKIEGiBJogCiBBogSaIAogyoAf4dPv/h6d6n3soMGiBJogCiBBogSaIAogQaIEmiAKIEGiBJo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";
 const ARCHER_IMG_SRC = "data:image/png;base64,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";
@@ -909,7 +1016,13 @@ function assignRoyaumes() {
   for (const t of territories) if (t.owner === -1) t.owner = ROYAUME_COUNT - 1; // stray -> neutral
 
   for (const t of territories) {
-    t.force = t.owner === ROYAUME_COUNT - 1 ? 1 + rand(2) : 1 + rand(3);
+    // neutral land starts genuinely undefended (0, no army at all) rather
+    // than a small standing garrison — it reads as empty land waiting to be
+    // settled, not a fourth rival worth fearing. See attack()/canAttack()
+    // for the one deliberate exception this creates: a lone (force 1)
+    // territory can still walk into a 0-force neutral neighbor, since
+    // there's nothing there to actually fight.
+    t.force = t.owner === ROYAUME_COUNT - 1 ? 0 : 1 + rand(3);
   }
 
   // NOT called here — must run exactly once, with the real humanRoyId
@@ -926,42 +1039,42 @@ function assignRoyaumes() {
 // A royaume that lands more territories from the greedy growth above would
 // otherwise also start with more total force (each territory rolls its own
 // force independently) — snowballing the game before a single move is made.
-// This nudges every real royaume's starting TOTAL force toward an equal
-// share (attenuated, not exact — some organic variance from the per-tile
-// rolls above survives), then layers a difficulty-scaled edge for the AI
-// royaumes on top, redistributed away from the human's share so the grand
-// total in play never changes.
+// This nudges every AI royaume's starting TOTAL force toward an equal share
+// among themselves (attenuated, not exact — some organic variance from the
+// per-tile rolls above survives), then layers a difficulty-scaled edge on
+// top. The human's own territories are never touched by this function at
+// all, on purpose: this used to redistribute the AI's edge away from the
+// human's share (zero-sum, so the grand total never changed) — which meant
+// every number on the map you could already see, including your own,
+// visibly shifted the instant you tapped a territory to pick your camp.
+// Letting the total in play grow a little at higher difficulty instead is a
+// small price for numbers that never move on their own.
 function balanceStartingForces() {
-  const realIds = [];
-  for (let i = 0; i < ROYAUME_COUNT - 1; i++) realIds.push(i); // exclude neutral
-  const owned = {}, totals = {}, counts = {};
-  let grandTotal = 0;
-  for (const royId of realIds) {
+  const aiIds = [];
+  for (let i = 0; i < ROYAUME_COUNT - 1; i++) if (i !== humanRoyId) aiIds.push(i); // exclude neutral and the human
+  if (!aiIds.length) return; // e.g. humanRoyId still -1 (pre-pick) — nothing to balance yet
+  const owned = {}, totals = {};
+  let aiGrandTotal = 0;
+  for (const royId of aiIds) {
     owned[royId] = territories.filter(t => t.owner === royId);
-    counts[royId] = owned[royId].length;
     totals[royId] = owned[royId].reduce((s, t) => s + t.force, 0);
-    grandTotal += totals[royId];
+    aiGrandTotal += totals[royId];
   }
 
-  // Harder difficulty = bigger AI starting-force edge over the human, on top
-  // of the AI's already-higher aggression/lower mistake rate. At Page (0) the
-  // weights are equal (pure balance, no edge); at Seigneur (1) each AI's
-  // target share is 80% above an equal split.
+  // Harder difficulty = bigger AI starting-force edge, on top of the AI's
+  // already-higher aggression/lower mistake rate. At Page (0) it's an equal
+  // split among the AI seats (no edge); at Seigneur (1) each AI's target is
+  // 80% above that equal split.
   const AI_BONUS = lerp(0, 0.8, DIFFICULTY);
-  let weightSum = 0;
-  const weights = {};
-  for (const royId of realIds) {
-    weights[royId] = royId === humanRoyId ? 1 : (1 + AI_BONUS);
-    weightSum += weights[royId];
-  }
+  const equalShare = aiGrandTotal / aiIds.length;
 
   // Attenuated: blend each royaume's actual total toward its target share
   // rather than forcing an exact match.
   const BALANCE_STRENGTH = 0.65;
-  for (const royId of realIds) {
+  for (const royId of aiIds) {
     const current = totals[royId];
     if (!current) continue; // shouldn't happen (every royaume seeds at least one territory)
-    const target = grandTotal * weights[royId] / weightSum;
+    const target = equalShare * (1 + AI_BONUS);
     const blended = current + (target - current) * BALANCE_STRENGTH;
     const scale = blended / current;
     // clamp to FORCE_CAP — a royaume with very few starting territories can
@@ -1122,7 +1235,7 @@ function totalForce(royId) {
 // makes "why did this go from 2 to 6" / "who just won that fight" visible
 // without pausing the game or adding any confirmation step
 const PULSE_DURATION = 1000; // was 500 — +100%, per request
-const COMBAT_FX_DURATION = 1100; // was 550 — +100%, per request
+const COMBAT_FX_DURATION = 880; // was 1100 — sped back up 20%, per request
 let pulseTiles = []; // [{id, start}]
 let combatFX = null; // {fromId, toId, atk, def, win, start}
 let fxRAFRunning = false;
@@ -1222,10 +1335,36 @@ function playTone(freq, duration, opts = {}) {
     scheduleTone();
   }
 }
-function sfxAttack(win) {
-  playTone(win ? 220 : 140, 0.16, { type: "triangle", cutoff: 700, volume: 0.09, slideTo: win ? 160 : 90 });
+// A standalone attack always sounds the same as before (chainIndex -1, the
+// default, leaves the pitch untouched). Only an actual drag-to-attack chain
+// (executeAttackChain(), chainIndex 0, 1, 2...) climbs — same timbre
+// (triangle/cutoff/volume all unchanged) but each hop's pitch moves up
+// through a major chord (root, third, fifth, octave, ...), starting a
+// couple of semitones below the normal pitch so a long chain still has
+// headroom to rise into instead of immediately maxing out.
+const CHAIN_MAJOR_INTERVALS = [0, 4, 7, 12, 16, 19, 24, 28]; // semitones above the chain's start pitch
+function sfxAttack(win, chainIndex = -1) {
+  const baseFreq = win ? 220 : 140, baseSlide = win ? 160 : 90;
+  let mul = 1;
+  if (chainIndex >= 0) {
+    const interval = CHAIN_MAJOR_INTERVALS[Math.min(chainIndex, CHAIN_MAJOR_INTERVALS.length - 1)];
+    mul = Math.pow(2, (interval - 2) / 12); // -2 semitones: "un ou deux tons plus grave" for the chain's first hop
+  }
+  playTone(baseFreq * mul, 0.16, { type: "triangle", cutoff: 700, volume: 0.09, slideTo: baseSlide * mul });
 }
 function sfxEndTurn() { playTone(120, 0.14, { type: "sine", cutoff: 480, volume: 0.06 }); }
+// Reinforcement chime: one bright, single-note "carillon" hit per point
+// gained, fired in quick succession — close enough together (and each note
+// sustained long enough) that they blend into a single chord whose length
+// tracks how much force was just added, rather than reading as separate dings.
+const REINFORCE_CHIME_NOTES = [1046.5, 1318.5, 1568, 2093]; // C6, E6, G6, C7 — a bright major triad, extended with the octave if it runs past 4
+function sfxReinforce(count) {
+  const n = Math.min(count, 10); // stays a chord, not a whole scale run, on a very large windfall
+  for (let i = 0; i < n; i++) {
+    const freq = REINFORCE_CHIME_NOTES[i % REINFORCE_CHIME_NOTES.length] * (1 + Math.floor(i / REINFORCE_CHIME_NOTES.length) * 0.5);
+    setTimeout(() => playTone(freq, 0.35, { type: "sine", cutoff: 3200, volume: 0.05 }), i * 65);
+  }
+}
 function sfxVictory() {
   [440, 550, 660].forEach((f, i) => {
     setTimeout(() => playTone(f, 0.3, { type: "triangle", cutoff: 1200, volume: 0.08 }), i * 120);
@@ -1251,7 +1390,7 @@ function isDeterministicMatchup(atkForce, defForce) {
 }
 
 let lastAttackWasGrind = false; // both sides near the force cap — used for the victory flavor text
-function attack(fromId, toId) {
+function attack(fromId, toId, chainIndex = -1) {
   const from = territories[fromId], to = territories[toId];
   lastAttackWasGrind = from.force >= FORCE_CAP - 2 && to.force >= FORCE_CAP - 2;
   const deterministic = isDeterministicMatchup(from.force, to.force);
@@ -1260,7 +1399,7 @@ function attack(fromId, toId) {
   const win = atk > def;
   logMsg(`${ROYAUMES[from.owner].name} attaque ${ROYAUMES[to.owner].name} — ${atk} vs ${def} — ${win ? "victoire" : "échec"}`);
   triggerCombatFX(fromId, toId, atk, def, win);
-  sfxAttack(win);
+  sfxAttack(win, chainIndex);
   if (win) {
     to.owner = from.owner;
     to.force = Math.max(1, from.force - 1);
@@ -1309,13 +1448,16 @@ function pickReinforceTarget(royId, owned) {
 function endTurn() {
   if (gameOver) return;
   const royId = currentPlayer;
-  // sqrt of the hex count, halved again — plain sqrt() still hit FORCE_CAP
-  // across the board too fast for a growing empire (each captured territory
-  // adds hexes, which keeps pushing reinforcement up even under sqrt
-  // scaling). Still grows with size, just far more gently — a 100-hex
-  // empire earns noticeably more than a 25-hex one, but the growth curve is
-  // now shallow enough that reaching the cap takes real, sustained play.
-  const reinforcement = Math.max(1, Math.round(Math.sqrt(largestConnectedGroup(royId) / 4)));
+  // Every previous version of this line (raw hex count, then /2, then
+  // sqrt(), then sqrt(x/4)) still grows *without limit* as an empire gets
+  // bigger — a big enough territory always eventually outruns FORCE_CAP=12
+  // no matter how gentle the curve, which is exactly the repeated "reaches
+  // 12 everywhere too fast" complaint. This is a different shape, not just a
+  // gentler version of the same one: logarithmic AND hard-capped, so a
+  // sprawling empire gets the same per-turn trickle as a moderately-sized
+  // one instead of an ever-growing injection. Small starts still get 1-2;
+  // nothing, however large, ever earns more than 3 in a single turn.
+  const reinforcement = Math.min(3, 1 + Math.floor(Math.log2(1 + largestConnectedGroup(royId) / 6)));
   let pts = reinforcement;
   let guardCount = 0;
   const reinforcedCounts = {}; // territory id -> how many points landed there
@@ -1331,7 +1473,7 @@ function endTurn() {
   logMsg(`${ROYAUMES[royId].name} reçoit ${reinforcement} renfort(s).`);
   selected = -1;
   triggerPulse(reinforcedCounts);
-  if (royId === humanRoyId) sfxEndTurn(); // only for the player's own turn, not every AI seat
+  if (royId === humanRoyId) { sfxEndTurn(); sfxReinforce(reinforcement); } // only for the player's own turn, not every AI seat
   advanceTurn();
 }
 
@@ -1353,11 +1495,16 @@ function advanceTurn() {
     // instead of counting back up from 0, throwing escalation off from the
     // very first replayed AI turn.
     roundNumber++;
-    if (!replaying) {
-      recordRoundSnapshot();
-      checkStalemate();
-      if (gameOver) return;
-    }
+    if (!replaying) recordRoundSnapshot();
+    // checkStalemate() must run during a replay too, at the identical point,
+    // for the same reason roundNumber does above: the truce it can trigger
+    // is a real fork in what happens next (see the `continue` log entry and
+    // step()'s handling of it in playReplay()) — skipping it here would mean
+    // gameOver never goes true from a stalemate during replay, so a logged
+    // {continue:true} would show up with no matching pause to resolve and
+    // get misread as a plain attack instead.
+    checkStalemate();
+    if (gameOver) return;
   }
   updateStatus();
   render();
@@ -1430,16 +1577,26 @@ document.getElementById("acceptTruce").addEventListener("click", () => {
 // undoes exactly what declareStalemateTruce() set, then hands control back
 // — allCappedStreak resets so the same stuck position doesn't just
 // re-trigger the very next check, giving the player a real window to try
-// their luck at another 12-vs-12 roll before it can come back
-document.getElementById("continueSiege").addEventListener("click", () => {
+// their luck at another 12-vs-12 roll before it can come back. Logged into
+// moveLog like every other action — without this, a replay hits the exact
+// same stalemate at the exact same point (same state, same deterministic
+// checkStalemate()) and just stops there, showing a truce even though the
+// original match kept going and had a real winner. See step()'s `continue`
+// handling in playReplay().
+// named (rather than inline in the listener) so the replay-determinism test
+// harness can drive the exact same logic a real click runs, instead of
+// duplicating/approximating it
+function continueSiege() {
   document.getElementById("truceOverlay").style.display = "none";
+  if (!replaying) moveLog.push({ continue: true });
   gameOver = false;
   truceEnded = false;
   truceWinnerId = -1;
   allCappedStreak = 0;
   document.getElementById("endturn").disabled = false;
   sfxToggle();
-});
+}
+document.getElementById("continueSiege").addEventListener("click", continueSiege);
 
 function checkWinner() {
   if (gameOver) return true; // guard against a redundant showWin()/gueux-count now that attack() also calls this directly
@@ -1464,15 +1621,11 @@ function checkWinner() {
 // could land directly under a "Victoire, seigneur !" headline or a
 // "Match nul" one — visibly contradicting whichever it was paired with.
 function personalPerformanceLine(outcome) {
-  const humanTerrNow = territories.filter(t => t.owner === humanRoyId).length;
   const humanForceNow = totalForce(humanRoyId);
   let maxOtherForce = -1;
   for (let r = 0; r < ROYAUME_COUNT - 1; r++) {
     if (r === humanRoyId) continue;
     maxOtherForce = Math.max(maxOtherForce, totalForce(r));
-  }
-  if (humanTerrNow > humanStartTerritories) {
-    return "Vous avez plus de territoire qu'avant. Vivement la prochaine guerre pour tous les soumettre !";
   }
   if (humanForceNow >= maxOtherForce) {
     return "Vous avez la plus grosse armée. Qu'attendez-vous pour lancer une nouvelle offensive, monseigneur ?";
@@ -1484,7 +1637,6 @@ function personalPerformanceLine(outcome) {
 
 function showWin(royId) {
   document.getElementById("winbanner").style.display = "flex";
-  document.getElementById("winKnight").src = CHEVALIER_IMG_SRC;
   // right before the player is likely to hit "Rejouer"/"Nouvelle guerre" —
   // give the update check a head start so it's ready by the time they click
   checkForUpdate();
@@ -1543,10 +1695,13 @@ function showWin(royId) {
     // lore-flavored lines rather than one flat "Victoire, X !", picked
     // deterministically from the seed and winner (not Math.random()) so a
     // replay of the same match always shows the same one
-    const pers = AI_PERSONALITIES[royId];
+    // no AI_PERSONALITIES reference here: royId is the human's own kingdom on
+    // this branch, and the personality epithets only ever describe an
+    // *AI-controlled* seat — crediting one to the player's own victory just
+    // read as an unexplained, meaningless name ("qui sont les Enragés ?")
     const VICTORY_LINES = [
       `Victoire, seigneur ! Sous la bannière de ${ROYAUMES[royId].name}, plus une seule couronne rivale ne tient debout. Mais un trône ne se garde pas, il se défend — d'autres terres attendent d'être prises.`,
-      `Le sang a coulé, les dernières bannières rivales sont tombées. ${ROYAUMES[royId].name} règne seul, et ${pers.epithet} n'y sont pas pour rien. Votre nom sera chanté dans les tavernes... jusqu'à la prochaine guerre.`,
+      `Le sang a coulé, les dernières bannières rivales sont tombées. ${ROYAUMES[royId].name} règne seul. Votre nom sera chanté dans les tavernes... jusqu'à la prochaine guerre.`,
       `Victoire ! Plus aucun ennemi ne conteste ${ROYAUMES[royId].name}. Gravez ce jour dans la pierre, puis reprenez l'épée — la conquête ne s'arrête jamais.`,
       `Toutes les terres sont vôtres, seigneur de ${ROYAUMES[royId].name}. Un royaume de plus sous votre étendard, et déjà l'horizon en réclame un autre.`,
     ];
@@ -1649,7 +1804,7 @@ function drawStatChart() {
   c.fillStyle = "rgba(43,29,16,.8)";
   c.font = "10px -apple-system, sans-serif";
   c.textAlign = "left";
-  c.fillText("Territoires", panelX, 10);
+  c.fillText("Provinces", panelX, 10);
 
   // interactive scrub: drag a finger across the chart to see each living
   // royaume's FORCE at that exact round, following the touch in real time
@@ -1747,9 +1902,11 @@ function playReplay(seed, difficulty, replayHumanRoyId, log, onFinish) {
   // desync from what the original match actually had
   balanceStartingForces();
   // spotlight: everything except the human's own starting territories dims,
-  // so a viewer immediately knows which color to actually follow before the
-  // action starts moving — 1.2s, comfortably past the "half a second" floor
-  const REPLAY_INTRO_MS = 1200;
+  // so a viewer immediately knows which color to actually follow. Held
+  // perfectly still for this whole window before a single action plays (see
+  // the delayed step() call below) — showing the dimmed map while pieces are
+  // already moving isn't the same thing as a still beat to actually look at it.
+  const REPLAY_INTRO_MS = 750;
   replayIntroHighlightUntil = performance.now() + REPLAY_INTRO_MS;
   render();
   setTimeout(() => { replayIntroHighlightUntil = 0; render(); }, REPLAY_INTRO_MS);
@@ -1757,12 +1914,25 @@ function playReplay(seed, difficulty, replayHumanRoyId, log, onFinish) {
   let i = 0;
   function step() {
     if (!replaying) return; // user could in principle navigate away; bail cleanly
-    if (gameOver) { finish(); return; }
+    if (gameOver) {
+      // the original match may have kept going past this exact point via
+      // "Continuer le combat" — if the next logged action says so, replay
+      // that override too instead of ending the replay right here
+      if (i < log.length && log[i].continue) {
+        i++;
+        gameOver = false; truceEnded = false; truceWinnerId = -1; allCappedStreak = 0;
+        setTimeout(step, 30);
+        return;
+      }
+      finish();
+      return;
+    }
     if (currentPlayer !== humanRoyId || aiRunning) { setTimeout(step, 30); return; }
     if (i >= log.length) { finish(); return; }
     const action = log[i++];
     if (action.end) endTurn();
     else if (action.gueux !== undefined) reinforceTerritory(action.gueux); // no gueuxCount touched — replay only reproduces the force change, never spends the viewer's own stock
+    else if (action.continue) { /* stray continue entry with no matching pause active — nothing to undo, just skip it rather than misreading it as attack(undefined, undefined) */ }
     else attack(action.a, action.b);
     setTimeout(step, 30);
   }
@@ -1775,7 +1945,11 @@ function playReplay(seed, difficulty, replayHumanRoyId, log, onFinish) {
     // pickFaction() from here on, not re-shown unconditionally
     onFinish();
   }
-  step();
+  // held back until the intro spotlight has had its full still moment on
+  // screen — starting step() immediately let the very first action fire
+  // while the map was still dimmed/mid-fade, which read as "already moving"
+  // instead of a beat to actually look at the highlighted territory first
+  setTimeout(step, REPLAY_INTRO_MS);
 }
 
 function startReplay() {
@@ -1963,9 +2137,28 @@ function render() {
   // map — a territory is every hex sharing one color blob, and this is the
   // only line telling you where one blob (and its tap target) stops and the
   // next starts, so it's drawn clearly and always-on, not just on hover/select.
-  ctx.strokeStyle = "rgba(20,16,12,0.85)";
-  ctx.lineWidth = 1.6;
+  // Matte silver gradient (same family as the drag-to-attack preview outline,
+  // OUTLINE_GRADIENTS.silver) instead of a flat dark line — the flat dark
+  // line nearly vanished against Beaumanoir's dark navy fill (dark-on-dark).
+  // A thin dark halo goes underneath first so the border still separates
+  // cleanly against the lightest fills (the near-white neutral, the tan),
+  // where the silver alone would have the same low-contrast problem in reverse.
   ctx.lineCap = "round";
+  ctx.strokeStyle = "rgba(20,16,12,0.35)";
+  ctx.lineWidth = 2.6;
+  for (const [[x1, y1], [x2, y2]] of territoryBorderSegments) {
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+  }
+  const [borderC0, borderC1, borderC2] = OUTLINE_GRADIENTS.silver;
+  const borderGrad = ctx.createLinearGradient(-mapExtentX, -mapExtentY, mapExtentX, mapExtentY);
+  borderGrad.addColorStop(0, borderC0);
+  borderGrad.addColorStop(0.5, borderC1);
+  borderGrad.addColorStop(1, borderC2);
+  ctx.strokeStyle = borderGrad;
+  ctx.lineWidth = 1.4;
   for (const [[x1, y1], [x2, y2]] of territoryBorderSegments) {
     ctx.beginPath();
     ctx.moveTo(x1, y1);
@@ -2018,8 +2211,11 @@ function render() {
     const elapsed = pulseNow - p.start;
     if (elapsed >= PULSE_DURATION) continue;
     const progress = elapsed / PULSE_DURATION;
+    // centered on the force number's actual position (t.cy, matching
+    // drawForceIcon()'s plain-number branch now that it's true-centered too)
+    const ringCy = t.cy;
     ctx.beginPath();
-    ctx.arc(t.cx, t.cy, 14 + progress * 14, 0, Math.PI * 2); // was 10 + progress*10 — +40%
+    ctx.arc(t.cx, ringCy, 14 + progress * 14, 0, Math.PI * 2); // was 10 + progress*10 — +40%
     ctx.strokeStyle = `rgba(255, 214, 92, ${1 - progress})`;
     ctx.lineWidth = 2.5;
     ctx.stroke();
@@ -2029,9 +2225,9 @@ function render() {
     ctx.textAlign = "center";
     ctx.strokeStyle = `rgba(20,16,12,${alpha * 0.8})`;
     ctx.lineWidth = 2.5;
-    ctx.strokeText(`+${p.amount}`, t.cx, t.cy - 22 - progress * 14);
+    ctx.strokeText(`+${p.amount}`, t.cx, ringCy - 22 - progress * 14);
     ctx.fillStyle = `rgba(255, 214, 92, ${alpha})`;
-    ctx.fillText(`+${p.amount}`, t.cx, t.cy - 22 - progress * 14);
+    ctx.fillText(`+${p.amount}`, t.cx, ringCy - 22 - progress * 14);
   }
 
   // combat flash — the atk/def rolls float briefly over both territories,
@@ -2111,7 +2307,7 @@ function render() {
 
       // plain-language outcome, in addition to the raw dice numbers above
       ctx.font = "bold 15px -apple-system, sans-serif"; // was 11px — +40%
-      const label = combatFX.win ? "+1 territoire" : "échec";
+      const label = combatFX.win ? "+1 province" : "échec";
       ctx.strokeStyle = `rgba(20,16,12,${alpha * 0.8})`;
       ctx.lineWidth = 2.5;
       ctx.strokeText(label, ringT.cx, ringT.cy + floatY - 17);
@@ -2164,19 +2360,13 @@ const UNIT_ASPECT = {
 const UNIT_CONTENT_FRACTION = { triangle: 1.0, square: 0.91, circle: 0.62 };
 
 function drawForceIcon(t) {
+  if (t.force === 0) return; // undefended neutral land — no army, no number to show
+
   // NOTE: pre-pick, these numbers are the raw per-tile rolls from
-  // generateTerritories() — they get rebalanced once a camp is picked
-  // (balanceStartingForces(), which needs humanRoyId first, so it can't run
-  // any earlier), so a few of them shift slightly the moment you tap. A
-  // previous attempt hid every number until after the pick to avoid that
-  // shift entirely, but a completely blank map read as broken/missing
-  // content, which was worse — showing something real (even if a handful of
-  // values nudge shortly after) beats showing nothing. Deliberately NOT
-  // running balanceStartingForces() pre-pick to smooth this further: it
-  // would have to run an extra time in every fresh game but not in a replay
-  // (replay already knows humanRoyId before its single balancing pass),
-  // which is exactly the state-divergence bug that broke replay determinism
-  // earlier this session — not worth reopening for a cosmetic smoothing.
+  // generateTerritories(). balanceStartingForces() only ever touches the AI
+  // royaumes now (see its own comment), so tapping to pick a camp no longer
+  // shifts any number you can already see, including your own — nothing
+  // needs to stay hidden pre-pick to avoid a shift that no longer happens.
   ctx.textAlign = "center";
 
   if (!SHOW_UNIT_SPRITES) {
@@ -2187,8 +2377,14 @@ function drawForceIcon(t) {
     ctx.lineWidth = 3;
     ctx.strokeStyle = "rgba(20,16,12,0.85)";
     ctx.fillStyle = "#f2ede2";
-    ctx.strokeText(String(t.force), t.cx, t.cy + 5);
-    ctx.fillText(String(t.force), t.cx, t.cy + 5);
+    // "middle" baseline + t.cy exactly (no manual offset) — canvas text
+    // defaults to an "alphabetic" baseline, which sits visibly below a
+    // glyph's true vertical center, so the number always read as sitting
+    // low/off-center in its hexagon rather than pinned to the actual middle
+    ctx.textBaseline = "middle";
+    ctx.strokeText(String(t.force), t.cx, t.cy);
+    ctx.fillText(String(t.force), t.cx, t.cy);
+    ctx.textBaseline = "alphabetic"; // restore the default for every other text draw in render()
     return;
   }
 
@@ -2243,7 +2439,7 @@ function pickFaction(royId) {
   // ownership itself isn't touched by the pick or by balanceStartingForces()
   humanStartTerritories = territories.filter(t => t.owner === royId).length;
   logMsg(`Vous jouez ${ROYAUMES[royId].name}.`);
-  if (onboarding) showOnboardingHint("Touchez un de vos territoires pour le sélectionner.");
+  if (onboarding) showOnboardingHint("Touchez une de vos provinces pour la sélectionner.");
   updateStatus();
   updateGroups();
   render();
@@ -2277,7 +2473,7 @@ function handlePointer(clientX, clientY) {
   if (selected === -1) {
     if (t.owner === currentPlayer && t.force > 1) {
       selected = tId;
-      if (onboarding) showOnboardingHint("Touchez un territoire ennemi adjacent (contour doré) pour l'attaquer.");
+      if (onboarding) showOnboardingHint("Touchez une province ennemie adjacente (contour doré) pour l'attaquer.");
     }
   } else if (selected === tId) {
     selected = -1;
@@ -2401,7 +2597,7 @@ function executeAttackChain(path, i = 0) {
   const fromT = territories[fromId];
   if (fromT.owner !== currentPlayer || fromT.force <= 1 || !fromT.neighbors.has(toId)) { render(); return; }
   if (!replaying) moveLog.push({ a: fromId, b: toId });
-  const win = attack(fromId, toId);
+  const win = attack(fromId, toId, i);
   if (!win || gameOver) { render(); return; }
   // paced, not instant — back-to-back synchronous calls all landed in the
   // same paint frame, so a 4-5 hop chain used to just jump straight to its
@@ -2462,6 +2658,14 @@ document.getElementById("loreBtn").addEventListener("click", () => {
 });
 document.getElementById("closeLore").addEventListener("click", () => {
   document.getElementById("loreOverlay").style.display = "none";
+  sfxMenuClose();
+});
+document.getElementById("conseilsBtn").addEventListener("click", () => {
+  document.getElementById("conseilsOverlay").style.display = "flex";
+  sfxMenuOpen();
+});
+document.getElementById("closeConseils").addEventListener("click", () => {
+  document.getElementById("conseilsOverlay").style.display = "none";
   sfxMenuClose();
 });
 document.getElementById("surrenderBtn").addEventListener("click", () => {
@@ -2535,6 +2739,23 @@ document.querySelectorAll("#difficultyLevels .levelBtn").forEach((btn, i) => {
     applyDifficulty(DIFFICULTY_LEVELS[i].value);
     try { localStorage.setItem("kw_difficultyLevel", String(i)); } catch (e) { /* ignore */ }
     refreshLevelButtons();
+    sfxToggle();
+  });
+});
+
+function refreshMapSizeButtons() {
+  document.querySelectorAll("#mapSizeLevels .levelBtn").forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.mapsize === mapSize);
+  });
+}
+refreshMapSizeButtons();
+document.querySelectorAll("#mapSizeLevels .levelBtn").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    // takes effect on the next fresh game, not mid-match — reroll/rejouer/
+    // nouvelle guerre all route through startGame(), which reads mapSize
+    // freshly each time
+    applyMapSize(btn.dataset.mapsize);
+    refreshMapSizeButtons();
     sfxToggle();
   });
 });
@@ -2714,13 +2935,15 @@ function startGame(seed) {
   generateHexGrid();
   generateTerritories();
   assignRoyaumes(); // with humanRoyId === -1 this comes out an equal split (no AI edge) until the pick
+  const activeRoyaumes = MAP_SIZES[mapSize].activeRoyaumes;
+  if (activeRoyaumes < ROYAUME_COUNT - 1) mergeDownToActiveRoyaumes(activeRoyaumes);
   if (!replaying) {
     statHistory = []; moveLog = []; gameStartDifficulty = DIFFICULTY;
     recordRoundSnapshot();
   }
   updateStatus();
-  logMsg(awaitingFactionPick ? "Choisissez votre camp : touchez un territoire." : "Nouvelle partie.");
-  if (onboarding && awaitingFactionPick) showOnboardingHint("Touchez un territoire pour choisir votre camp.");
+  logMsg(awaitingFactionPick ? "Choisissez votre camp : touchez une province." : "Nouvelle partie.");
+  if (onboarding && awaitingFactionPick) showOnboardingHint("Touchez une province pour choisir votre camp.");
   else hideOnboardingHint();
   updateGroups(); // populate before resize() measures the HUD's real height
   resize();
