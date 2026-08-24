@@ -267,6 +267,7 @@
         <button id="restart">Rejouer</button>
         <button id="watchReplay">▶ Revoir la partie</button>
       </div>
+      <button id="randomGameBtn">🔀 Nouvelle partie aléatoire</button>
       <button id="shareReplay">📜 Partager ma victoire</button>
     </div>
   </div>
@@ -2795,7 +2796,21 @@ document.getElementById("endturn").addEventListener("click", () => {
     fastForward = true;
   }
 });
-document.getElementById("restart").addEventListener("click", () => { if (!reloadIfUpdateAvailable()) startGame(); });
+document.getElementById("restart").addEventListener("click", () => {
+  if (reloadIfUpdateAvailable()) return;
+  // "Rejouer" replays the exact same map the just-finished match was played
+  // on (same seed) and lets the player re-pick which royaume to play — a
+  // fresh random map moved to its own separate button (randomGameBtn) below.
+  // gameStartDifficulty/gameStartMapSize (not the live DIFFICULTY/mapSize)
+  // are what the match actually started on: difficulty can be changed
+  // mid-match without triggering a restart, and NEUTRAL_FRACTION is
+  // difficulty-dependent, so a live difficulty drift since match-start would
+  // otherwise regenerate a different map from the same seed.
+  applyDifficulty(gameStartDifficulty);
+  applyMapSize(gameStartMapSize);
+  startGame(currentSeed);
+});
+document.getElementById("randomGameBtn").addEventListener("click", () => { if (!reloadIfUpdateAvailable()) startGame(); });
 document.getElementById("watchReplay").addEventListener("click", () => startReplay());
 document.getElementById("rerollBtn").addEventListener("click", () => {
   if (replaying) replaying = false; // abort any in-progress replay (own or shared) instead of continuing it
