@@ -80,7 +80,16 @@
   #groups {
     display: flex; flex-direction: column; align-items: flex-start; gap: 4px;
   }
-  #gameTitleBlock { display: flex; flex-direction: column; align-items: flex-start; margin-bottom: 6px; }
+  /* standalone, centered at the very top — NOT nested inside #topBar any
+     more (that kept it stuck left-aligned above the faction stats). Same
+     top offset as #topBar and #settingsBtn so all three share one top
+     edge: centered title, left-aligned stats, right-aligned menu button. */
+  #gameTitleBlock {
+    position: absolute; top: calc(8px + env(safe-area-inset-top, 0px)); left: 50%;
+    transform: translateX(-50%);
+    display: flex; flex-direction: column; align-items: center; text-align: center;
+    pointer-events: none; color: #f2ede2; text-shadow: 0 1px 2px rgba(0,0,0,.6);
+  }
   #gameTitle {
     font-family: Georgia, "Iowan Old Style", Palatino, "Times New Roman", serif;
     font-size: 20px; font-weight: 700; letter-spacing: .02em;
@@ -131,7 +140,6 @@
   /* the very first section label sits right under "Fermer" — no divider
      line needed there, the button's own margin already separates them */
   .settingsSectionLabel:first-of-type { border-top: none; padding-top: 0; }
-  #royaumesList { display: flex; flex-direction: column; gap: 5px; }
   .royaumeRow { display: flex; align-items: baseline; gap: 7px; font-size: 13px; }
   .royaumeRow .swatch { width: 11px; height: 11px; border-radius: 50%; flex: none; box-shadow: 0 0 0 1px rgba(43,29,16,.5); align-self: center; }
   .royaumeRow .rname { font-weight: 700; }
@@ -147,6 +155,13 @@
      to the left edge instead of taking a full-width row like the buttons
      below it */
   #closeSettings { display: block; margin: 0 0 16px; padding: 6px 14px; font-size: 13px; }
+  #mapCodeRow, #mapCodeLoadRow { display: flex; gap: 6px; }
+  #mapCodeDisplay, #mapCodeInput {
+    flex: 1; min-width: 0; font-family: monospace; font-size: 13px;
+    background: rgba(43,29,16,.08); color: #2b1d10; border: 1px solid rgba(43,29,16,.35);
+    border-radius: 6px; padding: 6px 8px;
+  }
+  #copyMapCode, #loadMapCode { padding: 6px 12px; font-size: 13px; flex: none; }
   #winbanner {
     position: absolute; inset: 0; display: none;
     align-items: center; justify-content: center; flex-direction: column;
@@ -172,6 +187,8 @@
   #chartLegend { display: flex; flex-direction: column; gap: 3px; align-self: stretch; margin-top: -6px; }
   #chartLegend .royaumeRow { font-size: 11px; }
   .winButtons { display: flex; gap: 10px; }
+  #winActionsGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-self: stretch; }
+  #winActionsGrid button { margin: 0; }
   #shareIntro {
     position: absolute; inset: 0; display: none;
     align-items: center; justify-content: center;
@@ -232,9 +249,23 @@
     align-items: center; justify-content: center;
     background: rgba(10,8,6,.88); text-align: left; z-index: 10;
   }
-  #changelogOverlay .box { max-height: 80vh; overflow-y: auto; }
+  /* extra top padding makes room for #closeChangelog, an absolutely
+     positioned corner button rather than the "Fermer" bottom button every
+     other overlay uses — a long, growing changelog needs a close button
+     reachable without scrolling all the way back down first. */
+  #changelogOverlay .box { max-height: 80vh; overflow-y: auto; padding-top: 44px; position: relative; }
   #changelogOverlay h2 { margin: 0 0 14px; font-size: 20px; text-align: center; }
   #changelogOverlay button { display: block; margin: 0 auto; }
+  #closeChangelog {
+    position: absolute; top: 10px; left: 10px; margin: 0;
+    width: 30px; height: 30px; padding: 0; border-radius: 50%;
+    font-size: 16px; line-height: 1;
+    display: flex; align-items: center; justify-content: center;
+  }
+  /* the changelog only ever grows — a "back to top" button at the very
+     bottom instead of another "Fermer" is more useful once there are
+     several versions' worth of notes to scroll back up through */
+  #scrollTopChangelog { margin-top: 18px; }
   #changelogThanks { text-align: center; font-size: 17px; line-height: 1.6; margin: 0 0 20px; }
   #changelogThanks strong { color: #6b2318; }
   .changelogVersion { font-weight: 700; font-size: 14.5px; margin: 16px 0 4px; }
@@ -267,12 +298,17 @@
     border-color: #6b2318; color: #2b1710;
   }
   /* the least essential action in the panel — a support link, not a game
-     action — so it's a plain understated text link below a divider, not
-     another full gold button competing for attention with real settings */
+     action — so it's a calm, muted button (not the loud gold gradient the
+     real settings buttons use), separated from "Partie en cours" by a thin
+     rule above it: still clearly a tappable button, just quieter than
+     everything above it. */
+  #supportLinkWrap { margin-top: 18px; padding-top: 14px; border-top: 1px solid rgba(43,29,16,.25); }
   #supportLink {
-    display: block; text-align: center; text-decoration: none; cursor: pointer;
-    margin: 18px 0 0; padding-top: 14px; border-top: 1px solid rgba(43,29,16,.25);
-    font-size: 13px; color: #6b2318; opacity: .8;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    text-align: center; text-decoration: none; cursor: pointer;
+    padding: 10px 20px; border-radius: 8px; border: 1px solid rgba(43,29,16,.3);
+    background: rgba(43,29,16,.06);
+    font-size: 14px; font-weight: 600; color: #6b2318;
   }
   /* small first-game-only tutorial banner — same materials as the other HUD
      buttons, just top-center and text-only, out of the way of the map */
@@ -299,11 +335,11 @@
   <div id="status">—</div>
   <div id="log"></div>
   <div id="topBar">
-    <div id="gameTitleBlock">
-      <span id="gameTitle">Knight Wars</span>
-      <button id="versionBtn" aria-label="Notes de version"></button>
-    </div>
     <div id="groups"></div>
+  </div>
+  <div id="gameTitleBlock">
+    <span id="gameTitle">Knight Wars</span>
+    <button id="versionBtn" aria-label="Notes de version"></button>
   </div>
   <button id="settingsBtn" aria-label="Réglages"><img id="settingsBtnImg" alt=""></button>
   <div id="gueuxBadge"></div>
@@ -317,12 +353,16 @@
       <p id="winSubtext"></p>
       <canvas id="statChart" width="280" height="150"></canvas>
       <div id="chartLegend"></div>
-      <div class="winButtons">
+      <button id="saveChartImage">💾 Enregistrer le graphique</button>
+      <!-- all 4 in one uniform 2x2 grid — used to be 2 side-by-side then 2
+           separate full-width buttons below, which read as one inconsistent
+           block instead of one clean rectangle -->
+      <div id="winActionsGrid">
         <button id="restart">Rejouer</button>
         <button id="watchReplay">▶ Revoir la partie</button>
+        <button id="randomGameBtn">🔀 Nouvelle partie aléatoire</button>
+        <button id="shareReplay">📜 Partager ma victoire</button>
       </div>
-      <button id="randomGameBtn">🔀 Nouvelle partie aléatoire</button>
-      <button id="shareReplay">📜 Partager ma victoire</button>
     </div>
   </div>
   <div id="shareIntro">
@@ -370,18 +410,21 @@
       <div id="conseilsMechanics">
         <p><strong>La force est plafonnée à 12</strong> par province — impossible d'empiler plus haut, quelle que soit la taille de votre royaume.</p>
         <p><strong>Le combat est sans hasard</strong> : la plus grande force gagne toujours. Seule exception — attaquant ET défenseur tous les deux au plafond (12 contre 12) : là, et seulement là, les dés tranchent, sinon une frontière bloquée au plafond des deux côtés ne pourrait jamais bouger.</p>
-        <p><strong>Le renfort de fin de tour</strong> dépend de votre part du territoire par rapport à une part égale entre les royaumes encore debout — au-dessus de la moyenne, vous gagnez plus ; en dessous, moins (jamais 0). Un royaume vraiment dominant continue de gagner en puissance de feu à mesure qu'il s'étend.</p>
+        <p><strong>Le renfort de fin de tour</strong> dépend de votre part du territoire par rapport à une part égale entre les royaumes encore debout — au-dessus de la moyenne, vous gagnez plus ; en dessous, moins (jamais 0). Un vaste royaume touche en plus un bonus qui grandit avec sa taille réelle, pas seulement sa part relative : un empire qui domine vraiment continue de gagner en puissance de feu à mesure qu'il s'étend, au lieu de plafonner.</p>
         <p><strong>La trêve</strong> se déclenche quand toutes les frontières sont bloquées au plafond et que rien ne bouge depuis plusieurs tours d'affilée — signe qu'aucune attaque n'a de chance d'aboutir. Vous pouvez l'accepter (match nul) ou continuer le siège en espérant un 12 contre 12 favorable.</p>
+        <p><strong>La difficulté</strong> règle le comportement des royaumes adverses, pas juste un chiffre abstrait : à Page, ils hésitent beaucoup et n'attaquent que sur un avantage écrasant ; à Seigneur, ils attaquent à la moindre ouverture et se trompent presque jamais. Elle change aussi la part de terres neutres au départ (bien plus nombreuses à Page, presque absentes à Seigneur) et votre avance de force initiale.</p>
+        <p><strong>Les gueux</strong> sont une réserve d'un tour à l'autre (activable dans les réglages) : vous en gagnez un à chaque victoire, et pouvez en dépenser un en touchant le badge puis une de vos provinces, pour lui donner +1 de force sur-le-champ, avant même la bataille suivante.</p>
       </div>
       <button id="closeConseils">Fermer</button>
     </div>
   </div>
   <div id="changelogOverlay">
     <div class="box">
+      <button id="closeChangelog" aria-label="Fermer">✕</button>
       <h2>📜 Notes de version</h2>
       <p id="changelogThanks">Un ÉNORME MERCI à nos testeuses,<br><strong>Magaly</strong> et <strong>Joëlle</strong> !</p>
       <div id="changelogList"></div>
-      <button id="closeChangelog">Fermer</button>
+      <button id="scrollTopChangelog">⬆ Remonter en haut</button>
     </div>
   </div>
   <div id="settingsPanel">
@@ -409,30 +452,52 @@
           <button data-mapsize="large" class="levelBtn">Grande Campagne</button>
         </div>
       </div>
+      <!-- a short, portable code for the exact map in play — not a full
+           share link, just enough (seed + map size + difficulty) to
+           regenerate the identical map later, e.g. dictated over voice/text
+           instead of copy-pasting a whole URL -->
+      <div class="fieldGroup">
+        <div class="fieldLabel">Code de cette carte — pour la retrouver plus tard</div>
+        <div id="mapCodeRow">
+          <input id="mapCodeDisplay" type="text" readonly>
+          <button id="copyMapCode">📋</button>
+        </div>
+        <div class="fieldLabel" style="margin-top:10px;">Charger une carte par son code</div>
+        <div id="mapCodeLoadRow">
+          <input id="mapCodeInput" type="text" placeholder="ex. kf12oim1">
+          <button id="loadMapCode">Charger</button>
+        </div>
+      </div>
       <label><input type="checkbox" id="soundToggle"> Sons</label>
       <label><input type="checkbox" id="instantBattlesToggle"> Batailles instantanées — les tours adverses se résolvent sans attendre</label>
       <label><input type="checkbox" id="metaProgressToggle"> Progression du gueux — gagnez un gueux à chaque victoire</label>
 
       <!-- Tier 2: reference/display info, not something you "change" so
-           much as glance at — separated from the toggles above it. -->
+           much as glance at — separated from the toggles above it. The
+           royaume names/epithets list used to live here too; it's the same
+           content "Le lore" already shows in full (name, epithet, and the
+           actual lore paragraph), so it only ever duplicated that instead
+           of adding anything a settings-panel glance needed. -->
       <div class="settingsSectionLabel">Affichage</div>
-      <div class="fieldGroup">
-        <div class="fieldLabel">Les royaumes</div>
-        <div id="royaumesList"></div>
-      </div>
       <div class="fieldGroup">
         <div class="fieldLabel">Classer les royaumes par</div>
         <div id="sortLevels" class="levelRow">
           <button data-sort="territories" class="levelBtn">Villages</button>
           <button data-sort="force" class="levelBtn">Soldats</button>
+          <button data-sort="turnOrder" class="levelBtn">Ordre de jeu</button>
         </div>
       </div>
 
       <!-- Tier 3: lore/rules reference, read-only overlays — no risk of
-           accidentally ending or restarting anything by tapping these. -->
+           accidentally ending or restarting anything by tapping these.
+           Same row (reusing .winButtons' flex row) since both are the same
+           kind of thing and the panel doesn't need two separate full rows
+           for two short button labels. -->
       <div class="settingsSectionLabel">Aide</div>
-      <button id="conseilsBtn">🎓 Conseils</button>
-      <button id="loreBtn">📜 Le lore</button>
+      <div class="winButtons">
+        <button id="conseilsBtn">🎓 Conseils</button>
+        <button id="loreBtn">📜 Le lore</button>
+      </div>
 
       <!-- Tier 4: actions on the CURRENT match — the only buttons in this
            panel that end or restart the game you're playing right now.
@@ -442,10 +507,12 @@
       <button id="newWarBtn">⚔ Nouvelle guerre — abandonne la partie et recommence</button>
       <button id="surrenderBtn">💀 Abandonner — capituler tout de suite</button>
 
-      <!-- Least essential of all — a support link, not a game action —
-           styled as a plain text link below a divider (see #supportLink),
-           not another full button competing with the real settings above. -->
-      <a id="supportLink" href="https://ko-fi.com/knightwars" target="_blank" rel="noopener">☕ Soutenir le jeu</a>
+      <!-- Least essential of all — a support link, not a game action — a
+           calm, muted button below a divider (see #supportLink), not
+           another loud button competing with the real settings above. -->
+      <div id="supportLinkWrap">
+        <a id="supportLink" href="https://ko-fi.com/knightwars" target="_blank" rel="noopener">❤️ Soutenir le jeu 😊</a>
+      </div>
     </div>
   </div>
 </div>
@@ -559,9 +626,19 @@ const ROYAUMES = [
 const AI_PERSONALITIES = [
   { epithet: "les Prudents",  aggressionDelta: +0.6, mistakeDelta: -0.03, exposureWeight: 1.0, finishOffBonus: 2.0,
     lore: "n'attaquent qu'à coup sûr et ne dégarnissent jamais un flanc — face à eux, une avance de justesse ne suffit pas." }, // Châteauvieux — cautious, rarely overextends
-  { epithet: "les Enragés",   aggressionDelta: -0.6, mistakeDelta: +0.05, exposureWeight: 0.4, finishOffBonus: 2.0,
-    lore: "chargent à la moindre ouverture, quitte à s'exposer — imprévisibles, mais capables d'erreurs qu'un adversaire plus posé ne ferait jamais." }, // Villiers — reckless, attacks at the slightest opening
-  { epithet: "les Marchands", aggressionDelta: 0,    mistakeDelta: 0,     exposureWeight: 0.8, finishOffBonus: 3.5,
+  // Villiers ("les Enragés") reported as not reading as meaningfully more
+  // aggressive than the others in actual play — aggressionDelta pushed much
+  // further down (attacks the instant it has ANY edge, even a slight one,
+  // regardless of difficulty) and mistakeDelta flipped from slightly worse
+  // to sharply better (almost never lets a spotted opening go to waste) —
+  // "sans pitié" was the point of this personality, not just "reckless".
+  { epithet: "les Enragés",   aggressionDelta: -2.0, mistakeDelta: -0.4,  exposureWeight: 0.2, finishOffBonus: 2.5,
+    lore: "chargent à la moindre ouverture, sans une once d'hésitation ni de pitié — dès qu'une victoire s'offre à eux, ils la prennent, quitte à s'exposer ensuite." }, // Villiers — merciless, attacks the instant it can win
+  // Montherlant also pushed more aggressive (per "un ou deux joueurs") so
+  // the personalities split more starkly into two clearly aggressive and
+  // two clearly cautious royaumes, instead of one outlier among three
+  // similar ones.
+  { epithet: "les Marchands", aggressionDelta: -0.8, mistakeDelta: -0.1, exposureWeight: 0.8, finishOffBonus: 3.5,
     lore: "comptent leurs coups et achèvent sans pitié quiconque est déjà à terre — un royaume affaibli attire leurs armées comme le sang attire les loups." }, // Montherlant — opportunistic, hunts weak royaumes down
   { epithet: "les Stratèges", aggressionDelta: +0.2, mistakeDelta: -0.05, exposureWeight: 1.6, finishOffBonus: 2.0,
     lore: "jouent la longue partie, ne laissent jamais un flanc découvert et ne se pressent jamais — patients, mais rarement pris en défaut." }, // Beaumanoir — calculating, plays the long game
@@ -658,10 +735,17 @@ function resize() {
   canvas.width = w * dpr; canvas.height = h * dpr;
   canvas.style.width = w + "px"; canvas.style.height = h + "px";
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  // reserve room for the top stats bar and the bottom buttons (both heights
-  // measured live — the top bar's content can vary a bit) so the map never
-  // renders underneath/crowding either one
-  const topInset = document.getElementById("topBar").offsetHeight + 6;
+  // reserve room for the top stats bar and the bottom buttons (heights
+  // measured live — content can vary a bit) so the map never renders
+  // underneath/crowding either one. #gameTitleBlock (centered) and
+  // #settingsBtn (right) share #topBar's (left) top offset but are
+  // separate elements now, each free to be taller or shorter than the
+  // others — take whichever of the three actually reaches furthest down.
+  const topInset = Math.max(
+    document.getElementById("topBar").offsetHeight,
+    document.getElementById("gameTitleBlock").offsetHeight,
+    document.getElementById("settingsBtn").offsetHeight
+  ) + 6;
   const endturnEl = document.getElementById("endturn");
   const rerollEl = document.getElementById("rerollBtn");
   const speedEl = document.getElementById("replaySpeedBtn");
@@ -829,7 +913,13 @@ function generateHexGrid() {
   // island still fills more of the screen vertically on a tall viewport, but
   // randomized per game on top of that instead of pinned to one fixed ratio —
   // some games come out more spread out, some more condensed.
-  const Y_STRETCH = 1.1 + rngFloat() * 0.5;
+  // Escarmouche specifically needs a much taller stretch than the other two
+  // sizes: its tiny territoryCount/radius meant width, not height, was
+  // almost always resize()'s binding constraint (fitW < fitH), leaving a
+  // large unused vertical margin above and below the island on a tall
+  // phone screen — reported as the small map looking stuck at a fixed,
+  // much-too-small size regardless of how much room the screen actually had.
+  const Y_STRETCH = mapSize === "small" ? 1.7 + rngFloat() * 0.7 : 1.1 + rngFloat() * 0.5;
   let maxX = 0, maxY = 0;
   for (let q = -range; q <= range; q++) {
     for (let r = -range; r <= range; r++) {
@@ -1260,7 +1350,23 @@ let humanStartTerritories = 0; // set in pickFaction() — baseline for the end-
 let instantBattlesSetting = false;
 try { instantBattlesSetting = localStorage.getItem("kw_instantBattles") === "1"; } catch (e) { /* ignore */ }
 let fastForward = instantBattlesSetting;
-function scheduleTurn(fn, delay) { setTimeout(fn, fastForward ? 0 : delay); }
+// "batailles instantanées" used to hard-zero every gap between AI actions —
+// reported as feeling *too* instant: an opponent's attack (sword flash,
+// atk/def numbers — see triggerCombatFX()) could get fully overwritten by
+// the next scheduled action before a single frame ever rendered it, so a
+// human watching an AI-vs-AI cascade sometimes saw no flash at all. A small
+// minimum keeps it very fast while still giving each action a beat to
+// actually be seen.
+const FASTFORWARD_MIN_DELAY_MS = 90;
+function scheduleTurn(fn, delay) { setTimeout(fn, fastForward ? FASTFORWARD_MIN_DELAY_MS : delay); }
+// A perceivable beat every royaume's turn-end reinforcement gets before
+// play continues — every royaume now plays its own reinforcement chime
+// (see sfxReinforce), and without this "batailles instantanées" collapsed
+// every AI turn's delay to 0ms, so those chimes and the reinforcement pulse
+// blew past too fast to actually notice which lord just got reinforced.
+// Deliberately NOT run through scheduleTurn()/fastForward: this exact
+// moment is the one instant-battles shouldn't fully zero out.
+const REINFORCE_PAUSE_MS = 160;
 
 // opt-in meta-progression: one persistent "gueux" earned per victory — off by
 // default, the count itself is kept even while the setting is off so
@@ -1360,7 +1466,13 @@ function totalForce(royId) {
 const PULSE_DURATION = 1000; // was 500 — +100%, per request
 const COMBAT_FX_DURATION = 3520; // was 880 — displayed 4x longer, per request
 let pulseTiles = []; // [{id, start}]
-let combatFX = null; // {fromId, toId, atk, def, win, start}
+// A list, not a single slot — a fast drag-to-attack chain (or "batailles
+// instantanées" resolving several AI attacks back to back) used to have
+// each new hit silently overwrite the previous one's flash before it had
+// even rendered a single frame, so only the LAST hop in a chain ever
+// actually showed a sword. Every hit now gets its own entry and plays out
+// its own full COMBAT_FX_DURATION independently of whatever fires after it.
+let combatFXList = []; // [{fromId, toId, atk, def, win, start}]
 let fxRAFRunning = false;
 function ensureFXLoop() {
   if (!fxRAFRunning) {
@@ -1376,15 +1488,15 @@ function triggerPulse(counts) {
   ensureFXLoop();
 }
 function triggerCombatFX(fromId, toId, atk, def, win) {
-  combatFX = { fromId, toId, atk, def, win, start: performance.now() };
+  combatFXList.push({ fromId, toId, atk, def, win, start: performance.now() });
   ensureFXLoop();
 }
 function fxStep() {
   const now = performance.now();
   pulseTiles = pulseTiles.filter(p => now - p.start < PULSE_DURATION);
-  if (combatFX && now - combatFX.start >= COMBAT_FX_DURATION) combatFX = null;
+  combatFXList = combatFXList.filter(fx => now - fx.start < COMBAT_FX_DURATION);
   render();
-  if (pulseTiles.length || combatFX) {
+  if (pulseTiles.length || combatFXList.length) {
     requestAnimationFrame(fxStep);
   } else {
     fxRAFRunning = false;
@@ -1527,17 +1639,49 @@ function sfxEndTurn() { playTone(120, 0.14, { type: "sine", cutoff: 480, volume:
 // was C6-C7 (1046-2093Hz) — read as shrill/piercing at that register even
 // as a pure sine. Dropped a full octave (C5-C6): still a bright, clearly
 // ascending major triad, just softer on the ear.
-const REINFORCE_CHIME_NOTES = [523.25, 659.25, 784, 1046.5]; // C5, E5, G5, C6
-function sfxReinforce(count) {
+// Every royaume now plays this chime at their own turn's end (not just the
+// human's), so each one is rooted on its own note — same chord shape
+// (major triad + octave) transposed to a different starting pitch per
+// royaume id, so which lord just got reinforced is recognizable by ear
+// alone: C5, E5, G5, Bb5.
+const REINFORCE_ROOT_HZ = [523.25, 659.25, 783.99, 932.33];
+const REINFORCE_CHORD_RATIOS = [1, Math.pow(2, 4 / 12), Math.pow(2, 7 / 12), 2]; // root, major third, fifth, octave
+function sfxReinforce(count, royId = humanRoyId) {
   const n = Math.min(count, 10); // a fast run, not a whole scale marathon, on a very large windfall
+  const root = REINFORCE_ROOT_HZ[royId] ?? REINFORCE_ROOT_HZ[0];
   for (let i = 0; i < n; i++) {
-    const freq = REINFORCE_CHIME_NOTES[i % REINFORCE_CHIME_NOTES.length] * (1 + Math.floor(i / REINFORCE_CHIME_NOTES.length) * 0.5);
+    const ratio = REINFORCE_CHORD_RATIOS[i % REINFORCE_CHORD_RATIOS.length] * (1 + Math.floor(i / REINFORCE_CHORD_RATIOS.length) * 0.5);
+    const freq = root * ratio;
     setTimeout(() => playTone(freq, 0.16, { type: "sine", cutoff: 2400, volume: 0.06 }), i * 110);
   }
 }
-function sfxVictory() {
-  [440, 550, 660].forEach((f, i) => {
-    setTimeout(() => playTone(f, 0.3, { type: "triangle", cutoff: 1200, volume: 0.08 }), i * 120);
+// Win/loss/truce stingers reuse the same two building blocks the rest of the
+// combat sounds already established: each royaume's own root note
+// (REINFORCE_ROOT_HZ, same one its reinforcement chime uses) and the
+// chain-attack's chord shape (CHAIN_MAJOR_INTERVALS, the same 8-step climb a
+// long drag-to-attack chain plays through) — so a win feels like "your own
+// royaume's sound, run all the way out", not an unrelated jingle.
+function sfxVictory(royId = humanRoyId) {
+  const root = REINFORCE_ROOT_HZ[royId] ?? REINFORCE_ROOT_HZ[0];
+  CHAIN_MAJOR_INTERVALS.forEach((interval, i) => {
+    const freq = root * Math.pow(2, interval / 12);
+    setTimeout(() => playTone(freq, 0.22, { type: "triangle", cutoff: 1400, volume: 0.09 }), i * 130);
+  });
+}
+// same chord shape and the human's own root, run in reverse — the fall
+// mirrors the climb instead of being some unrelated "sad trombone" sound
+function sfxDefeat(royId = humanRoyId) {
+  const root = REINFORCE_ROOT_HZ[royId] ?? REINFORCE_ROOT_HZ[0];
+  [...CHAIN_MAJOR_INTERVALS].reverse().forEach((interval, i) => {
+    const freq = root * Math.pow(2, interval / 12);
+    setTimeout(() => playTone(freq, 0.22, { type: "triangle", cutoff: 1000, volume: 0.08 }), i * 130);
+  });
+}
+// a truce is neither a win nor a loss — a little indecisive wobble instead
+// of either stinger, not rooted on any one royaume since nobody actually won
+function sfxTruce() {
+  [440, 392, 440, 392].forEach((f, i) => {
+    setTimeout(() => playTone(f, 0.18, { type: "square", cutoff: 900, volume: 0.05 }), i * 140);
   });
 }
 // menu/UI sounds — kept even more discreet than the in-game ones since these
@@ -1637,8 +1781,23 @@ function endTurn() {
   let livingRoyaumes = 0;
   for (let r = 0; r < ROYAUME_COUNT - 1; r++) if (isAlive(r)) livingRoyaumes++;
   const avgHexShare = livingRoyaumes > 0 ? totalHexes / livingRoyaumes : totalHexes;
-  const relativeShare = avgHexShare > 0 ? largestConnectedGroup(royId) / avgHexShare : 1;
-  const reinforcement = Math.max(1, Math.round(0.5 + 1.5 * relativeShare));
+  const ownHexes = largestConnectedGroup(royId);
+  const relativeShare = avgHexShare > 0 ? ownHexes / avgHexShare : 1;
+  // base bumped 0.5 -> 1.0 — reported as too slow to build up meaningful
+  // force turn to turn; this also lifts a royaume sitting below the average
+  // share off the bare floor of 1 more often, not just the leaders
+  // A genuinely huge empire (100+ hexes) getting the same flat few points as
+  // a small one — since relativeShare alone tops out based on the *ratio*,
+  // not the actual scale — read as absurd in practice (waiting many turns
+  // just to mount one attack despite controlling most of the map). This adds
+  // a modest bonus proportional to your own absolute hex count on top of the
+  // existing relative-share term: negligible on a small map (a 6-hex
+  // Escarmouche empire adds ~0.3), meaningful once an empire is genuinely
+  // large (a 100-hex empire adds +5) — the relative term still does the
+  // normalizing work for small/mid empires, this only kicks in hard once
+  // there's real absolute scale to back it up.
+  const absoluteBonus = ownHexes / 20;
+  const reinforcement = Math.max(1, Math.round(1.0 + 1.5 * relativeShare + absoluteBonus));
   let pts = reinforcement;
   let guardCount = 0;
   const reinforcedCounts = {}; // territory id -> how many points landed there
@@ -1654,8 +1813,16 @@ function endTurn() {
   logMsg(`${ROYAUMES[royId].name} reçoit ${reinforcement} renfort(s).`);
   selected = -1;
   triggerPulse(reinforcedCounts);
-  if (royId === humanRoyId) { sfxEndTurn(); sfxReinforce(reinforcement); } // only for the player's own turn, not every AI seat
-  advanceTurn();
+  if (royId === humanRoyId) sfxEndTurn();
+  sfxReinforce(reinforcement, royId); // every royaume now gets its own chime, rooted on its own note — see REINFORCE_ROOT_HZ
+  if (replaying) {
+    // playReplay()'s own pacing (step()'s 30ms poll) relies on currentPlayer
+    // having already moved on by the time it runs again — never delay this
+    // during replay, only during live play (see REINFORCE_PAUSE_MS above)
+    advanceTurn();
+  } else {
+    setTimeout(advanceTurn, REINFORCE_PAUSE_MS);
+  }
 }
 
 function advanceTurn() {
@@ -1779,14 +1946,27 @@ function continueSiege() {
 }
 document.getElementById("continueSiege").addEventListener("click", continueSiege);
 
+// how long the deciding attack's own sword/number flash (triggerCombatFX())
+// gets to actually be seen before the win banner covers the board — most
+// noticeable at the end of a fast chained attack, where the very last hop's
+// flash used to get instantly buried under the banner the moment it fired
+const WIN_BANNER_DELAY_MS = 700;
 function checkWinner() {
   if (gameOver) return true; // guard against a redundant showWin()/gueux-count now that attack() also calls this directly
   const ownersLeft = new Set(territories.map(t => t.owner));
   const nonNeutral = [...ownersLeft].filter(id => !ROYAUMES[id].neutral);
   if (nonNeutral.length <= 1 && ownersLeft.size <= 2) {
+    // set immediately regardless of the delay below — stops any further
+    // attacks (mid drag-chain, the AI's own loop) right away
     gameOver = true;
     const winnerId = nonNeutral[0];
-    showWin(winnerId);
+    if (replaying) {
+      // replay is already paced deliberately slowly (see playReplay()) —
+      // no need for the extra beat live play gets below
+      showWin(winnerId);
+    } else {
+      setTimeout(() => showWin(winnerId), WIN_BANNER_DELAY_MS);
+    }
     return true;
   }
   return false;
@@ -1825,19 +2005,25 @@ function showWin(royId) {
   // right before the player is likely to hit "Rejouer"/"Nouvelle guerre" —
   // give the update check a head start so it's ready by the time they click
   checkForUpdate();
+  // checkWinner() only ever fires once a single non-neutral royaume remains,
+  // so if it isn't the human's, the human was necessarily wiped out — that
+  // deserves its own defeated, humiliated tone (with a small note of hope)
+  // rather than the generic "X l'emporte." Computed before the sound block
+  // below (not just the text one further down) since it also picks between
+  // the win/loss/truce stingers.
+  const humanLost = !truceEnded && royId !== humanRoyId;
   if (royId === humanRoyId) {
-    sfxVictory();
+    sfxVictory(royId);
     if (metaProgressEnabled) {
       gueuxCount++;
       try { localStorage.setItem("kw_gueuxCount", String(gueuxCount)); } catch (e) { /* ignore */ }
       refreshGueuxBadge();
     }
+  } else if (truceEnded) {
+    sfxTruce();
+  } else if (humanLost) {
+    sfxDefeat(humanRoyId);
   }
-  // checkWinner() only ever fires once a single non-neutral royaume remains,
-  // so if it isn't the human's, the human was necessarily wiped out — that
-  // deserves its own defeated, humiliated tone (with a small note of hope)
-  // rather than the generic "X l'emporte."
-  const humanLost = !truceEnded && royId !== humanRoyId;
   // royId is -1 on a truce (see declareStalemateTruce()/truceWinnerId) — every
   // branch below that actually names a royaume is built lazily, inside the
   // branch that owns it, instead of all eagerly up front: AI_PERSONALITIES[-1]
@@ -2056,7 +2242,7 @@ function drawStatChart() {
   document.getElementById("chartLegend").innerHTML = [...royIdSet].sort((a, b) => a - b).concat(neutralId).map(id => `
     <div class="royaumeRow">
       <span class="swatch" style="background:${ROYAUMES[id].color}"></span>
-      <span class="rname">${ROYAUMES[id].name}${id === humanRoyId ? " (Vous, Monseigneur !)" : ""}</span>
+      <span class="rname">${ROYAUMES[id].name}${id === humanRoyId ? " (Nous, Monseigneur !)" : ""}</span>
     </div>
   `).join("");
 }
@@ -2257,7 +2443,113 @@ async function shareReplay() {
 }
 document.getElementById("shareReplay").addEventListener("click", () => { shareReplay(); });
 
+// A composite image (title + the streamgraph itself + a text legend, since
+// the on-screen legend is a separate DOM element the canvas alone doesn't
+// include) — reported as pretty enough to want to keep or send to someone,
+// not just glance at once. Reuses the already-rendered #statChart canvas
+// (drawImage) rather than re-running drawStatChart()'s own drawing logic a
+// second time against an offscreen context.
+function buildChartShareImage() {
+  const chartCanvas = document.getElementById("statChart");
+  const scale = 2; // crisper than the on-screen chart alone — decent for a phone wallpaper
+  const pad = 24 * scale;
+  const chartW = STAT_CHART_W * scale, chartH = STAT_CHART_H * scale;
+  const titleH = 44 * scale;
+  const legendRowH = 24 * scale;
+  const royIdSet = new Set();
+  for (const entry of statHistory) for (const k of Object.keys(entry.stats)) royIdSet.add(Number(k));
+  const royIdsShown = [...royIdSet].sort((a, b) => a - b).concat(ROYAUME_COUNT - 1);
+  const W = chartW + pad * 2;
+  const H = titleH + chartH + legendRowH * royIdsShown.length + pad * 2;
+  const out = document.createElement("canvas");
+  out.width = W; out.height = H;
+  const ctx = out.getContext("2d");
+  const grad = ctx.createLinearGradient(0, 0, W, H);
+  grad.addColorStop(0, "#f6ecd2");
+  grad.addColorStop(1, "#e6d3a3");
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = "#6b2318";
+  ctx.textAlign = "center";
+  ctx.font = `bold ${22 * scale}px Georgia, "Iowan Old Style", Palatino, serif`;
+  ctx.fillText("Knight Wars", W / 2, pad + 20 * scale);
+  ctx.drawImage(chartCanvas, pad, titleH + pad, chartW, chartH);
+  let ly = titleH + chartH + pad + 16 * scale;
+  ctx.textAlign = "left";
+  ctx.font = `${13 * scale}px Georgia, "Iowan Old Style", Palatino, serif`;
+  for (const id of royIdsShown) {
+    ctx.fillStyle = ROYAUMES[id].color;
+    ctx.beginPath();
+    ctx.arc(pad + 6 * scale, ly, 6 * scale, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#2b1d10";
+    ctx.fillText(ROYAUMES[id].name + (id === humanRoyId ? " (Nous, Monseigneur !)" : ""), pad + 18 * scale, ly + 4 * scale);
+    ly += legendRowH;
+  }
+  return out;
+}
+function saveChartImage() {
+  sfxShare();
+  const canvas = buildChartShareImage();
+  canvas.toBlob(async (blob) => {
+    if (!blob) return;
+    const file = new File([blob], "knight-wars-territoire.png", { type: "image/png" });
+    if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+      try { await navigator.share({ files: [file], title: "Knight Wars" }); return; } catch (e) { /* cancelled — fall through */ }
+    }
+    // fallback: open the image in its own tab so it can be long-pressed/
+    // saved manually on devices/browsers without navigator.share for files
+    const url = URL.createObjectURL(blob);
+    window.open(url, "_blank");
+  }, "image/png");
+}
+document.getElementById("saveChartImage").addEventListener("click", () => { saveChartImage(); });
+
 const MAP_SIZE_BY_LETTER = { s: "small", m: "medium", l: "large" };
+// A short, portable map code — just enough (seed + map size + difficulty)
+// to regenerate the exact same map later, e.g. dictated over voice/text
+// instead of copy-pasting a whole share URL. Not a full match replay (no
+// move log) — this is for "I want this same map again", not "watch what I
+// did on it". Packed as base36(seed) + one map-size letter + one
+// difficulty digit, with no separators — the last two characters are
+// always exactly those two fields, so decoding just peels them off the end.
+function buildMapCode() {
+  let diffIdx = DIFFICULTY_LEVELS.findIndex((l) => l.value === gameStartDifficulty);
+  if (diffIdx === -1) diffIdx = difficultyLevel; // defensive fallback — see buildShareUrl()'s own note
+  return currentSeed.toString(36) + (gameStartMapSize[0] || "m") + diffIdx;
+}
+function parseMapCode(code) {
+  code = (code || "").trim().toLowerCase();
+  if (code.length < 3) return null;
+  const diffChar = code[code.length - 1];
+  const sizeChar = code[code.length - 2];
+  const seedPart = code.slice(0, -2);
+  const diffIdx = parseInt(diffChar, 10);
+  if (!(diffIdx >= 0 && diffIdx <= 3) || !MAP_SIZE_BY_LETTER[sizeChar]) return null;
+  const seed = parseInt(seedPart, 36);
+  if (!Number.isFinite(seed) || seed <= 0) return null;
+  return { seed, mapSize: MAP_SIZE_BY_LETTER[sizeChar], difficulty: DIFFICULTY_LEVELS[diffIdx].value };
+}
+function refreshMapCodeDisplay() {
+  document.getElementById("mapCodeDisplay").value = buildMapCode();
+}
+document.getElementById("copyMapCode").addEventListener("click", async () => {
+  try {
+    await navigator.clipboard.writeText(document.getElementById("mapCodeDisplay").value);
+    sfxToggle();
+  } catch (e) {
+    document.getElementById("mapCodeDisplay").select();
+  }
+});
+document.getElementById("loadMapCode").addEventListener("click", () => {
+  const parsed = parseMapCode(document.getElementById("mapCodeInput").value);
+  if (!parsed) { alert("Code invalide — vérifie que tu l'as copié en entier."); return; }
+  settingsPanel.style.display = "none";
+  sfxMenuClose();
+  applyDifficulty(parsed.difficulty);
+  applyMapSize(parsed.mapSize);
+  if (!reloadIfUpdateAvailable()) startGame(parsed.seed);
+});
 function tryParseSharedReplay() {
   try {
     const encoded = new URLSearchParams(location.search).get("replay");
@@ -2562,12 +2854,16 @@ function render() {
   }
 
   // combat flash — the atk/def rolls float briefly over both territories,
-  // with a ring on whichever tile the outcome actually changed
-  if (combatFX && pulseNow - combatFX.start < COMBAT_FX_DURATION) {
-    const progress = (pulseNow - combatFX.start) / COMBAT_FX_DURATION;
+  // with a ring on whichever tile the outcome actually changed. Every hit
+  // in combatFXList plays independently (see triggerCombatFX()), so a fast
+  // chain or an instant-battle cascade shows every hop's sword, not just
+  // the last one still on screen when the previous got overwritten.
+  for (const fx of combatFXList) {
+    if (pulseNow - fx.start >= COMBAT_FX_DURATION) continue;
+    const progress = (pulseNow - fx.start) / COMBAT_FX_DURATION;
     const alpha = 1 - progress;
-    const fromT = territories[combatFX.fromId];
-    const toT = territories[combatFX.toId];
+    const fromT = territories[fx.fromId];
+    const toT = territories[fx.toId];
     const floatY = -20 - progress * 14; // was -14 - progress*10 — +40%
 
     // a small drawn sword, midway between attacker and defender and pointed
@@ -2617,32 +2913,32 @@ function render() {
     ctx.lineWidth = 2.5;
     if (fromT) {
       ctx.strokeStyle = `rgba(20,16,12,${alpha * 0.8})`;
-      ctx.strokeText(String(combatFX.atk), fromT.cx, fromT.cy + floatY);
+      ctx.strokeText(String(fx.atk), fromT.cx, fromT.cy + floatY);
       ctx.fillStyle = `rgba(242,237,226,${alpha})`;
-      ctx.fillText(String(combatFX.atk), fromT.cx, fromT.cy + floatY);
+      ctx.fillText(String(fx.atk), fromT.cx, fromT.cy + floatY);
     }
     if (toT) {
       ctx.strokeStyle = `rgba(20,16,12,${alpha * 0.8})`;
-      ctx.strokeText(String(combatFX.def), toT.cx, toT.cy + floatY);
+      ctx.strokeText(String(fx.def), toT.cx, toT.cy + floatY);
       ctx.fillStyle = `rgba(242,237,226,${alpha})`;
-      ctx.fillText(String(combatFX.def), toT.cx, toT.cy + floatY);
+      ctx.fillText(String(fx.def), toT.cx, toT.cy + floatY);
     }
 
-    const ringT = combatFX.win ? toT : fromT;
+    const ringT = fx.win ? toT : fromT;
     if (ringT) {
       ctx.beginPath();
       ctx.arc(ringT.cx, ringT.cy, 15 + progress * 8, 0, Math.PI * 2); // was 11 + progress*6 — +40%
-      ctx.strokeStyle = combatFX.win ? `rgba(90,200,120,${alpha})` : `rgba(200,70,60,${alpha})`;
+      ctx.strokeStyle = fx.win ? `rgba(90,200,120,${alpha})` : `rgba(200,70,60,${alpha})`;
       ctx.lineWidth = 2.5;
       ctx.stroke();
 
       // plain-language outcome, in addition to the raw dice numbers above
       ctx.font = "bold 15px -apple-system, sans-serif"; // was 11px — +40%
-      const label = combatFX.win ? "+1 province" : "échec";
+      const label = fx.win ? "+1 province" : "échec";
       ctx.strokeStyle = `rgba(20,16,12,${alpha * 0.8})`;
       ctx.lineWidth = 2.5;
       ctx.strokeText(label, ringT.cx, ringT.cy + floatY - 17);
-      ctx.fillStyle = combatFX.win ? `rgba(90,200,120,${alpha})` : `rgba(200,70,60,${alpha})`;
+      ctx.fillStyle = fx.win ? `rgba(90,200,120,${alpha})` : `rgba(200,70,60,${alpha})`;
       ctx.fillText(label, ringT.cx, ringT.cy + floatY - 17);
     }
   }
@@ -2651,10 +2947,10 @@ function render() {
   updateGroups();
 }
 
-let sortGroupsBy = "territories"; // or "force" — see settings panel
+let sortGroupsBy = "territories"; // "force", "territories", or "turnOrder" — see settings panel
 try {
   const savedSort = localStorage.getItem("kw_sortGroupsBy");
-  if (savedSort === "force" || savedSort === "territories") sortGroupsBy = savedSort;
+  if (savedSort === "force" || savedSort === "territories" || savedSort === "turnOrder") sortGroupsBy = savedSort;
 } catch (e) { /* ignore */ }
 
 function updateGroups() {
@@ -2672,7 +2968,15 @@ function updateGroups() {
     const pct = maxForce > 0 ? Math.round((force / maxForce) * 100) : 0;
     rows.push({ roy: ROYAUMES[royId], connected: largestConnectedGroup(royId), force, pct });
   }
-  rows.sort((a, b) => sortGroupsBy === "force" ? b.force - a.force : b.connected - a.connected);
+  if (sortGroupsBy === "turnOrder") {
+    // your own royaume first, then everyone else in actual turn order
+    // (advanceTurn() cycles ids upward, wrapping past ROYAUME_COUNT-1 back
+    // to 0) starting right after your own seat
+    const rank = (id) => (id - humanRoyId + ROYAUME_COUNT) % ROYAUME_COUNT;
+    rows.sort((a, b) => rank(a.roy.id) - rank(b.roy.id));
+  } else {
+    rows.sort((a, b) => sortGroupsBy === "force" ? b.force - a.force : b.connected - a.connected);
+  }
   // dot only, no name — the color itself is the identifier now that the
   // legend line is gone too
   el.innerHTML = rows.map(r =>
@@ -2992,6 +3296,7 @@ document.getElementById("sideGueux").src = GUEUX_IMG_SRC;
 document.getElementById("sideKnight").src = ARCHER_IMG_SRC;
 document.getElementById("settingsBtn").addEventListener("click", () => {
   settingsPanel.style.display = "flex";
+  refreshMapCodeDisplay();
   sfxMenuOpen();
 });
 document.getElementById("closeSettings").addEventListener("click", () => {
@@ -3032,8 +3337,28 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.2";
+const GAME_VERSION = "1.3";
 const CHANGELOG = [
+  {
+    version: "1.3",
+    notes: [
+      "Le nom du jeu est désormais centré tout en haut de l'écran, aligné avec les stats et le menu",
+      "Chaque royaume a son propre carillon de renfort (une note différente par royaume), y compris pour les adversaires",
+      "Musiques de victoire/défaite/trêve reprenant l'air des attaques en chaîne, note par note",
+      "Correction : lors d'une attaque en chaîne (ou en batailles instantanées), seul le dernier coup affichait son épée — chacun s'affiche désormais",
+      "Un court instant de pause avant l'écran de victoire, pour voir le coup décisif",
+      "Renforts encore augmentés, avec un bonus pour les très grands royaumes",
+      "Villiers (les Enragés) et Montherlant (les Marchands) sont nettement plus agressifs",
+      "Réglages : liste des royaumes retirée (déjà dans « Le lore »), tri « par ordre de jeu » ajouté, bouton « Soutenir le jeu » plus visible",
+      "Notes de version : bouton fermer en croix, bouton pour remonter en haut",
+      "Conseils : explication de la difficulté et des gueux ajoutée",
+      "Écran de victoire : les 4 boutons d'action forment un seul bloc bien aligné",
+      "Ajout d'un bouton pour enregistrer/partager le graphique de territoire en image",
+      "Ajout d'un code court pour retrouver une carte précise plus tard, sans partager un lien entier",
+      "« Conseils » et « Le lore », désormais sur la même ligne",
+      "Escarmouche (petite carte) remplit bien mieux l'écran, au lieu de rester minuscule au milieu",
+    ],
+  },
   {
     version: "1.2",
     notes: [
@@ -3059,12 +3384,16 @@ const CHANGELOG = [
       "Carte hexagonale générée aléatoirement, en 3 tailles (Escarmouche, Campagne, Grande Campagne)",
       "4 royaumes rivaux aux personnalités et styles de jeu distincts",
       "4 niveaux de difficulté ; combat sans hasard, sauf à 12 contre 12",
-      "Glisser-déposer pour enchaîner plusieurs attaques d'un seul geste",
+      "Deux façons d'attaquer : glisser-déposer pour enchaîner, ou toucher pour sélectionner puis attaquer",
       "Renforts de fin de tour basés sur votre part du territoire",
       "Trêve automatique proposée en cas d'impasse générale",
       "Revoir une partie terminée en accéléré, et la partager par lien",
+      "Graphique d'évolution du territoire sur l'écran de victoire",
       "Effets sonores et animations de combat",
       "Progression méta optionnelle (gueux gagnés à chaque victoire)",
+      "Pages « Conseils » (les règles) et « Le lore » (l'histoire et les personnalités)",
+      "Petit tutoriel pour la toute première partie",
+      "Thème visuel « manuscrit enluminé » pour tous les menus",
     ],
   },
 ];
@@ -3080,6 +3409,10 @@ document.getElementById("versionBtn").addEventListener("click", () => {
 document.getElementById("closeChangelog").addEventListener("click", () => {
   document.getElementById("changelogOverlay").style.display = "none";
   sfxMenuClose();
+});
+document.getElementById("scrollTopChangelog").addEventListener("click", () => {
+  document.querySelector("#changelogOverlay .box").scrollTo({ top: 0, behavior: "smooth" });
+  sfxToggle();
 });
 document.getElementById("surrenderBtn").addEventListener("click", () => {
   settingsPanel.style.display = "none";
@@ -3109,17 +3442,6 @@ document.getElementById("gueuxBadge").addEventListener("click", () => {
   sfxToggle();
   refreshGueuxBadge();
 });
-
-// static (never changes mid-game), so populated once — each royaume's fixed
-// personality, so the player knows what to expect from whichever 3 of the 4
-// end up AI-controlled once they pick their own
-document.getElementById("royaumesList").innerHTML = ROYAUMES.slice(0, ROYAUME_COUNT - 1).map(roy => `
-  <div class="royaumeRow">
-    <span class="swatch" style="background:${roy.color}"></span>
-    <span class="rname">${roy.name}</span>
-    <span class="repithet">${AI_PERSONALITIES[roy.id].epithet}</span>
-  </div>
-`).join("");
 
 const metaProgressToggle = document.getElementById("metaProgressToggle");
 metaProgressToggle.checked = metaProgressEnabled;
