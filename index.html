@@ -1302,20 +1302,27 @@ try {
   if (savedSound !== null) soundEnabled = savedSound !== "0";
 } catch (e) { /* ignore */ }
 let audioCtx = null;
+// The only two conditions sound should ever depend on: soundEnabled, and
+// actually being on screen. Everything else — backgrounding, an OS
+// notification, Control Center, switching apps and back, the browser
+// deciding to reclaim an inactive context — must self-heal the moment the
+// next tone is requested, not rely on having caught the specific event that
+// caused it. A suspended context can be resumed; a *closed* one never can
+// (resume() on it just silently does nothing forever) — iOS Safari can fully
+// close an AudioContext that's gone quiet for a while, not just suspend it,
+// and only handling "suspended" here is exactly what let sound stay dead
+// permanently after some backgrounding events but not others. So: recreate
+// it outright whenever it's missing OR closed, instead of only lazily
+// creating it once and assuming it stays usable forever after.
 function ensureAudioCtx() {
-  if (!audioCtx) {
+  if (!audioCtx || audioCtx.state === "closed") {
     try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return null; }
   }
   return audioCtx;
 }
-// mobile Safari (and others) suspend the AudioContext when the tab/app goes
-// to the background, and don't resume it on their own when it comes back —
-// left alone, every sound after a switch-away-and-back silently no-ops.
-// resume() is async, so this can't just fire it and immediately schedule a
-// tone against the still-suspended context (that race is exactly what made
-// sound stay dead after leaving and coming back, or after toggling it off
-// and back on while the tab had been backgrounded in between) — playTone()
-// below always waits for resume() to actually finish first.
+// Belt-and-suspenders proactive resume on the events that usually fire —
+// but playTone() below is the real fix: it checks and heals the context on
+// every single call, so it doesn't matter if these listeners miss a case.
 document.addEventListener("visibilitychange", () => {
   if (!document.hidden && audioCtx && audioCtx.state === "suspended") audioCtx.resume().catch(() => {});
 });
