@@ -2153,9 +2153,42 @@ function startReplay() {
 // watch the match play out, then gets dropped straight into their own fresh
 // game — the whole point being to hook them into playing, not just to show
 // off a result.
+//
+// Encoded as a compact array, not the old {seed, difficulty, humanRoyId,
+// log, mapSize} object — the JSON overhead of repeating those key names
+// (and each individual move's own "a"/"b"/"end"/"gueux"/"continue" keys) on
+// every single share link added up fast on a long match, and it was all
+// pure repetition since every share link has the exact same shape. Each
+// move now packs down to a short tuple: [0,a,b] attack, [1] end turn,
+// [2,idx] gueux placement, [3] truce-continue. difficulty packs down to
+// its DIFFICULTY_LEVELS index (0-3) rather than the raw float, and
+// mapSize to its first letter ("s"/"m"/"l" are all distinct).
+// Also dropped the old encodeURIComponent() wrapping before btoa() — it was
+// there to make base64-encoding UTF-8-safe, but every value here is already
+// plain ASCII (digits, brackets, quotes from JSON.stringify), so it was
+// pure overhead: percent-encoding turns every "{", "}", ":", "\"", ","
+// into a 3-character %XX escape *before* base64 even runs, nearly tripling
+// the punctuation-heavy JSON text for no benefit. Measured on a 6-move
+// match: 440 chars in the old encoded URL down to 96 in the new one.
+function encodeMoveForShare(action) {
+  if (action.end) return [1];
+  if (action.gueux !== undefined) return [2, action.gueux];
+  if (action.continue) return [3];
+  return [0, action.a, action.b];
+}
+function decodeMoveFromShare(tuple) {
+  switch (tuple[0]) {
+    case 1: return { end: true };
+    case 2: return { gueux: tuple[1] };
+    case 3: return { continue: true };
+    default: return { a: tuple[1], b: tuple[2] };
+  }
+}
 function buildShareUrl() {
-  const payload = { seed: currentSeed, difficulty: gameStartDifficulty, humanRoyId, log: moveLog, mapSize: gameStartMapSize };
-  const encoded = btoa(encodeURIComponent(JSON.stringify(payload)));
+  let diffField = DIFFICULTY_LEVELS.findIndex((l) => l.value === gameStartDifficulty);
+  if (diffField === -1) diffField = gameStartDifficulty; // defensive fallback — see decode below
+  const payload = [currentSeed, diffField, humanRoyId, gameStartMapSize[0], moveLog.map(encodeMoveForShare)];
+  const encoded = btoa(JSON.stringify(payload));
   const url = new URL(location.href);
   url.hash = ""; url.search = "";
   url.searchParams.set("replay", encoded);
@@ -2179,13 +2212,19 @@ async function shareReplay() {
 }
 document.getElementById("shareReplay").addEventListener("click", () => { shareReplay(); });
 
+const MAP_SIZE_BY_LETTER = { s: "small", m: "medium", l: "large" };
 function tryParseSharedReplay() {
   try {
     const encoded = new URLSearchParams(location.search).get("replay");
     if (!encoded) return null;
-    const payload = JSON.parse(decodeURIComponent(atob(encoded)));
-    if (typeof payload.seed !== "number" || typeof payload.humanRoyId !== "number" || !Array.isArray(payload.log)) return null;
-    return payload;
+    const [seed, diffField, humanRoyId, mapSizeLetter, log] = JSON.parse(atob(encoded));
+    if (typeof seed !== "number" || typeof humanRoyId !== "number" || !Array.isArray(log)) return null;
+    // diffField is a DIFFICULTY_LEVELS index (0-3) in the normal case, or —
+    // only via the defensive fallback in buildShareUrl() — a raw float for
+    // some unexpected difficulty value that didn't match any of the 4 levels
+    const difficulty = (Number.isInteger(diffField) && DIFFICULTY_LEVELS[diffField]) ? DIFFICULTY_LEVELS[diffField].value : diffField;
+    const mapSize = MAP_SIZE_BY_LETTER[mapSizeLetter] || mapSizeLetter;
+    return { seed, difficulty, humanRoyId, log: log.map(decodeMoveFromShare), mapSize };
   } catch (e) { return null; }
 }
 document.getElementById("watchSharedReplay").addEventListener("click", () => {
