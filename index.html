@@ -16,32 +16,40 @@
   canvas { display: block; background: #2b3d52; }
   #status, #log { display: none; } /* kept for internal state only, no longer shown */
   #settingsBtn {
-    position: absolute; top: 10px; left: 14px;
+    position: absolute; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); left: 14px;
     pointer-events: auto; background: rgba(20,16,12,.55);
     border: 1px solid rgba(242,237,226,.35); border-radius: 8px;
     width: 34px; height: 34px; padding: 3px;
   }
   #settingsBtn img { width: 100%; height: 100%; object-fit: contain; }
   #endturn {
-    position: absolute; top: 10px; right: 14px;
+    position: absolute; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); right: 14px;
     pointer-events: auto; white-space: nowrap;
-    background: linear-gradient(160deg, #e9ecf1, #9aa3b0);
-    color: #241d16; border: 1px solid rgba(20,16,12,.4); border-radius: 8px;
+    /* background color is set inline in JS to match the player's chosen royaume */
+    border: 1px solid rgba(20,16,12,.4); border-radius: 8px;
     padding: 10px 18px; font-size: 15px; font-weight: 700;
     box-shadow: 0 2px 6px rgba(0,0,0,.4);
   }
-  #endturn:disabled { background: #5a5044; color: #f2ede2; opacity: .6; }
+  #endturn.aiTurn { opacity: .72; font-weight: 600; font-style: italic; }
+  #endturn:disabled { background: #5a5044 !important; color: #f2ede2 !important; opacity: .6; }
+  #topBar {
+    position: absolute; left: 0; right: 0; top: 0;
+    padding: calc(8px + env(safe-area-inset-top, 0px)) 14px 6px;
+    box-sizing: border-box; pointer-events: none;
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    color: #f2ede2; text-shadow: 0 1px 2px rgba(0,0,0,.6);
+  }
   #bottomBar {
     position: absolute; left: 0; right: 0; bottom: 0;
-    padding: 8px 14px calc(10px + env(safe-area-inset-bottom, 0px));
+    padding: 8px 60px calc(10px + env(safe-area-inset-bottom, 0px));
     box-sizing: border-box;
-    display: flex; flex-direction: column; align-items: center; gap: 6px;
-    color: #f2ede2; text-shadow: 0 1px 2px rgba(0,0,0,.6);
+    display: flex; align-items: center; justify-content: center;
+    pointer-events: none; /* only rerollBtn itself is clickable — the corner buttons sit under this full-width bar */
   }
   #groupsLegend { font-size: 9.5px; opacity: .55; letter-spacing: .02em; }
   #groups {
-    display: flex; flex-wrap: nowrap; overflow-x: auto; max-width: 100%;
-    gap: 5px; padding-bottom: 2px; justify-content: center;
+    display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 4px 10px; max-width: 100%; justify-items: center;
   }
   .chip { display: flex; align-items: center; gap: 3px; font-size: 9.5px; white-space: nowrap; flex: none; }
   .chip .swatch { width: 8px; height: 8px; border-radius: 2px; flex: none; box-shadow: 0 0 0 1px rgba(0,0,0,.5); }
@@ -51,7 +59,7 @@
     align-items: center; justify-content: center;
     background: rgba(10,8,6,.82); color: #f2ede2; text-align: left;
   }
-  #settingsPanel .box { background: #241d16; border-radius: 12px; padding: 20px 22px; max-width: 320px; }
+  #settingsPanel .box { background: #241d16; border-radius: 12px; padding: 20px 22px; max-width: 320px; max-height: 86vh; overflow-y: auto; box-sizing: border-box; }
   #settingsPanel h2 { margin: 0 0 14px; font-size: 18px; }
   #settingsPanel label { display: flex; align-items: center; gap: 8px; font-size: 14px; margin-bottom: 16px; }
   .fieldGroup { margin-bottom: 16px; }
@@ -62,6 +70,8 @@
     border-radius: 6px; padding: 6px 10px; font-size: 13px; font-weight: 400;
   }
   #settingsPanel .levelBtn.active { background: #1c3f8f; border-color: #1c3f8f; font-weight: 700; }
+  #settingsPanel .campBtn { border: 2px solid transparent; border-radius: 6px; padding: 6px 10px; font-size: 13px; font-weight: 700; }
+  #settingsPanel .campBtn.active { border-color: #f2ede2; box-shadow: 0 0 0 2px rgba(0,0,0,.5) inset; }
   #settingsPanel button {
     background: #1c3f8f; color: #fff; border: none; border-radius: 8px;
     padding: 8px 16px; font-size: 14px; font-weight: 700;
@@ -92,12 +102,14 @@
   <canvas id="map"></canvas>
   <div id="status">—</div>
   <div id="log"></div>
+  <div id="topBar">
+    <div id="groupsLegend">Seigneur · Villages · Soldats</div>
+    <div id="groups"></div>
+  </div>
   <button id="settingsBtn" aria-label="Réglages"><img id="settingsBtnImg" alt=""></button>
   <button id="endturn">Fin de bataille</button>
   <div id="bottomBar">
     <button id="rerollBtn">⚜ Nouveau royaume</button>
-    <div id="groupsLegend">Seigneur · Villages · Soldats</div>
-    <div id="groups"></div>
   </div>
   <div id="winbanner">
     <img id="winKnight" alt="">
@@ -111,6 +123,10 @@
   <div id="settingsPanel">
     <div class="box">
       <h2>Réglages</h2>
+      <div class="fieldGroup">
+        <div class="fieldLabel">Votre camp</div>
+        <div id="campLevels" class="levelRow"></div>
+      </div>
       <div class="fieldGroup">
         <div class="fieldLabel">Difficulté</div>
         <div id="difficultyLevels" class="levelRow">
@@ -127,7 +143,9 @@
           <button data-sort="force" class="levelBtn">Soldats</button>
         </div>
       </div>
+      <label><input type="checkbox" id="soundToggle"> Sons</label>
       <label><input type="checkbox" id="deterministicToggle"> Combat sans hasard (test) — la plus grande force gagne toujours</label>
+      <label><input type="checkbox" id="instantBattlesToggle"> Batailles instantanées — les tours adverses se résolvent sans attendre</label>
       <button id="closeSettings">Fermer</button>
     </div>
   </div>
@@ -153,12 +171,15 @@ const ARCHER_THRESHOLD = 4;
 const SHOW_UNIT_SPRITES = false;
 
 // palette per https://coolors.co/0a1128-001f54-931f1d-c6a15b-f7f0f5
+// which of the 4 real royaumes (0-3) is actually human-controlled is decided
+// at runtime by `humanRoyId` (see GAME STATE below) — chosen via the "Votre
+// camp" picker in settings, not fixed per-seat here.
 const ROYAUMES = [
-  { id: 0, name: "Châteauvieux", color: "#f7f0f5", accent: "#001f54", chief: "#931f1d", human: true },
-  { id: 1, name: "Villiers",     color: "#931f1d", accent: "#c6a15b", chief: "#0a1128", human: false },
-  { id: 2, name: "Montherlant",  color: "#c6a15b", accent: "#f7f0f5", chief: "#931f1d", human: false },
-  { id: 3, name: "Beaumanoir",   color: "#001f54", accent: "#f7f0f5", chief: "#c6a15b", human: false },
-  { id: 4, name: "Neutre",       color: "#6b7280", accent: "#4a5568", chief: "#4a5568", human: false, neutral: true }, // lightened from #0a1128 — too close to the canvas/background at full darkness
+  { id: 0, name: "Châteauvieux", color: "#f7f0f5", accent: "#001f54", chief: "#931f1d" },
+  { id: 1, name: "Villiers",     color: "#931f1d", accent: "#c6a15b", chief: "#0a1128" },
+  { id: 2, name: "Montherlant",  color: "#c6a15b", accent: "#f7f0f5", chief: "#931f1d" },
+  { id: 3, name: "Beaumanoir",   color: "#001f54", accent: "#f7f0f5", chief: "#c6a15b" },
+  { id: 4, name: "Neutre",       color: "#6b7280", accent: "#4a5568", chief: "#4a5568", neutral: true }, // lightened from #0a1128 — too close to the canvas/background at full darkness
 ];
 
 // Difficulty: still a continuous 0-1 value under the hood (driving AI traits
@@ -180,8 +201,8 @@ function applyDifficulty(d) {
   // (0.85 was tried for the easy-end mistake rate and, combined with the
   // wider neutral buffer, produced games that technically never lost but
   // also dragged on for hundreds of rounds without a winner — dialed back.)
-  AI_AGGRESSION_THRESHOLD = lerp(0.5, -1.5, DIFFICULTY);
-  AI_MISTAKE_RATE = lerp(0.55, 0.02, DIFFICULTY);
+  AI_AGGRESSION_THRESHOLD = lerp(0.5, -2.2, DIFFICULTY);
+  AI_MISTAKE_RATE = lerp(0.55, 0, DIFFICULTY);
 }
 
 // Safety valve: at the easy end, 3 very passive AIs can coexist without
@@ -195,7 +216,13 @@ const ESCALATION_START_ROUND = 40, ESCALATION_SPAN = 40;
 function escalated(baseValue, hardValue) {
   if (roundNumber <= ESCALATION_START_ROUND) return baseValue;
   const t = Math.min(1, (roundNumber - ESCALATION_START_ROUND) / ESCALATION_SPAN);
-  return lerp(baseValue, hardValue, t);
+  const interp = lerp(baseValue, hardValue, t);
+  // For both fields, lower = harder (more aggressive / fewer mistakes). This
+  // ratchet exists to keep an EASY game from stalling forever — it's a floor
+  // that only ever helps a passive AI catch up, never a ceiling that softens
+  // an already-harder-than-that base setting (Seigneur's base can be tougher
+  // than these hard values, and must stay that tough for the whole match).
+  return baseValue <= hardValue ? Math.min(baseValue, interp) : interp;
 }
 const DIFFICULTY_LEVELS = [
   { name: "Page",      value: 0 },
@@ -245,14 +272,15 @@ function resize() {
   canvas.width = w * dpr; canvas.height = h * dpr;
   canvas.style.width = w + "px"; canvas.style.height = h + "px";
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  // reserve room for the top buttons and the bottom stats bar (both heights
-  // measured live — the bottom bar's content can vary a bit) so the map
-  // never renders underneath/crowding either one
-  const topInset = Math.max(
+  // reserve room for the top stats bar and the bottom buttons (both heights
+  // measured live — the top bar's content can vary a bit) so the map never
+  // renders underneath/crowding either one
+  const topInset = document.getElementById("topBar").offsetHeight + 6;
+  const bottomInset = Math.max(
     document.getElementById("settingsBtn").offsetHeight,
-    document.getElementById("endturn").offsetHeight
+    document.getElementById("endturn").offsetHeight,
+    document.getElementById("bottomBar").offsetHeight
   ) + 20;
-  const bottomInset = document.getElementById("bottomBar").offsetHeight + 6;
   const availH = h - topInset - bottomInset;
   centerX = w / 2; centerY = topInset + availH / 2;
   // Fit to the map's *actual* generated extents (not a nominal guess) so it
@@ -384,6 +412,42 @@ function generateHexGrid() {
   // caused the map to overflow past the screen edge on some devices/games)
   mapExtentX = maxX;
   mapExtentY = maxY;
+
+  carveVoids();
+}
+
+// A few interior lakes/impassable pockets — small chunks of the island that
+// belong to no territory at all (just empty background, unclickable, no
+// village). Purely a bit of visual/tactical texture so the island isn't one
+// uniform blob; carving is capped so there's always plenty of room left for
+// every territory to seed and grow normally.
+const VOID_COUNT = 2;
+const VOID_MIN_SIZE = 3, VOID_MAX_SIZE = 7;
+function carveVoids() {
+  const minRemaining = TERRITORY_COUNT * 3;
+  for (let v = 0; v < VOID_COUNT; v++) {
+    const candidates = Object.keys(hexes);
+    if (candidates.length <= minRemaining) break;
+    const seedKey = pick(candidates);
+    const targetSize = VOID_MIN_SIZE + rand(VOID_MAX_SIZE - VOID_MIN_SIZE + 1);
+    const blob = [seedKey];
+    const seen = new Set(blob);
+    const frontier = [seedKey];
+    while (blob.length < targetSize && frontier.length) {
+      const cur = frontier.shift();
+      const h = hexes[cur];
+      if (!h) continue;
+      for (const nk of neighborsOf(h.q, h.r)) {
+        if (blob.length >= targetSize) break;
+        if (seen.has(nk) || !hexes[nk]) continue;
+        seen.add(nk);
+        blob.push(nk);
+        frontier.push(nk);
+      }
+    }
+    if (Object.keys(hexes).length - blob.length < minRemaining) continue; // would carve too much
+    for (const k of blob) delete hexes[k];
+  }
 }
 
 function generateTerritories() {
@@ -564,6 +628,53 @@ function assignRoyaumes() {
   for (const t of territories) {
     t.force = t.owner === ROYAUME_COUNT - 1 ? 1 + rand(2) : 1 + rand(3);
   }
+
+  balanceStartingForces();
+}
+
+// A royaume that lands more territories from the greedy growth above would
+// otherwise also start with more total force (each territory rolls its own
+// force independently) — snowballing the game before a single move is made.
+// This nudges every real royaume's starting TOTAL force toward an equal
+// share (attenuated, not exact — some organic variance from the per-tile
+// rolls above survives), then layers a difficulty-scaled edge for the AI
+// royaumes on top, redistributed away from the human's share so the grand
+// total in play never changes.
+function balanceStartingForces() {
+  const realIds = [];
+  for (let i = 0; i < ROYAUME_COUNT - 1; i++) realIds.push(i); // exclude neutral
+  const owned = {}, totals = {}, counts = {};
+  let grandTotal = 0;
+  for (const royId of realIds) {
+    owned[royId] = territories.filter(t => t.owner === royId);
+    counts[royId] = owned[royId].length;
+    totals[royId] = owned[royId].reduce((s, t) => s + t.force, 0);
+    grandTotal += totals[royId];
+  }
+
+  // Harder difficulty = bigger AI starting-force edge over the human, on top
+  // of the AI's already-higher aggression/lower mistake rate. At Page (0) the
+  // weights are equal (pure balance, no edge); at Seigneur (1) each AI's
+  // target share is 80% above an equal split.
+  const AI_BONUS = lerp(0, 0.8, DIFFICULTY);
+  let weightSum = 0;
+  const weights = {};
+  for (const royId of realIds) {
+    weights[royId] = royId === humanRoyId ? 1 : (1 + AI_BONUS);
+    weightSum += weights[royId];
+  }
+
+  // Attenuated: blend each royaume's actual total toward its target share
+  // rather than forcing an exact match.
+  const BALANCE_STRENGTH = 0.65;
+  for (const royId of realIds) {
+    const current = totals[royId];
+    if (!current) continue; // shouldn't happen (every royaume seeds at least one territory)
+    const target = grandTotal * weights[royId] / weightSum;
+    const blended = current + (target - current) * BALANCE_STRENGTH;
+    const scale = blended / current;
+    for (const t of owned[royId]) t.force = Math.max(1, Math.round(t.force * scale));
+  }
 }
 
 /* ---------- FORCE ICON DECOMPOSITION ---------- */
@@ -579,10 +690,27 @@ function decompose(force) {
 }
 
 /* ---------- GAME STATE ---------- */
+// which royaume seat (0-3) the human plays as this game — chosen via the
+// faction picker at boot, persisted, changeable from settings
+let humanRoyId = 0;
+try {
+  const savedFaction = localStorage.getItem("kw_humanRoyId");
+  if (savedFaction !== null) humanRoyId = Math.max(0, Math.min(3, Number(savedFaction)));
+} catch (e) { /* ignore */ }
 let currentPlayer = 0;
 let selected = -1;
 let gameOver = false;
 let aiRunning = false;
+// "batailles instantanées" — when on, AI turns resolve back-to-back with no
+// pacing delay instead of the usual ~0.3-0.5s per move (still async so a long
+// AI-vs-AI cascade never blows the call stack, just effectively instant).
+// `fastForward` is the live effective state (also flipped on temporarily by
+// tapping the end-turn button mid-AI-turn); `instantBattlesSetting` is the
+// persisted default it resets back to once control returns to the human.
+let instantBattlesSetting = false;
+try { instantBattlesSetting = localStorage.getItem("kw_instantBattles") === "1"; } catch (e) { /* ignore */ }
+let fastForward = instantBattlesSetting;
+function scheduleTurn(fn, delay) { setTimeout(fn, fastForward ? 0 : delay); }
 
 /* ---------- MATCH HISTORY (stats graph + replay) ---------- */
 // One entry per round (a full cycle back to the human), so the end-game
@@ -679,6 +807,54 @@ function rollSum(n) {
   return s;
 }
 
+/* ---------- SOUND ---------- */
+// Minimal, synthesized (no audio assets) — short, low-pass-filtered tone
+// bursts deliberately kept muffled/matte rather than bright "game" beeps, so
+// they sit in the background of the experience instead of demanding attention.
+let soundEnabled = true;
+try {
+  const savedSound = localStorage.getItem("kw_soundEnabled");
+  if (savedSound !== null) soundEnabled = savedSound !== "0";
+} catch (e) { /* ignore */ }
+let audioCtx = null;
+function ensureAudioCtx() {
+  if (!audioCtx) {
+    try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return null; }
+  }
+  if (audioCtx.state === "suspended") audioCtx.resume().catch(() => {});
+  return audioCtx;
+}
+function playTone(freq, duration, opts = {}) {
+  if (!soundEnabled || replaying) return;
+  const ac = ensureAudioCtx();
+  if (!ac) return;
+  const t0 = ac.currentTime;
+  const osc = ac.createOscillator();
+  osc.type = opts.type || "sine";
+  osc.frequency.setValueAtTime(freq, t0);
+  if (opts.slideTo) osc.frequency.exponentialRampToValueAtTime(opts.slideTo, t0 + duration);
+  const filter = ac.createBiquadFilter();
+  filter.type = "lowpass";
+  filter.frequency.value = opts.cutoff || 900;
+  const gain = ac.createGain();
+  const vol = opts.volume || 0.08;
+  gain.gain.setValueAtTime(0, t0);
+  gain.gain.linearRampToValueAtTime(vol, t0 + 0.012);
+  gain.gain.exponentialRampToValueAtTime(0.0001, t0 + duration);
+  osc.connect(filter); filter.connect(gain); gain.connect(ac.destination);
+  osc.start(t0);
+  osc.stop(t0 + duration + 0.03);
+}
+function sfxAttack(win) {
+  playTone(win ? 220 : 140, 0.16, { type: "triangle", cutoff: 700, volume: 0.09, slideTo: win ? 160 : 90 });
+}
+function sfxEndTurn() { playTone(120, 0.14, { type: "sine", cutoff: 480, volume: 0.06 }); }
+function sfxVictory() {
+  [440, 550, 660].forEach((f, i) => {
+    setTimeout(() => playTone(f, 0.3, { type: "triangle", cutoff: 1200, volume: 0.08 }), i * 120);
+  });
+}
+
 let DETERMINISTIC_COMBAT = false; // testable via the ⚙ menu — bigger force always wins, no dice
 try {
   if (localStorage.getItem("kw_deterministicCombat") === "1") DETERMINISTIC_COMBAT = true;
@@ -693,6 +869,7 @@ function attack(fromId, toId) {
   const win = atk > def;
   logMsg(`${ROYAUMES[from.owner].name} attaque ${ROYAUMES[to.owner].name} — ${atk} vs ${def} — ${win ? "victoire" : "échec"}`);
   triggerCombatFX(fromId, toId, atk, def, win);
+  sfxAttack(win);
   if (win) {
     to.owner = from.owner;
     to.force = Math.max(1, from.force - 1);
@@ -703,6 +880,28 @@ function attack(fromId, toId) {
   checkElimination();
   render();
   return win;
+}
+
+// AI seats stack their reinforcements on their attacking frontier instead of
+// spreading them randomly across the kingdom — a territory bordering a
+// weaker enemy scores higher, so the AI arrives at its own turn with a
+// stronger stack ready to swing rather than points wasted deep in its own
+// territory. The human's own reinforcement stays uniformly random, same as
+// before (it was never something the player controlled anyway).
+function pickReinforceTarget(royId, owned) {
+  if (royId === humanRoyId) return pick(owned);
+  let best = null, bestScore = -Infinity;
+  for (const t of owned) {
+    let score = -1;
+    for (const nId of t.neighbors) {
+      const n = territories[nId];
+      if (n.owner === royId) continue;
+      score = Math.max(score, t.force - n.force + 3);
+    }
+    score += rngFloat() * 0.5; // light tie-breaking randomization
+    if (score > bestScore) { bestScore = score; best = t; }
+  }
+  return best || pick(owned);
 }
 
 function endTurn() {
@@ -716,7 +915,7 @@ function endTurn() {
     guardCount++;
     const owned = territories.filter(t => t.owner === royId && t.force < FORCE_CAP);
     if (!owned.length) break;
-    const chosen = pick(owned);
+    const chosen = pickReinforceTarget(royId, owned);
     chosen.force++;
     reinforcedCounts[chosen.id] = (reinforcedCounts[chosen.id] || 0) + 1;
     pts--;
@@ -724,6 +923,7 @@ function endTurn() {
   logMsg(`${ROYAUMES[royId].name} reçoit ${reinforcement} renfort(s).`);
   selected = -1;
   triggerPulse(reinforcedCounts);
+  if (royId === humanRoyId) sfxEndTurn(); // only for the player's own turn, not every AI seat
   advanceTurn();
 }
 
@@ -736,16 +936,16 @@ function advanceTurn() {
     guard++;
   } while ((!isAlive(next) || ROYAUMES[next].neutral) && guard <= ROYAUME_COUNT);
   currentPlayer = next;
-  if (currentPlayer === 0 && !replaying) {
+  if (currentPlayer === humanRoyId && !replaying) {
     roundNumber++;
     recordRoundSnapshot();
   }
   updateStatus();
   render();
   if (checkWinner()) return;
-  if (!ROYAUMES[currentPlayer].human && !ROYAUMES[currentPlayer].neutral) {
+  if (currentPlayer !== humanRoyId && !ROYAUMES[currentPlayer].neutral) {
     aiRunning = true;
-    setTimeout(runAI, 500 / replaySpeed);
+    scheduleTurn(runAI, 350 / replaySpeed); // 500 * 0.7 — AI turn pacing sped up 30%
   }
 }
 
@@ -772,9 +972,10 @@ function checkWinner() {
 function showWin(royId) {
   document.getElementById("winbanner").style.display = "flex";
   document.getElementById("winKnight").src = CHEVALIER_IMG_SRC;
+  if (royId === humanRoyId) sfxVictory();
   const text = lastAttackWasGrind
     ? "Bravo seigneur, vous avez guerroyé férocement aujourd'hui, la dernière bataille était dure !"
-    : (royId === 0) ? "Victoire, Châteauvieux !" : `${ROYAUMES[royId].name} l'emporte.`;
+    : (royId === humanRoyId) ? `Victoire, ${ROYAUMES[royId].name} !` : `${ROYAUMES[royId].name} l'emporte.`;
   document.getElementById("wintext").textContent = text;
   document.getElementById("endturn").disabled = true;
   drawStatChart();
@@ -854,7 +1055,7 @@ function startReplay() {
   function step() {
     if (!replaying) return; // user could in principle navigate away; bail cleanly
     if (gameOver) { finishReplay(levelToRestore); return; }
-    if (currentPlayer !== 0 || aiRunning) { setTimeout(step, 30); return; }
+    if (currentPlayer !== humanRoyId || aiRunning) { setTimeout(step, 30); return; }
     if (i >= logToReplay.length) { finishReplay(levelToRestore); return; }
     const action = logToReplay[i++];
     if (action.end) endTurn(); else attack(action.a, action.b);
@@ -873,7 +1074,7 @@ function finishReplay(levelToRestore) {
 /* ---------- AI ---------- */
 function runAI() {
   const royId = currentPlayer;
-  if (gameOver || ROYAUMES[royId].human) { aiRunning = false; return; }
+  if (gameOver || royId === humanRoyId) { aiRunning = false; return; }
 
   function bestMove() {
     const territoryCount = {};
@@ -911,10 +1112,10 @@ function runAI() {
   const mv = bestMove();
   if (mv && rngFloat() >= escalated(AI_MISTAKE_RATE, 0.05)) {
     attack(mv.from, mv.to);
-    setTimeout(runAI, 450 / replaySpeed);
+    scheduleTurn(runAI, 315 / replaySpeed); // 450 * 0.7
   } else {
     aiRunning = false;
-    setTimeout(endTurn, 300 / replaySpeed);
+    scheduleTurn(endTurn, 210 / replaySpeed); // 300 * 0.7
   }
 }
 
@@ -1174,7 +1375,7 @@ function drawForceIcon(t) {
 /* ---------- INPUT ---------- */
 let firstClickDone = false;
 function handlePointer(clientX, clientY) {
-  if (replaying || gameOver || aiRunning || !ROYAUMES[currentPlayer].human) return;
+  if (replaying || gameOver || aiRunning || currentPlayer !== humanRoyId) return;
   if (!firstClickDone) {
     firstClickDone = true;
     document.getElementById("rerollBtn").style.display = "none";
@@ -1216,9 +1417,16 @@ function handlePointer(clientX, clientY) {
 canvas.addEventListener("click", (e) => handlePointer(e.clientX, e.clientY));
 
 document.getElementById("endturn").addEventListener("click", () => {
-  if (!replaying && !gameOver && !aiRunning && ROYAUMES[currentPlayer].human) {
+  if (replaying || gameOver) return;
+  if (currentPlayer === humanRoyId) {
+    if (aiRunning) return;
     moveLog.push({ end: true });
     endTurn();
+  } else {
+    // "La guerre fait rage" — tapping it while the AIs are playing instantly
+    // fast-forwards through the rest of their turns instead of waiting out
+    // the usual pacing delay between moves.
+    fastForward = true;
   }
 });
 document.getElementById("restart").addEventListener("click", () => startGame());
@@ -1239,6 +1447,48 @@ deterministicToggle.addEventListener("change", () => {
   DETERMINISTIC_COMBAT = deterministicToggle.checked;
   try { localStorage.setItem("kw_deterministicCombat", DETERMINISTIC_COMBAT ? "1" : "0"); } catch (e) { /* ignore */ }
 });
+
+const soundToggle = document.getElementById("soundToggle");
+soundToggle.checked = soundEnabled;
+soundToggle.addEventListener("change", () => {
+  soundEnabled = soundToggle.checked;
+  try { localStorage.setItem("kw_soundEnabled", soundEnabled ? "1" : "0"); } catch (e) { /* ignore */ }
+});
+
+const instantBattlesToggle = document.getElementById("instantBattlesToggle");
+instantBattlesToggle.checked = instantBattlesSetting;
+instantBattlesToggle.addEventListener("change", () => {
+  instantBattlesSetting = instantBattlesToggle.checked;
+  if (currentPlayer === humanRoyId) fastForward = instantBattlesSetting;
+  try { localStorage.setItem("kw_instantBattles", instantBattlesSetting ? "1" : "0"); } catch (e) { /* ignore */ }
+});
+
+// --- faction picker: which real royaume (0-3) the player controls ---
+const campLevelsEl = document.getElementById("campLevels");
+for (let i = 0; i < 4; i++) {
+  const roy = ROYAUMES[i];
+  const btn = document.createElement("button");
+  btn.className = "campBtn";
+  btn.dataset.roy = String(i);
+  btn.textContent = roy.name;
+  btn.style.background = roy.color;
+  btn.style.color = textColorFor(roy.color);
+  btn.addEventListener("click", () => {
+    if (i === humanRoyId) return;
+    humanRoyId = i;
+    try { localStorage.setItem("kw_humanRoyId", String(i)); } catch (e) { /* ignore */ }
+    refreshCampButtons();
+    settingsPanel.style.display = "none";
+    startGame(); // fresh match as the newly-chosen royaume
+  });
+  campLevelsEl.appendChild(btn);
+}
+function refreshCampButtons() {
+  campLevelsEl.querySelectorAll(".campBtn").forEach((btn) => {
+    btn.classList.toggle("active", Number(btn.dataset.roy) === humanRoyId);
+  });
+}
+refreshCampButtons();
 
 function refreshLevelButtons() {
   document.querySelectorAll("#difficultyLevels .levelBtn").forEach((btn, i) => {
@@ -1273,8 +1523,33 @@ document.querySelectorAll("#sortLevels .levelBtn").forEach((btn) => {
 /* ---------- STATUS / LOG ---------- */
 function updateStatus() {
   document.getElementById("status").textContent =
-    `Tour : ${ROYAUMES[currentPlayer].name}` + (ROYAUMES[currentPlayer].human ? " (toi)" : "");
+    `Tour : ${ROYAUMES[currentPlayer].name}` + (currentPlayer === humanRoyId ? " (toi)" : "");
+  updateEndTurnButton();
+  // once it's the human's turn again, drop back to the persisted "batailles
+  // instantanées" setting — a manual tap-to-skip during the AI's turn is a
+  // one-off, not a standing override
+  if (currentPlayer === humanRoyId) fastForward = instantBattlesSetting;
 }
+
+// luminance-based contrast pick so light royaume colors (e.g. Châteauvieux's
+// near-white) get dark text and dark ones (Beaumanoir's navy) get light text
+function textColorFor(hex) {
+  const c = hex.replace("#", "");
+  const r = parseInt(c.substr(0, 2), 16), g = parseInt(c.substr(2, 2), 16), b = parseInt(c.substr(4, 2), 16);
+  const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return lum > 0.55 ? "#241d16" : "#f2ede2";
+}
+
+function updateEndTurnButton() {
+  const btn = document.getElementById("endturn");
+  const isHuman = currentPlayer === humanRoyId;
+  btn.textContent = isHuman ? "Fin de bataille" : "La guerre fait rage";
+  btn.classList.toggle("aiTurn", !isHuman);
+  const roy = ROYAUMES[humanRoyId];
+  btn.style.background = roy.color;
+  btn.style.color = textColorFor(roy.color);
+}
+
 function logMsg(msg) {
   document.getElementById("log").textContent = msg;
 }
@@ -1300,6 +1575,13 @@ function startGame(seed) {
   logMsg(onboarding ? "Cliquez sur un territoire blanc." : "Nouvelle partie.");
   updateGroups(); // populate before resize() measures the HUD's real height
   resize();
+  // seat 0 always plays first regardless of which royaume is human-controlled
+  // — if that's an AI seat, kick its turn off (advanceTurn only does this on
+  // *later* turn changes, not the very first one)
+  if (currentPlayer !== humanRoyId && !ROYAUMES[currentPlayer].neutral) {
+    aiRunning = true;
+    scheduleTurn(runAI, 350 / replaySpeed);
+  }
 }
 
 startGame();
