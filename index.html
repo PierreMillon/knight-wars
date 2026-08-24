@@ -80,6 +80,16 @@
   #groups {
     display: flex; flex-direction: column; align-items: flex-start; gap: 4px;
   }
+  #gameTitleBlock { display: flex; flex-direction: column; align-items: flex-start; margin-bottom: 6px; }
+  #gameTitle {
+    font-family: Georgia, "Iowan Old Style", Palatino, "Times New Roman", serif;
+    font-size: 20px; font-weight: 700; letter-spacing: .02em;
+  }
+  #versionBtn {
+    pointer-events: auto; background: none; border: none; padding: 0; margin: 2px 0 0;
+    color: rgba(242,237,226,.7); font-size: 10.5px; font-family: Georgia, "Iowan Old Style", Palatino, serif;
+    text-decoration: underline; text-underline-offset: 2px; cursor: pointer;
+  }
   .chip { display: flex; align-items: center; gap: 5px; font-size: 12px; white-space: nowrap; flex: none; }
   .chip .swatch { width: 11px; height: 11px; border-radius: 50%; flex: none; box-shadow: 0 0 0 1px rgba(0,0,0,.5); }
   .chip .n { font-weight: 700; }
@@ -214,6 +224,19 @@
   .hPays { margin-left: 36px; }
   #conseilsMechanics p { font-size: 13.5px; line-height: 1.55; margin: 0 0 12px; }
   #conseilsMechanics strong { color: #6b2318; }
+  #changelogOverlay {
+    position: absolute; inset: 0; display: none;
+    align-items: center; justify-content: center;
+    background: rgba(10,8,6,.88); text-align: left; z-index: 10;
+  }
+  #changelogOverlay .box { max-height: 80vh; overflow-y: auto; }
+  #changelogOverlay h2 { margin: 0 0 14px; font-size: 20px; text-align: center; }
+  #changelogOverlay button { display: block; margin: 0 auto; }
+  #changelogThanks { text-align: center; font-size: 17px; line-height: 1.6; margin: 0 0 20px; }
+  #changelogThanks strong { color: #6b2318; }
+  .changelogVersion { font-weight: 700; font-size: 14.5px; margin: 16px 0 4px; }
+  .changelogVersion:first-child { margin-top: 0; }
+  #changelogList ul { margin: 0 0 4px; padding-left: 18px; font-size: 13px; line-height: 1.55; }
   #truceOverlay p { font-size: 14px; line-height: 1.5; opacity: .9; margin: 0 0 18px; }
   #continueSiegeQuote { font-style: italic; font-size: 13px; }
   /* every action button across every menu/overlay — settings, win banner,
@@ -231,7 +254,11 @@
   /* small first-game-only tutorial banner — same materials as the other HUD
      buttons, just top-center and text-only, out of the way of the map */
   #onboardingHint {
-    position: absolute; top: calc(10px + env(safe-area-inset-top, 0px)); left: 50%;
+    /* pushed down past #gameTitleBlock (top-left, ~36px tall) — it used to
+       sit at the very top center and overlap the title on a new player's
+       very first screen, which is exactly the one moment they'd both show
+       at once */
+    position: absolute; top: calc(50px + env(safe-area-inset-top, 0px)); left: 50%;
     transform: translateX(-50%); z-index: 5;
     display: none; pointer-events: none; max-width: 78vw; text-align: center;
     background: rgba(20,16,12,.75); color: #f2ede2; font-size: 13px; font-weight: 600;
@@ -249,6 +276,10 @@
   <div id="status">—</div>
   <div id="log"></div>
   <div id="topBar">
+    <div id="gameTitleBlock">
+      <span id="gameTitle">Knight Wars</span>
+      <button id="versionBtn" aria-label="Notes de version"></button>
+    </div>
     <div id="groups"></div>
   </div>
   <button id="settingsBtn" aria-label="Réglages"><img id="settingsBtnImg" alt=""></button>
@@ -320,6 +351,14 @@
         <p><strong>La trêve</strong> se déclenche quand toutes les frontières sont bloquées au plafond et que rien ne bouge depuis plusieurs tours d'affilée — signe qu'aucune attaque n'a de chance d'aboutir. Vous pouvez l'accepter (match nul) ou continuer le siège en espérant un 12 contre 12 favorable.</p>
       </div>
       <button id="closeConseils">Fermer</button>
+    </div>
+  </div>
+  <div id="changelogOverlay">
+    <div class="box">
+      <h2>📜 Notes de version</h2>
+      <p id="changelogThanks">Un ÉNORME MERCI à nos testeuses,<br><strong>Magaly</strong> et <strong>Joëlle</strong> !</p>
+      <div id="changelogList"></div>
+      <button id="closeChangelog">Fermer</button>
     </div>
   </div>
   <div id="settingsPanel">
@@ -2901,6 +2940,51 @@ document.getElementById("conseilsBtn").addEventListener("click", () => {
 });
 document.getElementById("closeConseils").addEventListener("click", () => {
   document.getElementById("conseilsOverlay").style.display = "none";
+  sfxMenuClose();
+});
+// Very synthetic — one entry per meaningful batch of changes, not one line
+// per commit. Newest first; bump GAME_VERSION and add a new entry at the
+// top whenever a future change is worth telling players about.
+const GAME_VERSION = "1.1";
+const CHANGELOG = [
+  {
+    version: "1.1",
+    notes: [
+      "« Rejouer » relance désormais exactement la même carte (un nouveau bouton séparé lance une carte aléatoire)",
+      "Le replay se regarde plus lentement, avec un bouton pour doubler la vitesse à la volée",
+      "Correction : le son ne revenait plus après avoir coupé puis rallumé le silencieux de l'iPhone",
+      "Correction : les contours dorés/argentés de sélection se chevauchaient mal aux frontières de province",
+      "Grande Campagne : hexagones agrandis, la carte n'était plus injouable",
+      "Le niveau Page (facile) est désormais beaucoup plus clément pour bien démarrer",
+      "Ajout de ce menu de version et de son historique",
+    ],
+  },
+  {
+    version: "1.0",
+    notes: [
+      "Carte hexagonale générée aléatoirement, en 3 tailles (Escarmouche, Campagne, Grande Campagne)",
+      "4 royaumes rivaux aux personnalités et styles de jeu distincts",
+      "4 niveaux de difficulté ; combat sans hasard, sauf à 12 contre 12",
+      "Glisser-déposer pour enchaîner plusieurs attaques d'un seul geste",
+      "Renforts de fin de tour basés sur votre part du territoire",
+      "Trêve automatique proposée en cas d'impasse générale",
+      "Revoir une partie terminée en accéléré, et la partager par lien",
+      "Effets sonores et animations de combat",
+      "Progression méta optionnelle (gueux gagnés à chaque victoire)",
+    ],
+  },
+];
+document.getElementById("versionBtn").textContent = `v${GAME_VERSION}`;
+document.getElementById("changelogList").innerHTML = CHANGELOG.map((entry) => `
+  <div class="changelogVersion">Version ${entry.version}</div>
+  <ul>${entry.notes.map((n) => `<li>${n}</li>`).join("")}</ul>
+`).join("");
+document.getElementById("versionBtn").addEventListener("click", () => {
+  document.getElementById("changelogOverlay").style.display = "flex";
+  sfxMenuOpen();
+});
+document.getElementById("closeChangelog").addEventListener("click", () => {
+  document.getElementById("changelogOverlay").style.display = "none";
   sfxMenuClose();
 });
 document.getElementById("surrenderBtn").addEventListener("click", () => {
