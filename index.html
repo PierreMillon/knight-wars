@@ -509,10 +509,11 @@ function ensureFXLoop() {
     requestAnimationFrame(fxStep);
   }
 }
-function triggerPulse(ids) {
+function triggerPulse(counts) {
+  const ids = Object.keys(counts);
   if (!ids.length) return;
   const now = performance.now();
-  pulseTiles = ids.map(id => ({ id, start: now }));
+  pulseTiles = ids.map(id => ({ id: Number(id), amount: counts[id], start: now }));
   ensureFXLoop();
 }
 function triggerCombatFX(fromId, toId, atk, def, win) {
@@ -567,19 +568,19 @@ function endTurn() {
   const reinforcement = largestConnectedGroup(royId);
   let pts = reinforcement;
   let guardCount = 0;
-  const reinforcedIds = [];
+  const reinforcedCounts = {}; // territory id -> how many points landed there
   while (pts > 0 && guardCount < 500) {
     guardCount++;
     const owned = territories.filter(t => t.owner === royId && t.force < FORCE_CAP);
     if (!owned.length) break;
     const chosen = pick(owned);
     chosen.force++;
-    reinforcedIds.push(chosen.id);
+    reinforcedCounts[chosen.id] = (reinforcedCounts[chosen.id] || 0) + 1;
     pts--;
   }
   logMsg(`${ROYAUMES[royId].name} reçoit ${reinforcement} renfort(s).`);
   selected = -1;
-  triggerPulse(reinforcedIds);
+  triggerPulse(reinforcedCounts);
   advanceTurn();
 }
 
@@ -746,6 +747,15 @@ function render() {
     ctx.strokeStyle = `rgba(255, 214, 92, ${1 - progress})`;
     ctx.lineWidth = 2.5;
     ctx.stroke();
+
+    const alpha = 1 - progress;
+    ctx.font = "bold 12px -apple-system, sans-serif";
+    ctx.textAlign = "center";
+    ctx.strokeStyle = `rgba(20,16,12,${alpha * 0.8})`;
+    ctx.lineWidth = 2.5;
+    ctx.strokeText(`+${p.amount}`, t.cx, t.cy - 16 - progress * 10);
+    ctx.fillStyle = `rgba(255, 214, 92, ${alpha})`;
+    ctx.fillText(`+${p.amount}`, t.cx, t.cy - 16 - progress * 10);
   }
 
   // combat flash — the atk/def rolls float briefly over both territories,
@@ -780,6 +790,15 @@ function render() {
       ctx.strokeStyle = combatFX.win ? `rgba(90,200,120,${alpha})` : `rgba(200,70,60,${alpha})`;
       ctx.lineWidth = 2.5;
       ctx.stroke();
+
+      // plain-language outcome, in addition to the raw dice numbers above
+      ctx.font = "bold 11px -apple-system, sans-serif";
+      const label = combatFX.win ? "+1 territoire" : "échec";
+      ctx.strokeStyle = `rgba(20,16,12,${alpha * 0.8})`;
+      ctx.lineWidth = 2.5;
+      ctx.strokeText(label, ringT.cx, ringT.cy + floatY - 12);
+      ctx.fillStyle = combatFX.win ? `rgba(90,200,120,${alpha})` : `rgba(200,70,60,${alpha})`;
+      ctx.fillText(label, ringT.cx, ringT.cy + floatY - 12);
     }
   }
 
