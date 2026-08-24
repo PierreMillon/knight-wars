@@ -32,7 +32,7 @@
     font-family: Georgia, "Iowan Old Style", Palatino, "Times New Roman", serif;
   }
   #settingsBtn {
-    position: absolute; top: calc(8px + env(safe-area-inset-top, 0px)); left: 10px;
+    position: absolute; top: calc(8px + env(safe-area-inset-top, 0px)); right: 10px;
     pointer-events: auto; background: rgba(20,16,12,.55);
     width: 34px; height: 34px; padding: 3px;
   }
@@ -72,9 +72,7 @@
   #endturn:disabled { background: #5a5044 !important; color: #f2ede2 !important; opacity: .6; }
   #topBar {
     position: absolute; left: 0; top: 0;
-    /* top padding cleared to sit below #settingsBtn now that it lives in this
-       same corner, instead of overlapping it */
-    padding: calc(50px + env(safe-area-inset-top, 0px)) 0 6px 14px;
+    padding: calc(8px + env(safe-area-inset-top, 0px)) 0 6px 14px;
     box-sizing: border-box; pointer-events: none;
     display: flex; flex-direction: column; align-items: flex-start;
     color: #f2ede2; text-shadow: 0 1px 2px rgba(0,0,0,.6);
@@ -82,11 +80,11 @@
   #groups {
     display: flex; flex-direction: column; align-items: flex-start; gap: 4px;
   }
-  /* mirrors #topBar on the opposite corner — nothing else lives up there, so
-     no equivalent of the settingsBtn top-padding offset is needed */
+  /* mirrors #topBar on the opposite corner — top padding cleared to sit
+     below #settingsBtn now that the gear lives in this corner instead */
   #topBarRight {
     position: absolute; right: 0; top: 0;
-    padding: calc(8px + env(safe-area-inset-top, 0px)) 14px 6px 0;
+    padding: calc(50px + env(safe-area-inset-top, 0px)) 14px 6px 0;
     box-sizing: border-box; pointer-events: none;
     display: flex; flex-direction: column; align-items: flex-end;
     color: #f2ede2; text-shadow: 0 1px 2px rgba(0,0,0,.6);
