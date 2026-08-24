@@ -117,6 +117,7 @@
     padding: 8px 16px; font-size: 13px; white-space: nowrap;
   }
   #winbanner h1 { margin: 0; font-size: 24px; max-width: 260px; }
+  #winSubtext { margin: -6px 0 0; font-size: 13px; font-style: italic; opacity: .8; max-width: 260px; }
   #winbanner img { width: 96px; height: auto; image-rendering: pixelated; }
   #statChart { background: rgba(0,0,0,.05); border-radius: 8px; }
   .winButtons { display: flex; gap: 10px; }
@@ -164,6 +165,7 @@
     <div class="box">
       <img id="winKnight" alt="">
       <h1 id="wintext"></h1>
+      <p id="winSubtext"></p>
       <canvas id="statChart" width="280" height="150"></canvas>
       <div class="winButtons">
         <button id="restart">Rejouer</button>
@@ -375,8 +377,22 @@ window.addEventListener("resize", resize);
 // iOS Safari's address bar collapses/expands after load, changing the
 // visible viewport without a plain "resize" event — this keeps the map
 // correctly fitted to what's actually visible instead of the taller
-// pre-scroll measurement.
-if (window.visualViewport) window.visualViewport.addEventListener("resize", resize);
+// pre-scroll measurement. Some Safari versions fire "scroll" on
+// visualViewport instead of/in addition to "resize" for the same chrome
+// animation, so both are covered.
+if (window.visualViewport) {
+  window.visualViewport.addEventListener("resize", resize);
+  window.visualViewport.addEventListener("scroll", resize);
+}
+// Also re-run shortly after boot and whenever the page becomes visible
+// again: on first load, Safari can report a too-small visualViewport height
+// while its own chrome is still settling, and if nothing fires another
+// resize/scroll event afterward the canvas gets stuck at that small size
+// (confirmed on a real device — persisted even after a manual reload).
+window.addEventListener("pageshow", resize);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) resize(); });
+setTimeout(resize, 300);
+setTimeout(resize, 1000);
 
 /* ---------- HEX MATH ---------- */
 function axialToPixel(q, r) {
@@ -786,6 +802,7 @@ let aiRunning = false;
 let allCappedStreak = 0;
 let truceWinnerId = -1;
 let truceEnded = false; // showWin() uses different flavor text for a truce than an outright win
+let humanStartTerritories = 0; // set in pickFaction() — baseline for the end-of-game "gained ground?" line
 // "batailles instantanées" — when on, AI turns resolve back-to-back with no
 // pacing delay instead of the usual ~0.3-0.5s per move (still async so a long
 // AI-vs-AI cascade never blows the call stack, just effectively instant).
@@ -1122,6 +1139,26 @@ function checkWinner() {
   return false;
 }
 
+// End-of-game bonus commentary on the human's own standing — independent of
+// who actually won the match (works the same for a victory, a loss, or a
+// truce): did they gain ground, do they field the biggest army, or neither?
+function personalPerformanceLine() {
+  const humanTerrNow = territories.filter(t => t.owner === humanRoyId).length;
+  const humanForceNow = totalForce(humanRoyId);
+  let maxOtherForce = -1;
+  for (let r = 0; r < ROYAUME_COUNT - 1; r++) {
+    if (r === humanRoyId) continue;
+    maxOtherForce = Math.max(maxOtherForce, totalForce(r));
+  }
+  if (humanTerrNow > humanStartTerritories) {
+    return "Vous avez plus de territoire qu'avant. Vivement la prochaine guerre pour tous les soumettre !";
+  }
+  if (humanForceNow >= maxOtherForce) {
+    return "Vous avez la plus grosse armée. Qu'attendez-vous pour lancer une nouvelle offensive, monseigneur ?";
+  }
+  return "Vous rentrez chez vous la queue entre les jambes, vous êtes un lâche. Essayez la poterie plutôt que la guerre la prochaine fois.";
+}
+
 function showWin(royId) {
   document.getElementById("winbanner").style.display = "flex";
   document.getElementById("winKnight").src = CHEVALIER_IMG_SRC;
@@ -1139,6 +1176,7 @@ function showWin(royId) {
     ? "Bravo seigneur, vous avez guerroyé férocement aujourd'hui, la dernière bataille était dure !"
     : (royId === humanRoyId) ? `Victoire, ${ROYAUMES[royId].name} !` : `${ROYAUMES[royId].name} l'emporte.`;
   document.getElementById("wintext").textContent = text;
+  document.getElementById("winSubtext").textContent = personalPerformanceLine();
   document.getElementById("endturn").disabled = true;
   drawStatChart();
   document.getElementById("watchReplay").disabled = moveLog.length === 0;
@@ -1672,6 +1710,9 @@ function pickFaction(royId) {
   document.getElementById("rerollBtn").style.display = "none";
   sfxPickFaction();
   balanceStartingForces();
+  // baseline for the end-of-game "gained ground?" flavor line — territory
+  // ownership itself isn't touched by the pick or by balanceStartingForces()
+  humanStartTerritories = territories.filter(t => t.owner === royId).length;
   logMsg(`Vous jouez ${ROYAUMES[royId].name}.`);
   updateStatus();
   updateGroups();
