@@ -2890,7 +2890,18 @@ async function checkForUpdate() {
     if (!tag) return; // host doesn't send either header — nothing reliable to compare against
     const stored = localStorage.getItem("kw_pageVersion");
     if (stored === null) { localStorage.setItem("kw_pageVersion", tag); return; }
-    if (tag !== stored) { updateAvailable = true; pendingVersionTag = tag; }
+    if (tag !== stored) {
+      updateAvailable = true;
+      pendingVersionTag = tag;
+      // Only auto-apply pre-pick — there's genuinely nothing on screen yet
+      // for a reload to yank away. Deliberately NOT doing this on gameOver
+      // too: showWin() calls checkForUpdate() the instant the win banner
+      // appears, purely to have the check ready by the time the player
+      // clicks something — reloading right then would blow away the
+      // results/stats screen before they've even seen it. That case still
+      // waits for an explicit "Rejouer"/"Nouvelle guerre" tap, same as before.
+      if (awaitingFactionPick) reloadIfUpdateAvailable();
+    }
   } catch (e) { /* offline, or the request was blocked — just skip this check */ }
 }
 // returns true (and reloads) if an update was pending — callers should skip
