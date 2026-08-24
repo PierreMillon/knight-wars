@@ -475,22 +475,42 @@ function generateHexGrid() {
   const range = Math.ceil(MAP_PIXEL_RADIUS / (HEX_SIZE * 1.5)) + 2;
 
   // random island silhouette: sum of a few sine harmonics with random phase/amplitude,
-  // recomputed each new game so the outer contour differs from one game to the next
-  const harmonics = [2, 3, 4, 5].map(freq => ({
+  // recomputed each new game so the outer contour differs from one game to the next.
+  // freq 1 is included (asymmetric, "lopsided egg" shapes) on top of the higher
+  // frequencies, and the amplitude range is wide enough that some games come out
+  // near-circular while others are noticeably more sprawled or condensed —
+  // deliberately more varied than always converging back toward a circle.
+  const harmonics = [1, 2, 3, 4, 5].map(freq => ({
     freq,
     phase: rngFloat() * Math.PI * 2,
-    amp: 0.03 + rngFloat() * 0.05,
+    amp: 0.02 + rngFloat() * 0.11,
   }));
+  // occasionally pinches the coastline down to a narrow isthmus at one random
+  // angle — a natural strait/chokepoint in the outer silhouette itself, not
+  // just from an interior void — for a noticeably less round map that game
+  const hasWaist = rngFloat() < 0.45;
+  const waistTheta = rngFloat() * Math.PI * 2;
+  const waistWidth = 0.35 + rngFloat() * 0.35; // radians — how wide the pinch is
+  const waistDepth = 0.35 + rngFloat() * 0.3; // how far it narrows (fraction of radius)
   function radialJitter(theta) {
     let j = 1;
     for (const h of harmonics) j += h.amp * Math.sin(h.freq * theta + h.phase);
-    return j;
+    if (hasWaist) {
+      let d = Math.abs(theta - waistTheta) % (Math.PI * 2);
+      if (d > Math.PI) d = Math.PI * 2 - d;
+      if (d < waistWidth) {
+        const t = 1 - d / waistWidth; // 1 at the center of the pinch, 0 at its edges
+        j -= waistDepth * t * t;
+      }
+    }
+    return Math.max(0.25, j);
   }
 
-  // Stretched taller than wide (portrait-phone aspect) so the island fills
-  // more of the screen vertically instead of leaving a circle's worth of
-  // empty margin above and below on a tall viewport.
-  const Y_STRETCH = 1.3;
+  // Stretched taller than wide (portrait-phone aspect) as a baseline so the
+  // island still fills more of the screen vertically on a tall viewport, but
+  // randomized per game on top of that instead of pinned to one fixed ratio —
+  // some games come out more spread out, some more condensed.
+  const Y_STRETCH = 1.1 + rngFloat() * 0.5;
   let maxX = 0, maxY = 0;
   for (let q = -range; q <= range; q++) {
     for (let r = -range; r <= range; r++) {
@@ -513,35 +533,101 @@ function generateHexGrid() {
   mapExtentY = maxY;
 
   carveVoids();
+  // the more aggressive silhouette pinch and channel-shaped voids above can,
+  // in the worst case, sever the island into two or more disconnected
+  // landmasses — which would strand some royaume's territory somewhere no
+  // attack could ever reach. Keep only the single largest connected group of
+  // hexes so every game stays one fully-reachable island no matter how
+  // extreme the random shape/voids came out.
+  keepLargestConnectedComponent();
 }
 
-// A few interior lakes/impassable pockets — small chunks of the island that
-// belong to no territory at all (just empty background, unclickable, no
-// village). Purely a bit of visual/tactical texture so the island isn't one
-// uniform blob; carving is capped so there's always plenty of room left for
-// every territory to seed and grow normally.
-const VOID_COUNT = 2;
-const VOID_MIN_SIZE = 3, VOID_MAX_SIZE = 7;
+function keepLargestConnectedComponent() {
+  const keys = Object.keys(hexes);
+  if (!keys.length) return;
+  const visited = new Set();
+  const components = [];
+  for (const k of keys) {
+    if (visited.has(k)) continue;
+    const comp = [];
+    const stack = [k];
+    visited.add(k);
+    while (stack.length) {
+      const cur = stack.pop();
+      comp.push(cur);
+      const h = hexes[cur];
+      for (const nk of neighborsOf(h.q, h.r)) {
+        if (hexes[nk] && !visited.has(nk)) { visited.add(nk); stack.push(nk); }
+      }
+    }
+    components.push(comp);
+  }
+  if (components.length <= 1) return;
+  components.sort((a, b) => b.length - a.length);
+  for (let i = 1; i < components.length; i++) {
+    for (const k of components[i]) delete hexes[k];
+  }
+}
+
+// Interior lakes/impassable pockets — chunks of the island that belong to no
+// territory at all (just empty background, unclickable, no village). Purely
+// visual/tactical texture so the island isn't one uniform blob; carving is
+// capped so there's always plenty of room left for every territory to seed
+// and grow normally.
+// Count and size are randomized per game (more voids, and occasionally much
+// bigger ones, than a fixed "always 2 small pockets"). Each void is either a
+// round-ish blob (organic lake) or an elongated "channel" that snakes mostly
+// in one direction instead of flooding outward evenly — a channel that
+// nearly reaches across the island leaves the strip of land beside its tip
+// as a narrow 1-2-hex chokepoint between two otherwise-separated areas.
+const VOID_MIN_SIZE = 3, VOID_MAX_SIZE = 16;
 function carveVoids() {
   const minRemaining = TERRITORY_COUNT * 3;
-  for (let v = 0; v < VOID_COUNT; v++) {
+  const voidCount = 2 + rand(5); // 2-6 voids per game, up from a flat 2
+  for (let v = 0; v < voidCount; v++) {
     const candidates = Object.keys(hexes);
     if (candidates.length <= minRemaining) break;
     const seedKey = pick(candidates);
     const targetSize = VOID_MIN_SIZE + rand(VOID_MAX_SIZE - VOID_MIN_SIZE + 1);
+    const isChannel = rngFloat() < 0.45;
     const blob = [seedKey];
     const seen = new Set(blob);
-    const frontier = [seedKey];
-    while (blob.length < targetSize && frontier.length) {
-      const cur = frontier.shift();
-      const h = hexes[cur];
-      if (!h) continue;
-      for (const nk of neighborsOf(h.q, h.r)) {
-        if (blob.length >= targetSize) break;
-        if (seen.has(nk) || !hexes[nk]) continue;
-        seen.add(nk);
-        blob.push(nk);
-        frontier.push(nk);
+    if (isChannel) {
+      // random-walk in a mostly-fixed direction (occasional small turns)
+      // instead of BFS-flooding outward — produces a thin winding strip
+      // rather than a round pocket
+      let cur = hexes[seedKey];
+      let dirIdx = rand(NEI.length);
+      while (blob.length < targetSize) {
+        if (rngFloat() < 0.35) dirIdx = (dirIdx + (rngFloat() < 0.5 ? 1 : -1) + NEI.length) % NEI.length;
+        const [dq, dr] = NEI[dirIdx];
+        const nk = `${cur.q + dq},${cur.r + dr}`;
+        const nh = hexes[nk];
+        if (!nh || seen.has(nk)) {
+          // blocked this step — try a neighboring direction once instead of stopping outright
+          dirIdx = (dirIdx + 1) % NEI.length;
+          const [dq2, dr2] = NEI[dirIdx];
+          const nk2 = `${cur.q + dq2},${cur.r + dr2}`;
+          const nh2 = hexes[nk2];
+          if (!nh2 || seen.has(nk2)) break;
+          seen.add(nk2); blob.push(nk2); cur = nh2;
+          continue;
+        }
+        seen.add(nk); blob.push(nk); cur = nh;
+      }
+    } else {
+      const frontier = [seedKey];
+      while (blob.length < targetSize && frontier.length) {
+        const curKey = frontier.shift();
+        const h = hexes[curKey];
+        if (!h) continue;
+        for (const nk of neighborsOf(h.q, h.r)) {
+          if (blob.length >= targetSize) break;
+          if (seen.has(nk) || !hexes[nk]) continue;
+          seen.add(nk);
+          blob.push(nk);
+          frontier.push(nk);
+        }
       }
     }
     if (Object.keys(hexes).length - blob.length < minRemaining) continue; // would carve too much
@@ -818,6 +904,7 @@ let aiRunning = false;
 // go to the defender), the match would otherwise hang forever, since combat
 // has no randomness left to eventually break the deadlock.
 let allCappedStreak = 0;
+let lastStalemateFingerprint = null; // dice-mode-only: territories.map(owner) from the previous check, to detect "nothing moved"
 let truceWinnerId = -1;
 let truceEnded = false; // showWin() uses different flavor text for a truce than an outright win
 let humanStartTerritories = 0; // set in pickFaction() — baseline for the end-of-game "gained ground?" line
@@ -880,6 +967,13 @@ function recordRoundSnapshot() {
   statHistory.push({ round: roundNumber, stats });
 }
 
+// Reinforcement is earned per connected group of owned *régions*
+// (territories), but scaled by how many hexes ("villages") each région
+// actually contains — a 10-hex région pulls its weight, not the same single
+// point as a 1-hex région next to it. This walks the connected-component
+// search over territories (the black-outlined groupings, still the unit
+// adjacency is checked on) but sums hexKeys.length rather than counting
+// territories themselves.
 function largestConnectedGroup(royId) {
   const owned = new Set(territories.filter(t => t.owner === royId).map(t => t.id));
   const visited = new Set();
@@ -891,7 +985,7 @@ function largestConnectedGroup(royId) {
     visited.add(start);
     while (stack.length) {
       const cur = stack.pop();
-      size++;
+      size += territories[cur].hexKeys.length;
       for (const n of territories[cur].neighbors) {
         if (owned.has(n) && !visited.has(n)) { visited.add(n); stack.push(n); }
       }
@@ -1140,27 +1234,49 @@ function checkElimination() {
   // purely informational; advanceTurn's isAlive() already skips empty royaumes
 }
 
-// Only meaningful in deterministic-combat mode: with dice, even a heavily
-// tied-up board always keeps *some* chance of a fight flipping, but with
-// "la plus grande force gagne toujours" a strictly-tied attack can never
-// win (win = atk > def), so once every contested border is tied there is
-// no way forward at all. Checked once per full round; requires it to hold
-// for several rounds running before calling it, in case a reinforcement is
-// about to shuffle things loose.
+// Checked once per full round; requires it to hold for several rounds
+// running before calling it, in case a reinforcement is about to shuffle
+// things loose. Deterministic and dice combat need different tests for what
+// counts as "stuck":
+// - Deterministic ("la plus grande force gagne toujours"): a strictly-tied
+//   attack can never win (win = atk > def), so once every contested border
+//   is tied there is *no way forward at all* — a real, permanent deadlock.
+// - Dice: even a heavily tied-up board always keeps some chance of a fight
+//   flipping, so that test never actually fires here. Instead this treats a
+//   fully-capped board (every border territory already at FORCE_CAP, so
+//   reinforcement can't change anything either) whose ownership hasn't
+//   budged for several rounds running as a de-facto stalemate — nobody's
+//   actually landing a winning roll even though one remains technically
+//   possible.
 const STALEMATE_TRUCE_ROUNDS = 4;
 function checkStalemate() {
-  if (!DETERMINISTIC_COMBAT || gameOver) { allCappedStreak = 0; return; }
-  let anyWinnableAttack = false;
-  outer:
-  for (const t of territories) {
-    if (t.force <= 1) continue;
-    for (const nId of t.neighbors) {
-      const n = territories[nId];
-      if (n.owner === t.owner) continue;
-      if (t.force > n.force) { anyWinnableAttack = true; break outer; }
+  if (gameOver) { allCappedStreak = 0; return; }
+  if (DETERMINISTIC_COMBAT) {
+    let anyWinnableAttack = false;
+    outer:
+    for (const t of territories) {
+      if (t.force <= 1) continue;
+      for (const nId of t.neighbors) {
+        const n = territories[nId];
+        if (n.owner === t.owner) continue;
+        if (t.force > n.force) { anyWinnableAttack = true; break outer; }
+      }
     }
+    if (anyWinnableAttack) { allCappedStreak = 0; return; }
+  } else {
+    let allBordersCapped = true;
+    outer2:
+    for (const t of territories) {
+      for (const nId of t.neighbors) {
+        if (territories[nId].owner === t.owner) continue;
+        if (t.force < FORCE_CAP) { allBordersCapped = false; break outer2; }
+      }
+    }
+    const fingerprint = territories.map(t => t.owner).join(",");
+    const unchanged = allBordersCapped && fingerprint === lastStalemateFingerprint;
+    lastStalemateFingerprint = fingerprint;
+    if (!unchanged) { allCappedStreak = 0; return; }
   }
-  if (anyWinnableAttack) { allCappedStreak = 0; return; }
   allCappedStreak++;
   if (allCappedStreak >= STALEMATE_TRUCE_ROUNDS) declareStalemateTruce();
 }
@@ -2184,10 +2300,23 @@ function updateEndTurnButton() {
     return;
   }
   const isHuman = currentPlayer === humanRoyId;
-  // during the AIs' turn the same button doubles as a fast-forward: one tap
-  // skips straight to the end of their moves instead of waiting out the
-  // normal pacing — worth a short reminder since nothing else on screen says so
-  btn.innerHTML = isHuman ? "Fin de bataille" : "La guerre fait rage<span class=\"btnHint\">Accélérer batailles</span>";
+  if (isHuman) {
+    // once checkStalemate() has actually started counting a stuck-board
+    // streak, surface the countdown right on the button the player is about
+    // to tap — otherwise the truce screen used to just appear out of nowhere
+    // a few turns later with no warning it was coming
+    if (allCappedStreak > 0 && !gameOver) {
+      const remaining = STALEMATE_TRUCE_ROUNDS - allCappedStreak;
+      btn.innerHTML = `Fin de bataille<span class="btnHint">Statu quo dans ${remaining} tour${remaining > 1 ? "s" : ""}</span>`;
+    } else {
+      btn.textContent = "Fin de bataille";
+    }
+  } else {
+    // during the AIs' turn the same button doubles as a fast-forward: one tap
+    // skips straight to the end of their moves instead of waiting out the
+    // normal pacing — worth a short reminder since nothing else on screen says so
+    btn.innerHTML = "La guerre fait rage<span class=\"btnHint\">Accélérer batailles</span>";
+  }
   btn.classList.toggle("aiTurn", !isHuman);
   const roy = ROYAUMES[humanRoyId];
   btn.style.background = roy.color;
@@ -2216,7 +2345,7 @@ function startGame(seed) {
   document.getElementById("truceOverlay").style.display = "none";
   document.getElementById("endturn").disabled = false;
   gameOver = false; selected = -1; aiRunning = false;
-  allCappedStreak = 0; truceEnded = false; truceWinnerId = -1;
+  allCappedStreak = 0; lastStalemateFingerprint = null; truceEnded = false; truceWinnerId = -1;
   // must reset even during a replay — it re-simulates from round 0, and
   // leaving this at the original match's final value threw off escalated()
   // (and thus the AI's behavior, and thus the outcome) from the first
