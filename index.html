@@ -13,7 +13,7 @@
     touch-action: manipulation; user-select: none;
   }
   #wrap { position: relative; width: 100%; height: 100%; }
-  canvas { display: block; background: #2b3d52; }
+  canvas { display: block; background: #2b3d52; touch-action: none; } /* otherwise the browser can claim a one-finger drag as a pan/scroll gesture mid-way and never deliver pointerup */
   #status, #log { display: none; } /* kept for internal state only, no longer shown */
   #settingsBtn {
     position: absolute; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); left: 14px;
@@ -50,26 +50,17 @@
   }
   #endturn:disabled { background: #5a5044 !important; color: #f2ede2 !important; opacity: .6; }
   #topBar {
-    position: absolute; left: 0; right: 0; top: 0;
-    padding: calc(8px + env(safe-area-inset-top, 0px)) 14px 6px;
+    position: absolute; left: 0; top: 0;
+    padding: calc(8px + env(safe-area-inset-top, 0px)) 0 6px 14px;
     box-sizing: border-box; pointer-events: none;
-    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    display: flex; flex-direction: column; align-items: flex-start;
     color: #f2ede2; text-shadow: 0 1px 2px rgba(0,0,0,.6);
   }
-  #bottomBar {
-    position: absolute; left: 0; right: 0; bottom: 0;
-    padding: 8px 60px calc(10px + env(safe-area-inset-bottom, 0px));
-    box-sizing: border-box;
-    display: flex; align-items: center; justify-content: center;
-    pointer-events: none; /* only rerollBtn itself is clickable — the corner buttons sit under this full-width bar */
-  }
-  #groupsLegend { font-size: 9.5px; opacity: .55; letter-spacing: .02em; }
   #groups {
-    display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 4px 10px; max-width: 100%; justify-items: center;
+    display: flex; flex-direction: column; align-items: flex-start; gap: 4px;
   }
-  .chip { display: flex; align-items: center; gap: 3px; font-size: 9.5px; white-space: nowrap; flex: none; }
-  .chip .swatch { width: 8px; height: 8px; border-radius: 2px; flex: none; box-shadow: 0 0 0 1px rgba(0,0,0,.5); }
+  .chip { display: flex; align-items: center; gap: 5px; font-size: 12px; white-space: nowrap; flex: none; }
+  .chip .swatch { width: 11px; height: 11px; border-radius: 50%; flex: none; box-shadow: 0 0 0 1px rgba(0,0,0,.5); }
   .chip .n { font-weight: 700; }
   #settingsPanel {
     position: absolute; inset: 0; display: none;
@@ -87,21 +78,21 @@
     border-radius: 6px; padding: 6px 10px; font-size: 13px; font-weight: 400;
   }
   #settingsPanel .levelBtn.active { background: #1c3f8f; border-color: #1c3f8f; font-weight: 700; }
-  #settingsPanel .campBtn { border: 2px solid transparent; border-radius: 6px; padding: 6px 10px; font-size: 13px; font-weight: 700; }
-  #settingsPanel .campBtn.active { border-color: #f2ede2; box-shadow: 0 0 0 2px rgba(0,0,0,.5) inset; }
   #settingsPanel button {
     background: #1c3f8f; color: #fff; border: none; border-radius: 8px;
     padding: 8px 16px; font-size: 14px; font-weight: 700;
   }
+  #newWarBtn { background: #931f1d; margin-bottom: 10px; display: block; }
   #winbanner {
     position: absolute; inset: 0; display: none;
     align-items: center; justify-content: center; flex-direction: column;
     background: rgba(10,8,6,.82); color: #f2ede2; text-align: center; gap: 14px;
   }
   #rerollBtn {
+    position: absolute; right: 14px; /* bottom is set in JS, stacked just above #endturn */
     pointer-events: auto; background: rgba(20,16,12,.6); color: #f2ede2;
     border: 1px solid rgba(242,237,226,.35); border-radius: 20px;
-    padding: 8px 16px; font-size: 13px;
+    padding: 8px 16px; font-size: 13px; white-space: nowrap;
   }
   #winbanner h1 { margin: 0; font-size: 26px; max-width: 320px; }
   #winbanner img { width: 96px; height: auto; image-rendering: pixelated; }
@@ -112,6 +103,15 @@
     background: #1c3f8f; color: #fff; border: none; border-radius: 8px;
     padding: 10px 20px; font-size: 15px; font-weight: 700;
   }
+  #shareReplay { background: #931f1d; }
+  #shareIntro {
+    position: absolute; inset: 0; display: none;
+    align-items: center; justify-content: center;
+    background: rgba(10,8,6,.88); color: #f2ede2; text-align: center; z-index: 10;
+  }
+  #shareIntro .box { background: #241d16; border-radius: 12px; padding: 24px 22px; max-width: 320px; }
+  #shareIntro h2 { margin: 0 0 12px; font-size: 20px; }
+  #shareIntro p { font-size: 14px; opacity: .85; margin: 0 0 18px; }
 </style>
 </head>
 <body>
@@ -122,15 +122,12 @@
   <div id="status">—</div>
   <div id="log"></div>
   <div id="topBar">
-    <div id="groupsLegend">Seigneur · Villages · Soldats</div>
     <div id="groups"></div>
   </div>
   <button id="settingsBtn" aria-label="Réglages"><img id="settingsBtnImg" alt=""></button>
   <div id="gueuxBadge"></div>
   <button id="endturn">Fin de bataille</button>
-  <div id="bottomBar">
-    <button id="rerollBtn">⚜ Nouveau royaume</button>
-  </div>
+  <button id="rerollBtn">⚜ Nouveau royaume</button>
   <div id="winbanner">
     <img id="winKnight" alt="">
     <h1 id="wintext"></h1>
@@ -139,14 +136,21 @@
       <button id="restart">Rejouer</button>
       <button id="watchReplay">▶ Revoir la partie</button>
     </div>
+    <button id="shareReplay">📤 Partager ma victoire</button>
+  </div>
+  <div id="shareIntro">
+    <div class="box">
+      <h2>⚔️ Défi Knight Wars</h2>
+      <p id="shareIntroText"></p>
+      <div class="winButtons">
+        <button id="watchSharedReplay">▶ Voir sa partie</button>
+        <button id="playInstead">⚔ Jouer maintenant</button>
+      </div>
+    </div>
   </div>
   <div id="settingsPanel">
     <div class="box">
       <h2>Réglages</h2>
-      <div class="fieldGroup">
-        <div class="fieldLabel">Votre camp</div>
-        <div id="campLevels" class="levelRow"></div>
-      </div>
       <div class="fieldGroup">
         <div class="fieldLabel">Difficulté</div>
         <div id="difficultyLevels" class="levelRow">
@@ -168,6 +172,7 @@
       <label><input type="checkbox" id="instantBattlesToggle"> Batailles instantanées — les tours adverses se résolvent sans attendre</label>
       <label><input type="checkbox" id="dragToAttackToggle"> Glisser pour attaquer — en plus du double-tap</label>
       <label><input type="checkbox" id="metaProgressToggle"> Progression du gueux — gagnez un gueux à chaque victoire</label>
+      <button id="newWarBtn">⚔ Nouvelle guerre</button>
       <button id="closeSettings">Fermer</button>
     </div>
   </div>
@@ -298,11 +303,20 @@ function resize() {
   // measured live — the top bar's content can vary a bit) so the map never
   // renders underneath/crowding either one
   const topInset = document.getElementById("topBar").offsetHeight + 6;
+  const endturnEl = document.getElementById("endturn");
+  const rerollEl = document.getElementById("rerollBtn");
+  const rerollVisible = rerollEl.style.display !== "none";
+  // rerollBtn stacks directly above endturn (not a separate full-width bar
+  // any more — that used to visually overlap endturn on real devices)
+  const rightStackHeight = endturnEl.offsetHeight + (rerollVisible ? rerollEl.offsetHeight + 8 : 0);
   const bottomInset = Math.max(
     document.getElementById("settingsBtn").offsetHeight,
-    document.getElementById("endturn").offsetHeight,
-    document.getElementById("bottomBar").offsetHeight
+    rightStackHeight
   ) + 20;
+  if (rerollVisible) {
+    const endturnRect = endturnEl.getBoundingClientRect();
+    rerollEl.style.bottom = (h - endturnRect.top + 8) + "px";
+  }
   const availH = h - topInset - bottomInset;
   centerX = w / 2; centerY = topInset + availH / 2;
   // Fit to the map's *actual* generated extents (not a nominal guess) so it
@@ -712,13 +726,14 @@ function decompose(force) {
 }
 
 /* ---------- GAME STATE ---------- */
-// which royaume seat (0-3) the human plays as this game — chosen via the
-// faction picker at boot, persisted, changeable from settings
-let humanRoyId = 0;
-try {
-  const savedFaction = localStorage.getItem("kw_humanRoyId");
-  if (savedFaction !== null) humanRoyId = Math.max(0, Math.min(3, Number(savedFaction)));
-} catch (e) { /* ignore */ }
+// which royaume seat (0-3) the human plays as this game — chosen by tapping
+// any of that royaume's territories on the freshly-generated map (see
+// pickFaction()), not a settings menu. -1 means nobody's picked yet.
+let humanRoyId = -1;
+// true from a fresh startGame() until the player taps a territory to choose
+// their camp — turns don't start and the map's forces stay balanced/fair
+// (no per-difficulty AI edge) until that pick happens
+let awaitingFactionPick = true;
 let currentPlayer = 0;
 let selected = -1;
 let gameOver = false;
@@ -908,6 +923,11 @@ function attack(fromId, toId) {
     from.force = 1;
   }
   checkElimination();
+  // detect a match-ending attack immediately, whoever made it — previously
+  // this only got checked at the next advanceTurn(), so a human attack that
+  // was itself the winning blow needed an extra "Fin de bataille" tap before
+  // the results screen would show
+  checkWinner();
   render();
   return win;
 }
@@ -988,6 +1008,7 @@ function checkElimination() {
 }
 
 function checkWinner() {
+  if (gameOver) return true; // guard against a redundant showWin()/gueux-count now that attack() also calls this directly
   const ownersLeft = new Set(territories.map(t => t.owner));
   const nonNeutral = [...ownersLeft].filter(id => !ROYAUMES[id].neutral);
   if (nonNeutral.length <= 1 && ownersLeft.size <= 2) {
@@ -1023,11 +1044,27 @@ function showWin(royId) {
 function drawStatChart() {
   const canvas = document.getElementById("statChart");
   const c = canvas.getContext("2d");
-  const W = canvas.width, H = canvas.height;
+  // render at native device resolution — without this, a 280x150 backing
+  // store gets stretched by the browser on any high-DPI (retina) phone
+  // screen, which is what made the chart's labels/lines look pixelated
+  const dpr = window.devicePixelRatio || 1;
+  const W = 280, H = 150; // logical size, stays constant regardless of dpr
+  if (canvas.width !== W * dpr || canvas.height !== H * dpr) {
+    canvas.width = W * dpr;
+    canvas.height = H * dpr;
+    canvas.style.width = W + "px";
+    canvas.style.height = H + "px";
+  }
+  c.setTransform(dpr, 0, 0, dpr, 0, 0);
   c.clearRect(0, 0, W, H);
   if (statHistory.length < 2) return;
 
-  const royIds = Object.keys(statHistory[statHistory.length - 1].stats).map(Number);
+  // union across every recorded round, not just the last one — a royaume
+  // eliminated partway through the match would otherwise vanish from the
+  // chart entirely instead of just having its line stop partway
+  const royIdSet = new Set();
+  for (const entry of statHistory) for (const k of Object.keys(entry.stats)) royIdSet.add(Number(k));
+  const royIds = [...royIdSet];
   const panels = [
     { key: "territories", x: 6, w: W / 2 - 10, label: "Territoires" },
     { key: "force", x: W / 2 + 4, w: W / 2 - 10, label: "Force" },
@@ -1072,41 +1109,98 @@ function drawStatChart() {
 }
 
 // --- fast in-app replay: re-simulate the same seed + difficulty, feeding
-// back only the human player's own recorded choices — the AI and dice
-// reproduce identically since they're driven by the same seeded RNG stream ---
-function startReplay() {
-  if (!moveLog.length) return;
-  const seedToReplay = currentSeed;
-  const difficultyToReplay = gameStartDifficulty;
-  const logToReplay = moveLog.slice();
+// back only the recorded human-seat choices — the AI and dice reproduce
+// identically since they're driven by the same seeded RNG stream. Shared by
+// both "revoir ma partie" (own match) and a shared match opened from a link.
+function playReplay(seed, difficulty, replayHumanRoyId, log, onFinish) {
   const levelToRestore = difficultyLevel;
+  const humanToRestore = humanRoyId;
 
   document.getElementById("winbanner").style.display = "none";
   document.getElementById("rerollBtn").style.display = "none";
   replaying = true;
   replaySpeed = 6;
-  applyDifficulty(difficultyToReplay);
-  startGame(seedToReplay);
+  humanRoyId = replayHumanRoyId;
+  applyDifficulty(difficulty);
+  startGame(seed);
 
   let i = 0;
   function step() {
     if (!replaying) return; // user could in principle navigate away; bail cleanly
-    if (gameOver) { finishReplay(levelToRestore); return; }
+    if (gameOver) { finish(); return; }
     if (currentPlayer !== humanRoyId || aiRunning) { setTimeout(step, 30); return; }
-    if (i >= logToReplay.length) { finishReplay(levelToRestore); return; }
-    const action = logToReplay[i++];
+    if (i >= log.length) { finish(); return; }
+    const action = log[i++];
     if (action.end) endTurn(); else attack(action.a, action.b);
     setTimeout(step, 30);
   }
+  function finish() {
+    replaying = false;
+    replaySpeed = 1;
+    humanRoyId = humanToRestore;
+    applyDifficulty(DIFFICULTY_LEVELS[levelToRestore].value);
+    // reroll button visibility is authoritatively handled by startGame()/
+    // pickFaction() from here on, not re-shown unconditionally
+    onFinish();
+  }
   step();
 }
-function finishReplay(levelToRestore) {
-  replaying = false;
-  replaySpeed = 1;
-  applyDifficulty(DIFFICULTY_LEVELS[levelToRestore].value);
-  document.getElementById("rerollBtn").style.display = "";
-  document.getElementById("winbanner").style.display = "flex";
+
+function startReplay() {
+  if (!moveLog.length) return;
+  playReplay(currentSeed, gameStartDifficulty, humanRoyId, moveLog.slice(), () => {
+    document.getElementById("winbanner").style.display = "flex";
+  });
 }
+
+// --- share: encode the just-finished match (seed + difficulty + which seat
+// was human + the human's own move list) into a URL. Whoever opens it can
+// watch the match play out, then gets dropped straight into their own fresh
+// game — the whole point being to hook them into playing, not just to show
+// off a result.
+function buildShareUrl() {
+  const payload = { seed: currentSeed, difficulty: gameStartDifficulty, humanRoyId, log: moveLog };
+  const encoded = btoa(encodeURIComponent(JSON.stringify(payload)));
+  const url = new URL(location.href);
+  url.hash = ""; url.search = "";
+  url.searchParams.set("replay", encoded);
+  return url.toString();
+}
+async function shareReplay() {
+  const url = buildShareUrl();
+  const text = "J'ai remporté une bataille sur Knight Wars ! Regarde ma partie et affronte-moi :";
+  if (navigator.share) {
+    try { await navigator.share({ title: "Knight Wars", text, url }); return; } catch (e) { /* cancelled/unsupported — fall through to clipboard */ }
+  }
+  try {
+    await navigator.clipboard.writeText(`${text} ${url}`);
+    alert("Lien copié — partage-le pour montrer ta victoire et défier tes amis !");
+  } catch (e) {
+    prompt("Copie ce lien pour partager ta partie :", url);
+  }
+}
+document.getElementById("shareReplay").addEventListener("click", () => { shareReplay(); });
+
+function tryParseSharedReplay() {
+  try {
+    const encoded = new URLSearchParams(location.search).get("replay");
+    if (!encoded) return null;
+    const payload = JSON.parse(decodeURIComponent(atob(encoded)));
+    if (typeof payload.seed !== "number" || typeof payload.humanRoyId !== "number" || !Array.isArray(payload.log)) return null;
+    return payload;
+  } catch (e) { return null; }
+}
+document.getElementById("watchSharedReplay").addEventListener("click", () => {
+  document.getElementById("shareIntro").style.display = "none";
+  const payload = pendingSharedReplay;
+  playReplay(payload.seed, payload.difficulty, payload.humanRoyId, payload.log, () => {
+    startGame(); // drop the visitor into their own fresh game right after
+  });
+});
+document.getElementById("playInstead").addEventListener("click", () => {
+  document.getElementById("shareIntro").style.display = "none";
+  startGame();
+});
 
 /* ---------- AI ---------- */
 function runAI() {
@@ -1157,6 +1251,39 @@ function runAI() {
 }
 
 /* ---------- RENDER ---------- */
+// a silver "polished metal" bevel traced around one territory's outer
+// perimeter (dark shadow stroke, then a brighter gradient stroke on top)
+function drawSilverOutline(tId) {
+  const t = territories[tId];
+  const outline = [];
+  for (const hk of t.hexKeys) {
+    const h2 = hexes[hk];
+    for (const [dq, dr] of NEI) {
+      const nh = hexes[`${h2.q + dq},${h2.r + dr}`];
+      if (!nh || nh.territoryId !== h2.territoryId) {
+        // real neighbor of a different territory, or no neighbor at all
+        // (edge of the island) — either way this edge is on the outline
+        const npos = nh || axialToPixel(h2.q + dq, h2.r + dr);
+        const edge = sharedHexEdge(h2, npos);
+        if (edge) outline.push(edge);
+      }
+    }
+  }
+  ctx.beginPath();
+  for (const [[x1, y1], [x2, y2]] of outline) { ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); }
+  ctx.strokeStyle = "rgba(20,16,12,0.6)";
+  ctx.lineWidth = 3.6;
+  ctx.lineCap = "round";
+  ctx.stroke();
+  const grad = ctx.createLinearGradient(t.cx - HEX_SIZE, t.cy - HEX_SIZE, t.cx + HEX_SIZE, t.cy + HEX_SIZE);
+  grad.addColorStop(0, "#f4f6f9");
+  grad.addColorStop(0.5, "#aab2bf");
+  grad.addColorStop(1, "#7c848f");
+  ctx.strokeStyle = grad;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+}
+
 function render() {
   const w = canvas.clientWidth, h = canvas.clientHeight;
   ctx.clearRect(0, 0, w, h);
@@ -1197,39 +1324,12 @@ function render() {
   // selection highlight — a silver bevel around the *territory's* outer
   // perimeter, not every individual hex inside it (that was the original
   // bug: it used to stroke each hex's own hexagon, drawing a full honeycomb
-  // grid instead of one outline around the selected village).
-  if (selected !== -1) {
-    const t = territories[selected];
-    const outline = [];
-    for (const hk of t.hexKeys) {
-      const h2 = hexes[hk];
-      for (const [dq, dr] of NEI) {
-        const nh = hexes[`${h2.q + dq},${h2.r + dr}`];
-        if (!nh || nh.territoryId !== h2.territoryId) {
-          // real neighbor of a different territory, or no neighbor at all
-          // (edge of the island) — either way this edge is on the outline
-          const npos = nh || axialToPixel(h2.q + dq, h2.r + dr);
-          const edge = sharedHexEdge(h2, npos);
-          if (edge) outline.push(edge);
-        }
-      }
-    }
-    ctx.beginPath();
-    for (const [[x1, y1], [x2, y2]] of outline) { ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); }
-    // dark outer edge first (reads as a shadow), then a brighter silver
-    // gradient stroke on top — a cheap but effective "polished metal" bevel
-    ctx.strokeStyle = "rgba(20,16,12,0.6)";
-    ctx.lineWidth = 3.6;
-    ctx.lineCap = "round";
-    ctx.stroke();
-    const grad = ctx.createLinearGradient(t.cx - HEX_SIZE, t.cy - HEX_SIZE, t.cx + HEX_SIZE, t.cy + HEX_SIZE);
-    grad.addColorStop(0, "#f4f6f9");
-    grad.addColorStop(0.5, "#aab2bf");
-    grad.addColorStop(1, "#7c848f");
-    ctx.strokeStyle = grad;
-    ctx.lineWidth = 2;
-    ctx.stroke();
-  }
+  // grid instead of one outline around the selected village). Also used live
+  // during a drag-to-attack gesture: one outline on the territory the finger
+  // came down on, another following whichever territory it's currently over.
+  if (selected !== -1) drawSilverOutline(selected);
+  if (dragFromId !== -1 && dragFromId !== selected) drawSilverOutline(dragFromId);
+  if (dragToId !== -1 && dragToId !== selected && dragToId !== dragFromId) drawSilverOutline(dragToId);
 
   // force icons
   for (const t of territories) {
@@ -1359,9 +1459,11 @@ function updateGroups() {
     rows.push({ roy: ROYAUMES[royId], connected: largestConnectedGroup(royId), force: totalForce(royId) });
   }
   rows.sort((a, b) => sortGroupsBy === "force" ? b.force - a.force : b.connected - a.connected);
+  // dot only, no name — the color itself is the identifier now that the
+  // legend line is gone too
   el.innerHTML = rows.map(r =>
     `<span class="chip"><span class="swatch" style="background:${r.roy.color}"></span>` +
-    `${r.roy.name} <span class="n">${r.connected}</span>·${r.force}</span>`
+    `<span class="n">${r.connected}</span>·${r.force}</span>`
   ).join("");
 }
 
@@ -1421,8 +1523,6 @@ function drawForceIcon(t) {
 }
 
 /* ---------- INPUT ---------- */
-let firstClickDone = false;
-
 function territoryAtClientPoint(clientX, clientY) {
   const rect = canvas.getBoundingClientRect();
   const localX = (clientX - rect.left - centerX) / viewScale;
@@ -1437,15 +1537,40 @@ function territoryAtClientPoint(clientX, clientY) {
 // selection/attack on the same gesture
 let suppressNextClick = false;
 
+// tapping any of a real royaume's territories while awaiting a pick claims
+// that royaume as the human seat, applies the real difficulty-scaled balance
+// (deferred until now since we didn't know who was human at map-gen time),
+// and kicks the turn sequence off.
+function pickFaction(royId) {
+  humanRoyId = royId;
+  awaitingFactionPick = false;
+  // authoritative hide, independent of *what* the player does next (attack,
+  // end turn, open settings...) — previously this only hid on a follow-up
+  // territory tap, so pressing "Fin de bataille" right after picking left it
+  // stuck on screen
+  document.getElementById("rerollBtn").style.display = "none";
+  balanceStartingForces();
+  logMsg(`Vous jouez ${ROYAUMES[royId].name}.`);
+  updateStatus();
+  updateGroups();
+  render();
+  if (currentPlayer !== humanRoyId && !ROYAUMES[currentPlayer].neutral) {
+    aiRunning = true;
+    scheduleTurn(runAI, 350 / replaySpeed);
+  }
+}
+
 function handlePointer(clientX, clientY) {
   if (suppressNextClick) { suppressNextClick = false; return; }
-  if (replaying || gameOver || aiRunning || currentPlayer !== humanRoyId) return;
-  if (!firstClickDone) {
-    firstClickDone = true;
-    document.getElementById("rerollBtn").style.display = "none";
-  }
+  if (replaying || gameOver) return;
   const t = territoryAtClientPoint(clientX, clientY);
   if (!t) return;
+
+  if (awaitingFactionPick) {
+    if (t.owner >= 0 && t.owner < ROYAUME_COUNT - 1) pickFaction(t.owner); // any real royaume, not neutral — reroll's visibility is handled there
+    return;
+  }
+  if (aiRunning || currentPlayer !== humanRoyId) return;
   const tId = t.id;
 
   if (selected === -1) {
@@ -1483,33 +1608,54 @@ try { dragToAttackEnabled = localStorage.getItem("kw_dragToAttack") === "1"; } c
 const DRAG_THRESHOLD = 18; // px in screen space, below this it's treated as a plain tap
 let dragStart = null; // {tId, x, y}
 let dragActive = false;
+// live silver-outline feedback while a drag-to-attack gesture is in progress
+// (separate from `selected` — a drag is not a tap-to-select) — set as soon as
+// the finger lands, not just once the drag threshold is crossed, so small
+// territories give immediate confirmation of what's under the finger
+let dragFromId = -1, dragToId = -1;
 canvas.addEventListener("pointerdown", (e) => {
   if (!dragToAttackEnabled || replaying || gameOver || aiRunning || currentPlayer !== humanRoyId) return;
   const t = territoryAtClientPoint(e.clientX, e.clientY);
   if (t && t.owner === currentPlayer && t.force > 1) {
     dragStart = { tId: t.id, x: e.clientX, y: e.clientY };
     dragActive = false;
+    dragFromId = t.id;
+    render();
   }
 });
 canvas.addEventListener("pointermove", (e) => {
   if (!dragStart) return;
   if (Math.hypot(e.clientX - dragStart.x, e.clientY - dragStart.y) > DRAG_THRESHOLD) dragActive = true;
+  const hoverT = territoryAtClientPoint(e.clientX, e.clientY);
+  const newDragToId = (hoverT && hoverT.id !== dragFromId) ? hoverT.id : -1;
+  if (newDragToId !== dragToId) { dragToId = newDragToId; render(); }
 });
 canvas.addEventListener("pointerup", (e) => {
   if (!dragStart) return;
   const from = dragStart, wasActive = dragActive;
   dragStart = null; dragActive = false;
-  if (!wasActive) return; // short movement — let the plain click handler treat it as a tap
+  dragFromId = -1; dragToId = -1;
+  if (!wasActive) { render(); return; } // short movement — let the plain click handler treat it as a tap
   suppressNextClick = true;
   const fromT = territories[from.tId];
   const targetT = territoryAtClientPoint(e.clientX, e.clientY);
-  if (!targetT || targetT.id === from.tId || targetT.owner === currentPlayer) return;
-  if (!fromT.neighbors.has(targetT.id) || fromT.force <= 1) return;
-  if (!firstClickDone) { firstClickDone = true; document.getElementById("rerollBtn").style.display = "none"; }
+  if (!targetT || targetT.id === from.tId || targetT.owner === currentPlayer || !fromT.neighbors.has(targetT.id) || fromT.force <= 1) {
+    render();
+    return;
+  }
   if (onboarding) { onboarding = false; try { localStorage.setItem("kw_playedBefore", "1"); } catch (err) { /* ignore */ } }
   if (!replaying) moveLog.push({ a: from.tId, b: targetT.id });
   attack(from.tId, targetT.id);
   selected = -1;
+  render();
+});
+// the browser can cancel an in-progress touch instead of ever delivering
+// pointerup (e.g. it decided the gesture was a scroll, or another touch
+// interrupted it) — without this, dragStart/dragFromId could get stuck set,
+// making the next real tap misbehave until reset
+canvas.addEventListener("pointercancel", () => {
+  dragStart = null; dragActive = false;
+  dragFromId = -1; dragToId = -1;
   render();
 });
 
@@ -1545,6 +1691,10 @@ document.getElementById("settingsBtn").addEventListener("click", () => {
 document.getElementById("closeSettings").addEventListener("click", () => {
   settingsPanel.style.display = "none";
 });
+document.getElementById("newWarBtn").addEventListener("click", () => {
+  settingsPanel.style.display = "none";
+  startGame();
+});
 deterministicToggle.addEventListener("change", () => {
   DETERMINISTIC_COMBAT = deterministicToggle.checked;
   try { localStorage.setItem("kw_deterministicCombat", DETERMINISTIC_COMBAT ? "1" : "0"); } catch (e) { /* ignore */ }
@@ -1579,33 +1729,6 @@ metaProgressToggle.addEventListener("change", () => {
   try { localStorage.setItem("kw_metaProgress", metaProgressEnabled ? "1" : "0"); } catch (e) { /* ignore */ }
   refreshGueuxBadge();
 });
-
-// --- faction picker: which real royaume (0-3) the player controls ---
-const campLevelsEl = document.getElementById("campLevels");
-for (let i = 0; i < 4; i++) {
-  const roy = ROYAUMES[i];
-  const btn = document.createElement("button");
-  btn.className = "campBtn";
-  btn.dataset.roy = String(i);
-  btn.textContent = roy.name;
-  btn.style.background = roy.color;
-  btn.style.color = textColorFor(roy.color);
-  btn.addEventListener("click", () => {
-    if (i === humanRoyId) return;
-    humanRoyId = i;
-    try { localStorage.setItem("kw_humanRoyId", String(i)); } catch (e) { /* ignore */ }
-    refreshCampButtons();
-    settingsPanel.style.display = "none";
-    startGame(); // fresh match as the newly-chosen royaume
-  });
-  campLevelsEl.appendChild(btn);
-}
-function refreshCampButtons() {
-  campLevelsEl.querySelectorAll(".campBtn").forEach((btn) => {
-    btn.classList.toggle("active", Number(btn.dataset.roy) === humanRoyId);
-  });
-}
-refreshCampButtons();
 
 function refreshLevelButtons() {
   document.querySelectorAll("#difficultyLevels .levelBtn").forEach((btn, i) => {
@@ -1659,6 +1782,13 @@ function textColorFor(hex) {
 
 function updateEndTurnButton() {
   const btn = document.getElementById("endturn");
+  if (awaitingFactionPick) {
+    btn.textContent = "Choisissez un camp";
+    btn.classList.remove("aiTurn");
+    btn.style.background = "";
+    btn.style.color = "";
+    return;
+  }
   const isHuman = currentPlayer === humanRoyId;
   btn.textContent = isHuman ? "Fin de bataille" : "La guerre fait rage";
   btn.classList.toggle("aiTurn", !isHuman);
@@ -1688,27 +1818,47 @@ function startGame(seed) {
   gameOver = false; selected = -1; currentPlayer = 0; aiRunning = false;
   currentSeed = seed === undefined ? randomSeed() : seed;
   seedRNG(currentSeed);
+  if (replaying) {
+    awaitingFactionPick = false; // humanRoyId was already set by playReplay() before this call
+  } else {
+    humanRoyId = -1; // nobody's picked a camp yet on a fresh game
+    awaitingFactionPick = true;
+  }
+  // authoritative visibility, tied to actual state rather than a one-shot
+  // session flag — shown again on every fresh map, hidden the moment a pick
+  // is made (see pickFaction()), regardless of what the player does meanwhile
+  document.getElementById("rerollBtn").style.display = awaitingFactionPick ? "" : "none";
   generateHexGrid();
   generateTerritories();
-  assignRoyaumes();
+  assignRoyaumes(); // with humanRoyId === -1 this comes out an equal split (no AI edge) until the pick
   if (!replaying) {
     statHistory = []; roundNumber = 0; moveLog = []; gameStartDifficulty = DIFFICULTY;
     recordRoundSnapshot();
   }
   updateStatus();
-  logMsg(onboarding ? "Cliquez sur un territoire blanc." : "Nouvelle partie.");
+  logMsg(awaitingFactionPick ? "Choisissez votre camp : touchez un territoire." : "Nouvelle partie.");
   updateGroups(); // populate before resize() measures the HUD's real height
   resize();
   // seat 0 always plays first regardless of which royaume is human-controlled
   // — if that's an AI seat, kick its turn off (advanceTurn only does this on
-  // *later* turn changes, not the very first one)
-  if (currentPlayer !== humanRoyId && !ROYAUMES[currentPlayer].neutral) {
+  // *later* turn changes, not the very first one). Held off entirely while
+  // still awaiting the player's camp pick.
+  if (!awaitingFactionPick && currentPlayer !== humanRoyId && !ROYAUMES[currentPlayer].neutral) {
     aiRunning = true;
     scheduleTurn(runAI, 350 / replaySpeed);
   }
 }
 
-startGame();
+const pendingSharedReplay = tryParseSharedReplay();
+if (pendingSharedReplay) {
+  // clean the URL so a reload/rewatch doesn't re-trigger this same intro
+  history.replaceState(null, "", location.pathname);
+  document.getElementById("shareIntroText").textContent =
+    "Un ami a remporté une bataille sur Knight Wars et te met au défi de faire aussi bien !";
+  document.getElementById("shareIntro").style.display = "flex";
+} else {
+  startGame();
+}
 </script>
 </body>
 </html>
