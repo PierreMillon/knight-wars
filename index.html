@@ -1363,15 +1363,16 @@ function sfxAttack(win, chainIndex = -1) {
 }
 function sfxEndTurn() { playTone(120, 0.14, { type: "sine", cutoff: 480, volume: 0.06 }); }
 // Reinforcement chime: one bright, single-note "carillon" hit per point
-// gained, fired in quick succession — close enough together (and each note
-// sustained long enough) that they blend into a single chord whose length
-// tracks how much force was just added, rather than reading as separate dings.
+// gained, climbing a major triad (root, third, fifth, octave, ...) — each
+// note clearly audible on its own, one after another, not blended into one
+// simultaneous chord (shorter notes + a wider gap than the first attempt,
+// which read as "all at once" instead of a quick run up the scale).
 const REINFORCE_CHIME_NOTES = [1046.5, 1318.5, 1568, 2093]; // C6, E6, G6, C7 — a bright major triad, extended with the octave if it runs past 4
 function sfxReinforce(count) {
-  const n = Math.min(count, 10); // stays a chord, not a whole scale run, on a very large windfall
+  const n = Math.min(count, 10); // a fast run, not a whole scale marathon, on a very large windfall
   for (let i = 0; i < n; i++) {
     const freq = REINFORCE_CHIME_NOTES[i % REINFORCE_CHIME_NOTES.length] * (1 + Math.floor(i / REINFORCE_CHIME_NOTES.length) * 0.5);
-    setTimeout(() => playTone(freq, 0.35, { type: "sine", cutoff: 3200, volume: 0.05 }), i * 65);
+    setTimeout(() => playTone(freq, 0.16, { type: "sine", cutoff: 3200, volume: 0.06 }), i * 110);
   }
 }
 function sfxVictory() {
