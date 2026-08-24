@@ -85,7 +85,11 @@
      top offset as #topBar and #settingsBtn so all three share one top
      edge: centered title, left-aligned stats, right-aligned menu button. */
   #gameTitleBlock {
-    position: absolute; top: calc(8px + env(safe-area-inset-top, 0px)); left: 50%;
+    /* nudged right of dead-center (58% not 50%) — the faction stats column
+       at top-left can run several lines wide (up to 4 royaumes, each up to
+       "24 ·13·22%"), and a perfectly centered title overlapped it on a
+       narrower phone screen */
+    position: absolute; top: calc(8px + env(safe-area-inset-top, 0px)); left: 58%;
     transform: translateX(-50%);
     display: flex; flex-direction: column; align-items: center; text-align: center;
     pointer-events: none; color: #f2ede2; text-shadow: 0 1px 2px rgba(0,0,0,.6);
@@ -116,7 +120,16 @@
     border: 1px solid #8a6d3b;
     box-shadow: 0 0 0 5px #1b1712, inset 0 0 0 1px rgba(139,109,59,.6), 0 12px 30px rgba(0,0,0,.5);
   }
-  #settingsPanel .box { max-height: 86vh; overflow-y: auto; }
+  /* extra top padding makes room for #closeSettings, an absolutely
+     positioned corner button (matches #closeChangelog's treatment) instead
+     of a "Fermer" button taking its own row at the top of a long panel */
+  #settingsPanel .box { max-height: 86vh; overflow-y: auto; padding-top: 44px; position: relative; }
+  #closeSettings {
+    position: absolute; top: 10px; right: 10px; margin: 0;
+    width: 30px; height: 30px; padding: 0; border-radius: 50%;
+    font-size: 16px; line-height: 1;
+    display: flex; align-items: center; justify-content: center;
+  }
   .box h1, .box h2 {
     font-family: Georgia, "Iowan Old Style", Palatino, "Times New Roman", serif;
     color: #6b2318; letter-spacing: .02em; position: relative; padding-bottom: 10px;
@@ -140,6 +153,7 @@
   /* the very first section label sits right under "Fermer" — no divider
      line needed there, the button's own margin already separates them */
   .settingsSectionLabel:first-of-type { border-top: none; padding-top: 0; }
+  #royaumesList { display: flex; flex-direction: column; gap: 5px; }
   .royaumeRow { display: flex; align-items: baseline; gap: 7px; font-size: 13px; }
   .royaumeRow .swatch { width: 11px; height: 11px; border-radius: 50%; flex: none; box-shadow: 0 0 0 1px rgba(43,29,16,.5); align-self: center; }
   .royaumeRow .rname { font-weight: 700; }
@@ -151,17 +165,19 @@
   }
   #settingsPanel .levelBtn.active { background: #1c3f8f; color: #fff; border-color: #1c3f8f; font-weight: 700; }
   #newWarBtn, #conseilsBtn, #loreBtn, #surrenderBtn { margin-bottom: 10px; display: block; }
-  /* top-of-panel close button, not a stacked action row — small and pulled
-     to the left edge instead of taking a full-width row like the buttons
-     below it */
-  #closeSettings { display: block; margin: 0 0 16px; padding: 6px 14px; font-size: 13px; }
-  #mapCodeRow, #mapCodeLoadRow { display: flex; gap: 6px; }
+  #mapCodeRow, #mapCodeLoadRow { position: relative; }
   #mapCodeDisplay, #mapCodeInput {
-    flex: 1; min-width: 0; font-family: monospace; font-size: 13px;
+    width: 100%; box-sizing: border-box; font-family: monospace; font-size: 13px;
     background: rgba(43,29,16,.08); color: #2b1d10; border: 1px solid rgba(43,29,16,.35);
-    border-radius: 6px; padding: 6px 8px;
+    border-radius: 6px; padding: 6px 30px 6px 8px; cursor: pointer;
   }
-  #copyMapCode, #loadMapCode { padding: 6px 12px; font-size: 13px; flex: none; }
+  /* decorative only — the input underneath is what's actually tappable
+     across its whole width, including behind this icon */
+  .mapCodeIcon {
+    position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+    font-size: 14px; pointer-events: none; opacity: .7;
+  }
+  #loadMapCode { padding: 6px 12px; font-size: 13px; margin-top: 10px; display: block; }
   #winbanner {
     position: absolute; inset: 0; display: none;
     align-items: center; justify-content: center; flex-direction: column;
@@ -429,8 +445,8 @@
   </div>
   <div id="settingsPanel">
     <div class="box">
+      <button id="closeSettings" aria-label="Fermer">✕</button>
       <h2>Réglages</h2>
-      <button id="closeSettings">Fermer</button>
 
       <!-- Tier 1: the settings someone actually comes here to change, most
            often — how hard, how big, and the always-on toggles. -->
@@ -457,28 +473,39 @@
            regenerate the identical map later, e.g. dictated over voice/text
            instead of copy-pasting a whole URL -->
       <div class="fieldGroup">
-        <div class="fieldLabel">Code de cette carte — pour la retrouver plus tard</div>
+        <!-- tap the code itself to copy it (no separate copy button) — a
+           small clipboard icon inside the field hints that it's tappable,
+           and the field briefly shows "Copié !" as confirmation -->
+        <div class="fieldLabel">Code de cette carte — touchez pour copier</div>
         <div id="mapCodeRow">
           <input id="mapCodeDisplay" type="text" readonly>
-          <button id="copyMapCode">📋</button>
+          <span class="mapCodeIcon">📋</span>
         </div>
-        <div class="fieldLabel" style="margin-top:10px;">Charger une carte par son code</div>
+        <!-- tap the input to try pasting the clipboard automatically; if
+           there's nothing to paste (or no permission), it just focuses for
+           manual typing like any other text field -->
+        <div class="fieldLabel" style="margin-top:10px;">Charger une carte par son code — touchez pour coller</div>
         <div id="mapCodeLoadRow">
           <input id="mapCodeInput" type="text" placeholder="ex. kf12oim1">
-          <button id="loadMapCode">Charger</button>
+          <span class="mapCodeIcon">📥</span>
         </div>
+        <button id="loadMapCode">Charger</button>
       </div>
       <label><input type="checkbox" id="soundToggle"> Sons</label>
       <label><input type="checkbox" id="instantBattlesToggle"> Batailles instantanées — les tours adverses se résolvent sans attendre</label>
       <label><input type="checkbox" id="metaProgressToggle"> Progression du gueux — gagnez un gueux à chaque victoire</label>
 
       <!-- Tier 2: reference/display info, not something you "change" so
-           much as glance at — separated from the toggles above it. The
-           royaume names/epithets list used to live here too; it's the same
-           content "Le lore" already shows in full (name, epithet, and the
-           actual lore paragraph), so it only ever duplicated that instead
-           of adding anything a settings-panel glance needed. -->
+           much as glance at — separated from the toggles above it.
+           The royaume color/name list was removed once (same content as
+           "Le lore", just the swatch+name without the full paragraph) but
+           brought back — mid-match, checking which color is which royaume
+           needs a quick glance, not "Le lore"'s fuller paragraphs. -->
       <div class="settingsSectionLabel">Affichage</div>
+      <div class="fieldGroup">
+        <div class="fieldLabel">Les royaumes</div>
+        <div id="royaumesList"></div>
+      </div>
       <div class="fieldGroup">
         <div class="fieldLabel">Classer les royaumes par</div>
         <div id="sortLevels" class="levelRow">
@@ -1641,10 +1668,18 @@ function sfxEndTurn() { playTone(120, 0.14, { type: "sine", cutoff: 480, volume:
 // ascending major triad, just softer on the ear.
 // Every royaume now plays this chime at their own turn's end (not just the
 // human's), so each one is rooted on its own note — same chord shape
-// (major triad + octave) transposed to a different starting pitch per
-// royaume id, so which lord just got reinforced is recognizable by ear
-// alone: C5, E5, G5, Bb5.
-const REINFORCE_ROOT_HZ = [523.25, 659.25, 783.99, 932.33];
+// (major triad + octave) transposed to a different starting pitch. Relative
+// to the human's own seat, not a fixed note per royaume id: the human is
+// always C5, and each other royaume climbs one semitone further per step in
+// turn order after the human's own seat — so the human's own "voice" never
+// changes no matter which royaume they picked this match, and the others
+// are still each distinct and always in the same relative order.
+const REINFORCE_ROOT_BASE_HZ = 523.25; // C5 — always the human's own root
+function reinforceRootHzFor(royId) {
+  const realRoyaumeCount = ROYAUME_COUNT - 1; // exclude the neutral slot from the ladder
+  const rank = (royId - humanRoyId + realRoyaumeCount) % realRoyaumeCount; // 0 = the human's own seat
+  return REINFORCE_ROOT_BASE_HZ * Math.pow(2, rank / 12);
+}
 const REINFORCE_CHORD_RATIOS = [1, Math.pow(2, 4 / 12), Math.pow(2, 7 / 12), 2]; // root, major third, fifth, octave
 // Queued, not fire-and-forget: every royaume's turn already gets a short
 // perceivable pause before play continues (see endTurn()/REINFORCE_PAUSE_MS),
@@ -1671,7 +1706,7 @@ function processReinforceSoundQueue() {
   reinforceSoundPlaying = true;
   const { count, royId } = reinforceSoundQueue.shift();
   const n = Math.min(count, REINFORCE_CHIME_QUEUE_NOTES);
-  const root = REINFORCE_ROOT_HZ[royId] ?? REINFORCE_ROOT_HZ[0];
+  const root = reinforceRootHzFor(royId);
   for (let i = 0; i < n; i++) {
     const ratio = REINFORCE_CHORD_RATIOS[i % REINFORCE_CHORD_RATIOS.length];
     setTimeout(() => playTone(root * ratio, 0.16, { type: "sine", cutoff: 2400, volume: 0.06 }), i * 110);
@@ -1684,12 +1719,12 @@ function processReinforceSoundQueue() {
 }
 // Win/loss/truce stingers reuse the same two building blocks the rest of the
 // combat sounds already established: each royaume's own root note
-// (REINFORCE_ROOT_HZ, same one its reinforcement chime uses) and the
+// (reinforceRootHzFor(), same one its reinforcement chime uses) and the
 // chain-attack's chord shape (CHAIN_MAJOR_INTERVALS, the same 8-step climb a
 // long drag-to-attack chain plays through) — so a win feels like "your own
 // royaume's sound, run all the way out", not an unrelated jingle.
 function sfxVictory(royId = humanRoyId) {
-  const root = REINFORCE_ROOT_HZ[royId] ?? REINFORCE_ROOT_HZ[0];
+  const root = reinforceRootHzFor(royId);
   CHAIN_MAJOR_INTERVALS.forEach((interval, i) => {
     const freq = root * Math.pow(2, interval / 12);
     setTimeout(() => playTone(freq, 0.22, { type: "triangle", cutoff: 1400, volume: 0.09 }), i * 130);
@@ -1698,7 +1733,7 @@ function sfxVictory(royId = humanRoyId) {
 // same chord shape and the human's own root, run in reverse — the fall
 // mirrors the climb instead of being some unrelated "sad trombone" sound
 function sfxDefeat(royId = humanRoyId) {
-  const root = REINFORCE_ROOT_HZ[royId] ?? REINFORCE_ROOT_HZ[0];
+  const root = reinforceRootHzFor(royId);
   [...CHAIN_MAJOR_INTERVALS].reverse().forEach((interval, i) => {
     const freq = root * Math.pow(2, interval / 12);
     setTimeout(() => playTone(freq, 0.22, { type: "triangle", cutoff: 1000, volume: 0.08 }), i * 130);
@@ -1841,7 +1876,7 @@ function endTurn() {
   selected = -1;
   triggerPulse(reinforcedCounts);
   if (royId === humanRoyId) sfxEndTurn();
-  sfxReinforce(reinforcement, royId); // every royaume now gets its own chime, rooted on its own note — see REINFORCE_ROOT_HZ
+  sfxReinforce(reinforcement, royId); // every royaume now gets its own chime, rooted on its own note — see reinforceRootHzFor()
   if (replaying) {
     // playReplay()'s own pacing (step()'s 30ms poll) relies on currentPlayer
     // having already moved on by the time it runs again — never delay this
@@ -2560,13 +2595,32 @@ function parseMapCode(code) {
 function refreshMapCodeDisplay() {
   document.getElementById("mapCodeDisplay").value = buildMapCode();
 }
-document.getElementById("copyMapCode").addEventListener("click", async () => {
+// tap the code itself to copy it — no separate copy button. Briefly shows
+// "Copié !" in the field itself as confirmation, then restores the code.
+document.getElementById("mapCodeDisplay").addEventListener("click", async () => {
+  const el = document.getElementById("mapCodeDisplay");
+  const code = el.value;
   try {
-    await navigator.clipboard.writeText(document.getElementById("mapCodeDisplay").value);
+    await navigator.clipboard.writeText(code);
     sfxToggle();
+    el.value = "Copié !";
+    setTimeout(() => { el.value = code; }, 900);
   } catch (e) {
-    document.getElementById("mapCodeDisplay").select();
+    // no clipboard permission/API — fall back to the classic
+    // select-then-manual-copy gesture instead of silently doing nothing
+    el.select();
   }
+});
+// tap the input to try pasting the clipboard straight in — if there's
+// nothing there (or no permission), this just quietly does nothing and the
+// field focuses normally for manual typing, same as any other text input
+document.getElementById("mapCodeInput").addEventListener("click", async () => {
+  const el = document.getElementById("mapCodeInput");
+  if (el.value) return; // don't clobber something already typed/pasted
+  try {
+    const text = await navigator.clipboard.readText();
+    if (parseMapCode(text)) { el.value = text.trim(); sfxToggle(); }
+  } catch (e) { /* no permission or nothing to read — just a normal text field then */ }
 });
 document.getElementById("loadMapCode").addEventListener("click", () => {
   const parsed = parseMapCode(document.getElementById("mapCodeInput").value);
@@ -3364,8 +3418,19 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.4";
+const GAME_VERSION = "1.5";
 const CHANGELOG = [
+  {
+    version: "1.5",
+    notes: [
+      "Note de renfort du joueur toujours en « do », les adversaires montent d'un demi-ton chacun dans l'ordre de jeu",
+      "Titre décalé pour ne plus chevaucher les stats des royaumes",
+      "Code de carte : on touche directement le champ pour copier/coller (sans bouton séparé)",
+      "Fermer les réglages : simple croix en haut à droite, comme les notes de version",
+      "La liste des royaumes (couleur + nom) est de retour dans les réglages, pour un coup d'œil rapide en cours de partie",
+      "Notes de version : ajout de la date de création du jeu tout en bas",
+    ],
+  },
   {
     version: "1.4",
     notes: [
@@ -3429,6 +3494,12 @@ const CHANGELOG = [
       "Thème visuel « manuscrit enluminé » pour tous les menus",
     ],
   },
+  {
+    version: "0.1 — 20 août 2026",
+    notes: [
+      "Naissance du jeu : premiers hexagones, premiers royaumes, première bataille",
+    ],
+  },
 ];
 document.getElementById("versionBtn").textContent = `v${GAME_VERSION}`;
 document.getElementById("changelogList").innerHTML = CHANGELOG.map((entry) => `
@@ -3475,6 +3546,19 @@ document.getElementById("gueuxBadge").addEventListener("click", () => {
   sfxToggle();
   refreshGueuxBadge();
 });
+
+// static (never changes mid-game), so populated once — each royaume's fixed
+// personality, so the player knows what to expect from whichever 3 of the 4
+// end up AI-controlled once they pick their own. Reinstated after being
+// removed once as "duplicate of Le lore" — mid-match, a quick color/name
+// glance here is what's actually needed, not Le lore's fuller paragraphs.
+document.getElementById("royaumesList").innerHTML = ROYAUMES.slice(0, ROYAUME_COUNT - 1).map(roy => `
+  <div class="royaumeRow">
+    <span class="swatch" style="background:${roy.color}"></span>
+    <span class="rname">${roy.name}</span>
+    <span class="repithet">${AI_PERSONALITIES[roy.id].epithet}</span>
+  </div>
+`).join("");
 
 const metaProgressToggle = document.getElementById("metaProgressToggle");
 metaProgressToggle.checked = metaProgressEnabled;
@@ -3741,6 +3825,15 @@ function startGame(seed) {
   else hideOnboardingHint();
   updateGroups(); // populate before resize() measures the HUD's real height
   resize();
+  // a settings-panel action (map code load, new war, map-size change...)
+  // closes that overlay and starts a new game in the same breath — on a
+  // real device the panel's own closing animation/reflow can still be
+  // settling right when resize() above measures everything, throwing off
+  // rerollBtn/replaySpeedBtn's position (anchored off endturn's own rect —
+  // see resize()). Same fix as the existing page-load safety net just
+  // below (setTimeout(resize, 300)): re-measure shortly after, once things
+  // have actually settled.
+  setTimeout(resize, 300);
   // currentPlayer is already humanRoyId at this point (fresh games: set by
   // pickFaction() right after this call; replays: set above from the
   // recorded seat) — the human's own turn is always first, so there's
