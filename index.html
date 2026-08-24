@@ -80,18 +80,6 @@
   #groups {
     display: flex; flex-direction: column; align-items: flex-start; gap: 4px;
   }
-  /* mirrors #topBar on the opposite corner — top padding cleared to sit
-     below #settingsBtn now that the gear lives in this corner instead */
-  #topBarRight {
-    position: absolute; right: 0; top: 0;
-    padding: calc(50px + env(safe-area-inset-top, 0px)) 14px 6px 0;
-    box-sizing: border-box; pointer-events: none;
-    display: flex; flex-direction: column; align-items: flex-end;
-    color: #f2ede2; text-shadow: 0 1px 2px rgba(0,0,0,.6);
-  }
-  #forcePercents {
-    display: flex; flex-direction: column; align-items: flex-end; gap: 4px;
-  }
   .chip { display: flex; align-items: center; gap: 5px; font-size: 12px; white-space: nowrap; flex: none; }
   .chip .swatch { width: 11px; height: 11px; border-radius: 50%; flex: none; box-shadow: 0 0 0 1px rgba(0,0,0,.5); }
   .chip .n { font-weight: 700; }
@@ -263,9 +251,6 @@
   <div id="topBar">
     <div id="groups"></div>
   </div>
-  <div id="topBarRight">
-    <div id="forcePercents"></div>
-  </div>
   <button id="settingsBtn" aria-label="Réglages"><img id="settingsBtnImg" alt=""></button>
   <div id="gueuxBadge"></div>
   <div id="onboardingHint"></div>
@@ -329,7 +314,7 @@
       <div id="conseilsMechanics">
         <p><strong>La force est plafonnée à 12</strong> par province — impossible d'empiler plus haut, quelle que soit la taille de votre royaume.</p>
         <p><strong>Le combat est sans hasard</strong> : la plus grande force gagne toujours. Seule exception — attaquant ET défenseur tous les deux au plafond (12 contre 12) : là, et seulement là, les dés tranchent, sinon une frontière bloquée au plafond des deux côtés ne pourrait jamais bouger.</p>
-        <p><strong>Le renfort de fin de tour</strong> dépend de la taille (en villages) de votre plus grand groupe connecté de provinces, mais plafonné : jamais plus de 3 par tour, même pour un très grand royaume — pas de boule de neige qui monte au plafond de force partout en quelques tours.</p>
+        <p><strong>Le renfort de fin de tour</strong> dépend de votre part du territoire par rapport à une part égale entre les royaumes encore debout — au-dessus de la moyenne, vous gagnez plus (jusqu'à 3 par tour) ; en dessous, moins (jamais 0). Pas de boule de neige qui monte au plafond de force partout en quelques tours.</p>
         <p><strong>La trêve</strong> se déclenche quand toutes les frontières sont bloquées au plafond et que rien ne bouge depuis plusieurs tours d'affilée — signe qu'aucune attaque n'a de chance d'aboutir. Vous pouvez l'accepter (match nul) ou continuer le siège en espérant un 12 contre 12 favorable.</p>
       </div>
       <button id="closeConseils">Fermer</button>
@@ -411,12 +396,16 @@ try {
   const savedMapSize = localStorage.getItem("kw_mapSize");
   if (savedMapSize && MAP_SIZES[savedMapSize]) mapSize = savedMapSize;
 } catch (e) { /* ignore */ }
+// Does NOT persist to localStorage itself (see the settings-panel click
+// handler below for that) — playReplay() also calls this, temporarily, to
+// reproduce whatever map size the ORIGINAL match was played on, and that
+// must never overwrite the player's actual standing preference just because
+// they watched an old replay recorded at a different size.
 function applyMapSize(size) {
   const cfg = MAP_SIZES[size] || MAP_SIZES.medium;
   mapSize = MAP_SIZES[size] ? size : "medium";
   TERRITORY_COUNT = cfg.territoryCount;
   MAP_PIXEL_RADIUS = cfg.radius;
-  try { localStorage.setItem("kw_mapSize", mapSize); } catch (e) { /* ignore */ }
 }
 function mergeDownToActiveRoyaumes(activeCount) {
   for (let royId = activeCount; royId < ROYAUME_COUNT - 1; royId++) {
@@ -1206,6 +1195,13 @@ let roundNumber = 0;
 // the seeded RNG stream, so only the human's decisions need recording.
 let moveLog = [];
 let gameStartDifficulty = DIFFICULTY;
+// mirrors gameStartDifficulty: the map-size setting is a persistent,
+// ambient preference (like difficulty), not something bound to a specific
+// match — so without freezing it here the moment a match actually starts,
+// watching a replay after changing the setting regenerated an entirely
+// different island (different TERRITORY_COUNT/MAP_PIXEL_RADIUS) instead of
+// the exact one the original match was played on, even with the same seed.
+let gameStartMapSize = mapSize;
 let replaying = false;
 let replaySpeed = 1; // AI turn-pacing divisor; set >1 during replay playback
 let replayIntroHighlightUntil = 0; // performance.now() timestamp — while current, render() flashes the human's starting territories gold
@@ -1380,12 +1376,15 @@ function sfxEndTurn() { playTone(120, 0.14, { type: "sine", cutoff: 480, volume:
 // note clearly audible on its own, one after another, not blended into one
 // simultaneous chord (shorter notes + a wider gap than the first attempt,
 // which read as "all at once" instead of a quick run up the scale).
-const REINFORCE_CHIME_NOTES = [1046.5, 1318.5, 1568, 2093]; // C6, E6, G6, C7 — a bright major triad, extended with the octave if it runs past 4
+// was C6-C7 (1046-2093Hz) — read as shrill/piercing at that register even
+// as a pure sine. Dropped a full octave (C5-C6): still a bright, clearly
+// ascending major triad, just softer on the ear.
+const REINFORCE_CHIME_NOTES = [523.25, 659.25, 784, 1046.5]; // C5, E5, G5, C6
 function sfxReinforce(count) {
   const n = Math.min(count, 10); // a fast run, not a whole scale marathon, on a very large windfall
   for (let i = 0; i < n; i++) {
     const freq = REINFORCE_CHIME_NOTES[i % REINFORCE_CHIME_NOTES.length] * (1 + Math.floor(i / REINFORCE_CHIME_NOTES.length) * 0.5);
-    setTimeout(() => playTone(freq, 0.16, { type: "sine", cutoff: 3200, volume: 0.06 }), i * 110);
+    setTimeout(() => playTone(freq, 0.16, { type: "sine", cutoff: 2400, volume: 0.06 }), i * 110);
   }
 }
 function sfxVictory() {
@@ -1471,16 +1470,26 @@ function pickReinforceTarget(royId, owned) {
 function endTurn() {
   if (gameOver) return;
   const royId = currentPlayer;
-  // Every previous version of this line (raw hex count, then /2, then
-  // sqrt(), then sqrt(x/4)) still grows *without limit* as an empire gets
-  // bigger — a big enough territory always eventually outruns FORCE_CAP=12
-  // no matter how gentle the curve, which is exactly the repeated "reaches
-  // 12 everywhere too fast" complaint. This is a different shape, not just a
-  // gentler version of the same one: logarithmic AND hard-capped, so a
-  // sprawling empire gets the same per-turn trickle as a moderately-sized
-  // one instead of an ever-growing injection. Small starts still get 1-2;
-  // nothing, however large, ever earns more than 3 in a single turn.
-  const reinforcement = Math.min(3, 1 + Math.floor(Math.log2(1 + largestConnectedGroup(royId) / 6)));
+  // Every previous version of this line (raw hex count, /2, sqrt(),
+  // sqrt(x/4), a hard-capped log curve) was based on ABSOLUTE size — which
+  // meant the exact same royaume earned a completely different amount just
+  // because the map-size setting changed the total hex count. This version
+  // is relative instead: what matters is your *share* of the map compared
+  // to an equal split among the royaumes still standing. A royaume sitting
+  // right at that equal share earns a middling amount; meaningfully above
+  // it (a real lead) earns more, up to the same hard cap as before (3);
+  // meaningfully below it (on the back foot) earns less, down to the floor
+  // of 1 — never zero, a beaten-down royaume still has to be reinforceable.
+  // Same self-normalizing formula on Escarmouche, Campagne or Grande
+  // Campagne, and tuned slower than the log-curve version: reaching
+  // FORCE_CAP=12 on a genuinely contested border should now take a good 20+
+  // turns of real play, not a handful.
+  const totalHexes = Object.keys(hexes).length;
+  let livingRoyaumes = 0;
+  for (let r = 0; r < ROYAUME_COUNT - 1; r++) if (isAlive(r)) livingRoyaumes++;
+  const avgHexShare = livingRoyaumes > 0 ? totalHexes / livingRoyaumes : totalHexes;
+  const relativeShare = avgHexShare > 0 ? largestConnectedGroup(royId) / avgHexShare : 1;
+  const reinforcement = Math.max(1, Math.min(3, Math.round(0.5 + 1.5 * relativeShare)));
   let pts = reinforcement;
   let guardCount = 0;
   const reinforcedCounts = {}; // territory id -> how many points landed there
@@ -1634,16 +1643,14 @@ function checkWinner() {
   return false;
 }
 
-// End-of-game bonus commentary on the human's own standing — independent of
-// who actually won the match (works the same for a victory, a loss, or a
-// truce): did they gain ground, do they field the biggest army, or neither?
-// `outcome` ("win" or "truce" — never called at all on an outright loss, see
-// showWin()) keeps this line's tone consistent with the headline above it.
-// The neither-territory-nor-army case used to always read as a defeat
-// ("vous êtes un lâche, essayez la poterie") regardless of context, which
-// could land directly under a "Victoire, seigneur !" headline or a
-// "Match nul" one — visibly contradicting whichever it was paired with.
-function personalPerformanceLine(outcome) {
+// End-of-game bonus commentary on the human's own standing — only ever
+// shown on a truce now, never on an outright win (see showWin()): on a
+// clean-sweep victory every rival is at 0 force by definition (they're all
+// eliminated), so "vous avez la plus grosse armée" was vacuously true on
+// literally every win — a non-sequitur, not a real achievement callout. On
+// a truce other royaumes are still genuinely alive with a real force total,
+// so the comparison actually means something there.
+function personalPerformanceLine() {
   const humanForceNow = totalForce(humanRoyId);
   let maxOtherForce = -1;
   for (let r = 0; r < ROYAUME_COUNT - 1; r++) {
@@ -1653,9 +1660,7 @@ function personalPerformanceLine(outcome) {
   if (humanForceNow >= maxOtherForce) {
     return "Vous avez la plus grosse armée. Qu'attendez-vous pour lancer une nouvelle offensive, monseigneur ?";
   }
-  return outcome === "truce"
-    ? "Ni gloire ni déshonneur : vous rentrez chez vous comme vous êtes parti. La trêve n'a rien tranché — à vous de faire mieux la prochaine fois."
-    : "Vous n'aviez ni la plus grande armée ni gagné le plus de terres en chemin, et pourtant vous voilà seul debout. L'Histoire ne retient que les vainqueurs.";
+  return "Ni gloire ni déshonneur : vous rentrez chez vous comme vous êtes parti. La trêve n'a rien tranché — à vous de faire mieux la prochaine fois.";
 }
 
 function showWin(royId) {
@@ -1733,7 +1738,7 @@ function showWin(royId) {
   document.getElementById("wintext").textContent = text;
   // skip the extra performance line on a defeat — the loss message above
   // already carries that beat, no need to pile on a second dig
-  document.getElementById("winSubtext").textContent = humanLost ? "" : personalPerformanceLine(truceEnded ? "truce" : "win");
+  document.getElementById("winSubtext").textContent = truceEnded ? personalPerformanceLine() : "";
   document.getElementById("endturn").disabled = true;
   drawStatChart();
   document.getElementById("watchReplay").disabled = moveLog.length === 0;
@@ -1808,9 +1813,22 @@ function drawStatChart() {
       }
     }
     if (!pts.length) continue;
+    // Real per-round territory counts genuinely whip up and down during a
+    // long AI-vs-AI border skirmish — plotted raw, that reads as a jagged
+    // mountain range of single-round spikes instead of a legible trend. A
+    // small moving average smooths the *drawn line* only; the interactive
+    // scrub below still reports the exact, unsmoothed value for its round.
+    const smoothed = pts.map(([x, y], i) => {
+      let sum = 0, count = 0;
+      for (let d = -2; d <= 2; d++) {
+        const j = i + d;
+        if (j >= 0 && j < pts.length) { sum += pts[j][1]; count++; }
+      }
+      return [x, sum / count];
+    });
     const tracePath = () => {
       c.beginPath();
-      pts.forEach(([x, y], i) => i === 0 ? c.moveTo(x, y) : c.lineTo(x, y));
+      smoothed.forEach(([x, y], i) => i === 0 ? c.moveTo(x, y) : c.lineTo(x, y));
     };
     // a dark halo pass first — some royaume colors (Châteauvieux's near-white)
     // would otherwise nearly vanish against the parchment card background
@@ -1902,9 +1920,10 @@ function statChartIndexAtClientX(clientX) {
 // back only the recorded human-seat choices — the AI and dice reproduce
 // identically since they're driven by the same seeded RNG stream. Shared by
 // both "revoir ma partie" (own match) and a shared match opened from a link.
-function playReplay(seed, difficulty, replayHumanRoyId, log, onFinish) {
+function playReplay(seed, difficulty, replayHumanRoyId, log, onFinish, replayMapSize) {
   const levelToRestore = difficultyLevel;
   const humanToRestore = humanRoyId;
+  const mapSizeToRestore = mapSize;
 
   document.getElementById("winbanner").style.display = "none";
   // rerollBtn stays visible/available during playback (see startGame()) as
@@ -1918,6 +1937,12 @@ function playReplay(seed, difficulty, replayHumanRoyId, log, onFinish) {
   replaySpeed = 0.5;
   humanRoyId = replayHumanRoyId;
   applyDifficulty(difficulty);
+  // must be applied before startGame() generates the island — otherwise it
+  // regenerates using whatever map-size setting happens to be active *now*
+  // instead of the one the original match was actually played on, producing
+  // a completely different map even with the same seed. Falls back to the
+  // current setting for an older/foreign share link that predates this field.
+  applyMapSize(replayMapSize || mapSizeToRestore);
   startGame(seed);
   // mirrors pickFaction()'s call for a fresh game — must run exactly once,
   // at the equivalent point in the sequence (humanRoyId already known,
@@ -1964,8 +1989,15 @@ function playReplay(seed, difficulty, replayHumanRoyId, log, onFinish) {
     replaySpeed = 1;
     humanRoyId = humanToRestore;
     applyDifficulty(DIFFICULTY_LEVELS[levelToRestore].value);
-    // reroll button visibility is authoritatively handled by startGame()/
-    // pickFaction() from here on, not re-shown unconditionally
+    applyMapSize(mapSizeToRestore); // back to the viewer's own setting, not the replayed match's
+    // Reset explicitly rather than leaving it to startGame()/pickFaction():
+    // "Revoir la partie"'s onFinish only re-shows the win banner, it doesn't
+    // call either of those — left alone, the button (and its "Arrêter le
+    // replay" label) stayed stuck on screen showing a replay that had
+    // already ended.
+    const rerollBtnEl = document.getElementById("rerollBtn");
+    rerollBtnEl.style.display = awaitingFactionPick ? "" : "none";
+    rerollBtnEl.textContent = "🔀 Changer la carte";
     onFinish();
   }
   // held back until the intro spotlight has had its full still moment on
@@ -1979,7 +2011,7 @@ function startReplay() {
   if (!moveLog.length) return;
   playReplay(currentSeed, gameStartDifficulty, humanRoyId, moveLog.slice(), () => {
     document.getElementById("winbanner").style.display = "flex";
-  });
+  }, gameStartMapSize);
 }
 
 // --- share: encode the just-finished match (seed + difficulty + which seat
@@ -1988,7 +2020,7 @@ function startReplay() {
 // game — the whole point being to hook them into playing, not just to show
 // off a result.
 function buildShareUrl() {
-  const payload = { seed: currentSeed, difficulty: gameStartDifficulty, humanRoyId, log: moveLog };
+  const payload = { seed: currentSeed, difficulty: gameStartDifficulty, humanRoyId, log: moveLog, mapSize: gameStartMapSize };
   const encoded = btoa(encodeURIComponent(JSON.stringify(payload)));
   const url = new URL(location.href);
   url.hash = ""; url.search = "";
@@ -2027,7 +2059,7 @@ document.getElementById("watchSharedReplay").addEventListener("click", () => {
   const payload = pendingSharedReplay;
   playReplay(payload.seed, payload.difficulty, payload.humanRoyId, payload.log, () => {
     startGame(); // drop the visitor into their own fresh game right after
-  });
+  }, payload.mapSize);
 });
 document.getElementById("playInstead").addEventListener("click", () => {
   document.getElementById("shareIntro").style.display = "none";
@@ -2160,15 +2192,16 @@ function render() {
   // map — a territory is every hex sharing one color blob, and this is the
   // only line telling you where one blob (and its tap target) stops and the
   // next starts, so it's drawn clearly and always-on, not just on hover/select.
-  // Matte silver gradient (same family as the drag-to-attack preview outline,
-  // OUTLINE_GRADIENTS.silver) instead of a flat dark line — the flat dark
-  // line nearly vanished against Beaumanoir's dark navy fill (dark-on-dark).
-  // A thin dark halo goes underneath first so the border still separates
-  // cleanly against the lightest fills (the near-white neutral, the tan),
-  // where the silver alone would have the same low-contrast problem in reverse.
+  // A thick, solidly-opaque dark ring first, then a thin bright silver
+  // core on top: against a dark fill (Beaumanoir's navy) the bright core
+  // reads clearly; against a light fill (the near-white neutral, and
+  // Montherlant's tan/gold — the dark ring was too faint at 0.35 alpha to
+  // actually show up there) the dark ring itself is now the visible edge.
+  // One of the two always contrasts, regardless of how light or dark the
+  // fill is.
   ctx.lineCap = "round";
-  ctx.strokeStyle = "rgba(20,16,12,0.35)";
-  ctx.lineWidth = 2.6;
+  ctx.strokeStyle = "rgba(20,16,12,0.8)";
+  ctx.lineWidth = 3.2;
   for (const [[x1, y1], [x2, y2]] of territoryBorderSegments) {
     ctx.beginPath();
     ctx.moveTo(x1, y1);
@@ -2181,7 +2214,7 @@ function render() {
   borderGrad.addColorStop(0.5, borderC1);
   borderGrad.addColorStop(1, borderC2);
   ctx.strokeStyle = borderGrad;
-  ctx.lineWidth = 1.4;
+  ctx.lineWidth = 1.1;
   for (const [[x1, y1], [x2, y2]] of territoryBorderSegments) {
     ctx.beginPath();
     ctx.moveTo(x1, y1);
@@ -2354,36 +2387,22 @@ function updateGroups() {
   const rows = [];
   for (let royId = 0; royId < ROYAUME_COUNT - 1; royId++) { // exclude neutral (last)
     if (!isAlive(royId)) continue;
-    rows.push({ roy: ROYAUMES[royId], connected: largestConnectedGroup(royId), force: totalForce(royId) });
+    const ownedCount = territories.reduce((n, t) => n + (t.owner === royId ? 1 : 0), 0);
+    const maxForce = ownedCount * FORCE_CAP;
+    const force = totalForce(royId);
+    // % of the max force this royaume's current land could field (every
+    // province they hold at FORCE_CAP) — how "topped up" their army is, on
+    // the same line as the village/force numbers instead of a separate stat
+    // block, since it's just another number about the same royaume.
+    const pct = maxForce > 0 ? Math.round((force / maxForce) * 100) : 0;
+    rows.push({ roy: ROYAUMES[royId], connected: largestConnectedGroup(royId), force, pct });
   }
   rows.sort((a, b) => sortGroupsBy === "force" ? b.force - a.force : b.connected - a.connected);
   // dot only, no name — the color itself is the identifier now that the
   // legend line is gone too
   el.innerHTML = rows.map(r =>
     `<span class="chip"><span class="swatch" style="background:${r.roy.color}"></span>` +
-    `<span class="n">${r.connected}</span>·${r.force}</span>`
-  ).join("");
-  updateForcePercents();
-}
-
-// Top-right stat: each seigneur's current army as a % of the max they could
-// field on the land they actually hold right now (every owned province at
-// FORCE_CAP) — how full their war chest is, distinct from the left-side
-// stats which are about how much land/how many soldiers, not how "topped up".
-function updateForcePercents() {
-  const el = document.getElementById("forcePercents");
-  if (!el) return;
-  const rows = [];
-  for (let royId = 0; royId < ROYAUME_COUNT - 1; royId++) { // exclude neutral (last)
-    if (!isAlive(royId)) continue;
-    const ownedCount = territories.reduce((n, t) => n + (t.owner === royId ? 1 : 0), 0);
-    const maxForce = ownedCount * FORCE_CAP;
-    const pct = maxForce > 0 ? Math.round((totalForce(royId) / maxForce) * 100) : 0;
-    rows.push({ roy: ROYAUMES[royId], pct });
-  }
-  rows.sort((a, b) => b.pct - a.pct);
-  el.innerHTML = rows.map(r =>
-    `<span class="chip"><span class="swatch" style="background:${r.roy.color}"></span>${r.pct}%</span>`
+    `<span class="n">${r.connected}</span>·${r.force}·${r.pct}%</span>`
   ).join("");
 }
 
@@ -2800,6 +2819,7 @@ document.querySelectorAll("#mapSizeLevels .levelBtn").forEach((btn) => {
     // nouvelle guerre all route through startGame(), which reads mapSize
     // freshly each time
     applyMapSize(btn.dataset.mapsize);
+    try { localStorage.setItem("kw_mapSize", mapSize); } catch (e) { /* ignore */ }
     refreshMapSizeButtons();
     sfxToggle();
   });
@@ -2981,7 +3001,12 @@ function startGame(seed) {
   // is made (see pickFaction()), regardless of what the player does meanwhile.
   // Also kept visible throughout a replay (own or shared) as an escape hatch
   // — see the rerollBtn click handler, which aborts playback before rerolling.
-  document.getElementById("rerollBtn").style.display = (awaitingFactionPick || replaying) ? "" : "none";
+  // Its label swaps to say so explicitly while replaying: the same button
+  // silently doubled as a "stop the replay" control before, with nothing
+  // about its "Changer la carte" text hinting at that.
+  const rerollBtnEl = document.getElementById("rerollBtn");
+  rerollBtnEl.style.display = (awaitingFactionPick || replaying) ? "" : "none";
+  rerollBtnEl.textContent = replaying ? "⏹ Arrêter le replay" : "🔀 Changer la carte";
   // the rest of the interface is inert during a replay (taps are ignored —
   // see handlePointer()/endturn's click handler) — hide it instead of
   // leaving buttons on screen that do nothing when pressed
@@ -2994,7 +3019,7 @@ function startGame(seed) {
   const activeRoyaumes = MAP_SIZES[mapSize].activeRoyaumes;
   if (activeRoyaumes < ROYAUME_COUNT - 1) mergeDownToActiveRoyaumes(activeRoyaumes);
   if (!replaying) {
-    statHistory = []; moveLog = []; gameStartDifficulty = DIFFICULTY;
+    statHistory = []; moveLog = []; gameStartDifficulty = DIFFICULTY; gameStartMapSize = mapSize;
     recordRoundSnapshot();
   }
   updateStatus();
