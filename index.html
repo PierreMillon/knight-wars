@@ -69,19 +69,36 @@
   #settingsPanel {
     position: absolute; inset: 0; display: none;
     align-items: center; justify-content: center;
-    background: rgba(10,8,6,.82); color: #f2ede2; text-align: left;
+    background: rgba(10,8,6,.82); color: #2b1d10; text-align: left;
   }
-  #settingsPanel .box { background: #241d16; border-radius: 12px; padding: 20px 22px; max-width: 320px; max-height: 86vh; overflow-y: auto; box-sizing: border-box; }
-  #settingsPanel h2 { margin: 0 0 14px; font-size: 18px; }
+  /* illuminated-manuscript card: warm parchment ground, a gold rule, and a
+     dark outer keyline (via layered box-shadow — no image assets needed) */
+  .box {
+    background: linear-gradient(160deg, #f6ecd2, #e6d3a3);
+    color: #2b1d10; border-radius: 10px; padding: 22px 24px;
+    max-width: 320px; box-sizing: border-box;
+    border: 1px solid #8a6d3b;
+    box-shadow: 0 0 0 5px #1b1712, inset 0 0 0 1px rgba(139,109,59,.6), 0 12px 30px rgba(0,0,0,.5);
+  }
+  #settingsPanel .box { max-height: 86vh; overflow-y: auto; }
+  .box h1, .box h2 {
+    font-family: Georgia, "Iowan Old Style", Palatino, "Times New Roman", serif;
+    color: #6b2318; letter-spacing: .02em; position: relative; padding-bottom: 10px;
+  }
+  .box h1::after, .box h2::after {
+    content: ""; position: absolute; left: 50%; bottom: 0; transform: translateX(-50%);
+    width: 64px; height: 2px; background: linear-gradient(90deg, transparent, #8a6d3b, transparent);
+  }
+  #settingsPanel h2 { margin: 0 0 16px; font-size: 19px; }
   #settingsPanel label { display: flex; align-items: center; gap: 8px; font-size: 14px; margin-bottom: 16px; }
   .fieldGroup { margin-bottom: 16px; }
-  .fieldLabel { font-size: 13px; opacity: .8; margin-bottom: 6px; }
+  .fieldLabel { font-size: 13px; opacity: .75; margin-bottom: 6px; }
   .levelRow { display: flex; gap: 6px; flex-wrap: wrap; }
   #settingsPanel .levelBtn {
-    background: rgba(242,237,226,.12); color: #f2ede2; border: 1px solid rgba(242,237,226,.3);
+    background: rgba(43,29,16,.08); color: #2b1d10; border: 1px solid rgba(43,29,16,.35);
     border-radius: 6px; padding: 6px 10px; font-size: 13px; font-weight: 400;
   }
-  #settingsPanel .levelBtn.active { background: #1c3f8f; border-color: #1c3f8f; font-weight: 700; }
+  #settingsPanel .levelBtn.active { background: #1c3f8f; color: #fff; border-color: #1c3f8f; font-weight: 700; }
   #settingsPanel button {
     background: #1c3f8f; color: #fff; border: none; border-radius: 8px;
     padding: 8px 16px; font-size: 14px; font-weight: 700;
@@ -90,17 +107,18 @@
   #winbanner {
     position: absolute; inset: 0; display: none;
     align-items: center; justify-content: center; flex-direction: column;
-    background: rgba(10,8,6,.82); color: #f2ede2; text-align: center; gap: 14px;
+    background: rgba(10,8,6,.82); text-align: center;
   }
+  #winbanner .box { display: flex; flex-direction: column; align-items: center; gap: 14px; }
   #rerollBtn {
     position: absolute; right: 14px; /* bottom is set in JS, stacked just above #endturn */
     pointer-events: auto; background: rgba(20,16,12,.6); color: #f2ede2;
     border: 1px solid rgba(242,237,226,.35); border-radius: 20px;
     padding: 8px 16px; font-size: 13px; white-space: nowrap;
   }
-  #winbanner h1 { margin: 0; font-size: 26px; max-width: 320px; }
+  #winbanner h1 { margin: 0; font-size: 24px; max-width: 260px; }
   #winbanner img { width: 96px; height: auto; image-rendering: pixelated; }
-  #statChart { background: rgba(255,255,255,.04); border-radius: 8px; }
+  #statChart { background: rgba(0,0,0,.05); border-radius: 8px; }
   .winButtons { display: flex; gap: 10px; }
   #watchReplay { background: #5a4a1c; }
   #winbanner button {
@@ -111,11 +129,21 @@
   #shareIntro {
     position: absolute; inset: 0; display: none;
     align-items: center; justify-content: center;
-    background: rgba(10,8,6,.88); color: #f2ede2; text-align: center; z-index: 10;
+    background: rgba(10,8,6,.88); text-align: center; z-index: 10;
   }
-  #shareIntro .box { background: #241d16; border-radius: 12px; padding: 24px 22px; max-width: 320px; }
-  #shareIntro h2 { margin: 0 0 12px; font-size: 20px; }
+  #shareIntro h2 { margin: 0 0 14px; font-size: 21px; }
   #shareIntro p { font-size: 14px; opacity: .85; margin: 0 0 18px; }
+  #truceOverlay {
+    position: absolute; inset: 0; display: none;
+    align-items: center; justify-content: center;
+    background: rgba(10,8,6,.88); text-align: center; z-index: 10;
+  }
+  #truceOverlay h2 { margin: 0 0 14px; font-size: 21px; }
+  #truceOverlay p { font-size: 14px; line-height: 1.5; opacity: .9; margin: 0 0 18px; }
+  #truceOverlay button {
+    background: #1c3f8f; color: #fff; border: none; border-radius: 8px;
+    padding: 10px 20px; font-size: 15px; font-weight: 700;
+  }
 </style>
 </head>
 <body>
@@ -133,14 +161,16 @@
   <button id="endturn">Fin de bataille</button>
   <button id="rerollBtn">⚜ Nouveau royaume</button>
   <div id="winbanner">
-    <img id="winKnight" alt="">
-    <h1 id="wintext"></h1>
-    <canvas id="statChart" width="280" height="150"></canvas>
-    <div class="winButtons">
-      <button id="restart">Rejouer</button>
-      <button id="watchReplay">▶ Revoir la partie</button>
+    <div class="box">
+      <img id="winKnight" alt="">
+      <h1 id="wintext"></h1>
+      <canvas id="statChart" width="280" height="150"></canvas>
+      <div class="winButtons">
+        <button id="restart">Rejouer</button>
+        <button id="watchReplay">▶ Revoir la partie</button>
+      </div>
+      <button id="shareReplay">📤 Partager ma victoire</button>
     </div>
-    <button id="shareReplay">📤 Partager ma victoire</button>
   </div>
   <div id="shareIntro">
     <div class="box">
@@ -150,6 +180,13 @@
         <button id="watchSharedReplay">▶ Voir sa partie</button>
         <button id="playInstead">⚔ Jouer maintenant</button>
       </div>
+    </div>
+  </div>
+  <div id="truceOverlay">
+    <div class="box">
+      <h2>🕊️ Trêve</h2>
+      <p id="truceText"></p>
+      <button id="acceptTruce">J'accepte la trêve</button>
     </div>
   </div>
   <div id="settingsPanel">
@@ -186,7 +223,7 @@
 "use strict";
 
 /* ---------- CONFIG ---------- */
-const HEX_SIZE = 20;          // was 16 — bigger tap targets on phone
+const HEX_SIZE = 26;          // was 20, +30% per request — bigger tap targets on phone
 const MAP_PIXEL_RADIUS = 230; // was 210 — grown a bit alongside HEX_SIZE so
                                // territories keep a similar hex count/shape
 const TERRITORY_COUNT = 26;
@@ -742,6 +779,13 @@ let currentPlayer = 0;
 let selected = -1;
 let gameOver = false;
 let aiRunning = false;
+// deterministic-combat stalemate detection: once no attack anywhere on the
+// board can possibly succeed (every contested border is force-tied — ties
+// go to the defender), the match would otherwise hang forever, since combat
+// has no randomness left to eventually break the deadlock.
+let allCappedStreak = 0;
+let truceWinnerId = -1;
+let truceEnded = false; // showWin() uses different flavor text for a truce than an outright win
 // "batailles instantanées" — when on, AI turns resolve back-to-back with no
 // pacing delay instead of the usual ~0.3-0.5s per move (still async so a long
 // AI-vs-AI cascade never blows the call stack, just effectively instant).
@@ -903,6 +947,15 @@ function sfxVictory() {
     setTimeout(() => playTone(f, 0.3, { type: "triangle", cutoff: 1200, volume: 0.08 }), i * 120);
   });
 }
+// menu/UI sounds — kept even more discreet than the in-game ones since these
+// fire on every tap of a settings control
+function sfxMenuOpen() { playTone(260, 0.1, { type: "sine", cutoff: 700, volume: 0.05, slideTo: 340 }); }
+function sfxMenuClose() { playTone(260, 0.09, { type: "sine", cutoff: 700, volume: 0.05, slideTo: 190 }); }
+function sfxToggle() { playTone(520, 0.05, { type: "square", cutoff: 1400, volume: 0.03 }); }
+function sfxPickFaction() {
+  [330, 440].forEach((f, i) => setTimeout(() => playTone(f, 0.18, { type: "triangle", cutoff: 900, volume: 0.07 }), i * 90));
+}
+function sfxShare() { playTone(500, 0.14, { type: "triangle", cutoff: 1100, volume: 0.07, slideTo: 700 }); }
 
 let DETERMINISTIC_COMBAT = false; // testable via the ⚙ menu — bigger force always wins, no dice
 try {
@@ -993,6 +1046,8 @@ function advanceTurn() {
   if (currentPlayer === humanRoyId && !replaying) {
     roundNumber++;
     recordRoundSnapshot();
+    checkStalemate();
+    if (gameOver) return;
   }
   updateStatus();
   render();
@@ -1010,6 +1065,49 @@ function isAlive(royId) {
 function checkElimination() {
   // purely informational; advanceTurn's isAlive() already skips empty royaumes
 }
+
+// Only meaningful in deterministic-combat mode: with dice, even a heavily
+// tied-up board always keeps *some* chance of a fight flipping, but with
+// "la plus grande force gagne toujours" a strictly-tied attack can never
+// win (win = atk > def), so once every contested border is tied there is
+// no way forward at all. Checked once per full round; requires it to hold
+// for several rounds running before calling it, in case a reinforcement is
+// about to shuffle things loose.
+const STALEMATE_TRUCE_ROUNDS = 4;
+function checkStalemate() {
+  if (!DETERMINISTIC_COMBAT || gameOver) { allCappedStreak = 0; return; }
+  let anyWinnableAttack = false;
+  outer:
+  for (const t of territories) {
+    if (t.force <= 1) continue;
+    for (const nId of t.neighbors) {
+      const n = territories[nId];
+      if (n.owner === t.owner) continue;
+      if (t.force > n.force) { anyWinnableAttack = true; break outer; }
+    }
+  }
+  if (anyWinnableAttack) { allCappedStreak = 0; return; }
+  allCappedStreak++;
+  if (allCappedStreak >= STALEMATE_TRUCE_ROUNDS) declareStalemateTruce();
+}
+
+// No royaume is declared winner here — it's a draw, and the flavor text says
+// so plainly: nobody could force the issue, so the truce is framed as a
+// mildly mocking non-victory rather than a real one.
+function declareStalemateTruce() {
+  gameOver = true;
+  truceEnded = true;
+  truceWinnerId = -1;
+  document.getElementById("endturn").disabled = true;
+  document.getElementById("truceText").textContent =
+    "Aucun camp ne parvient à forcer la décision par les armes. Seuls les faibles réclament la paix, dit-on — " +
+    "et pourtant, à bout de souffle, tous l'acceptent. Match nul : la trêve, l'affaire des gueux.";
+  document.getElementById("truceOverlay").style.display = "flex";
+}
+document.getElementById("acceptTruce").addEventListener("click", () => {
+  document.getElementById("truceOverlay").style.display = "none";
+  showWin(truceWinnerId);
+});
 
 function checkWinner() {
   if (gameOver) return true; // guard against a redundant showWin()/gueux-count now that attack() also calls this directly
@@ -1035,13 +1133,16 @@ function showWin(royId) {
       refreshGueuxBadge();
     }
   }
-  const text = lastAttackWasGrind
+  const text = truceEnded
+    ? "Match nul — la paix, l'affaire des gueux."
+    : lastAttackWasGrind
     ? "Bravo seigneur, vous avez guerroyé férocement aujourd'hui, la dernière bataille était dure !"
     : (royId === humanRoyId) ? `Victoire, ${ROYAUMES[royId].name} !` : `${ROYAUMES[royId].name} l'emporte.`;
   document.getElementById("wintext").textContent = text;
   document.getElementById("endturn").disabled = true;
   drawStatChart();
   document.getElementById("watchReplay").disabled = moveLog.length === 0;
+  document.getElementById("shareReplay").textContent = truceEnded ? "📤 Partager ce match nul" : "📤 Partager ma victoire";
 }
 
 // --- end-of-match stats chart (AoE2-style: territories + force over rounds) ---
@@ -1076,7 +1177,7 @@ function drawStatChart() {
   const top = 18, bottom = H - 6, plotH = bottom - top;
 
   for (const panel of panels) {
-    c.strokeStyle = "rgba(242,237,226,.25)";
+    c.strokeStyle = "rgba(43,29,16,.3)";
     c.lineWidth = 1;
     c.beginPath();
     c.moveTo(panel.x, top); c.lineTo(panel.x, bottom); c.lineTo(panel.x + panel.w, bottom);
@@ -1091,21 +1192,32 @@ function drawStatChart() {
     }
 
     for (const royId of royIds) {
-      c.strokeStyle = ROYAUMES[royId].color;
-      c.lineWidth = 1.8;
-      c.beginPath();
-      let started = false;
+      const pts = [];
       statHistory.forEach((entry, i) => {
         const s = entry.stats[royId];
         if (!s) return; // this royaume was already eliminated — line just stops
         const x = panel.x + (i / (statHistory.length - 1)) * panel.w;
         const y = bottom - (s[panel.key] / maxVal) * plotH;
-        if (!started) { c.moveTo(x, y); started = true; } else { c.lineTo(x, y); }
+        pts.push([x, y]);
       });
+      if (!pts.length) continue;
+      const tracePath = () => {
+        c.beginPath();
+        pts.forEach(([x, y], i) => i === 0 ? c.moveTo(x, y) : c.lineTo(x, y));
+      };
+      // a dark halo pass first — some royaume colors (Châteauvieux's near-white)
+      // would otherwise nearly vanish against the parchment card background
+      tracePath();
+      c.strokeStyle = "rgba(43,29,16,.5)";
+      c.lineWidth = 3.4;
+      c.stroke();
+      tracePath();
+      c.strokeStyle = ROYAUMES[royId].color;
+      c.lineWidth = 1.8;
       c.stroke();
     }
 
-    c.fillStyle = "rgba(242,237,226,.7)";
+    c.fillStyle = "rgba(43,29,16,.8)";
     c.font = "10px -apple-system, sans-serif";
     c.textAlign = "left";
     c.fillText(panel.label, panel.x, 10);
@@ -1173,8 +1285,11 @@ function buildShareUrl() {
   return url.toString();
 }
 async function shareReplay() {
+  sfxShare();
   const url = buildShareUrl();
-  const text = "J'ai remporté une bataille sur Knight Wars ! Regarde ma partie et affronte-moi :";
+  const text = truceEnded
+    ? "Match nul sur Knight Wars, personne n'a pu forcer la décision ! Regarde cette partie et fais mieux :"
+    : "J'ai remporté une bataille sur Knight Wars ! Regarde ma partie et affronte-moi :";
   if (navigator.share) {
     try { await navigator.share({ title: "Knight Wars", text, url }); return; } catch (e) { /* cancelled/unsupported — fall through to clipboard */ }
   }
@@ -1497,7 +1612,7 @@ function drawForceIcon(t) {
     // Sprites temporarily disabled per request — plain (double-size) number
     // only. The sprite-drawing code below is left in place, untouched, to
     // switch back on later by flipping SHOW_UNIT_SPRITES.
-    ctx.font = "bold 22px -apple-system, sans-serif";
+    ctx.font = "bold 29px -apple-system, sans-serif";
     ctx.lineWidth = 3;
     ctx.strokeStyle = "rgba(20,16,12,0.85)";
     ctx.fillStyle = "#f2ede2";
@@ -1523,7 +1638,7 @@ function drawForceIcon(t) {
   ctx.fillStyle = "#f2ede2";
   ctx.strokeStyle = "rgba(20,16,12,0.8)";
   ctx.lineWidth = 2;
-  ctx.font = "bold 22px -apple-system, sans-serif";
+  ctx.font = "bold 29px -apple-system, sans-serif";
   ctx.strokeText(String(t.force), t.cx, yBottom + 8);
   ctx.fillText(String(t.force), t.cx, yBottom + 8);
 }
@@ -1555,6 +1670,7 @@ function pickFaction(royId) {
   // territory tap, so pressing "Fin de bataille" right after picking left it
   // stuck on screen
   document.getElementById("rerollBtn").style.display = "none";
+  sfxPickFaction();
   balanceStartingForces();
   logMsg(`Vous jouez ${ROYAUMES[royId].name}.`);
   updateStatus();
@@ -1696,17 +1812,21 @@ document.getElementById("sideGueux").src = GUEUX_IMG_SRC;
 document.getElementById("sideKnight").src = ARCHER_IMG_SRC;
 document.getElementById("settingsBtn").addEventListener("click", () => {
   settingsPanel.style.display = "flex";
+  sfxMenuOpen();
 });
 document.getElementById("closeSettings").addEventListener("click", () => {
   settingsPanel.style.display = "none";
+  sfxMenuClose();
 });
 document.getElementById("newWarBtn").addEventListener("click", () => {
   settingsPanel.style.display = "none";
+  sfxMenuClose();
   startGame();
 });
 deterministicToggle.addEventListener("change", () => {
   DETERMINISTIC_COMBAT = deterministicToggle.checked;
   try { localStorage.setItem("kw_deterministicCombat", DETERMINISTIC_COMBAT ? "1" : "0"); } catch (e) { /* ignore */ }
+  sfxToggle();
 });
 
 const soundToggle = document.getElementById("soundToggle");
@@ -1714,6 +1834,7 @@ soundToggle.checked = soundEnabled;
 soundToggle.addEventListener("change", () => {
   soundEnabled = soundToggle.checked;
   try { localStorage.setItem("kw_soundEnabled", soundEnabled ? "1" : "0"); } catch (e) { /* ignore */ }
+  sfxToggle(); // no-ops silently if this just turned sound off — that's the point
 });
 
 const instantBattlesToggle = document.getElementById("instantBattlesToggle");
@@ -1722,6 +1843,7 @@ instantBattlesToggle.addEventListener("change", () => {
   instantBattlesSetting = instantBattlesToggle.checked;
   if (currentPlayer === humanRoyId) fastForward = instantBattlesSetting;
   try { localStorage.setItem("kw_instantBattles", instantBattlesSetting ? "1" : "0"); } catch (e) { /* ignore */ }
+  sfxToggle();
 });
 
 const dragToAttackToggle = document.getElementById("dragToAttackToggle");
@@ -1729,6 +1851,7 @@ dragToAttackToggle.checked = dragToAttackEnabled;
 dragToAttackToggle.addEventListener("change", () => {
   dragToAttackEnabled = dragToAttackToggle.checked;
   try { localStorage.setItem("kw_dragToAttack", dragToAttackEnabled ? "1" : "0"); } catch (e) { /* ignore */ }
+  sfxToggle();
 });
 
 const metaProgressToggle = document.getElementById("metaProgressToggle");
@@ -1737,6 +1860,7 @@ metaProgressToggle.addEventListener("change", () => {
   metaProgressEnabled = metaProgressToggle.checked;
   try { localStorage.setItem("kw_metaProgress", metaProgressEnabled ? "1" : "0"); } catch (e) { /* ignore */ }
   refreshGueuxBadge();
+  sfxToggle();
 });
 
 function refreshLevelButtons() {
@@ -1751,6 +1875,7 @@ document.querySelectorAll("#difficultyLevels .levelBtn").forEach((btn, i) => {
     applyDifficulty(DIFFICULTY_LEVELS[i].value);
     try { localStorage.setItem("kw_difficultyLevel", String(i)); } catch (e) { /* ignore */ }
     refreshLevelButtons();
+    sfxToggle();
   });
 });
 
@@ -1766,6 +1891,7 @@ document.querySelectorAll("#sortLevels .levelBtn").forEach((btn) => {
     try { localStorage.setItem("kw_sortGroupsBy", sortGroupsBy); } catch (e) { /* ignore */ }
     refreshSortButtons();
     updateGroups();
+    sfxToggle();
   });
 });
 
@@ -1823,8 +1949,10 @@ try { onboarding = localStorage.getItem("kw_playedBefore") !== "1"; } catch (e) 
 
 function startGame(seed) {
   document.getElementById("winbanner").style.display = "none";
+  document.getElementById("truceOverlay").style.display = "none";
   document.getElementById("endturn").disabled = false;
   gameOver = false; selected = -1; currentPlayer = 0; aiRunning = false;
+  allCappedStreak = 0; truceEnded = false; truceWinnerId = -1;
   currentSeed = seed === undefined ? randomSeed() : seed;
   seedRNG(currentSeed);
   if (replaying) {
