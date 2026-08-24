@@ -128,6 +128,9 @@
     font-size: 11px; text-transform: uppercase; letter-spacing: .06em; opacity: .6;
     margin: 4px 0 10px; padding-top: 14px; border-top: 1px solid rgba(43,29,16,.25);
   }
+  /* the very first section label sits right under "Fermer" — no divider
+     line needed there, the button's own margin already separates them */
+  .settingsSectionLabel:first-of-type { border-top: none; padding-top: 0; }
   #royaumesList { display: flex; flex-direction: column; gap: 5px; }
   .royaumeRow { display: flex; align-items: baseline; gap: 7px; font-size: 13px; }
   .royaumeRow .swatch { width: 11px; height: 11px; border-radius: 50%; flex: none; box-shadow: 0 0 0 1px rgba(43,29,16,.5); align-self: center; }
@@ -139,7 +142,7 @@
     border-radius: 6px; padding: 6px 10px; font-size: 13px; font-weight: 400;
   }
   #settingsPanel .levelBtn.active { background: #1c3f8f; color: #fff; border-color: #1c3f8f; font-weight: 700; }
-  #newWarBtn, #conseilsBtn, #loreBtn, #supportLink, #surrenderBtn { margin-bottom: 10px; display: block; }
+  #newWarBtn, #conseilsBtn, #loreBtn, #surrenderBtn { margin-bottom: 10px; display: block; }
   /* top-of-panel close button, not a stacked action row — small and pulled
      to the left edge instead of taking a full-width row like the buttons
      below it */
@@ -246,14 +249,31 @@
      same gradient as the selected-territory outline on the map
      (OUTLINE_GRADIENTS.gold), so the two "this is the important thing"
      treatments actually match instead of one being gold and the other blue. */
-  #settingsPanel button, #winbanner button, #truceOverlay button, #loreOverlay button, #conseilsOverlay button, #supportLink {
+  #settingsPanel button, #winbanner button, #truceOverlay button, #loreOverlay button, #conseilsOverlay button {
     background: linear-gradient(135deg, #fff3c4, #e8c468, #a97e2a);
     color: #2b1d10; border: 1px solid #8a6d3b; border-radius: 8px;
     padding: 10px 20px; font-size: 15px; font-weight: 700;
   }
-  /* #supportLink is an <a>, not a <button> — reset the anchor defaults the
-     shared rule above doesn't cover */
-  #supportLink { text-decoration: none; text-align: center; cursor: pointer; }
+  /* "Abandonner" is destructive (forfeits the match instantly, no confirm
+     dialog) — it used to share the exact same gold look as every other
+     button in the panel, including harmless ones like "Le lore", with
+     nothing about its appearance warning you before you tap it. A muted
+     red-brown instead of gold is the one button here that should NOT look
+     inviting. #settingsPanel #surrenderBtn (two ids) is needed to outrank
+     the shared "#settingsPanel button" rule above, which is more specific
+     than a bare "#surrenderBtn" would be. */
+  #settingsPanel #surrenderBtn {
+    background: linear-gradient(135deg, #d9a89a, #b25c46, #7a3221);
+    border-color: #6b2318; color: #2b1710;
+  }
+  /* the least essential action in the panel — a support link, not a game
+     action — so it's a plain understated text link below a divider, not
+     another full gold button competing for attention with real settings */
+  #supportLink {
+    display: block; text-align: center; text-decoration: none; cursor: pointer;
+    margin: 18px 0 0; padding-top: 14px; border-top: 1px solid rgba(43,29,16,.25);
+    font-size: 13px; color: #6b2318; opacity: .8;
+  }
   /* small first-game-only tutorial banner — same materials as the other HUD
      buttons, just top-center and text-only, out of the way of the map */
   #onboardingHint {
@@ -368,6 +388,10 @@
     <div class="box">
       <h2>Réglages</h2>
       <button id="closeSettings">Fermer</button>
+
+      <!-- Tier 1: the settings someone actually comes here to change, most
+           often — how hard, how big, and the always-on toggles. -->
+      <div class="settingsSectionLabel">Préférences de jeu</div>
       <div class="fieldGroup">
         <div class="fieldLabel">Difficulté</div>
         <div id="difficultyLevels" class="levelRow">
@@ -385,6 +409,13 @@
           <button data-mapsize="large" class="levelBtn">Grande Campagne</button>
         </div>
       </div>
+      <label><input type="checkbox" id="soundToggle"> Sons</label>
+      <label><input type="checkbox" id="instantBattlesToggle"> Batailles instantanées — les tours adverses se résolvent sans attendre</label>
+      <label><input type="checkbox" id="metaProgressToggle"> Progression du gueux — gagnez un gueux à chaque victoire</label>
+
+      <!-- Tier 2: reference/display info, not something you "change" so
+           much as glance at — separated from the toggles above it. -->
+      <div class="settingsSectionLabel">Affichage</div>
       <div class="fieldGroup">
         <div class="fieldLabel">Les royaumes</div>
         <div id="royaumesList"></div>
@@ -396,15 +427,25 @@
           <button data-sort="force" class="levelBtn">Soldats</button>
         </div>
       </div>
-      <label><input type="checkbox" id="soundToggle"> Sons</label>
-      <label><input type="checkbox" id="instantBattlesToggle"> Batailles instantanées — les tours adverses se résolvent sans attendre</label>
-      <label><input type="checkbox" id="metaProgressToggle"> Progression du gueux — gagnez un gueux à chaque victoire</label>
-      <div class="settingsSectionLabel">Partie en cours</div>
-      <button id="newWarBtn">⚔ Nouvelle guerre — abandonne la partie et recommence</button>
+
+      <!-- Tier 3: lore/rules reference, read-only overlays — no risk of
+           accidentally ending or restarting anything by tapping these. -->
+      <div class="settingsSectionLabel">Aide</div>
       <button id="conseilsBtn">🎓 Conseils</button>
       <button id="loreBtn">📜 Le lore</button>
-      <a id="supportLink" href="https://ko-fi.com/knightwars" target="_blank" rel="noopener">☕ Soutenir le jeu</a>
+
+      <!-- Tier 4: actions on the CURRENT match — the only buttons in this
+           panel that end or restart the game you're playing right now.
+           "Abandonner" is styled as destructive (see #settingsPanel
+           #surrenderBtn) so it doesn't look as inviting as the rest. -->
+      <div class="settingsSectionLabel">Partie en cours</div>
+      <button id="newWarBtn">⚔ Nouvelle guerre — abandonne la partie et recommence</button>
       <button id="surrenderBtn">💀 Abandonner — capituler tout de suite</button>
+
+      <!-- Least essential of all — a support link, not a game action —
+           styled as a plain text link below a divider (see #supportLink),
+           not another full button competing with the real settings above. -->
+      <a id="supportLink" href="https://ko-fi.com/knightwars" target="_blank" rel="noopener">☕ Soutenir le jeu</a>
     </div>
   </div>
 </div>
