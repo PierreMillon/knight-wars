@@ -1251,7 +1251,11 @@ function pickReinforceTarget(royId, owned) {
 function endTurn() {
   if (gameOver) return;
   const royId = currentPlayer;
-  const reinforcement = largestConnectedGroup(royId);
+  // halved from the raw hex count — with the connected-group size now
+  // counting every underlying hex ("village") instead of just the number of
+  // régions, reinforcement was landing about twice as fast per turn as felt
+  // right. Floor, but never below 1 for anyone who still owns ground.
+  const reinforcement = Math.max(1, Math.floor(largestConnectedGroup(royId) / 2));
   let pts = reinforcement;
   let guardCount = 0;
   const reinforcedCounts = {}; // territory id -> how many points landed there
@@ -2078,6 +2082,13 @@ const UNIT_ASPECT = {
 const UNIT_CONTENT_FRACTION = { triangle: 1.0, square: 0.91, circle: 0.62 };
 
 function drawForceIcon(t) {
+  // Before a camp is picked, every territory's force is provisional — it
+  // gets rebalanced the instant a pick happens (balanceStartingForces(),
+  // which needs to know humanRoyId first, so it can't run any earlier).
+  // Showing a number here that's about to jump the moment you tap read as
+  // a bug ("I picked a territory and the numbers changed"), so nothing is
+  // drawn until there's nothing left to change out from under it.
+  if (awaitingFactionPick) return;
   ctx.textAlign = "center";
 
   if (!SHOW_UNIT_SPRITES) {
