@@ -1446,10 +1446,22 @@ function showWin(royId) {
     text = "Match nul — la paix, l'affaire des gueux.";
   } else if (humanLost) {
     const pers = AI_PERSONALITIES[royId];
-    text = `${ROYAUMES[royId].name} et ${pers.epithet} ne vous ont laissé ni terre ni honneur. ` +
-      "Vous avez tout donné, tout dépensé, et voilà : plus de terre, plus de soldats, seul et honteux devant vos pairs. " +
-      "Mais un seigneur déchu n'est pas un seigneur mort — quelque part, vous rêvez déjà de lever une nouvelle armée, " +
+    // a hint of hope closes every loss, unchanged — only the humiliating
+    // part varies, both in which joke it tells and (for the hobby-shaming
+    // one) which hobby it suggests, picked deterministically from the seed
+    // so a replay always shows the same one
+    const HOBBIES = ["la poterie", "la danse", "la broderie", "la peinture", "courir la gueuse", "conter fleurette à la souillon"];
+    const hobby = HOBBIES[Math.abs(currentSeed + royId) % HOBBIES.length];
+    const LOSS_OPENERS = [
+      `${ROYAUMES[royId].name} et ${pers.epithet} ne vous ont laissé ni terre ni honneur. ` +
+        "Vous avez tout donné, tout dépensé, et voilà : plus de terre, plus de soldats, seul et honteux devant vos pairs. " +
+        `Essayez ${hobby} plutôt que la guerre la prochaine fois.`,
+      `Foutrecouille ! Vous n'auriez pas dû faire bombance hier soir, sire. L'ennemi vous a surnommé Bidoumol, ` +
+        `et ${ROYAUMES[royId].name} rit encore de votre déroute.`,
+    ];
+    const HOPE_ENDING = " Mais un seigneur déchu n'est pas un seigneur mort — quelque part, vous rêvez déjà de lever une nouvelle armée, " +
       "ou de trouver des alliés assez généreux pour vous aider à vous relever.";
+    text = LOSS_OPENERS[Math.abs(currentSeed + royId + 11) % LOSS_OPENERS.length] + HOPE_ENDING;
   } else if (lastAttackWasGrind) {
     text = "Bravo seigneur, vous avez guerroyé férocement aujourd'hui, la dernière bataille était dure !";
   } else {
