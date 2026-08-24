@@ -2216,6 +2216,66 @@ function drawOutline(tId, style = "silver") {
   ctx.stroke();
 }
 
+// Draws the gold selection outline and the silver drag-path outlines
+// together in one pass, resolving priority at the shared-edge level instead
+// of per-territory. drawOutline() calls used to each stroke a territory's
+// *entire* perimeter independently, so the edge shared between the selected
+// (gold) territory and an adjacent drag-path (silver) one got stroked twice
+// — once in each color, whichever call happened to run last winning — which
+// showed up as a rough, slightly doubled line right where the two outlines
+// touched. Now every edge is assigned exactly one style (gold always beats
+// silver) and stroked exactly once.
+function drawHighlightOutlines() {
+  const goldId = selected;
+  const silverIds = dragPath.filter((tId) => tId !== goldId);
+  if (goldId === -1 && !silverIds.length) return;
+  const edgeMap = new Map(); // edgeKey -> { style, edge }
+  function collectEdges(tId, style) {
+    const t = territories[tId];
+    for (const hk of t.hexKeys) {
+      const h2 = hexes[hk];
+      for (const [dq, dr] of NEI) {
+        const nh = hexes[`${h2.q + dq},${h2.r + dr}`];
+        if (!nh || nh.territoryId !== h2.territoryId) {
+          const npos = nh || axialToPixel(h2.q + dq, h2.r + dr);
+          const edge = sharedHexEdge(h2, npos);
+          if (!edge) continue;
+          const key = edge.map((p) => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).sort().join("|");
+          const existing = edgeMap.get(key);
+          if (!existing || (existing.style !== "gold" && style === "gold")) edgeMap.set(key, { style, edge });
+        }
+      }
+    }
+  }
+  if (goldId !== -1) collectEdges(goldId, "gold");
+  for (const tId of silverIds) collectEdges(tId, "silver");
+  const all = [...edgeMap.values()];
+  ctx.beginPath();
+  for (const { edge } of all) { const [[x1, y1], [x2, y2]] = edge; ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); }
+  ctx.strokeStyle = "rgba(20,16,12,0.6)";
+  ctx.lineWidth = 3.6;
+  ctx.lineCap = "round";
+  ctx.stroke();
+  // bright gradient core per style, anchored to the whole map's extent (like
+  // territoryBorderSegments' own border) rather than one territory's — a
+  // drag chain can span several territories, so there's no single "center"
+  // to anchor a per-territory gradient on any more
+  for (const style of ["silver", "gold"]) {
+    const edges = all.filter((e) => e.style === style);
+    if (!edges.length) continue;
+    ctx.beginPath();
+    for (const { edge } of edges) { const [[x1, y1], [x2, y2]] = edge; ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); }
+    const [c0, c1, c2] = OUTLINE_GRADIENTS[style];
+    const grad = ctx.createLinearGradient(-mapExtentX, -mapExtentY, mapExtentX, mapExtentY);
+    grad.addColorStop(0, c0);
+    grad.addColorStop(0.5, c1);
+    grad.addColorStop(1, c2);
+    ctx.strokeStyle = grad;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+}
+
 function render() {
   const w = canvas.clientWidth, h = canvas.clientHeight;
   ctx.clearRect(0, 0, w, h);
@@ -2287,10 +2347,7 @@ function render() {
   // during a drag-to-attack gesture: every territory in the planned chain
   // gets outlined, connected by a dashed line so the whole attack line reads
   // clearly as one gesture.
-  if (selected !== -1) drawOutline(selected, "gold");
-  for (const tId of dragPath) {
-    if (tId !== selected) drawOutline(tId, "silver");
-  }
+  drawHighlightOutlines();
   // brief gold flash on every territory the human started the replayed
   // match with — see playReplay() — so a viewer knows which color to
   // actually follow before the action starts moving
