@@ -19,22 +19,32 @@
   #wrap { position: relative; width: 100%; height: 100%; }
   canvas { display: block; background: #2b3d52; touch-action: none; } /* otherwise the browser can claim a one-finger drag as a pan/scroll gesture mid-way and never deliver pointerup */
   #status, #log { display: none; } /* kept for internal state only, no longer shown */
+  /* every persistent in-game HUD button (settings, end-turn, reroll, gueux
+     badge) shares one visual language — a bronze/gold keyline and a serif
+     label — the same materials the menu overlays already use, so the HUD
+     and the menu read as one consistent interface instead of two */
+  #settingsBtn, #endturn, #rerollBtn, #gueuxBadge {
+    border-radius: 10px;
+    border: 1px solid #8a6d3b;
+    box-shadow: 0 0 0 1px rgba(20,16,12,.7), 0 2px 6px rgba(0,0,0,.45);
+    font-family: Georgia, "Iowan Old Style", Palatino, "Times New Roman", serif;
+  }
   #settingsBtn {
     position: absolute; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); left: 14px;
     pointer-events: auto; background: rgba(20,16,12,.55);
-    border: 1px solid rgba(242,237,226,.35); border-radius: 8px;
     width: 34px; height: 34px; padding: 3px;
   }
   #settingsBtn img { width: 100%; height: 100%; object-fit: contain; }
   #endturn {
     position: absolute; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); right: 14px;
-    pointer-events: auto; white-space: nowrap;
+    pointer-events: auto; white-space: nowrap; text-align: center;
     /* background color is set inline in JS to match the player's chosen royaume */
-    border: 1px solid rgba(20,16,12,.4); border-radius: 8px;
     padding: 10px 18px; font-size: 15px; font-weight: 700;
-    box-shadow: 0 2px 6px rgba(0,0,0,.4);
   }
   #endturn.aiTurn { opacity: .72; font-weight: 600; font-style: italic; }
+  /* second, smaller line explaining the tap-to-fast-forward gesture — only
+     shown while the AIs are playing (see updateEndTurnButton()) */
+  #endturn .btnHint { display: block; font-size: .62em; font-weight: 400; font-style: normal; opacity: .85; margin-top: 2px; }
   /* ambient decoration on wide (desktop) viewports only — never shown on phone */
   .sideArt {
     position: fixed; bottom: 0; height: 55vh; max-height: 520px; width: auto; max-width: 16vw;
@@ -48,10 +58,13 @@
   }
   #gueuxBadge {
     position: absolute; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); left: 54px;
-    display: none; align-items: center; pointer-events: none;
-    background: rgba(20,16,12,.55); border: 1px solid rgba(242,237,226,.3); border-radius: 20px;
+    display: none; align-items: center; pointer-events: auto; cursor: pointer;
+    background: rgba(20,16,12,.55);
     color: #f2ede2; font-size: 12px; padding: 8px 12px; font-weight: 700;
+    transition: box-shadow .15s, opacity .15s;
   }
+  /* armed: tap a territory to spend one gueux as a reinforcement there */
+  #gueuxBadge.gueuxArmed { border-color: #e8c468; box-shadow: 0 0 0 2px rgba(232,196,104,.55), 0 0 10px rgba(232,196,104,.6); }
   #endturn:disabled { background: #5a5044 !important; color: #f2ede2 !important; opacity: .6; }
   #topBar {
     position: absolute; left: 0; top: 0;
@@ -93,6 +106,11 @@
   #settingsPanel label { display: flex; align-items: center; gap: 8px; font-size: 14px; margin-bottom: 16px; }
   .fieldGroup { margin-bottom: 16px; }
   .fieldLabel { font-size: 13px; opacity: .75; margin-bottom: 6px; }
+  #royaumesList { display: flex; flex-direction: column; gap: 5px; }
+  .royaumeRow { display: flex; align-items: baseline; gap: 7px; font-size: 13px; }
+  .royaumeRow .swatch { width: 11px; height: 11px; border-radius: 50%; flex: none; box-shadow: 0 0 0 1px rgba(43,29,16,.5); align-self: center; }
+  .royaumeRow .rname { font-weight: 700; }
+  .royaumeRow .repithet { font-style: italic; opacity: .75; }
   .levelRow { display: flex; gap: 6px; flex-wrap: wrap; }
   #settingsPanel .levelBtn {
     background: rgba(43,29,16,.08); color: #2b1d10; border: 1px solid rgba(43,29,16,.35);
@@ -113,8 +131,7 @@
   #rerollBtn {
     position: absolute; right: 14px; /* bottom is set in JS, stacked just above #endturn */
     pointer-events: auto; background: rgba(20,16,12,.6); color: #f2ede2;
-    border: 1px solid rgba(242,237,226,.35); border-radius: 20px;
-    padding: 8px 16px; font-size: 13px; white-space: nowrap;
+    padding: 8px 16px; font-size: 13px; white-space: nowrap; font-weight: 700;
   }
   #winbanner h1 { margin: 0; font-size: 24px; max-width: 260px; }
   #winSubtext { margin: -6px 0 0; font-size: 13px; font-style: italic; opacity: .8; max-width: 260px; }
@@ -145,6 +162,17 @@
     background: #1c3f8f; color: #fff; border: none; border-radius: 8px;
     padding: 10px 20px; font-size: 15px; font-weight: 700;
   }
+  /* small first-game-only tutorial banner — same materials as the other HUD
+     buttons, just top-center and text-only, out of the way of the map */
+  #onboardingHint {
+    position: absolute; top: calc(10px + env(safe-area-inset-top, 0px)); left: 50%;
+    transform: translateX(-50%); z-index: 5;
+    display: none; pointer-events: none; max-width: 78vw; text-align: center;
+    background: rgba(20,16,12,.75); color: #f2ede2; font-size: 13px; font-weight: 600;
+    padding: 8px 14px; border-radius: 10px; border: 1px solid #8a6d3b;
+    box-shadow: 0 0 0 1px rgba(20,16,12,.7), 0 2px 6px rgba(0,0,0,.45);
+    font-family: Georgia, "Iowan Old Style", Palatino, "Times New Roman", serif;
+  }
 </style>
 </head>
 <body>
@@ -159,6 +187,7 @@
   </div>
   <button id="settingsBtn" aria-label="Réglages"><img id="settingsBtnImg" alt=""></button>
   <div id="gueuxBadge"></div>
+  <div id="onboardingHint"></div>
   <button id="endturn">Fin de bataille</button>
   <button id="rerollBtn">⚜ Nouveau royaume</button>
   <div id="winbanner">
@@ -202,6 +231,10 @@
           <button data-level="2" class="levelBtn">Chevalier</button>
           <button data-level="3" class="levelBtn">Seigneur</button>
         </div>
+      </div>
+      <div class="fieldGroup">
+        <div class="fieldLabel">Les royaumes</div>
+        <div id="royaumesList"></div>
       </div>
       <div class="fieldGroup">
         <div class="fieldLabel">Classer les royaumes par</div>
@@ -250,6 +283,25 @@ const ROYAUMES = [
   { id: 2, name: "Montherlant",  color: "#c6a15b", accent: "#f7f0f5", chief: "#931f1d" },
   { id: 3, name: "Beaumanoir",   color: "#001f54", accent: "#f7f0f5", chief: "#c6a15b" },
   { id: 4, name: "Neutre",       color: "#6b7280", accent: "#4a5568", chief: "#4a5568", neutral: true }, // lightened from #0a1128 — too close to the canvas/background at full darkness
+];
+
+// A fixed personality per royaume (indexed by id, not by "whichever 3 are AI
+// this game" — the human can pick any of the 4, so whichever royaume ends up
+// AI-controlled keeps its own traits). Pure, deterministic offsets on top of
+// the existing difficulty-driven thresholds/mistake rate — no new source of
+// randomness, so replay determinism is untouched.
+// - aggressionDelta shifts the minimum force advantage required to attack
+//   (negative = attacks more readily, even at parity or a slight disadvantage)
+// - mistakeDelta shifts the chance of skipping an available good move
+// - exposureWeight scales how much leaving the attacking tile exposed to
+//   another neighbor counts against a move
+// - finishOffBonus is the score bonus for attacking a royaume down to its
+//   last couple of territories, instead of a marginally better trade elsewhere
+const AI_PERSONALITIES = [
+  { epithet: "les Prudents",  aggressionDelta: +0.6, mistakeDelta: -0.03, exposureWeight: 1.0, finishOffBonus: 2.0 }, // Châteauvieux — cautious, rarely overextends
+  { epithet: "les Enragés",   aggressionDelta: -0.6, mistakeDelta: +0.05, exposureWeight: 0.4, finishOffBonus: 2.0 }, // Villiers — reckless, attacks at the slightest opening
+  { epithet: "les Marchands", aggressionDelta: 0,    mistakeDelta: 0,     exposureWeight: 0.8, finishOffBonus: 3.5 }, // Montherlant — opportunistic, hunts weak royaumes down
+  { epithet: "les Stratèges", aggressionDelta: +0.2, mistakeDelta: -0.05, exposureWeight: 1.6, finishOffBonus: 2.0 }, // Beaumanoir — calculating, plays the long game
 ];
 
 // Difficulty: still a continuous 0-1 value under the hood (driving AI traits
@@ -469,22 +521,42 @@ function generateHexGrid() {
   const range = Math.ceil(MAP_PIXEL_RADIUS / (HEX_SIZE * 1.5)) + 2;
 
   // random island silhouette: sum of a few sine harmonics with random phase/amplitude,
-  // recomputed each new game so the outer contour differs from one game to the next
-  const harmonics = [2, 3, 4, 5].map(freq => ({
+  // recomputed each new game so the outer contour differs from one game to the next.
+  // freq 1 is included (asymmetric, "lopsided egg" shapes) on top of the higher
+  // frequencies, and the amplitude range is wide enough that some games come out
+  // near-circular while others are noticeably more sprawled or condensed —
+  // deliberately more varied than always converging back toward a circle.
+  const harmonics = [1, 2, 3, 4, 5].map(freq => ({
     freq,
     phase: rngFloat() * Math.PI * 2,
-    amp: 0.03 + rngFloat() * 0.05,
+    amp: 0.02 + rngFloat() * 0.11,
   }));
+  // occasionally pinches the coastline down to a narrow isthmus at one random
+  // angle — a natural strait/chokepoint in the outer silhouette itself, not
+  // just from an interior void — for a noticeably less round map that game
+  const hasWaist = rngFloat() < 0.45;
+  const waistTheta = rngFloat() * Math.PI * 2;
+  const waistWidth = 0.35 + rngFloat() * 0.35; // radians — how wide the pinch is
+  const waistDepth = 0.35 + rngFloat() * 0.3; // how far it narrows (fraction of radius)
   function radialJitter(theta) {
     let j = 1;
     for (const h of harmonics) j += h.amp * Math.sin(h.freq * theta + h.phase);
-    return j;
+    if (hasWaist) {
+      let d = Math.abs(theta - waistTheta) % (Math.PI * 2);
+      if (d > Math.PI) d = Math.PI * 2 - d;
+      if (d < waistWidth) {
+        const t = 1 - d / waistWidth; // 1 at the center of the pinch, 0 at its edges
+        j -= waistDepth * t * t;
+      }
+    }
+    return Math.max(0.25, j);
   }
 
-  // Stretched taller than wide (portrait-phone aspect) so the island fills
-  // more of the screen vertically instead of leaving a circle's worth of
-  // empty margin above and below on a tall viewport.
-  const Y_STRETCH = 1.3;
+  // Stretched taller than wide (portrait-phone aspect) as a baseline so the
+  // island still fills more of the screen vertically on a tall viewport, but
+  // randomized per game on top of that instead of pinned to one fixed ratio —
+  // some games come out more spread out, some more condensed.
+  const Y_STRETCH = 1.1 + rngFloat() * 0.5;
   let maxX = 0, maxY = 0;
   for (let q = -range; q <= range; q++) {
     for (let r = -range; r <= range; r++) {
@@ -507,35 +579,101 @@ function generateHexGrid() {
   mapExtentY = maxY;
 
   carveVoids();
+  // the more aggressive silhouette pinch and channel-shaped voids above can,
+  // in the worst case, sever the island into two or more disconnected
+  // landmasses — which would strand some royaume's territory somewhere no
+  // attack could ever reach. Keep only the single largest connected group of
+  // hexes so every game stays one fully-reachable island no matter how
+  // extreme the random shape/voids came out.
+  keepLargestConnectedComponent();
 }
 
-// A few interior lakes/impassable pockets — small chunks of the island that
-// belong to no territory at all (just empty background, unclickable, no
-// village). Purely a bit of visual/tactical texture so the island isn't one
-// uniform blob; carving is capped so there's always plenty of room left for
-// every territory to seed and grow normally.
-const VOID_COUNT = 2;
-const VOID_MIN_SIZE = 3, VOID_MAX_SIZE = 7;
+function keepLargestConnectedComponent() {
+  const keys = Object.keys(hexes);
+  if (!keys.length) return;
+  const visited = new Set();
+  const components = [];
+  for (const k of keys) {
+    if (visited.has(k)) continue;
+    const comp = [];
+    const stack = [k];
+    visited.add(k);
+    while (stack.length) {
+      const cur = stack.pop();
+      comp.push(cur);
+      const h = hexes[cur];
+      for (const nk of neighborsOf(h.q, h.r)) {
+        if (hexes[nk] && !visited.has(nk)) { visited.add(nk); stack.push(nk); }
+      }
+    }
+    components.push(comp);
+  }
+  if (components.length <= 1) return;
+  components.sort((a, b) => b.length - a.length);
+  for (let i = 1; i < components.length; i++) {
+    for (const k of components[i]) delete hexes[k];
+  }
+}
+
+// Interior lakes/impassable pockets — chunks of the island that belong to no
+// territory at all (just empty background, unclickable, no village). Purely
+// visual/tactical texture so the island isn't one uniform blob; carving is
+// capped so there's always plenty of room left for every territory to seed
+// and grow normally.
+// Count and size are randomized per game (more voids, and occasionally much
+// bigger ones, than a fixed "always 2 small pockets"). Each void is either a
+// round-ish blob (organic lake) or an elongated "channel" that snakes mostly
+// in one direction instead of flooding outward evenly — a channel that
+// nearly reaches across the island leaves the strip of land beside its tip
+// as a narrow 1-2-hex chokepoint between two otherwise-separated areas.
+const VOID_MIN_SIZE = 3, VOID_MAX_SIZE = 16;
 function carveVoids() {
   const minRemaining = TERRITORY_COUNT * 3;
-  for (let v = 0; v < VOID_COUNT; v++) {
+  const voidCount = 2 + rand(5); // 2-6 voids per game, up from a flat 2
+  for (let v = 0; v < voidCount; v++) {
     const candidates = Object.keys(hexes);
     if (candidates.length <= minRemaining) break;
     const seedKey = pick(candidates);
     const targetSize = VOID_MIN_SIZE + rand(VOID_MAX_SIZE - VOID_MIN_SIZE + 1);
+    const isChannel = rngFloat() < 0.45;
     const blob = [seedKey];
     const seen = new Set(blob);
-    const frontier = [seedKey];
-    while (blob.length < targetSize && frontier.length) {
-      const cur = frontier.shift();
-      const h = hexes[cur];
-      if (!h) continue;
-      for (const nk of neighborsOf(h.q, h.r)) {
-        if (blob.length >= targetSize) break;
-        if (seen.has(nk) || !hexes[nk]) continue;
-        seen.add(nk);
-        blob.push(nk);
-        frontier.push(nk);
+    if (isChannel) {
+      // random-walk in a mostly-fixed direction (occasional small turns)
+      // instead of BFS-flooding outward — produces a thin winding strip
+      // rather than a round pocket
+      let cur = hexes[seedKey];
+      let dirIdx = rand(NEI.length);
+      while (blob.length < targetSize) {
+        if (rngFloat() < 0.35) dirIdx = (dirIdx + (rngFloat() < 0.5 ? 1 : -1) + NEI.length) % NEI.length;
+        const [dq, dr] = NEI[dirIdx];
+        const nk = `${cur.q + dq},${cur.r + dr}`;
+        const nh = hexes[nk];
+        if (!nh || seen.has(nk)) {
+          // blocked this step — try a neighboring direction once instead of stopping outright
+          dirIdx = (dirIdx + 1) % NEI.length;
+          const [dq2, dr2] = NEI[dirIdx];
+          const nk2 = `${cur.q + dq2},${cur.r + dr2}`;
+          const nh2 = hexes[nk2];
+          if (!nh2 || seen.has(nk2)) break;
+          seen.add(nk2); blob.push(nk2); cur = nh2;
+          continue;
+        }
+        seen.add(nk); blob.push(nk); cur = nh;
+      }
+    } else {
+      const frontier = [seedKey];
+      while (blob.length < targetSize && frontier.length) {
+        const curKey = frontier.shift();
+        const h = hexes[curKey];
+        if (!h) continue;
+        for (const nk of neighborsOf(h.q, h.r)) {
+          if (blob.length >= targetSize) break;
+          if (seen.has(nk) || !hexes[nk]) continue;
+          seen.add(nk);
+          blob.push(nk);
+          frontier.push(nk);
+        }
       }
     }
     if (Object.keys(hexes).length - blob.length < minRemaining) continue; // would carve too much
@@ -722,7 +860,15 @@ function assignRoyaumes() {
     t.force = t.owner === ROYAUME_COUNT - 1 ? 1 + rand(2) : 1 + rand(3);
   }
 
-  balanceStartingForces();
+  // NOT called here — must run exactly once, with the real humanRoyId
+  // already known, or it desyncs a replay from the original match (it was
+  // previously called here unconditionally with humanRoyId still -1 during
+  // a fresh game's pre-pick phase, *and again* from pickFaction() once
+  // humanRoyId was set — but a replay sets humanRoyId before startGame()
+  // ever runs, so this call only ever fired once there, producing
+  // different starting forces than the original game had). See
+  // pickFaction() and playReplay(), which are now the only two call sites,
+  // each firing exactly once at the equivalent point in the sequence.
 }
 
 // A royaume that lands more territories from the greedy growth above would
@@ -804,6 +950,7 @@ let aiRunning = false;
 // go to the defender), the match would otherwise hang forever, since combat
 // has no randomness left to eventually break the deadlock.
 let allCappedStreak = 0;
+let lastStalemateFingerprint = null; // dice-mode-only: territories.map(owner) from the previous check, to detect "nothing moved"
 let truceWinnerId = -1;
 let truceEnded = false; // showWin() uses different flavor text for a truce than an outright win
 let humanStartTerritories = 0; // set in pickFaction() — baseline for the end-of-game "gained ground?" line
@@ -818,13 +965,28 @@ try { instantBattlesSetting = localStorage.getItem("kw_instantBattles") === "1";
 let fastForward = instantBattlesSetting;
 function scheduleTurn(fn, delay) { setTimeout(fn, fastForward ? 0 : delay); }
 
-// opt-in meta-progression: one persistent "gueux" earned per victory, purely
-// a between-games counter (no in-game spending) — off by default, the count
-// itself is kept even while the setting is off so re-enabling doesn't lose it
+// opt-in meta-progression: one persistent "gueux" earned per victory — off by
+// default, the count itself is kept even while the setting is off so
+// re-enabling doesn't lose it. Spendable in any later match: tap the badge to
+// arm it, then tap one of your own territories (below the force cap) to
+// spend one gueux as an instant +1 reinforcement there.
 let metaProgressEnabled = false;
 try { metaProgressEnabled = localStorage.getItem("kw_metaProgress") === "1"; } catch (e) { /* ignore */ }
 let gueuxCount = 0;
 try { gueuxCount = Number(localStorage.getItem("kw_gueuxCount")) || 0; } catch (e) { /* ignore */ }
+let placingGueux = false; // armed by tapping the badge; consumed by the next own-territory tap
+
+// same visual pulse as a combat reinforcement — reused here for a gueux spend
+function reinforceTerritory(tId) {
+  territories[tId].force = Math.min(FORCE_CAP, territories[tId].force + 1);
+  triggerPulse({ [tId]: 1 });
+}
+function spendGueux(tId) {
+  if (gueuxCount <= 0) return;
+  gueuxCount--;
+  try { localStorage.setItem("kw_gueuxCount", String(gueuxCount)); } catch (e) { /* ignore */ }
+  reinforceTerritory(tId);
+}
 
 /* ---------- MATCH HISTORY (stats graph + replay) ---------- */
 // One entry per round (a full cycle back to the human), so the end-game
@@ -841,6 +1003,7 @@ let moveLog = [];
 let gameStartDifficulty = DIFFICULTY;
 let replaying = false;
 let replaySpeed = 1; // AI turn-pacing divisor; set >1 during replay playback
+let replayIntroHighlightUntil = 0; // performance.now() timestamp — while current, render() flashes the human's starting territories gold
 
 function recordRoundSnapshot() {
   const stats = {};
@@ -851,6 +1014,13 @@ function recordRoundSnapshot() {
   statHistory.push({ round: roundNumber, stats });
 }
 
+// Reinforcement is earned per connected group of owned *régions*
+// (territories), but scaled by how many hexes ("villages") each région
+// actually contains — a 10-hex région pulls its weight, not the same single
+// point as a 1-hex région next to it. This walks the connected-component
+// search over territories (the black-outlined groupings, still the unit
+// adjacency is checked on) but sums hexKeys.length rather than counting
+// territories themselves.
 function largestConnectedGroup(royId) {
   const owned = new Set(territories.filter(t => t.owner === royId).map(t => t.id));
   const visited = new Set();
@@ -862,7 +1032,7 @@ function largestConnectedGroup(royId) {
     visited.add(start);
     while (stack.length) {
       const cur = stack.pop();
-      size++;
+      size += territories[cur].hexKeys.length;
       for (const n of territories[cur].neighbors) {
         if (owned.has(n) && !visited.has(n)) { visited.add(n); stack.push(n); }
       }
@@ -881,8 +1051,8 @@ function totalForce(royId) {
 // brief non-blocking visual effects (reinforcement glow, combat flash) —
 // makes "why did this go from 2 to 6" / "who just won that fight" visible
 // without pausing the game or adding any confirmation step
-const PULSE_DURATION = 500;
-const COMBAT_FX_DURATION = 550;
+const PULSE_DURATION = 1000; // was 500 — +100%, per request
+const COMBAT_FX_DURATION = 1100; // was 550 — +100%, per request
 let pulseTiles = []; // [{id, start}]
 let combatFX = null; // {fromId, toId, atk, def, win, start}
 let fxRAFRunning = false;
@@ -938,6 +1108,15 @@ function ensureAudioCtx() {
   if (audioCtx.state === "suspended") audioCtx.resume().catch(() => {});
   return audioCtx;
 }
+// mobile Safari (and others) suspend the AudioContext when the tab/app goes
+// to the background, and don't resume it on their own when it comes back —
+// left alone, every sound after a switch-away-and-back silently no-ops
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden && audioCtx && audioCtx.state === "suspended") audioCtx.resume().catch(() => {});
+});
+window.addEventListener("pageshow", () => {
+  if (audioCtx && audioCtx.state === "suspended") audioCtx.resume().catch(() => {});
+});
 function playTone(freq, duration, opts = {}) {
   if (!soundEnabled) return; // sounds now play during replay too, per request
   const ac = ensureAudioCtx();
@@ -1102,27 +1281,49 @@ function checkElimination() {
   // purely informational; advanceTurn's isAlive() already skips empty royaumes
 }
 
-// Only meaningful in deterministic-combat mode: with dice, even a heavily
-// tied-up board always keeps *some* chance of a fight flipping, but with
-// "la plus grande force gagne toujours" a strictly-tied attack can never
-// win (win = atk > def), so once every contested border is tied there is
-// no way forward at all. Checked once per full round; requires it to hold
-// for several rounds running before calling it, in case a reinforcement is
-// about to shuffle things loose.
+// Checked once per full round; requires it to hold for several rounds
+// running before calling it, in case a reinforcement is about to shuffle
+// things loose. Deterministic and dice combat need different tests for what
+// counts as "stuck":
+// - Deterministic ("la plus grande force gagne toujours"): a strictly-tied
+//   attack can never win (win = atk > def), so once every contested border
+//   is tied there is *no way forward at all* — a real, permanent deadlock.
+// - Dice: even a heavily tied-up board always keeps some chance of a fight
+//   flipping, so that test never actually fires here. Instead this treats a
+//   fully-capped board (every border territory already at FORCE_CAP, so
+//   reinforcement can't change anything either) whose ownership hasn't
+//   budged for several rounds running as a de-facto stalemate — nobody's
+//   actually landing a winning roll even though one remains technically
+//   possible.
 const STALEMATE_TRUCE_ROUNDS = 4;
 function checkStalemate() {
-  if (!DETERMINISTIC_COMBAT || gameOver) { allCappedStreak = 0; return; }
-  let anyWinnableAttack = false;
-  outer:
-  for (const t of territories) {
-    if (t.force <= 1) continue;
-    for (const nId of t.neighbors) {
-      const n = territories[nId];
-      if (n.owner === t.owner) continue;
-      if (t.force > n.force) { anyWinnableAttack = true; break outer; }
+  if (gameOver) { allCappedStreak = 0; return; }
+  if (DETERMINISTIC_COMBAT) {
+    let anyWinnableAttack = false;
+    outer:
+    for (const t of territories) {
+      if (t.force <= 1) continue;
+      for (const nId of t.neighbors) {
+        const n = territories[nId];
+        if (n.owner === t.owner) continue;
+        if (t.force > n.force) { anyWinnableAttack = true; break outer; }
+      }
     }
+    if (anyWinnableAttack) { allCappedStreak = 0; return; }
+  } else {
+    let allBordersCapped = true;
+    outer2:
+    for (const t of territories) {
+      for (const nId of t.neighbors) {
+        if (territories[nId].owner === t.owner) continue;
+        if (t.force < FORCE_CAP) { allBordersCapped = false; break outer2; }
+      }
+    }
+    const fingerprint = territories.map(t => t.owner).join(",");
+    const unchanged = allBordersCapped && fingerprint === lastStalemateFingerprint;
+    lastStalemateFingerprint = fingerprint;
+    if (!unchanged) { allCappedStreak = 0; return; }
   }
-  if (anyWinnableAttack) { allCappedStreak = 0; return; }
   allCappedStreak++;
   if (allCappedStreak >= STALEMATE_TRUCE_ROUNDS) declareStalemateTruce();
 }
@@ -1194,15 +1395,31 @@ function showWin(royId) {
   // deserves its own defeated, humiliated tone (with a small note of hope)
   // rather than the generic "X l'emporte."
   const humanLost = !truceEnded && royId !== humanRoyId;
+  // showWin() only ever fires with royId === humanRoyId in the victory
+  // branch below (checkWinner() only calls it once a single royaume remains
+  // — either it's the human's own, or the human was already wiped out and
+  // this is the humanLost branch instead) — so royId here always names the
+  // player's OWN kingdom, not a defeated rival.
+  const pers = AI_PERSONALITIES[royId];
+  // several grave, lore-flavored victory lines rather than one flat
+  // "Victoire, X !" — picked deterministically from the seed and winner (not
+  // Math.random()) so a replay of the same match always shows the same one
+  const VICTORY_LINES = [
+    `Victoire, seigneur ! Sous la bannière de ${ROYAUMES[royId].name}, plus une seule couronne rivale ne tient debout. Mais un trône ne se garde pas, il se défend — d'autres terres attendent d'être prises.`,
+    `Le sang a coulé, les dernières bannières rivales sont tombées. ${ROYAUMES[royId].name} règne seul, et ${pers.epithet} n'y sont pas pour rien. Votre nom sera chanté dans les tavernes... jusqu'à la prochaine guerre.`,
+    `Victoire ! Plus aucun ennemi ne conteste ${ROYAUMES[royId].name}. Gravez ce jour dans la pierre, puis reprenez l'épée — la conquête ne s'arrête jamais.`,
+    `Toutes les terres sont vôtres, seigneur de ${ROYAUMES[royId].name}. Un royaume de plus sous votre étendard, et déjà l'horizon en réclame un autre.`,
+  ];
   const text = truceEnded
     ? "Match nul — la paix, l'affaire des gueux."
     : humanLost
-    ? "Vous avez tout donné, tout dépensé, et voilà : plus de terre, plus de soldats, seul et honteux devant vos pairs. " +
+    ? `${ROYAUMES[royId].name} et ${pers.epithet} ne vous ont laissé ni terre ni honneur. ` +
+      "Vous avez tout donné, tout dépensé, et voilà : plus de terre, plus de soldats, seul et honteux devant vos pairs. " +
       "Mais un seigneur déchu n'est pas un seigneur mort — quelque part, vous rêvez déjà de lever une nouvelle armée, " +
       "ou de trouver des alliés assez généreux pour vous aider à vous relever."
     : lastAttackWasGrind
     ? "Bravo seigneur, vous avez guerroyé férocement aujourd'hui, la dernière bataille était dure !"
-    : `Victoire, ${ROYAUMES[royId].name} !`;
+    : VICTORY_LINES[Math.abs(currentSeed + royId) % VICTORY_LINES.length];
   document.getElementById("wintext").textContent = text;
   // skip the extra performance line on a defeat — the loss message above
   // already carries that beat, no need to pile on a second dig
@@ -1368,10 +1585,20 @@ function playReplay(seed, difficulty, replayHumanRoyId, log, onFinish) {
   // an escape hatch — tapping it aborts the replay and jumps straight into
   // a fresh game instead of forcing the player to watch it through
   replaying = true;
-  replaySpeed = 3; // was 6 — slowed by 50% per request, and sounds now play during it
+  replaySpeed = 1; // was 6, then 3 — still read as too fast, now matches the actual live pace exactly ("revoir la partie" = watch it happen again, not a fast-forward)
   humanRoyId = replayHumanRoyId;
   applyDifficulty(difficulty);
   startGame(seed);
+  // mirrors pickFaction()'s call for a fresh game — must run exactly once,
+  // at the equivalent point in the sequence (humanRoyId already known,
+  // territories/raw forces already generated), or the starting forces here
+  // desync from what the original match actually had
+  balanceStartingForces();
+  // brief gold flash on every territory the human started with, so a viewer
+  // knows which color to actually follow before the action starts moving
+  replayIntroHighlightUntil = performance.now() + 900;
+  render();
+  setTimeout(() => { replayIntroHighlightUntil = 0; render(); }, 900);
 
   let i = 0;
   function step() {
@@ -1380,7 +1607,9 @@ function playReplay(seed, difficulty, replayHumanRoyId, log, onFinish) {
     if (currentPlayer !== humanRoyId || aiRunning) { setTimeout(step, 30); return; }
     if (i >= log.length) { finish(); return; }
     const action = log[i++];
-    if (action.end) endTurn(); else attack(action.a, action.b);
+    if (action.end) endTurn();
+    else if (action.gueux !== undefined) reinforceTerritory(action.gueux); // no gueuxCount touched — replay only reproduces the force change, never spends the viewer's own stock
+    else attack(action.a, action.b);
     setTimeout(step, 30);
   }
   function finish() {
@@ -1458,6 +1687,7 @@ document.getElementById("playInstead").addEventListener("click", () => {
 function runAI() {
   const royId = currentPlayer;
   if (gameOver || royId === humanRoyId) { aiRunning = false; return; }
+  const pers = AI_PERSONALITIES[royId];
 
   function bestMove() {
     const territoryCount = {};
@@ -1470,11 +1700,11 @@ function runAI() {
         const n = territories[nId];
         if (n.owner === royId) continue;
         const adv = t.force - n.force;
-        if (adv < escalated(AI_AGGRESSION_THRESHOLD, -1)) continue;
+        if (adv < escalated(AI_AGGRESSION_THRESHOLD, -1) + pers.aggressionDelta) continue;
 
         // prefer finishing off a nearly-eliminated royaume over a marginally
         // better trade elsewhere
-        let score = adv + (territoryCount[n.owner] <= 2 ? 2 : 0);
+        let score = adv + (territoryCount[n.owner] <= 2 ? pers.finishOffBonus : 0);
 
         // attacking always drops `from` to force 1 (win or lose) — penalize
         // leaving it exposed to a strong hostile neighbor other than the target
@@ -1484,7 +1714,7 @@ function runAI() {
           const o = territories[oId];
           if (o.owner !== royId) exposure = Math.max(exposure, o.force);
         }
-        score -= exposure * 0.3;
+        score -= exposure * 0.3 * pers.exposureWeight;
 
         if (score > bestScore) { bestScore = score; best = { from: t.id, to: nId }; }
       }
@@ -1493,7 +1723,8 @@ function runAI() {
   }
 
   const mv = bestMove();
-  if (mv && rngFloat() >= escalated(AI_MISTAKE_RATE, 0.05)) {
+  const mistakeRate = Math.max(0, Math.min(1, escalated(AI_MISTAKE_RATE, 0.05) + pers.mistakeDelta));
+  if (mv && rngFloat() >= mistakeRate) {
     attack(mv.from, mv.to);
     scheduleTurn(runAI, 315 / replaySpeed); // 450 * 0.7
   } else {
@@ -1503,9 +1734,16 @@ function runAI() {
 }
 
 /* ---------- RENDER ---------- */
-// a silver "polished metal" bevel traced around one territory's outer
-// perimeter (dark shadow stroke, then a brighter gradient stroke on top)
-function drawSilverOutline(tId) {
+// a polished-metal bevel traced around one territory's outer perimeter (dark
+// shadow stroke, then a brighter gradient stroke on top). "gold" marks the
+// territory actively selected for attack (tap-to-select); "silver" marks the
+// live preview of a drag-to-attack chain — different colors so the two
+// meanings stay visually distinct.
+const OUTLINE_GRADIENTS = {
+  silver: ["#f4f6f9", "#aab2bf", "#7c848f"],
+  gold: ["#fff3c4", "#e8c468", "#a97e2a"],
+};
+function drawOutline(tId, style = "silver") {
   const t = territories[tId];
   const outline = [];
   for (const hk of t.hexKeys) {
@@ -1527,10 +1765,11 @@ function drawSilverOutline(tId) {
   ctx.lineWidth = 3.6;
   ctx.lineCap = "round";
   ctx.stroke();
+  const [c0, c1, c2] = OUTLINE_GRADIENTS[style] || OUTLINE_GRADIENTS.silver;
   const grad = ctx.createLinearGradient(t.cx - HEX_SIZE, t.cy - HEX_SIZE, t.cx + HEX_SIZE, t.cy + HEX_SIZE);
-  grad.addColorStop(0, "#f4f6f9");
-  grad.addColorStop(0.5, "#aab2bf");
-  grad.addColorStop(1, "#7c848f");
+  grad.addColorStop(0, c0);
+  grad.addColorStop(0.5, c1);
+  grad.addColorStop(1, c2);
   ctx.strokeStyle = grad;
   ctx.lineWidth = 2;
   ctx.stroke();
@@ -1580,9 +1819,15 @@ function render() {
   // during a drag-to-attack gesture: every territory in the planned chain
   // gets outlined, connected by a dashed line so the whole attack line reads
   // clearly as one gesture.
-  if (selected !== -1) drawSilverOutline(selected);
+  if (selected !== -1) drawOutline(selected, "gold");
   for (const tId of dragPath) {
-    if (tId !== selected) drawSilverOutline(tId);
+    if (tId !== selected) drawOutline(tId, "silver");
+  }
+  // brief gold flash on every territory the human started the replayed
+  // match with — see playReplay() — so a viewer knows which color to
+  // actually follow before the action starts moving
+  if (replaying && performance.now() < replayIntroHighlightUntil) {
+    for (const t of territories) if (t.owner === humanRoyId) drawOutline(t.id, "gold");
   }
   if (dragPath.length >= 2) {
     ctx.beginPath();
@@ -1613,19 +1858,19 @@ function render() {
     if (elapsed >= PULSE_DURATION) continue;
     const progress = elapsed / PULSE_DURATION;
     ctx.beginPath();
-    ctx.arc(t.cx, t.cy, 10 + progress * 10, 0, Math.PI * 2);
+    ctx.arc(t.cx, t.cy, 14 + progress * 14, 0, Math.PI * 2); // was 10 + progress*10 — +40%
     ctx.strokeStyle = `rgba(255, 214, 92, ${1 - progress})`;
     ctx.lineWidth = 2.5;
     ctx.stroke();
 
     const alpha = 1 - progress;
-    ctx.font = "bold 12px -apple-system, sans-serif";
+    ctx.font = "bold 17px -apple-system, sans-serif"; // was 12px — +40%
     ctx.textAlign = "center";
     ctx.strokeStyle = `rgba(20,16,12,${alpha * 0.8})`;
     ctx.lineWidth = 2.5;
-    ctx.strokeText(`+${p.amount}`, t.cx, t.cy - 16 - progress * 10);
+    ctx.strokeText(`+${p.amount}`, t.cx, t.cy - 22 - progress * 14);
     ctx.fillStyle = `rgba(255, 214, 92, ${alpha})`;
-    ctx.fillText(`+${p.amount}`, t.cx, t.cy - 16 - progress * 10);
+    ctx.fillText(`+${p.amount}`, t.cx, t.cy - 22 - progress * 14);
   }
 
   // combat flash — the atk/def rolls float briefly over both territories,
@@ -1635,7 +1880,7 @@ function render() {
     const alpha = 1 - progress;
     const fromT = territories[combatFX.fromId];
     const toT = territories[combatFX.toId];
-    const floatY = -14 - progress * 10;
+    const floatY = -20 - progress * 14; // was -14 - progress*10 — +40%
 
     // a small drawn sword, midway between attacker and defender and pointed
     // toward the defender, drawn only for the first half so it reads as a
@@ -1651,7 +1896,7 @@ function render() {
       ctx.save();
       ctx.translate(midX, midY);
       ctx.rotate(angle);
-      const bladeLen = 14, bladeW = 2.4;
+      const bladeLen = 20, bladeW = 3.4; // was 14, 2.4 — +40%
       // blade, tip pointing toward the defender (+x after rotation)
       ctx.beginPath();
       ctx.moveTo(bladeLen / 2 + 4, 0);
@@ -1664,17 +1909,17 @@ function render() {
       ctx.fill();
       // crossguard + grip, in the chief/gold accent
       ctx.strokeStyle = `rgba(198,161,91,${swordAlpha * 0.95})`;
-      ctx.lineWidth = 1.8;
+      ctx.lineWidth = 2.5; // was 1.8 — +40%
       ctx.beginPath();
-      ctx.moveTo(-bladeLen / 2, -4);
-      ctx.lineTo(-bladeLen / 2, 4);
+      ctx.moveTo(-bladeLen / 2, -5.6);
+      ctx.lineTo(-bladeLen / 2, 5.6);
       ctx.moveTo(-bladeLen / 2, 0);
-      ctx.lineTo(-bladeLen / 2 - 4, 0);
+      ctx.lineTo(-bladeLen / 2 - 5.6, 0);
       ctx.stroke();
       ctx.restore();
     }
 
-    ctx.font = "bold 11px -apple-system, sans-serif";
+    ctx.font = "bold 15px -apple-system, sans-serif"; // was 11px — +40%
     ctx.textAlign = "center";
     ctx.lineWidth = 2.5;
     if (fromT) {
@@ -1693,19 +1938,19 @@ function render() {
     const ringT = combatFX.win ? toT : fromT;
     if (ringT) {
       ctx.beginPath();
-      ctx.arc(ringT.cx, ringT.cy, 11 + progress * 6, 0, Math.PI * 2);
+      ctx.arc(ringT.cx, ringT.cy, 15 + progress * 8, 0, Math.PI * 2); // was 11 + progress*6 — +40%
       ctx.strokeStyle = combatFX.win ? `rgba(90,200,120,${alpha})` : `rgba(200,70,60,${alpha})`;
       ctx.lineWidth = 2.5;
       ctx.stroke();
 
       // plain-language outcome, in addition to the raw dice numbers above
-      ctx.font = "bold 11px -apple-system, sans-serif";
+      ctx.font = "bold 15px -apple-system, sans-serif"; // was 11px — +40%
       const label = combatFX.win ? "+1 territoire" : "échec";
       ctx.strokeStyle = `rgba(20,16,12,${alpha * 0.8})`;
       ctx.lineWidth = 2.5;
-      ctx.strokeText(label, ringT.cx, ringT.cy + floatY - 12);
+      ctx.strokeText(label, ringT.cx, ringT.cy + floatY - 17);
       ctx.fillStyle = combatFX.win ? `rgba(90,200,120,${alpha})` : `rgba(200,70,60,${alpha})`;
-      ctx.fillText(label, ringT.cx, ringT.cy + floatY - 12);
+      ctx.fillText(label, ringT.cx, ringT.cy + floatY - 17);
     }
   }
 
@@ -1800,11 +2045,6 @@ function territoryAtClientPoint(clientX, clientY) {
   return h2 ? territories[h2.territoryId] : null;
 }
 
-// the pointerup that ends a drag-to-attack also fires a subsequent "click" —
-// this skips that one so the drag isn't immediately followed by a tap-based
-// selection/attack on the same gesture
-let suppressNextClick = false;
-
 // tapping any of a real royaume's territories while awaiting a pick claims
 // that royaume as the human seat, applies the real difficulty-scaled balance
 // (deferred until now since we didn't know who was human at map-gen time),
@@ -1824,6 +2064,7 @@ function pickFaction(royId) {
   // ownership itself isn't touched by the pick or by balanceStartingForces()
   humanStartTerritories = territories.filter(t => t.owner === royId).length;
   logMsg(`Vous jouez ${ROYAUMES[royId].name}.`);
+  if (onboarding) showOnboardingHint("Touchez un de vos territoires pour le sélectionner.");
   updateStatus();
   updateGroups();
   render();
@@ -1832,7 +2073,6 @@ function pickFaction(royId) {
 }
 
 function handlePointer(clientX, clientY) {
-  if (suppressNextClick) { suppressNextClick = false; return; }
   if (replaying || gameOver) return;
   const t = territoryAtClientPoint(clientX, clientY);
   if (!t) return;
@@ -1844,10 +2084,21 @@ function handlePointer(clientX, clientY) {
   if (aiRunning || currentPlayer !== humanRoyId) return;
   const tId = t.id;
 
+  if (placingGueux) {
+    if (t.owner === currentPlayer && t.force < FORCE_CAP) {
+      if (!replaying) moveLog.push({ gueux: tId });
+      spendGueux(tId);
+    }
+    placingGueux = false;
+    refreshGueuxBadge();
+    render();
+    return;
+  }
+
   if (selected === -1) {
     if (t.owner === currentPlayer && t.force > 1) {
       selected = tId;
-      if (onboarding) logMsg("Cliquez pour attaquer une zone ennemie adjacente.");
+      if (onboarding) showOnboardingHint("Touchez un territoire ennemi adjacent (contour doré) pour l'attaquer.");
     }
   } else if (selected === tId) {
     selected = -1;
@@ -1857,6 +2108,8 @@ function handlePointer(clientX, clientY) {
       if (onboarding) {
         onboarding = false;
         try { localStorage.setItem("kw_playedBefore", "1"); } catch (e) { /* ignore */ }
+        showOnboardingHint("Touchez « Fin de bataille » quand vous avez terminé vos attaques.");
+        setTimeout(hideOnboardingHint, 4500);
       }
       if (!replaying) moveLog.push({ a: selected, b: tId });
       attack(selected, tId);
@@ -1869,35 +2122,42 @@ function handlePointer(clientX, clientY) {
   }
   render();
 }
-canvas.addEventListener("click", (e) => handlePointer(e.clientX, e.clientY));
-
-// --- optional drag-to-attack: drag from an owned territory across a chain
-// of adjacent enemy ones to attack them all in sequence, instead of the
-// default tap-then-tap. Off by default (settings toggle) so it never
-// changes behavior unless opted into.
+// All pointer handling — plain taps (faction pick, select, attack) and the
+// optional drag-to-attack chain — goes through pointerdown/move/up, not the
+// browser's synthetic "click" event. Click synthesis can lag or misfire on
+// mobile Safari, which was exactly why the very first tap of a game (picking
+// a faction) sometimes needed two or three attempts to register.
 let dragToAttackEnabled = false;
 try { dragToAttackEnabled = localStorage.getItem("kw_dragToAttack") === "1"; } catch (e) { /* ignore */ }
 const DRAG_THRESHOLD = 18; // px in screen space, below this it's treated as a plain tap
-let dragStartPos = null; // {x, y} — just for measuring the initial threshold
+let dragStartPos = null; // {x, y} — set on every pointerdown, used both for the drag threshold and to know a gesture is in progress
 let dragActive = false;
-// the planned attack chain for this gesture: territory ids in order, first
-// one owned by the player. Drawn live (see render()) so small territories
-// give immediate confirmation of what's under the finger, and dragging back
-// onto the previous node undoes that hop instead of forcing a restart.
+// the planned attack chain for this gesture (drag-to-attack only): territory
+// ids in order, first one owned by the player. Drawn live (see render()) so
+// small territories give immediate confirmation of what's under the finger,
+// and dragging back onto the previous node undoes that hop instead of
+// forcing a restart.
 let dragPath = [];
 canvas.addEventListener("pointerdown", (e) => {
-  if (!dragToAttackEnabled || replaying || gameOver || aiRunning || currentPlayer !== humanRoyId) return;
-  const t = territoryAtClientPoint(e.clientX, e.clientY);
-  if (t && t.owner === currentPlayer && t.force > 1) {
-    dragStartPos = { x: e.clientX, y: e.clientY };
-    dragActive = false;
-    dragPath = [t.id];
-    render();
+  if (replaying || gameOver || aiRunning) return;
+  dragStartPos = { x: e.clientX, y: e.clientY };
+  dragActive = false;
+  dragPath = [];
+  if (dragToAttackEnabled && currentPlayer === humanRoyId) {
+    const t = territoryAtClientPoint(e.clientX, e.clientY);
+    if (t && t.owner === currentPlayer && t.force > 1) {
+      dragPath = [t.id];
+      // no render() here on purpose — a plain tap starts and clears this
+      // same 1-node path within a few ms, so painting it immediately just
+      // makes the selection outline flash on/off/on for a simple tap.
+      // pointermove already renders as soon as the path actually grows.
+    }
   }
 });
 canvas.addEventListener("pointermove", (e) => {
   if (!dragStartPos) return;
   if (Math.hypot(e.clientX - dragStartPos.x, e.clientY - dragStartPos.y) > DRAG_THRESHOLD) dragActive = true;
+  if (!dragPath.length) return; // no chain in progress (drag-to-attack off, or didn't start on a valid territory)
   const hoverT = territoryAtClientPoint(e.clientX, e.clientY);
   if (!hoverT) return;
   const lastId = dragPath[dragPath.length - 1];
@@ -1913,15 +2173,26 @@ canvas.addEventListener("pointermove", (e) => {
   dragPath.push(hoverT.id);
   render();
 });
-canvas.addEventListener("pointerup", () => {
+canvas.addEventListener("pointerup", (e) => {
   if (!dragStartPos) return;
   const path = dragPath, wasActive = dragActive;
   dragStartPos = null; dragActive = false; dragPath = [];
-  if (!wasActive || path.length < 2) { render(); return; } // short movement / no valid hop — let the plain click handler treat it as a tap
-  suppressNextClick = true;
-  if (onboarding) { onboarding = false; try { localStorage.setItem("kw_playedBefore", "1"); } catch (err) { /* ignore */ } }
-  selected = -1;
-  executeAttackChain(path);
+  if (wasActive && path.length >= 2) {
+    // a real attack-chain drag
+    if (onboarding) {
+      onboarding = false;
+      try { localStorage.setItem("kw_playedBefore", "1"); } catch (err) { /* ignore */ }
+      showOnboardingHint("Touchez « Fin de bataille » quand vous avez terminé vos attaques.");
+      setTimeout(hideOnboardingHint, 4500);
+    }
+    selected = -1;
+    executeAttackChain(path);
+    return;
+  }
+  // otherwise: a plain tap — short movement, or drag-to-attack didn't build
+  // a valid chain. Handled directly here (see comment above).
+  render();
+  handlePointer(e.clientX, e.clientY);
 });
 // the browser can cancel an in-progress touch instead of ever delivering
 // pointerup (e.g. it decided the gesture was a scroll, or another touch
@@ -1945,7 +2216,10 @@ function executeAttackChain(path, i = 0) {
   if (!replaying) moveLog.push({ a: fromId, b: toId });
   const win = attack(fromId, toId);
   if (!win || gameOver) { render(); return; }
-  executeAttackChain(path, i + 1);
+  // paced, not instant — back-to-back synchronous calls all landed in the
+  // same paint frame, so a 4-5 hop chain used to just jump straight to its
+  // final state with no visible "tac tac tac" of each battle along the way
+  setTimeout(() => executeAttackChain(path, i + 1), 220);
 }
 
 document.getElementById("endturn").addEventListener("click", () => {
@@ -2013,6 +2287,13 @@ instantBattlesToggle.addEventListener("change", () => {
   sfxToggle();
 });
 
+document.getElementById("gueuxBadge").addEventListener("click", () => {
+  if (replaying || gameOver || awaitingFactionPick || currentPlayer !== humanRoyId || aiRunning || gueuxCount <= 0) return;
+  placingGueux = !placingGueux;
+  sfxToggle();
+  refreshGueuxBadge();
+});
+
 const dragToAttackToggle = document.getElementById("dragToAttackToggle");
 dragToAttackToggle.checked = dragToAttackEnabled;
 dragToAttackToggle.addEventListener("change", () => {
@@ -2020,6 +2301,17 @@ dragToAttackToggle.addEventListener("change", () => {
   try { localStorage.setItem("kw_dragToAttack", dragToAttackEnabled ? "1" : "0"); } catch (e) { /* ignore */ }
   sfxToggle();
 });
+
+// static (never changes mid-game), so populated once — each royaume's fixed
+// personality, so the player knows what to expect from whichever 3 of the 4
+// end up AI-controlled once they pick their own
+document.getElementById("royaumesList").innerHTML = ROYAUMES.slice(0, ROYAUME_COUNT - 1).map(roy => `
+  <div class="royaumeRow">
+    <span class="swatch" style="background:${roy.color}"></span>
+    <span class="rname">${roy.name}</span>
+    <span class="repithet">${AI_PERSONALITIES[roy.id].epithet}</span>
+  </div>
+`).join("");
 
 const metaProgressToggle = document.getElementById("metaProgressToggle");
 metaProgressToggle.checked = metaProgressEnabled;
@@ -2066,6 +2358,8 @@ document.querySelectorAll("#sortLevels .levelBtn").forEach((btn) => {
 function updateStatus() {
   document.getElementById("status").textContent =
     `Tour : ${ROYAUMES[currentPlayer].name}` + (currentPlayer === humanRoyId ? " (toi)" : "");
+  // a gueux armed for placement doesn't carry across a turn change
+  if (placingGueux) { placingGueux = false; refreshGueuxBadge(); }
   updateEndTurnButton();
   // once it's the human's turn again, drop back to the persisted "batailles
   // instantanées" setting — a manual tap-to-skip during the AI's turn is a
@@ -2092,7 +2386,23 @@ function updateEndTurnButton() {
     return;
   }
   const isHuman = currentPlayer === humanRoyId;
-  btn.textContent = isHuman ? "Fin de bataille" : "La guerre fait rage";
+  if (isHuman) {
+    // once checkStalemate() has actually started counting a stuck-board
+    // streak, surface the countdown right on the button the player is about
+    // to tap — otherwise the truce screen used to just appear out of nowhere
+    // a few turns later with no warning it was coming
+    if (allCappedStreak > 0 && !gameOver) {
+      const remaining = STALEMATE_TRUCE_ROUNDS - allCappedStreak;
+      btn.innerHTML = `Fin de bataille<span class="btnHint">Statu quo dans ${remaining} tour${remaining > 1 ? "s" : ""}</span>`;
+    } else {
+      btn.textContent = "Fin de bataille";
+    }
+  } else {
+    // during the AIs' turn the same button doubles as a fast-forward: one tap
+    // skips straight to the end of their moves instead of waiting out the
+    // normal pacing — worth a short reminder since nothing else on screen says so
+    btn.innerHTML = "La guerre fait rage<span class=\"btnHint\">Accélérer batailles</span>";
+  }
   btn.classList.toggle("aiTurn", !isHuman);
   const roy = ROYAUMES[humanRoyId];
   btn.style.background = roy.color;
@@ -2103,10 +2413,24 @@ function logMsg(msg) {
   document.getElementById("log").textContent = msg;
 }
 
+// Small first-game-only tutorial banner (see `onboarding`) — #log/#status
+// are internal-only (display:none), so this is the only actually-visible
+// instructional text in the game.
+function showOnboardingHint(msg) {
+  const el = document.getElementById("onboardingHint");
+  el.textContent = msg;
+  el.style.display = "block";
+}
+function hideOnboardingHint() {
+  document.getElementById("onboardingHint").style.display = "none";
+}
+
 function refreshGueuxBadge() {
   const el = document.getElementById("gueuxBadge");
-  el.style.display = metaProgressEnabled ? "flex" : "none";
+  el.style.display = (metaProgressEnabled && !replaying) ? "flex" : "none";
   el.textContent = `🧑‍🌾 ${gueuxCount}`;
+  el.classList.toggle("gueuxArmed", placingGueux);
+  el.style.opacity = gueuxCount > 0 ? "1" : ".5";
 }
 refreshGueuxBadge();
 
@@ -2119,7 +2443,7 @@ function startGame(seed) {
   document.getElementById("truceOverlay").style.display = "none";
   document.getElementById("endturn").disabled = false;
   gameOver = false; selected = -1; aiRunning = false;
-  allCappedStreak = 0; truceEnded = false; truceWinnerId = -1;
+  allCappedStreak = 0; lastStalemateFingerprint = null; truceEnded = false; truceWinnerId = -1;
   // must reset even during a replay — it re-simulates from round 0, and
   // leaving this at the original match's final value threw off escalated()
   // (and thus the AI's behavior, and thus the outcome) from the first
@@ -2141,6 +2465,12 @@ function startGame(seed) {
   // Also kept visible throughout a replay (own or shared) as an escape hatch
   // — see the rerollBtn click handler, which aborts playback before rerolling.
   document.getElementById("rerollBtn").style.display = (awaitingFactionPick || replaying) ? "" : "none";
+  // the rest of the interface is inert during a replay (taps are ignored —
+  // see handlePointer()/endturn's click handler) — hide it instead of
+  // leaving buttons on screen that do nothing when pressed
+  document.getElementById("endturn").style.display = replaying ? "none" : "";
+  document.getElementById("settingsBtn").style.display = replaying ? "none" : "";
+  refreshGueuxBadge();
   generateHexGrid();
   generateTerritories();
   assignRoyaumes(); // with humanRoyId === -1 this comes out an equal split (no AI edge) until the pick
@@ -2150,6 +2480,8 @@ function startGame(seed) {
   }
   updateStatus();
   logMsg(awaitingFactionPick ? "Choisissez votre camp : touchez un territoire." : "Nouvelle partie.");
+  if (onboarding && awaitingFactionPick) showOnboardingHint("Touchez un territoire pour choisir votre camp.");
+  else hideOnboardingHint();
   updateGroups(); // populate before resize() measures the HUD's real height
   resize();
   // currentPlayer is already humanRoyId at this point (fresh games: set by
