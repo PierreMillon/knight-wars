@@ -28,13 +28,16 @@
   #settingsBtn img { width: 100%; height: 100%; object-fit: contain; }
   #endturn {
     position: absolute; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); right: 14px;
-    pointer-events: auto; white-space: nowrap;
+    pointer-events: auto; white-space: nowrap; text-align: center;
     /* background color is set inline in JS to match the player's chosen royaume */
     border: 1px solid rgba(20,16,12,.4); border-radius: 8px;
     padding: 10px 18px; font-size: 15px; font-weight: 700;
     box-shadow: 0 2px 6px rgba(0,0,0,.4);
   }
   #endturn.aiTurn { opacity: .72; font-weight: 600; font-style: italic; }
+  /* second, smaller line explaining the tap-to-fast-forward gesture — only
+     shown while the AIs are playing (see updateEndTurnButton()) */
+  #endturn .btnHint { display: block; font-size: .62em; font-weight: 400; font-style: normal; opacity: .85; margin-top: 2px; }
   /* ambient decoration on wide (desktop) viewports only — never shown on phone */
   .sideArt {
     position: fixed; bottom: 0; height: 55vh; max-height: 520px; width: auto; max-width: 16vw;
@@ -48,10 +51,13 @@
   }
   #gueuxBadge {
     position: absolute; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); left: 54px;
-    display: none; align-items: center; pointer-events: none;
+    display: none; align-items: center; pointer-events: auto; cursor: pointer;
     background: rgba(20,16,12,.55); border: 1px solid rgba(242,237,226,.3); border-radius: 20px;
     color: #f2ede2; font-size: 12px; padding: 8px 12px; font-weight: 700;
+    transition: box-shadow .15s, opacity .15s;
   }
+  /* armed: tap a territory to spend one gueux as a reinforcement there */
+  #gueuxBadge.gueuxArmed { border-color: #e8c468; box-shadow: 0 0 0 2px rgba(232,196,104,.55), 0 0 10px rgba(232,196,104,.6); }
   #endturn:disabled { background: #5a5044 !important; color: #f2ede2 !important; opacity: .6; }
   #topBar {
     position: absolute; left: 0; top: 0;
@@ -722,7 +728,15 @@ function assignRoyaumes() {
     t.force = t.owner === ROYAUME_COUNT - 1 ? 1 + rand(2) : 1 + rand(3);
   }
 
-  balanceStartingForces();
+  // NOT called here — must run exactly once, with the real humanRoyId
+  // already known, or it desyncs a replay from the original match (it was
+  // previously called here unconditionally with humanRoyId still -1 during
+  // a fresh game's pre-pick phase, *and again* from pickFaction() once
+  // humanRoyId was set — but a replay sets humanRoyId before startGame()
+  // ever runs, so this call only ever fired once there, producing
+  // different starting forces than the original game had). See
+  // pickFaction() and playReplay(), which are now the only two call sites,
+  // each firing exactly once at the equivalent point in the sequence.
 }
 
 // A royaume that lands more territories from the greedy growth above would
@@ -818,13 +832,28 @@ try { instantBattlesSetting = localStorage.getItem("kw_instantBattles") === "1";
 let fastForward = instantBattlesSetting;
 function scheduleTurn(fn, delay) { setTimeout(fn, fastForward ? 0 : delay); }
 
-// opt-in meta-progression: one persistent "gueux" earned per victory, purely
-// a between-games counter (no in-game spending) — off by default, the count
-// itself is kept even while the setting is off so re-enabling doesn't lose it
+// opt-in meta-progression: one persistent "gueux" earned per victory — off by
+// default, the count itself is kept even while the setting is off so
+// re-enabling doesn't lose it. Spendable in any later match: tap the badge to
+// arm it, then tap one of your own territories (below the force cap) to
+// spend one gueux as an instant +1 reinforcement there.
 let metaProgressEnabled = false;
 try { metaProgressEnabled = localStorage.getItem("kw_metaProgress") === "1"; } catch (e) { /* ignore */ }
 let gueuxCount = 0;
 try { gueuxCount = Number(localStorage.getItem("kw_gueuxCount")) || 0; } catch (e) { /* ignore */ }
+let placingGueux = false; // armed by tapping the badge; consumed by the next own-territory tap
+
+// same visual pulse as a combat reinforcement — reused here for a gueux spend
+function reinforceTerritory(tId) {
+  territories[tId].force = Math.min(FORCE_CAP, territories[tId].force + 1);
+  triggerPulse({ [tId]: 1 });
+}
+function spendGueux(tId) {
+  if (gueuxCount <= 0) return;
+  gueuxCount--;
+  try { localStorage.setItem("kw_gueuxCount", String(gueuxCount)); } catch (e) { /* ignore */ }
+  reinforceTerritory(tId);
+}
 
 /* ---------- MATCH HISTORY (stats graph + replay) ---------- */
 // One entry per round (a full cycle back to the human), so the end-game
@@ -938,6 +967,15 @@ function ensureAudioCtx() {
   if (audioCtx.state === "suspended") audioCtx.resume().catch(() => {});
   return audioCtx;
 }
+// mobile Safari (and others) suspend the AudioContext when the tab/app goes
+// to the background, and don't resume it on their own when it comes back —
+// left alone, every sound after a switch-away-and-back silently no-ops
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden && audioCtx && audioCtx.state === "suspended") audioCtx.resume().catch(() => {});
+});
+window.addEventListener("pageshow", () => {
+  if (audioCtx && audioCtx.state === "suspended") audioCtx.resume().catch(() => {});
+});
 function playTone(freq, duration, opts = {}) {
   if (!soundEnabled) return; // sounds now play during replay too, per request
   const ac = ensureAudioCtx();
@@ -1194,6 +1232,15 @@ function showWin(royId) {
   // deserves its own defeated, humiliated tone (with a small note of hope)
   // rather than the generic "X l'emporte."
   const humanLost = !truceEnded && royId !== humanRoyId;
+  // several grave, lore-flavored victory lines rather than one flat
+  // "Victoire, X !" — picked deterministically from the seed and winner (not
+  // Math.random()) so a replay of the same match always shows the same one
+  const VICTORY_LINES = [
+    `Victoire, seigneur ! ${ROYAUMES[royId].name} s'incline devant votre bannière — mais un trône ne se garde pas, il se défend. D'autres couronnes attendent d'être prises.`,
+    `Le sang a coulé, les bannières de ${ROYAUMES[royId].name} sont tombées. Votre nom sera chanté dans les tavernes... jusqu'à la prochaine guerre.`,
+    `Victoire ! ${ROYAUMES[royId].name} n'est plus. Gravez ce jour dans la pierre, puis reprenez l'épée — la conquête ne s'arrête jamais.`,
+    `${ROYAUMES[royId].name} est vaincu, sa terre est vôtre. Un royaume de plus sous votre étendard, et déjà l'horizon en réclame un autre.`,
+  ];
   const text = truceEnded
     ? "Match nul — la paix, l'affaire des gueux."
     : humanLost
@@ -1202,7 +1249,7 @@ function showWin(royId) {
       "ou de trouver des alliés assez généreux pour vous aider à vous relever."
     : lastAttackWasGrind
     ? "Bravo seigneur, vous avez guerroyé férocement aujourd'hui, la dernière bataille était dure !"
-    : `Victoire, ${ROYAUMES[royId].name} !`;
+    : VICTORY_LINES[Math.abs(currentSeed + royId) % VICTORY_LINES.length];
   document.getElementById("wintext").textContent = text;
   // skip the extra performance line on a defeat — the loss message above
   // already carries that beat, no need to pile on a second dig
@@ -1368,10 +1415,15 @@ function playReplay(seed, difficulty, replayHumanRoyId, log, onFinish) {
   // an escape hatch — tapping it aborts the replay and jumps straight into
   // a fresh game instead of forcing the player to watch it through
   replaying = true;
-  replaySpeed = 3; // was 6 — slowed by 50% per request, and sounds now play during it
+  replaySpeed = 1; // was 6, then 3 — still read as too fast, now matches the actual live pace exactly ("revoir la partie" = watch it happen again, not a fast-forward)
   humanRoyId = replayHumanRoyId;
   applyDifficulty(difficulty);
   startGame(seed);
+  // mirrors pickFaction()'s call for a fresh game — must run exactly once,
+  // at the equivalent point in the sequence (humanRoyId already known,
+  // territories/raw forces already generated), or the starting forces here
+  // desync from what the original match actually had
+  balanceStartingForces();
 
   let i = 0;
   function step() {
@@ -1380,7 +1432,9 @@ function playReplay(seed, difficulty, replayHumanRoyId, log, onFinish) {
     if (currentPlayer !== humanRoyId || aiRunning) { setTimeout(step, 30); return; }
     if (i >= log.length) { finish(); return; }
     const action = log[i++];
-    if (action.end) endTurn(); else attack(action.a, action.b);
+    if (action.end) endTurn();
+    else if (action.gueux !== undefined) reinforceTerritory(action.gueux); // no gueuxCount touched — replay only reproduces the force change, never spends the viewer's own stock
+    else attack(action.a, action.b);
     setTimeout(step, 30);
   }
   function finish() {
@@ -1503,9 +1557,16 @@ function runAI() {
 }
 
 /* ---------- RENDER ---------- */
-// a silver "polished metal" bevel traced around one territory's outer
-// perimeter (dark shadow stroke, then a brighter gradient stroke on top)
-function drawSilverOutline(tId) {
+// a polished-metal bevel traced around one territory's outer perimeter (dark
+// shadow stroke, then a brighter gradient stroke on top). "gold" marks the
+// territory actively selected for attack (tap-to-select); "silver" marks the
+// live preview of a drag-to-attack chain — different colors so the two
+// meanings stay visually distinct.
+const OUTLINE_GRADIENTS = {
+  silver: ["#f4f6f9", "#aab2bf", "#7c848f"],
+  gold: ["#fff3c4", "#e8c468", "#a97e2a"],
+};
+function drawOutline(tId, style = "silver") {
   const t = territories[tId];
   const outline = [];
   for (const hk of t.hexKeys) {
@@ -1527,10 +1588,11 @@ function drawSilverOutline(tId) {
   ctx.lineWidth = 3.6;
   ctx.lineCap = "round";
   ctx.stroke();
+  const [c0, c1, c2] = OUTLINE_GRADIENTS[style] || OUTLINE_GRADIENTS.silver;
   const grad = ctx.createLinearGradient(t.cx - HEX_SIZE, t.cy - HEX_SIZE, t.cx + HEX_SIZE, t.cy + HEX_SIZE);
-  grad.addColorStop(0, "#f4f6f9");
-  grad.addColorStop(0.5, "#aab2bf");
-  grad.addColorStop(1, "#7c848f");
+  grad.addColorStop(0, c0);
+  grad.addColorStop(0.5, c1);
+  grad.addColorStop(1, c2);
   ctx.strokeStyle = grad;
   ctx.lineWidth = 2;
   ctx.stroke();
@@ -1580,9 +1642,9 @@ function render() {
   // during a drag-to-attack gesture: every territory in the planned chain
   // gets outlined, connected by a dashed line so the whole attack line reads
   // clearly as one gesture.
-  if (selected !== -1) drawSilverOutline(selected);
+  if (selected !== -1) drawOutline(selected, "gold");
   for (const tId of dragPath) {
-    if (tId !== selected) drawSilverOutline(tId);
+    if (tId !== selected) drawOutline(tId, "silver");
   }
   if (dragPath.length >= 2) {
     ctx.beginPath();
@@ -1800,11 +1862,6 @@ function territoryAtClientPoint(clientX, clientY) {
   return h2 ? territories[h2.territoryId] : null;
 }
 
-// the pointerup that ends a drag-to-attack also fires a subsequent "click" —
-// this skips that one so the drag isn't immediately followed by a tap-based
-// selection/attack on the same gesture
-let suppressNextClick = false;
-
 // tapping any of a real royaume's territories while awaiting a pick claims
 // that royaume as the human seat, applies the real difficulty-scaled balance
 // (deferred until now since we didn't know who was human at map-gen time),
@@ -1832,7 +1889,6 @@ function pickFaction(royId) {
 }
 
 function handlePointer(clientX, clientY) {
-  if (suppressNextClick) { suppressNextClick = false; return; }
   if (replaying || gameOver) return;
   const t = territoryAtClientPoint(clientX, clientY);
   if (!t) return;
@@ -1843,6 +1899,17 @@ function handlePointer(clientX, clientY) {
   }
   if (aiRunning || currentPlayer !== humanRoyId) return;
   const tId = t.id;
+
+  if (placingGueux) {
+    if (t.owner === currentPlayer && t.force < FORCE_CAP) {
+      if (!replaying) moveLog.push({ gueux: tId });
+      spendGueux(tId);
+    }
+    placingGueux = false;
+    refreshGueuxBadge();
+    render();
+    return;
+  }
 
   if (selected === -1) {
     if (t.owner === currentPlayer && t.force > 1) {
@@ -1869,35 +1936,42 @@ function handlePointer(clientX, clientY) {
   }
   render();
 }
-canvas.addEventListener("click", (e) => handlePointer(e.clientX, e.clientY));
-
-// --- optional drag-to-attack: drag from an owned territory across a chain
-// of adjacent enemy ones to attack them all in sequence, instead of the
-// default tap-then-tap. Off by default (settings toggle) so it never
-// changes behavior unless opted into.
+// All pointer handling — plain taps (faction pick, select, attack) and the
+// optional drag-to-attack chain — goes through pointerdown/move/up, not the
+// browser's synthetic "click" event. Click synthesis can lag or misfire on
+// mobile Safari, which was exactly why the very first tap of a game (picking
+// a faction) sometimes needed two or three attempts to register.
 let dragToAttackEnabled = false;
 try { dragToAttackEnabled = localStorage.getItem("kw_dragToAttack") === "1"; } catch (e) { /* ignore */ }
 const DRAG_THRESHOLD = 18; // px in screen space, below this it's treated as a plain tap
-let dragStartPos = null; // {x, y} — just for measuring the initial threshold
+let dragStartPos = null; // {x, y} — set on every pointerdown, used both for the drag threshold and to know a gesture is in progress
 let dragActive = false;
-// the planned attack chain for this gesture: territory ids in order, first
-// one owned by the player. Drawn live (see render()) so small territories
-// give immediate confirmation of what's under the finger, and dragging back
-// onto the previous node undoes that hop instead of forcing a restart.
+// the planned attack chain for this gesture (drag-to-attack only): territory
+// ids in order, first one owned by the player. Drawn live (see render()) so
+// small territories give immediate confirmation of what's under the finger,
+// and dragging back onto the previous node undoes that hop instead of
+// forcing a restart.
 let dragPath = [];
 canvas.addEventListener("pointerdown", (e) => {
-  if (!dragToAttackEnabled || replaying || gameOver || aiRunning || currentPlayer !== humanRoyId) return;
-  const t = territoryAtClientPoint(e.clientX, e.clientY);
-  if (t && t.owner === currentPlayer && t.force > 1) {
-    dragStartPos = { x: e.clientX, y: e.clientY };
-    dragActive = false;
-    dragPath = [t.id];
-    render();
+  if (replaying || gameOver || aiRunning) return;
+  dragStartPos = { x: e.clientX, y: e.clientY };
+  dragActive = false;
+  dragPath = [];
+  if (dragToAttackEnabled && currentPlayer === humanRoyId) {
+    const t = territoryAtClientPoint(e.clientX, e.clientY);
+    if (t && t.owner === currentPlayer && t.force > 1) {
+      dragPath = [t.id];
+      // no render() here on purpose — a plain tap starts and clears this
+      // same 1-node path within a few ms, so painting it immediately just
+      // makes the selection outline flash on/off/on for a simple tap.
+      // pointermove already renders as soon as the path actually grows.
+    }
   }
 });
 canvas.addEventListener("pointermove", (e) => {
   if (!dragStartPos) return;
   if (Math.hypot(e.clientX - dragStartPos.x, e.clientY - dragStartPos.y) > DRAG_THRESHOLD) dragActive = true;
+  if (!dragPath.length) return; // no chain in progress (drag-to-attack off, or didn't start on a valid territory)
   const hoverT = territoryAtClientPoint(e.clientX, e.clientY);
   if (!hoverT) return;
   const lastId = dragPath[dragPath.length - 1];
@@ -1913,15 +1987,21 @@ canvas.addEventListener("pointermove", (e) => {
   dragPath.push(hoverT.id);
   render();
 });
-canvas.addEventListener("pointerup", () => {
+canvas.addEventListener("pointerup", (e) => {
   if (!dragStartPos) return;
   const path = dragPath, wasActive = dragActive;
   dragStartPos = null; dragActive = false; dragPath = [];
-  if (!wasActive || path.length < 2) { render(); return; } // short movement / no valid hop — let the plain click handler treat it as a tap
-  suppressNextClick = true;
-  if (onboarding) { onboarding = false; try { localStorage.setItem("kw_playedBefore", "1"); } catch (err) { /* ignore */ } }
-  selected = -1;
-  executeAttackChain(path);
+  if (wasActive && path.length >= 2) {
+    // a real attack-chain drag
+    if (onboarding) { onboarding = false; try { localStorage.setItem("kw_playedBefore", "1"); } catch (err) { /* ignore */ } }
+    selected = -1;
+    executeAttackChain(path);
+    return;
+  }
+  // otherwise: a plain tap — short movement, or drag-to-attack didn't build
+  // a valid chain. Handled directly here (see comment above).
+  render();
+  handlePointer(e.clientX, e.clientY);
 });
 // the browser can cancel an in-progress touch instead of ever delivering
 // pointerup (e.g. it decided the gesture was a scroll, or another touch
@@ -1945,7 +2025,10 @@ function executeAttackChain(path, i = 0) {
   if (!replaying) moveLog.push({ a: fromId, b: toId });
   const win = attack(fromId, toId);
   if (!win || gameOver) { render(); return; }
-  executeAttackChain(path, i + 1);
+  // paced, not instant — back-to-back synchronous calls all landed in the
+  // same paint frame, so a 4-5 hop chain used to just jump straight to its
+  // final state with no visible "tac tac tac" of each battle along the way
+  setTimeout(() => executeAttackChain(path, i + 1), 220);
 }
 
 document.getElementById("endturn").addEventListener("click", () => {
@@ -2013,6 +2096,13 @@ instantBattlesToggle.addEventListener("change", () => {
   sfxToggle();
 });
 
+document.getElementById("gueuxBadge").addEventListener("click", () => {
+  if (replaying || gameOver || awaitingFactionPick || currentPlayer !== humanRoyId || aiRunning || gueuxCount <= 0) return;
+  placingGueux = !placingGueux;
+  sfxToggle();
+  refreshGueuxBadge();
+});
+
 const dragToAttackToggle = document.getElementById("dragToAttackToggle");
 dragToAttackToggle.checked = dragToAttackEnabled;
 dragToAttackToggle.addEventListener("change", () => {
@@ -2066,6 +2156,8 @@ document.querySelectorAll("#sortLevels .levelBtn").forEach((btn) => {
 function updateStatus() {
   document.getElementById("status").textContent =
     `Tour : ${ROYAUMES[currentPlayer].name}` + (currentPlayer === humanRoyId ? " (toi)" : "");
+  // a gueux armed for placement doesn't carry across a turn change
+  if (placingGueux) { placingGueux = false; refreshGueuxBadge(); }
   updateEndTurnButton();
   // once it's the human's turn again, drop back to the persisted "batailles
   // instantanées" setting — a manual tap-to-skip during the AI's turn is a
@@ -2092,7 +2184,10 @@ function updateEndTurnButton() {
     return;
   }
   const isHuman = currentPlayer === humanRoyId;
-  btn.textContent = isHuman ? "Fin de bataille" : "La guerre fait rage";
+  // during the AIs' turn the same button doubles as a fast-forward: one tap
+  // skips straight to the end of their moves instead of waiting out the
+  // normal pacing — worth a short reminder since nothing else on screen says so
+  btn.innerHTML = isHuman ? "Fin de bataille" : "La guerre fait rage<span class=\"btnHint\">Accélérer batailles</span>";
   btn.classList.toggle("aiTurn", !isHuman);
   const roy = ROYAUMES[humanRoyId];
   btn.style.background = roy.color;
@@ -2105,8 +2200,10 @@ function logMsg(msg) {
 
 function refreshGueuxBadge() {
   const el = document.getElementById("gueuxBadge");
-  el.style.display = metaProgressEnabled ? "flex" : "none";
+  el.style.display = (metaProgressEnabled && !replaying) ? "flex" : "none";
   el.textContent = `🧑‍🌾 ${gueuxCount}`;
+  el.classList.toggle("gueuxArmed", placingGueux);
+  el.style.opacity = gueuxCount > 0 ? "1" : ".5";
 }
 refreshGueuxBadge();
 
@@ -2141,6 +2238,12 @@ function startGame(seed) {
   // Also kept visible throughout a replay (own or shared) as an escape hatch
   // — see the rerollBtn click handler, which aborts playback before rerolling.
   document.getElementById("rerollBtn").style.display = (awaitingFactionPick || replaying) ? "" : "none";
+  // the rest of the interface is inert during a replay (taps are ignored —
+  // see handlePointer()/endturn's click handler) — hide it instead of
+  // leaving buttons on screen that do nothing when pressed
+  document.getElementById("endturn").style.display = replaying ? "none" : "";
+  document.getElementById("settingsBtn").style.display = replaying ? "none" : "";
+  refreshGueuxBadge();
   generateHexGrid();
   generateTerritories();
   assignRoyaumes(); // with humanRoyId === -1 this comes out an equal split (no AI edge) until the pick
