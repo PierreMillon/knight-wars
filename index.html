@@ -139,7 +139,7 @@
     border-radius: 6px; padding: 6px 10px; font-size: 13px; font-weight: 400;
   }
   #settingsPanel .levelBtn.active { background: #1c3f8f; color: #fff; border-color: #1c3f8f; font-weight: 700; }
-  #newWarBtn, #conseilsBtn, #loreBtn, #surrenderBtn { margin-bottom: 10px; display: block; }
+  #newWarBtn, #conseilsBtn, #loreBtn, #supportLink, #surrenderBtn { margin-bottom: 10px; display: block; }
   /* top-of-panel close button, not a stacked action row — small and pulled
      to the left edge instead of taking a full-width row like the buttons
      below it */
@@ -246,11 +246,14 @@
      same gradient as the selected-territory outline on the map
      (OUTLINE_GRADIENTS.gold), so the two "this is the important thing"
      treatments actually match instead of one being gold and the other blue. */
-  #settingsPanel button, #winbanner button, #truceOverlay button, #loreOverlay button, #conseilsOverlay button {
+  #settingsPanel button, #winbanner button, #truceOverlay button, #loreOverlay button, #conseilsOverlay button, #supportLink {
     background: linear-gradient(135deg, #fff3c4, #e8c468, #a97e2a);
     color: #2b1d10; border: 1px solid #8a6d3b; border-radius: 8px;
     padding: 10px 20px; font-size: 15px; font-weight: 700;
   }
+  /* #supportLink is an <a>, not a <button> — reset the anchor defaults the
+     shared rule above doesn't cover */
+  #supportLink { text-decoration: none; text-align: center; cursor: pointer; }
   /* small first-game-only tutorial banner — same materials as the other HUD
      buttons, just top-center and text-only, out of the way of the map */
   #onboardingHint {
@@ -400,6 +403,7 @@
       <button id="newWarBtn">⚔ Nouvelle guerre — abandonne la partie et recommence</button>
       <button id="conseilsBtn">🎓 Conseils</button>
       <button id="loreBtn">📜 Le lore</button>
+      <a id="supportLink" href="https://ko-fi.com/knightwars" target="_blank" rel="noopener">☕ Soutenir le jeu</a>
       <button id="surrenderBtn">💀 Abandonner — capituler tout de suite</button>
     </div>
   </div>
@@ -2981,11 +2985,21 @@ document.getElementById("closeConseils").addEventListener("click", () => {
   document.getElementById("conseilsOverlay").style.display = "none";
   sfxMenuClose();
 });
+// opens Ko-fi in a new tab (target="_blank") — the settings panel stays open
+// behind it, nothing to restore here
+document.getElementById("supportLink").addEventListener("click", () => { sfxToggle(); });
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.1";
+const GAME_VERSION = "1.2";
 const CHANGELOG = [
+  {
+    version: "1.2",
+    notes: [
+      "Le lien de partage d'une partie est bien plus court",
+      "Ajout d'un lien « Soutenir le jeu » dans les réglages (Ko-fi, pourboire libre)",
+    ],
+  },
   {
     version: "1.1",
     notes: [
