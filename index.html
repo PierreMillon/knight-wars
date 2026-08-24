@@ -140,7 +140,7 @@
     background: rgba(10,8,6,.82); text-align: center;
   }
   #winbanner .box { display: flex; flex-direction: column; align-items: center; gap: 14px; max-height: 88vh; overflow-y: auto; }
-  #rerollBtn {
+  #rerollBtn, #replaySpeedBtn {
     position: absolute; right: 14px; /* bottom is set in JS, stacked just above #endturn */
     pointer-events: auto; background: rgba(20,16,12,.6); color: #f2ede2;
     padding: 8px 16px; font-size: 13px; white-space: nowrap; font-weight: 700;
@@ -256,6 +256,7 @@
   <div id="onboardingHint"></div>
   <button id="endturn">Fin de bataille</button>
   <button id="rerollBtn">🔀 Changer la carte</button>
+  <button id="replaySpeedBtn" style="display:none;">⏩ 2x</button>
   <div id="winbanner">
     <div class="box">
       <h1 id="wintext"></h1>
@@ -354,7 +355,6 @@
       </div>
       <label><input type="checkbox" id="soundToggle"> Sons</label>
       <label><input type="checkbox" id="instantBattlesToggle"> Batailles instantanées — les tours adverses se résolvent sans attendre</label>
-      <label><input type="checkbox" id="tapOnlyToggle"> Accessibilité : remplacer le glisser par un appui simple — touchez votre province, puis la case ennemie à attaquer</label>
       <label><input type="checkbox" id="metaProgressToggle"> Progression du gueux — gagnez un gueux à chaque victoire</label>
       <div class="settingsSectionLabel">Partie en cours</div>
       <button id="newWarBtn">⚔ Nouvelle guerre — abandonne la partie et recommence</button>
@@ -386,10 +386,19 @@ const ROYAUME_COUNT = 5; // joueur + 3 IA + 1 neutre
 // isAlive()/checkWinner() already treat zero-territory royaumes as
 // eliminated (the same code path a mid-game elimination goes through), so
 // this needs no new game-logic branch, just fewer seats actually populated.
+// radius here is the ungenerated island's nominal size, in the same virtual
+// units as HEX_SIZE — NOT the on-screen size, which resize()'s viewScale
+// always shrinks to fit whatever's generated into the actual viewport. A
+// much bigger radius (340, tried first) meant a much smaller viewScale, so
+// hexes rendered noticeably smaller than medium's — playable on paper, but
+// fiddly to tap precisely on a phone. Kept close enough to medium's 230
+// that the on-screen hex size barely changes, while still generating
+// meaningfully more hexes/provinces (island area scales roughly with
+// radius², so even this modest bump is a real step up in content).
 const MAP_SIZES = {
   small: { label: "Escarmouche", territoryCount: 6, radius: 95, activeRoyaumes: 2 },
   medium: { label: "Campagne", territoryCount: 26, radius: 230, activeRoyaumes: 4 },
-  large: { label: "Grande Campagne", territoryCount: 55, radius: 340, activeRoyaumes: 4 },
+  large: { label: "Grande Campagne", territoryCount: 36, radius: 255, activeRoyaumes: 4 },
 };
 let mapSize = "medium";
 try {
@@ -484,16 +493,16 @@ function lerp(a, b, t) { return a + (b - a) * t; }
 function applyDifficulty(d) {
   DIFFICULTY = Math.max(0, Math.min(1, d));
   NEUTRAL_FRACTION = lerp(0.36, 0.06, DIFFICULTY);
-  // NOTE: the top end of this range is capped at 0.5, not pushed further —
-  // mass-simulation during calibration showed that raising this above ~1
-  // lets AI-vs-AI borders permanently gridlock once forces saturate at the
-  // cap (neither side can ever again meet the threshold). 0.5 is already
-  // near that ceiling; MISTAKE_RATE carries the rest of the "easy" end.
-  // (0.85 was tried for the easy-end mistake rate and, combined with the
-  // wider neutral buffer, produced games that technically never lost but
-  // also dragged on for hundreds of rounds without a winner — dialed back.)
-  AI_AGGRESSION_THRESHOLD = lerp(0.5, -2.2, DIFFICULTY);
-  AI_MISTAKE_RATE = lerp(0.55, 0, DIFFICULTY);
+  // Page (easiest) is meant to be "almost no resistance" — a new player
+  // should win easily, not have to actually fight for it. Pushed further
+  // than the values that once worried about AI-vs-AI gridlock/hundred-round
+  // stalls at the easy end: the escalation ratchet below (ESCALATION_START_
+  // ROUND/escalated()) now guarantees any match converges by round 80
+  // regardless of how passive the base settings are, so there's no longer a
+  // real risk of a match that technically never ends — only of Page taking
+  // a while on the rare game where the player doesn't press an early edge.
+  AI_AGGRESSION_THRESHOLD = lerp(1.5, -2.2, DIFFICULTY);
+  AI_MISTAKE_RATE = lerp(0.85, 0, DIFFICULTY);
 }
 
 // Safety valve: at the easy end, 3 very passive AIs can coexist without
@@ -570,10 +579,15 @@ function resize() {
   const topInset = document.getElementById("topBar").offsetHeight + 6;
   const endturnEl = document.getElementById("endturn");
   const rerollEl = document.getElementById("rerollBtn");
+  const speedEl = document.getElementById("replaySpeedBtn");
   const rerollVisible = rerollEl.style.display !== "none";
-  // rerollBtn stacks directly above endturn (not a separate full-width bar
+  const speedVisible = speedEl.style.display !== "none";
+  // rerollBtn stacks directly above endturn, and replaySpeedBtn (only shown
+  // during replay) stacks above that in turn (not a separate full-width bar
   // any more — that used to visually overlap endturn on real devices)
-  const rightStackHeight = endturnEl.offsetHeight + (rerollVisible ? rerollEl.offsetHeight + 8 : 0);
+  const rightStackHeight = endturnEl.offsetHeight
+    + (rerollVisible ? rerollEl.offsetHeight + 8 : 0)
+    + (speedVisible ? speedEl.offsetHeight + 8 : 0);
   const bottomInset = Math.max(
     document.getElementById("settingsBtn").offsetHeight,
     rightStackHeight
@@ -581,6 +595,10 @@ function resize() {
   if (rerollVisible) {
     const endturnRect = endturnEl.getBoundingClientRect();
     rerollEl.style.bottom = (h - endturnRect.top + 8) + "px";
+    if (speedVisible) {
+      const rerollRect = rerollEl.getBoundingClientRect();
+      speedEl.style.bottom = (h - rerollRect.top + 8) + "px";
+    }
   }
   const availH = h - topInset - bottomInset;
   centerX = w / 2; centerY = topInset + availH / 2;
@@ -1204,6 +1222,8 @@ let gameStartDifficulty = DIFFICULTY;
 let gameStartMapSize = mapSize;
 let replaying = false;
 let replaySpeed = 1; // AI turn-pacing divisor; set >1 during replay playback
+const REPLAY_BASE_SPEED = 0.25; // playReplay()'s starting pace; replaySpeedBtn toggles between this and 2x it
+let replayFastActive = false; // whether replaySpeedBtn's 2x boost is currently on
 let replayIntroHighlightUntil = 0; // performance.now() timestamp — while current, render() flashes the human's starting territories gold
 
 function recordRoundSnapshot() {
@@ -1253,7 +1273,7 @@ function totalForce(royId) {
 // makes "why did this go from 2 to 6" / "who just won that fight" visible
 // without pausing the game or adding any confirmation step
 const PULSE_DURATION = 1000; // was 500 — +100%, per request
-const COMBAT_FX_DURATION = 880; // was 1100 — sped back up 20%, per request
+const COMBAT_FX_DURATION = 3520; // was 880 — displayed 4x longer, per request
 let pulseTiles = []; // [{id, start}]
 let combatFX = null; // {fromId, toId, atk, def, win, start}
 let fxRAFRunning = false;
@@ -1748,6 +1768,8 @@ function showWin(royId) {
       `Le sang a coulé, les dernières bannières rivales sont tombées. ${ROYAUMES[royId].name} règne seul. Votre nom sera chanté dans les tavernes... jusqu'à la prochaine guerre.`,
       `Victoire ! Plus aucun ennemi ne conteste ${ROYAUMES[royId].name}. Gravez ce jour dans la pierre, puis reprenez l'épée — la conquête ne s'arrête jamais.`,
       `Toutes les terres sont vôtres, seigneur de ${ROYAUMES[royId].name}. Un royaume de plus sous votre étendard, et déjà l'horizon en réclame un autre.`,
+      `Victoire, seigneur de ${ROYAUMES[royId].name} ! Les hurlements vous manquent déjà.`,
+      `${ROYAUMES[royId].name} règne sans partage. L'odeur de la paix n'égalera jamais celle de la chair brûlée. *soupir*`,
     ];
     text = VICTORY_LINES[Math.abs(currentSeed + royId) % VICTORY_LINES.length];
   }
@@ -1959,11 +1981,16 @@ function playReplay(seed, difficulty, replayHumanRoyId, log, onFinish, replayMap
   // an escape hatch — tapping it aborts the replay and jumps straight into
   // a fresh game instead of forcing the player to watch it through
   replaying = true;
-  // was 6, then 3, then 1 (matching live pace exactly) — still read as too
-  // fast even at 1, since passively watching reads faster than actively
-  // playing the same cadence does. Genuinely slower than live pace this
-  // time: 0.5 doubles every AI-move delay in scheduleTurn() (delay / replaySpeed).
-  replaySpeed = 0.5;
+  // was 6, then 3, then 1 (matching live pace exactly), then 0.5 — still read
+  // as too fast, since passively watching reads faster than actively playing
+  // the same cadence does. Halved again: REPLAY_BASE_SPEED (0.25) quadruples
+  // every AI-move delay in scheduleTurn() (delay / replaySpeed). replaySpeedBtn
+  // lets an impatient viewer double that pace back up on demand.
+  replaySpeed = REPLAY_BASE_SPEED;
+  replayFastActive = false;
+  const speedBtnEl = document.getElementById("replaySpeedBtn");
+  speedBtnEl.style.display = "";
+  speedBtnEl.textContent = "⏩ 2x";
   humanRoyId = replayHumanRoyId;
   applyDifficulty(difficulty);
   // must be applied before startGame() generates the island — otherwise it
@@ -1983,7 +2010,7 @@ function playReplay(seed, difficulty, replayHumanRoyId, log, onFinish, replayMap
   // perfectly still for this whole window before a single action plays (see
   // the delayed step() call below) — showing the dimmed map while pieces are
   // already moving isn't the same thing as a still beat to actually look at it.
-  const REPLAY_INTRO_MS = 750;
+  const REPLAY_INTRO_MS = 1500; // doubled from 750 — a longer still beat on the human's starting territories before anything starts moving
   replayIntroHighlightUntil = performance.now() + REPLAY_INTRO_MS;
   render();
   setTimeout(() => { replayIntroHighlightUntil = 0; render(); }, REPLAY_INTRO_MS);
@@ -2027,6 +2054,8 @@ function playReplay(seed, difficulty, replayHumanRoyId, log, onFinish, replayMap
     const rerollBtnEl = document.getElementById("rerollBtn");
     rerollBtnEl.style.display = awaitingFactionPick ? "" : "none";
     rerollBtnEl.textContent = "🔀 Changer la carte";
+    document.getElementById("replaySpeedBtn").style.display = "none";
+    replayFastActive = false;
     onFinish();
   }
   // held back until the intro spotlight has had its full still moment on
@@ -2595,16 +2624,14 @@ function handlePointer(clientX, clientY) {
 // browser's synthetic "click" event. Click synthesis can lag or misfire on
 // mobile Safari, which was exactly why the very first tap of a game (picking
 // a faction) sometimes needed two or three attempts to register.
-// Drag-to-attack is the default input mode now — tap-to-select-then-tap-
-// to-attack always still works underneath it regardless (see handlePointer()),
-// so this only ever adds the drag gesture on top, never removes the tap one.
-// The settings toggle is framed the other way around (an accessibility
-// option to turn drag OFF, not on) — see tapOnlyToggle below.
-let dragToAttackEnabled = true;
-try {
-  const savedDrag = localStorage.getItem("kw_dragToAttack");
-  if (savedDrag !== null) dragToAttackEnabled = savedDrag === "1";
-} catch (e) { /* ignore */ }
+// Drag-to-attack is always on — tap-to-select-then-tap-to-attack always
+// still works underneath it regardless (see handlePointer()), so this only
+// ever adds the drag gesture on top, never removes the tap one. There used
+// to be a settings toggle to turn drag off for accessibility, but since a
+// plain tap never triggers the drag path anyway (only a real drag gesture
+// past DRAG_THRESHOLD does), that toggle never actually did anything a
+// tap-only player needed — removed rather than keep an inert setting.
+const dragToAttackEnabled = true;
 const DRAG_THRESHOLD = 18; // px in screen space, below this it's treated as a plain tap
 let dragStartPos = null; // {x, y} — set on every pointerdown, used both for the drag threshold and to know a gesture is in progress
 let dragActive = false;
@@ -2717,6 +2744,13 @@ document.getElementById("rerollBtn").addEventListener("click", () => {
   if (replaying) replaying = false; // abort any in-progress replay (own or shared) instead of continuing it
   if (!reloadIfUpdateAvailable()) startGame();
 });
+document.getElementById("replaySpeedBtn").addEventListener("click", () => {
+  if (!replaying) return;
+  replayFastActive = !replayFastActive;
+  replaySpeed = replayFastActive ? REPLAY_BASE_SPEED * 2 : REPLAY_BASE_SPEED;
+  document.getElementById("replaySpeedBtn").textContent = replayFastActive ? "🐢 Vitesse normale" : "⏩ 2x";
+  sfxToggle();
+});
 
 const settingsPanel = document.getElementById("settingsPanel");
 document.getElementById("settingsBtnImg").src = BLAZON_IMG_SRC;
@@ -2790,16 +2824,6 @@ document.getElementById("gueuxBadge").addEventListener("click", () => {
   refreshGueuxBadge();
 });
 
-// inverted on purpose — the checkbox asks for the accessibility fallback
-// (tap-only), not for drag itself, since drag is the default now
-const tapOnlyToggle = document.getElementById("tapOnlyToggle");
-tapOnlyToggle.checked = !dragToAttackEnabled;
-tapOnlyToggle.addEventListener("change", () => {
-  dragToAttackEnabled = !tapOnlyToggle.checked;
-  try { localStorage.setItem("kw_dragToAttack", dragToAttackEnabled ? "1" : "0"); } catch (e) { /* ignore */ }
-  sfxToggle();
-});
-
 // static (never changes mid-game), so populated once — each royaume's fixed
 // personality, so the player knows what to expect from whichever 3 of the 4
 // end up AI-controlled once they pick their own
@@ -2844,13 +2868,16 @@ function refreshMapSizeButtons() {
 refreshMapSizeButtons();
 document.querySelectorAll("#mapSizeLevels .levelBtn").forEach((btn) => {
   btn.addEventListener("click", () => {
-    // takes effect on the next fresh game, not mid-match — reroll/rejouer/
-    // nouvelle guerre all route through startGame(), which reads mapSize
-    // freshly each time
+    // Restarts immediately, like "Nouvelle guerre" — a map size can't apply
+    // to a map that's already generated, so leaving it to "take effect next
+    // time" just read as "nothing happened" until the player separately
+    // started a fresh game.
     applyMapSize(btn.dataset.mapsize);
     try { localStorage.setItem("kw_mapSize", mapSize); } catch (e) { /* ignore */ }
     refreshMapSizeButtons();
     sfxToggle();
+    settingsPanel.style.display = "none";
+    if (!reloadIfUpdateAvailable()) startGame();
   });
 });
 
@@ -3036,10 +3063,23 @@ function startGame(seed) {
   const rerollBtnEl = document.getElementById("rerollBtn");
   rerollBtnEl.style.display = (awaitingFactionPick || replaying) ? "" : "none";
   rerollBtnEl.textContent = replaying ? "⏹ Arrêter le replay" : "🔀 Changer la carte";
+  // startGame() runs both for a fresh game and (with replaying already true)
+  // at the top of a replay — only hide the speed toggle on the fresh-game
+  // path, since playReplay() itself is responsible for showing it
+  if (!replaying) {
+    document.getElementById("replaySpeedBtn").style.display = "none";
+    replayFastActive = false;
+  }
   // the rest of the interface is inert during a replay (taps are ignored —
   // see handlePointer()/endturn's click handler) — hide it instead of
-  // leaving buttons on screen that do nothing when pressed
-  document.getElementById("endturn").style.display = replaying ? "none" : "";
+  // leaving buttons on screen that do nothing when pressed.
+  // endturn specifically uses visibility (not display:none): rerollBtn and
+  // replaySpeedBtn stack their position off endturn's own bottom-anchored
+  // rect in resize() even while replaying, and display:none would collapse
+  // that rect to (0,0), throwing both buttons off-screen during playback.
+  const endturnHideEl = document.getElementById("endturn");
+  endturnHideEl.style.visibility = replaying ? "hidden" : "";
+  endturnHideEl.style.pointerEvents = replaying ? "none" : "";
   document.getElementById("settingsBtn").style.display = replaying ? "none" : "";
   refreshGueuxBadge();
   generateHexGrid();
