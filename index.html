@@ -119,11 +119,7 @@
     border-radius: 6px; padding: 6px 10px; font-size: 13px; font-weight: 400;
   }
   #settingsPanel .levelBtn.active { background: #1c3f8f; color: #fff; border-color: #1c3f8f; font-weight: 700; }
-  #settingsPanel button {
-    background: #1c3f8f; color: #fff; border: none; border-radius: 8px;
-    padding: 8px 16px; font-size: 14px; font-weight: 700;
-  }
-  #newWarBtn { background: #931f1d; margin-bottom: 10px; display: block; }
+  #newWarBtn, #loreBtn { margin-bottom: 10px; display: block; }
   #winbanner {
     position: absolute; inset: 0; display: none;
     align-items: center; justify-content: center; flex-direction: column;
@@ -145,12 +141,6 @@
   #chartLegend { display: flex; flex-direction: column; gap: 3px; align-self: stretch; margin-top: -6px; }
   #chartLegend .royaumeRow { font-size: 11px; }
   .winButtons { display: flex; gap: 10px; }
-  #watchReplay { background: #5a4a1c; }
-  #winbanner button {
-    background: #1c3f8f; color: #fff; border: none; border-radius: 8px;
-    padding: 10px 20px; font-size: 15px; font-weight: 700;
-  }
-  #shareReplay { background: #931f1d; }
   #shareIntro {
     position: absolute; inset: 0; display: none;
     align-items: center; justify-content: center;
@@ -174,8 +164,16 @@
   #loreOverlay p { font-size: 14px; line-height: 1.6; margin: 0 0 14px; }
   #loreOverlay img { display: block; width: 64px; height: auto; margin: 0 auto 14px; image-rendering: pixelated; }
   #loreOverlay button { display: block; margin: 0 auto; }
+  #lorePersonalities { display: flex; flex-direction: column; gap: 10px; margin: 0 0 16px; }
+  #lorePersonalities .personalityRow { font-size: 13px; line-height: 1.5; }
+  #lorePersonalities .personalityRow .rname { font-weight: 700; }
+  #lorePersonalities .personalityRow .repithet { font-style: italic; }
   #truceOverlay p { font-size: 14px; line-height: 1.5; opacity: .9; margin: 0 0 18px; }
-  #truceOverlay button {
+  /* every action button across every menu/overlay — settings, win banner,
+     truce, lore — shares this one appearance now instead of each panel
+     (or, for share/replay/nouvelle-guerre, each individual button)
+     redeclaring its own slightly-different color and padding */
+  #settingsPanel button, #winbanner button, #truceOverlay button, #loreOverlay button {
     background: #1c3f8f; color: #fff; border: none; border-radius: 8px;
     padding: 10px 20px; font-size: 15px; font-weight: 700;
   }
@@ -244,6 +242,8 @@
       <h2>Les Millon</h2>
       <p>La Bretagne n'a plus de duc, et quatre châtelains se disputent son héritage — Châteauvieux, Villiers, Montherlant, Beaumanoir. Quatre noms de fief, mais un seul sang : tous portent le même blason, celui d'un aïeul commun, les Millon, dont le domaine fut fracturé entre ses héritiers il y a plus d'un siècle.</p>
       <p>Chaque bataille livrée ici n'oppose pas des étrangers, mais des cousins — une querelle de famille qui ne connaît ni trêve ni pardon, jusqu'à ce qu'un seul Millon reste debout pour reformer sous une seule bannière la terre que leurs pères ont laissée en morceaux.</p>
+      <p>Un siècle de guerre a forgé le caractère de chaque branche — et à la table de jeu, ce caractère se traduit en habitudes de commandement bien réelles, pas seulement en surnom :</p>
+      <div id="lorePersonalities"></div>
       <button id="closeLore">Fermer</button>
     </div>
   </div>
@@ -273,7 +273,7 @@
       <label><input type="checkbox" id="soundToggle"> Sons</label>
       <label><input type="checkbox" id="deterministicToggle"> Combat sans hasard (test) — la plus grande force gagne toujours</label>
       <label><input type="checkbox" id="instantBattlesToggle"> Batailles instantanées — les tours adverses se résolvent sans attendre</label>
-      <label><input type="checkbox" id="dragToAttackToggle"> Glisser pour attaquer — en plus du double-tap</label>
+      <label><input type="checkbox" id="tapOnlyToggle"> Accessibilité : remplacer le glisser par un appui simple — touchez votre territoire, puis la case ennemie à attaquer</label>
       <label><input type="checkbox" id="metaProgressToggle"> Progression du gueux — gagnez un gueux à chaque victoire</label>
       <button id="newWarBtn">⚔ Nouvelle guerre</button>
       <button id="loreBtn">📜 Le lore</button>
@@ -310,12 +310,18 @@ const SHOW_UNIT_SPRITES = false;
 // reunite an ancestral Breton domain — spelling the family name out
 // everywhere (not just a "Villiers"/"Beaumanoir" fief name) is what actually
 // makes that legible instead of reading as 4 unrelated kingdoms.
+// A tester read the near-white royaume as "unclaimed land" and the grey
+// neutral royaume as "not sure that's actually a royaume" — the two were
+// backwards from what people intuitively expect. Swapped: white is now
+// neutral (clearly reads as "nobody's"), and Châteauvieux gets its own
+// distinct color (forest green — the palette's missing 4th heraldic
+// tincture, clearly a real royaume rather than an ambiguous grey).
 const ROYAUMES = [
-  { id: 0, name: "Millon de Châteauvieux", color: "#f7f0f5", accent: "#001f54", chief: "#931f1d" },
+  { id: 0, name: "Millon de Châteauvieux", color: "#2d6a4f", accent: "#f7f0f5", chief: "#931f1d" },
   { id: 1, name: "Millon de Villiers",     color: "#931f1d", accent: "#c6a15b", chief: "#0a1128" },
   { id: 2, name: "Millon de Montherlant",  color: "#c6a15b", accent: "#f7f0f5", chief: "#931f1d" },
   { id: 3, name: "Millon de Beaumanoir",   color: "#001f54", accent: "#f7f0f5", chief: "#c6a15b" },
-  { id: 4, name: "Neutre",                 color: "#6b7280", accent: "#4a5568", chief: "#4a5568", neutral: true }, // lightened from #0a1128 — too close to the canvas/background at full darkness
+  { id: 4, name: "Neutre",                 color: "#f7f0f5", accent: "#c9c2b4", chief: "#c9c2b4", neutral: true },
 ];
 
 // A fixed personality per royaume (indexed by id, not by "whichever 3 are AI
@@ -330,11 +336,19 @@ const ROYAUMES = [
 //   another neighbor counts against a move
 // - finishOffBonus is the score bonus for attacking a royaume down to its
 //   last couple of territories, instead of a marginally better trade elsewhere
+// `lore` puts each trait combination into words for the settings-panel
+// royaume list and the "Le lore" overlay — same data driving both the AI's
+// actual decisions and what the player is told to expect from it, so the
+// two can't drift apart the way separately-written flavor text would.
 const AI_PERSONALITIES = [
-  { epithet: "les Prudents",  aggressionDelta: +0.6, mistakeDelta: -0.03, exposureWeight: 1.0, finishOffBonus: 2.0 }, // Châteauvieux — cautious, rarely overextends
-  { epithet: "les Enragés",   aggressionDelta: -0.6, mistakeDelta: +0.05, exposureWeight: 0.4, finishOffBonus: 2.0 }, // Villiers — reckless, attacks at the slightest opening
-  { epithet: "les Marchands", aggressionDelta: 0,    mistakeDelta: 0,     exposureWeight: 0.8, finishOffBonus: 3.5 }, // Montherlant — opportunistic, hunts weak royaumes down
-  { epithet: "les Stratèges", aggressionDelta: +0.2, mistakeDelta: -0.05, exposureWeight: 1.6, finishOffBonus: 2.0 }, // Beaumanoir — calculating, plays the long game
+  { epithet: "les Prudents",  aggressionDelta: +0.6, mistakeDelta: -0.03, exposureWeight: 1.0, finishOffBonus: 2.0,
+    lore: "n'attaquent qu'à coup sûr et ne dégarnissent jamais un flanc — face à eux, une avance de justesse ne suffit pas." }, // Châteauvieux — cautious, rarely overextends
+  { epithet: "les Enragés",   aggressionDelta: -0.6, mistakeDelta: +0.05, exposureWeight: 0.4, finishOffBonus: 2.0,
+    lore: "chargent à la moindre ouverture, quitte à s'exposer — imprévisibles, mais capables d'erreurs qu'un adversaire plus posé ne ferait jamais." }, // Villiers — reckless, attacks at the slightest opening
+  { epithet: "les Marchands", aggressionDelta: 0,    mistakeDelta: 0,     exposureWeight: 0.8, finishOffBonus: 3.5,
+    lore: "comptent leurs coups et achèvent sans pitié quiconque est déjà à terre — un royaume affaibli attire leurs armées comme le sang attire les loups." }, // Montherlant — opportunistic, hunts weak royaumes down
+  { epithet: "les Stratèges", aggressionDelta: +0.2, mistakeDelta: -0.05, exposureWeight: 1.6, finishOffBonus: 2.0,
+    lore: "jouent la longue partie, ne laissent jamais un flanc découvert et ne se pressent jamais — patients, mais rarement pris en défaut." }, // Beaumanoir — calculating, plays the long game
 ];
 
 // Difficulty: still a continuous 0-1 value under the hood (driving AI traits
@@ -1253,11 +1267,16 @@ function pickReinforceTarget(royId, owned) {
 function endTurn() {
   if (gameOver) return;
   const royId = currentPlayer;
-  // halved from the raw hex count — with the connected-group size now
-  // counting every underlying hex ("village") instead of just the number of
-  // régions, reinforcement was landing about twice as fast per turn as felt
-  // right. Floor, but never below 1 for anyone who still owns ground.
-  const reinforcement = Math.max(1, Math.floor(largestConnectedGroup(royId) / 2));
+  // sqrt of the hex count, not a fraction of it — a straight divisor was
+  // still linear in territory size, so a decent-sized empire kept hitting
+  // FORCE_CAP within 3-4 turns no matter how big the divisor got (a bigger
+  // empire just blew past a bigger threshold just as fast). Square root
+  // grows the reward for a bigger connected territory much more gently:
+  // it still rewards size (a 100-hex empire earns more than a 25-hex one),
+  // but without the runaway linear scaling. For a mid-size empire this
+  // lands close to the old territory-count-only reinforcement (before hex
+  // counting was added), which paced out fine.
+  const reinforcement = Math.max(1, Math.round(Math.sqrt(largestConnectedGroup(royId))));
   let pts = reinforcement;
   let guardCount = 0;
   const reinforcedCounts = {}; // territory id -> how many points landed there
@@ -2223,8 +2242,16 @@ function handlePointer(clientX, clientY) {
 // browser's synthetic "click" event. Click synthesis can lag or misfire on
 // mobile Safari, which was exactly why the very first tap of a game (picking
 // a faction) sometimes needed two or three attempts to register.
-let dragToAttackEnabled = false;
-try { dragToAttackEnabled = localStorage.getItem("kw_dragToAttack") === "1"; } catch (e) { /* ignore */ }
+// Drag-to-attack is the default input mode now — tap-to-select-then-tap-
+// to-attack always still works underneath it regardless (see handlePointer()),
+// so this only ever adds the drag gesture on top, never removes the tap one.
+// The settings toggle is framed the other way around (an accessibility
+// option to turn drag OFF, not on) — see tapOnlyToggle below.
+let dragToAttackEnabled = true;
+try {
+  const savedDrag = localStorage.getItem("kw_dragToAttack");
+  if (savedDrag !== null) dragToAttackEnabled = savedDrag === "1";
+} catch (e) { /* ignore */ }
 const DRAG_THRESHOLD = 18; // px in screen space, below this it's treated as a plain tap
 let dragStartPos = null; // {x, y} — set on every pointerdown, used both for the drag threshold and to know a gesture is in progress
 let dragActive = false;
@@ -2361,6 +2388,12 @@ document.getElementById("newWarBtn").addEventListener("click", () => {
   if (!reloadIfUpdateAvailable()) startGame();
 });
 document.getElementById("loreBlazon").src = BLAZON_IMG_SRC;
+document.getElementById("lorePersonalities").innerHTML = ROYAUMES.slice(0, ROYAUME_COUNT - 1).map(roy => `
+  <div class="personalityRow">
+    <span class="rname">${roy.name}</span>, <span class="repithet">${AI_PERSONALITIES[roy.id].epithet}</span> :
+    ${AI_PERSONALITIES[roy.id].lore}
+  </div>
+`).join("");
 document.getElementById("loreBtn").addEventListener("click", () => {
   document.getElementById("loreOverlay").style.display = "flex";
   sfxMenuOpen();
@@ -2399,10 +2432,12 @@ document.getElementById("gueuxBadge").addEventListener("click", () => {
   refreshGueuxBadge();
 });
 
-const dragToAttackToggle = document.getElementById("dragToAttackToggle");
-dragToAttackToggle.checked = dragToAttackEnabled;
-dragToAttackToggle.addEventListener("change", () => {
-  dragToAttackEnabled = dragToAttackToggle.checked;
+// inverted on purpose — the checkbox asks for the accessibility fallback
+// (tap-only), not for drag itself, since drag is the default now
+const tapOnlyToggle = document.getElementById("tapOnlyToggle");
+tapOnlyToggle.checked = !dragToAttackEnabled;
+tapOnlyToggle.addEventListener("change", () => {
+  dragToAttackEnabled = !tapOnlyToggle.checked;
   try { localStorage.setItem("kw_dragToAttack", dragToAttackEnabled ? "1" : "0"); } catch (e) { /* ignore */ }
   sfxToggle();
 });
