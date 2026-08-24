@@ -314,7 +314,7 @@
       <div id="conseilsMechanics">
         <p><strong>La force est plafonnée à 12</strong> par province — impossible d'empiler plus haut, quelle que soit la taille de votre royaume.</p>
         <p><strong>Le combat est sans hasard</strong> : la plus grande force gagne toujours. Seule exception — attaquant ET défenseur tous les deux au plafond (12 contre 12) : là, et seulement là, les dés tranchent, sinon une frontière bloquée au plafond des deux côtés ne pourrait jamais bouger.</p>
-        <p><strong>Le renfort de fin de tour</strong> dépend de votre part du territoire par rapport à une part égale entre les royaumes encore debout — au-dessus de la moyenne, vous gagnez plus (jusqu'à 3 par tour) ; en dessous, moins (jamais 0). Pas de boule de neige qui monte au plafond de force partout en quelques tours.</p>
+        <p><strong>Le renfort de fin de tour</strong> dépend de votre part du territoire par rapport à une part égale entre les royaumes encore debout — au-dessus de la moyenne, vous gagnez plus ; en dessous, moins (jamais 0). Un royaume vraiment dominant continue de gagner en puissance de feu à mesure qu'il s'étend.</p>
         <p><strong>La trêve</strong> se déclenche quand toutes les frontières sont bloquées au plafond et que rien ne bouge depuis plusieurs tours d'affilée — signe qu'aucune attaque n'a de chance d'aboutir. Vous pouvez l'accepter (match nul) ou continuer le siège en espérant un 12 contre 12 favorable.</p>
       </div>
       <button id="closeConseils">Fermer</button>
@@ -1484,19 +1484,20 @@ function endTurn() {
   // is relative instead: what matters is your *share* of the map compared
   // to an equal split among the royaumes still standing. A royaume sitting
   // right at that equal share earns a middling amount; meaningfully above
-  // it (a real lead) earns more, up to the same hard cap as before (3);
-  // meaningfully below it (on the back foot) earns less, down to the floor
-  // of 1 — never zero, a beaten-down royaume still has to be reinforceable.
-  // Same self-normalizing formula on Escarmouche, Campagne or Grande
-  // Campagne, and tuned slower than the log-curve version: reaching
-  // FORCE_CAP=12 on a genuinely contested border should now take a good 20+
-  // turns of real play, not a handful.
+  // it (a real lead) earns more; meaningfully below it (on the back foot)
+  // earns less, down to the floor of 1 — never zero, a beaten-down royaume
+  // still has to be reinforceable. Deliberately NOT hard-capped any more (an
+  // earlier version capped at 3 flat): that made a genuinely dominant
+  // empire late-game feel starved relative to how many fronts it actually
+  // had to hold, even though it was never the actual complaint (early/mid-
+  // game snowballing to FORCE_CAP=12 was). Same self-normalizing formula on
+  // Escarmouche, Campagne or Grande Campagne either way.
   const totalHexes = Object.keys(hexes).length;
   let livingRoyaumes = 0;
   for (let r = 0; r < ROYAUME_COUNT - 1; r++) if (isAlive(r)) livingRoyaumes++;
   const avgHexShare = livingRoyaumes > 0 ? totalHexes / livingRoyaumes : totalHexes;
   const relativeShare = avgHexShare > 0 ? largestConnectedGroup(royId) / avgHexShare : 1;
-  const reinforcement = Math.max(1, Math.min(3, Math.round(0.5 + 1.5 * relativeShare)));
+  const reinforcement = Math.max(1, Math.round(0.5 + 1.5 * relativeShare));
   let pts = reinforcement;
   let guardCount = 0;
   const reinforcedCounts = {}; // territory id -> how many points landed there
@@ -1760,6 +1761,14 @@ let statChartScrubIndex = -1;
 const STAT_CHART_W = 280, STAT_CHART_H = 150;
 const STAT_CHART_PANEL_X = 6, STAT_CHART_PANEL_W = STAT_CHART_W - 12;
 
+// Stacked percentage area chart ("streamgraph") — each royaume's share of
+// the map's total territory, stacked to fill 100% at every round, instead
+// of separate lines each on their own independent scale. This reads as an
+// actual area/integral (who controls how much of the whole world, all the
+// time) rather than a handful of curves you have to compare by eye — the
+// same idea as the classic Age of Empires "population percentage" post-game
+// graph, minus the age/wonder/battle markers, which don't map to anything
+// here.
 function drawStatChart() {
   const canvas = document.getElementById("statChart");
   const c = canvas.getContext("2d");
@@ -1780,16 +1789,19 @@ function drawStatChart() {
 
   // union across every recorded round, not just the last one — a royaume
   // eliminated partway through the match would otherwise vanish from the
-  // chart entirely instead of just having its line stop partway
+  // chart entirely instead of its band just shrinking to nothing partway.
+  // Fixed stacking order (neutral on top, then real royaumes by id):
+  // re-ordering bands over time as standings change would make the whole
+  // thing illegible, so every band keeps the same vertical slot throughout.
   const royIdSet = new Set();
   for (const entry of statHistory) for (const k of Object.keys(entry.stats)) royIdSet.add(Number(k));
-  const royIds = [...royIdSet];
+  const neutralId = ROYAUME_COUNT - 1;
+  const royIds = [neutralId, ...[...royIdSet].sort((a, b) => a - b)];
 
-  // a single full-width "Territoires" panel — force is available on demand
-  // via the interactive scrub readout below instead of a whole second panel
   const panelX = STAT_CHART_PANEL_X, panelW = STAT_CHART_PANEL_W;
   const top = 18, bottom = H - 24, plotH = bottom - top; // room left at the bottom for the scrub readout
   const xForIndex = (i) => panelX + (i / (statHistory.length - 1)) * panelW;
+  const totalTerritories = territories.length;
 
   c.strokeStyle = "rgba(43,29,16,.3)";
   c.lineWidth = 1;
@@ -1797,65 +1809,66 @@ function drawStatChart() {
   c.moveTo(panelX, top); c.lineTo(panelX, bottom); c.lineTo(panelX + panelW, bottom);
   c.stroke();
 
-  let maxVal = 1;
-  for (const entry of statHistory) {
-    for (const royId of royIds) {
-      const s = entry.stats[royId];
-      if (s) maxVal = Math.max(maxVal, s.territories);
+  // raw (unsmoothed) per-band fraction-of-total at every round — used both
+  // to build the smoothed cumulative boundaries below and, unsmoothed, for
+  // the exact interactive-scrub readout
+  const rawFractions = royIds.map(royId => statHistory.map(entry => {
+    if (royId === neutralId) {
+      let realSum = 0;
+      for (const k in entry.stats) realSum += entry.stats[k].territories;
+      return Math.max(0, totalTerritories - realSum) / totalTerritories;
     }
-  }
+    return entry.stats[royId] ? entry.stats[royId].territories / totalTerritories : 0;
+  }));
 
-  for (const royId of royIds) {
-    const pts = [];
-    for (let i = 0; i < statHistory.length; i++) {
-      const s = statHistory[i].stats[royId];
-      if (s) {
-        pts.push([xForIndex(i), bottom - (s.territories / maxVal) * plotH]);
-      } else if (pts.length) {
-        // was alive as of the previous round, gone as of this one — add one
-        // closing point right at the bottom (0 territories) instead of just
-        // stopping mid-air wherever the last recorded value happened to be
-        pts.push([xForIndex(i), bottom]);
-        break;
-      }
-    }
-    if (!pts.length) continue;
-    // Real per-round territory counts genuinely whip up and down during a
-    // long AI-vs-AI border skirmish — plotted raw, that reads as a jagged
-    // mountain range of single-round spikes instead of a legible trend. A
-    // small moving average smooths the *drawn line* only; the interactive
-    // scrub below still reports the exact, unsmoothed value for its round.
-    const smoothed = pts.map(([x, y], i) => {
+  // cumulative bottom boundary per band (0 = top of the plot, 1 = bottom)
+  const cumulative = new Array(statHistory.length).fill(0);
+  const rawBoundaries = rawFractions.map(fracRow => fracRow.map((f, i) => (cumulative[i] += f)));
+
+  // Real per-round territory counts genuinely whip up and down during a
+  // long AI-vs-AI border skirmish — plotted raw, that reads as a jagged
+  // mountain range of single-round spikes. Smoothing the cumulative
+  // *boundary* lines (not each band's thickness independently) keeps the
+  // bands additive: they still stack to exactly 100% at every x.
+  function smooth(vals) {
+    return vals.map((v, i) => {
       let sum = 0, count = 0;
       for (let d = -2; d <= 2; d++) {
         const j = i + d;
-        if (j >= 0 && j < pts.length) { sum += pts[j][1]; count++; }
+        if (j >= 0 && j < vals.length) { sum += vals[j]; count++; }
       }
-      return [x, sum / count];
+      return sum / count;
     });
-    const tracePath = () => {
-      c.beginPath();
-      smoothed.forEach(([x, y], i) => i === 0 ? c.moveTo(x, y) : c.lineTo(x, y));
-    };
-    // a dark halo pass first — some royaume colors (Châteauvieux's near-white)
-    // would otherwise nearly vanish against the parchment card background
-    tracePath();
-    c.strokeStyle = "rgba(43,29,16,.5)";
-    c.lineWidth = 3.4;
-    c.stroke();
-    tracePath();
-    c.strokeStyle = ROYAUMES[royId].color;
-    c.lineWidth = 1.8;
-    c.stroke();
   }
+  const smoothedBoundaries = rawBoundaries.map(smooth);
+
+  let prevY = new Array(statHistory.length).fill(top);
+  royIds.forEach((royId, bandIdx) => {
+    const curY = smoothedBoundaries[bandIdx].map(f => top + f * plotH);
+    c.beginPath();
+    for (let i = 0; i < statHistory.length; i++) {
+      const x = xForIndex(i);
+      i === 0 ? c.moveTo(x, prevY[i]) : c.lineTo(x, prevY[i]);
+    }
+    for (let i = statHistory.length - 1; i >= 0; i--) c.lineTo(xForIndex(i), curY[i]);
+    c.closePath();
+    c.fillStyle = ROYAUMES[royId].color;
+    c.fill();
+    // a thin dark seam between bands — the near-white neutral band would
+    // otherwise blend straight into the parchment card background
+    c.strokeStyle = "rgba(43,29,16,.35)";
+    c.lineWidth = 0.75;
+    c.stroke();
+    prevY = curY;
+  });
 
   c.fillStyle = "rgba(43,29,16,.8)";
   c.font = "10px -apple-system, sans-serif";
   c.textAlign = "left";
-  c.fillText("Provinces", panelX, 10);
+  c.fillText("Territoire (%)", panelX, 10);
 
-  // interactive scrub: drag a finger across the chart to see each living
-  // royaume's FORCE at that exact round, following the touch in real time
+  // interactive scrub: drag a finger across the chart to see each royaume's
+  // exact (unsmoothed) share at that round, following the touch live
   if (statChartScrubIndex >= 0 && statChartScrubIndex < statHistory.length) {
     const idx = statChartScrubIndex;
     const x = xForIndex(idx);
@@ -1866,29 +1879,31 @@ function drawStatChart() {
     c.beginPath(); c.moveTo(x, top); c.lineTo(x, bottom); c.stroke();
     c.restore();
 
-    const entry = statHistory[idx];
-    const parts = royIds.filter(royId => entry.stats[royId]).map(royId => ({ royId, force: entry.stats[royId].force }));
+    const parts = royIds
+      .map((royId, bandIdx) => ({ royId, pct: Math.round(rawFractions[bandIdx][idx] * 100) }))
+      .filter(p => p.pct > 0);
     const ty = bottom + 15;
     const n = Math.max(1, parts.length);
     parts.forEach((p, i) => {
       const cx = panelX + (i + 0.5) * (panelW / n);
       c.beginPath();
-      c.arc(cx - 9, ty - 3, 3, 0, Math.PI * 2);
+      c.arc(cx - 11, ty - 3, 3, 0, Math.PI * 2);
       c.fillStyle = ROYAUMES[p.royId].color;
       c.fill();
       c.strokeStyle = "rgba(43,29,16,.5)";
       c.lineWidth = 0.5;
       c.stroke();
-      c.font = "bold 11px -apple-system, sans-serif";
+      c.font = "bold 10px -apple-system, sans-serif";
       c.textAlign = "left";
       c.fillStyle = "rgba(43,29,16,.9)";
-      c.fillText(String(p.force), cx - 2, ty);
+      c.fillText(p.pct + "%", cx - 4, ty);
     });
   }
 
   // full family-branch name per royaume that appeared on the chart — the
-  // canvas itself only has room for color, not text
-  document.getElementById("chartLegend").innerHTML = royIds.map(id => `
+  // canvas itself only has room for color, not text. Neutral last since
+  // it's not a "seigneur" and reads oddly grouped alongside them otherwise.
+  document.getElementById("chartLegend").innerHTML = [...royIdSet].sort((a, b) => a - b).concat(neutralId).map(id => `
     <div class="royaumeRow">
       <span class="swatch" style="background:${ROYAUMES[id].color}"></span>
       <span class="rname">${ROYAUMES[id].name}</span>
