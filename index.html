@@ -74,6 +74,9 @@
   }
   #winbanner h1 { margin: 0; font-size: 26px; max-width: 320px; }
   #winbanner img { width: 96px; height: auto; image-rendering: pixelated; }
+  #statChart { background: rgba(255,255,255,.04); border-radius: 8px; }
+  .winButtons { display: flex; gap: 10px; }
+  #watchReplay { background: #5a4a1c; }
   #winbanner button {
     background: #1c3f8f; color: #fff; border: none; border-radius: 8px;
     padding: 10px 20px; font-size: 15px; font-weight: 700;
@@ -98,7 +101,11 @@
   <div id="winbanner">
     <img id="winKnight" alt="">
     <h1 id="wintext"></h1>
-    <button id="restart">Rejouer</button>
+    <canvas id="statChart" width="280" height="150"></canvas>
+    <div class="winButtons">
+      <button id="restart">Rejouer</button>
+      <button id="watchReplay">▶ Revoir la partie</button>
+    </div>
   </div>
   <div id="settingsPanel">
     <div class="box">
@@ -508,6 +515,31 @@ let selected = -1;
 let gameOver = false;
 let aiRunning = false;
 
+/* ---------- MATCH HISTORY (stats graph + replay) ---------- */
+// One entry per round (a full cycle back to the human), so the end-game
+// graph has a shared x-axis across all royaumes. Recorded regardless of
+// difficulty/seed — this is what the AoE2-style chart is drawn from.
+let statHistory = [];
+let roundNumber = 0;
+// The human player's own choices, in order (attacks + explicit end-turns).
+// Combined with the match's seed + the difficulty active when it started,
+// this is enough to reproduce the whole match byte-for-byte for the "watch
+// it back" replay — AI moves and dice rolls are already fully determined by
+// the seeded RNG stream, so only the human's decisions need recording.
+let moveLog = [];
+let gameStartDifficulty = DIFFICULTY;
+let replaying = false;
+let replaySpeed = 1; // AI turn-pacing divisor; set >1 during replay playback
+
+function recordRoundSnapshot() {
+  const stats = {};
+  for (let royId = 0; royId < ROYAUME_COUNT - 1; royId++) { // exclude neutral
+    if (!isAlive(royId)) continue;
+    stats[royId] = { territories: territories.filter(t => t.owner === royId).length, force: totalForce(royId) };
+  }
+  statHistory.push({ round: roundNumber, stats });
+}
+
 function largestConnectedGroup(royId) {
   const owned = new Set(territories.filter(t => t.owner === royId).map(t => t.id));
   const visited = new Set();
@@ -635,12 +667,16 @@ function advanceTurn() {
     guard++;
   } while ((!isAlive(next) || ROYAUMES[next].neutral) && guard <= ROYAUME_COUNT);
   currentPlayer = next;
+  if (currentPlayer === 0 && !replaying) {
+    roundNumber++;
+    recordRoundSnapshot();
+  }
   updateStatus();
   render();
   if (checkWinner()) return;
   if (!ROYAUMES[currentPlayer].human && !ROYAUMES[currentPlayer].neutral) {
     aiRunning = true;
-    setTimeout(runAI, 500);
+    setTimeout(runAI, 500 / replaySpeed);
   }
 }
 
@@ -672,6 +708,97 @@ function showWin(royId) {
     : (royId === 0) ? "Victoire, Châteauvieux !" : `${ROYAUMES[royId].name} l'emporte.`;
   document.getElementById("wintext").textContent = text;
   document.getElementById("endturn").disabled = true;
+  drawStatChart();
+  document.getElementById("watchReplay").disabled = moveLog.length === 0;
+}
+
+// --- end-of-match stats chart (AoE2-style: territories + force over rounds) ---
+function drawStatChart() {
+  const canvas = document.getElementById("statChart");
+  const c = canvas.getContext("2d");
+  const W = canvas.width, H = canvas.height;
+  c.clearRect(0, 0, W, H);
+  if (statHistory.length < 2) return;
+
+  const royIds = Object.keys(statHistory[statHistory.length - 1].stats).map(Number);
+  const panels = [
+    { key: "territories", x: 6, w: W / 2 - 10, label: "Territoires" },
+    { key: "force", x: W / 2 + 4, w: W / 2 - 10, label: "Force" },
+  ];
+  const top = 18, bottom = H - 6, plotH = bottom - top;
+
+  for (const panel of panels) {
+    c.strokeStyle = "rgba(242,237,226,.25)";
+    c.lineWidth = 1;
+    c.beginPath();
+    c.moveTo(panel.x, top); c.lineTo(panel.x, bottom); c.lineTo(panel.x + panel.w, bottom);
+    c.stroke();
+
+    let maxVal = 1;
+    for (const entry of statHistory) {
+      for (const royId of royIds) {
+        const s = entry.stats[royId];
+        if (s) maxVal = Math.max(maxVal, s[panel.key]);
+      }
+    }
+
+    for (const royId of royIds) {
+      c.strokeStyle = ROYAUMES[royId].color;
+      c.lineWidth = 1.8;
+      c.beginPath();
+      let started = false;
+      statHistory.forEach((entry, i) => {
+        const s = entry.stats[royId];
+        if (!s) return; // this royaume was already eliminated — line just stops
+        const x = panel.x + (i / (statHistory.length - 1)) * panel.w;
+        const y = bottom - (s[panel.key] / maxVal) * plotH;
+        if (!started) { c.moveTo(x, y); started = true; } else { c.lineTo(x, y); }
+      });
+      c.stroke();
+    }
+
+    c.fillStyle = "rgba(242,237,226,.7)";
+    c.font = "10px -apple-system, sans-serif";
+    c.textAlign = "left";
+    c.fillText(panel.label, panel.x, 10);
+  }
+}
+
+// --- fast in-app replay: re-simulate the same seed + difficulty, feeding
+// back only the human player's own recorded choices — the AI and dice
+// reproduce identically since they're driven by the same seeded RNG stream ---
+function startReplay() {
+  if (!moveLog.length) return;
+  const seedToReplay = currentSeed;
+  const difficultyToReplay = gameStartDifficulty;
+  const logToReplay = moveLog.slice();
+  const levelToRestore = difficultyLevel;
+
+  document.getElementById("winbanner").style.display = "none";
+  document.getElementById("rerollBtn").style.display = "none";
+  replaying = true;
+  replaySpeed = 6;
+  applyDifficulty(difficultyToReplay);
+  startGame(seedToReplay);
+
+  let i = 0;
+  function step() {
+    if (!replaying) return; // user could in principle navigate away; bail cleanly
+    if (gameOver) { finishReplay(levelToRestore); return; }
+    if (currentPlayer !== 0 || aiRunning) { setTimeout(step, 30); return; }
+    if (i >= logToReplay.length) { finishReplay(levelToRestore); return; }
+    const action = logToReplay[i++];
+    if (action.end) endTurn(); else attack(action.a, action.b);
+    setTimeout(step, 30);
+  }
+  step();
+}
+function finishReplay(levelToRestore) {
+  replaying = false;
+  replaySpeed = 1;
+  applyDifficulty(DIFFICULTY_LEVELS[levelToRestore].value);
+  document.getElementById("rerollBtn").style.display = "";
+  document.getElementById("winbanner").style.display = "flex";
 }
 
 /* ---------- AI ---------- */
@@ -715,10 +842,10 @@ function runAI() {
   const mv = bestMove();
   if (mv && rngFloat() >= AI_MISTAKE_RATE) {
     attack(mv.from, mv.to);
-    setTimeout(runAI, 450);
+    setTimeout(runAI, 450 / replaySpeed);
   } else {
     aiRunning = false;
-    setTimeout(endTurn, 300);
+    setTimeout(endTurn, 300 / replaySpeed);
   }
 }
 
@@ -948,7 +1075,7 @@ function drawForceIcon(t) {
 
 /* ---------- INPUT ---------- */
 function handlePointer(clientX, clientY) {
-  if (gameOver || aiRunning || !ROYAUMES[currentPlayer].human) return;
+  if (replaying || gameOver || aiRunning || !ROYAUMES[currentPlayer].human) return;
   const rect = canvas.getBoundingClientRect();
   const localX = (clientX - rect.left - centerX) / viewScale;
   const localY = (clientY - rect.top - centerY) / viewScale;
@@ -972,6 +1099,7 @@ function handlePointer(clientX, clientY) {
         onboarding = false;
         try { localStorage.setItem("kw_playedBefore", "1"); } catch (e) { /* ignore */ }
       }
+      if (!replaying) moveLog.push({ a: selected, b: tId });
       attack(selected, tId);
       selected = (territories[selected].force > 1) ? selected : -1;
     } else if (t.owner === currentPlayer && t.force > 1) {
@@ -985,9 +1113,13 @@ function handlePointer(clientX, clientY) {
 canvas.addEventListener("click", (e) => handlePointer(e.clientX, e.clientY));
 
 document.getElementById("endturn").addEventListener("click", () => {
-  if (!gameOver && !aiRunning && ROYAUMES[currentPlayer].human) endTurn();
+  if (!replaying && !gameOver && !aiRunning && ROYAUMES[currentPlayer].human) {
+    moveLog.push({ end: true });
+    endTurn();
+  }
 });
 document.getElementById("restart").addEventListener("click", () => startGame());
+document.getElementById("watchReplay").addEventListener("click", () => startReplay());
 document.getElementById("rerollBtn").addEventListener("click", () => startGame());
 
 const settingsPanel = document.getElementById("settingsPanel");
@@ -1041,6 +1173,10 @@ function startGame(seed) {
   generateHexGrid();
   generateTerritories();
   assignRoyaumes();
+  if (!replaying) {
+    statHistory = []; roundNumber = 0; moveLog = []; gameStartDifficulty = DIFFICULTY;
+    recordRoundSnapshot();
+  }
   updateStatus();
   logMsg(onboarding ? "Cliquez sur un territoire blanc." : "Nouvelle partie.");
   updateGroups(); // populate before resize() measures the HUD's real height
