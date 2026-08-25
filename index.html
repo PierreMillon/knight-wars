@@ -5058,8 +5058,14 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.20";
+const GAME_VERSION = "1.21";
 const CHANGELOG = [
+  {
+    version: "1.21",
+    notes: [
+      "Correction : l'icône ajoutée à l'écran d'accueil pouvait rester bloquée sur un écran blanc après une mise à jour, même après avoir complètement fermé puis rouvert l'app (seul supprimer puis rajouter l'icône réglait le souci) — le service worker forçait déjà une récupération réseau en priorité, mais un cache natif du WebView, sous son contrôle, pouvait quand même renvoyer une réponse périmée ; la requête de navigation force maintenant explicitement ce cache-là à être ignoré aussi",
+    ],
+  },
   {
     version: "1.20",
     notes: [
