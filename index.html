@@ -283,7 +283,16 @@
      down on narrow viewports instead (clamp, not just a smaller flat size,
      so it still reads as a headline on a wider screen). */
   #winbanner h1 { margin: 0; font-size: clamp(16px, 5.2vw, 22px); line-height: 1.25; max-width: 290px; }
-  #winSubtext { margin: -6px 0 0; font-size: 13px; font-style: italic; opacity: .8; max-width: 260px; }
+  /* the rest of the same flavor text #wintext's opening sentence was split
+     from (see showWin()) — plain body copy, not a headline, so it reads as
+     a continuation rather than a second title once it resurfaces below the
+     chart. Hidden entirely (rather than left as a stray empty flex gap) on
+     the handful of one-sentence lines that had nothing left to split off —
+     same treatment #winSubtext already needed, most endings leave it empty too. */
+  #wintextRest, #winSubtext { margin: 0; }
+  #wintextRest:empty, #winSubtext:empty { display: none; }
+  #wintextRest { font-size: 14px; line-height: 1.5; max-width: 290px; opacity: .92; }
+  #winSubtext { margin-top: -6px; font-size: 13px; font-style: italic; opacity: .8; max-width: 260px; }
   #statChart { background: rgba(0,0,0,.05); border-radius: 8px; touch-action: none; } /* otherwise a scrub drag gets read as a page gesture */
   /* full family-branch names for the chart above — the chart itself only has
      room for colors, and "Villiers"/"Beaumanoir" alone don't read as
@@ -542,11 +551,12 @@
   <button id="replayResumeHereBtn" style="display:none;">▶ Reprendre depuis ici</button>
   <div id="winbanner">
     <div class="box" id="winbannerBox">
+      <!-- Reordered per request: just the opening sentence up top (the
+           actual verdict — victory/defeat/truce — read at a glance before
+           anything else), then every action, then the chart, then the rest
+           of the flavor text at the bottom (see splitFirstSentence() in
+           showWin() for how #wintext/#wintextRest split one string in two). -->
       <h1 id="wintext"></h1>
-      <p id="winSubtext"></p>
-      <canvas id="statChart" width="280" height="150"></canvas>
-      <div id="chartLegend"></div>
-      <button id="saveChartImage">💾 Enregistrer le graphique</button>
       <!-- all 4 in one uniform 2x2 grid — used to be 2 side-by-side then 2
            separate full-width buttons below, which read as one inconsistent
            block instead of one clean rectangle -->
@@ -556,6 +566,11 @@
         <button id="randomGameBtn">🔀 Nouvelle partie aléatoire</button>
         <button id="shareReplay">📤 Partager ma victoire</button>
       </div>
+      <button id="saveChartImage">💾 Enregistrer le graphique</button>
+      <canvas id="statChart" width="280" height="150"></canvas>
+      <div id="chartLegend"></div>
+      <p id="wintextRest"></p>
+      <p id="winSubtext"></p>
       <!-- only shown for surrenderBeforePick() — tapping the skull before
            ever picking a camp. There's no real match to report on (no
            chart, no replay, no share), just the joke line + gueux penalty
@@ -2984,7 +2999,16 @@ function showWin(royId) {
     ];
     text = VICTORY_LINES[Math.abs(currentSeed + royId) % VICTORY_LINES.length];
   }
-  document.getElementById("wintext").textContent = text;
+  // Split into the opening sentence (shown up top, before every button —
+  // the actual verdict at a glance) and everything after it (shown at the
+  // very bottom, past the chart — see #wintext/#wintextRest's own layout
+  // comment). Splits on the first ". "/"! "/"? " — every hand-written line
+  // above happens to read naturally at that exact boundary (checked against
+  // all of them), and a line with only one sentence just leaves the rest
+  // empty rather than forcing a split that isn't there.
+  const firstSentenceMatch = text.match(/^([\s\S]*?[.!?])\s+([\s\S]*)$/);
+  document.getElementById("wintext").textContent = firstSentenceMatch ? firstSentenceMatch[1] : text;
+  document.getElementById("wintextRest").textContent = firstSentenceMatch ? firstSentenceMatch[2] : "";
   // skip the extra performance line on a defeat — the loss message above
   // already carries that beat, no need to pile on a second dig
   document.getElementById("winSubtext").textContent = truceEnded ? personalPerformanceLine() : "";
@@ -4729,8 +4753,14 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.16";
+const GAME_VERSION = "1.17";
 const CHANGELOG = [
+  {
+    version: "1.17",
+    notes: [
+      "Écran de fin de partie réorganisé : la phrase d'ouverture (victoire/défaite/trêve) en tout premier, puis tous les boutons d'action, puis le graphique, et le reste du texte tout en bas",
+    ],
+  },
   {
     version: "1.16",
     notes: [
