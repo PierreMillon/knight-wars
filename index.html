@@ -15,11 +15,12 @@
   }
   html, body {
     margin: 0; padding: 0; height: 100%; overflow: hidden;
-    /* matches the map's own CANVAS_BG_COLOR — the only place this shows
-       through at all is the strip beside #wrap when the phone is turned
-       sideways (see lockPortraitStage()), so it reads as part of the game
-       rather than a stark, unthemed void. */
-    background: #2b3d52; font-family: -apple-system, system-ui, sans-serif;
+    /* matches the map's own CANVAS_BG_COLOR, which is itself the same
+       color as every water hex now (see its own note) — everything that
+       isn't a royaume's own color is water, one single shade of it,
+       including the strip beside #wrap visible when the phone is turned
+       sideways (see lockPortraitStage()). */
+    background: #3d5f80; font-family: -apple-system, system-ui, sans-serif;
     touch-action: manipulation; user-select: none;
     /* horizontally centers #wrap when it's narrower than the viewport (see
        lockPortraitStage() below) — a no-op in portrait, where #wrap always
@@ -42,7 +43,7 @@
      back as not what was actually wanted: "je veux que ça ne change rien
      à l'écran... comme si j'avais une rotation bloquée".) */
   #wrap { position: relative; width: 100%; height: 100%; }
-  canvas { display: block; background: #2b3d52; touch-action: none; } /* otherwise the browser can claim a one-finger drag as a pan/scroll gesture mid-way and never deliver pointerup */
+  canvas { display: block; background: #3d5f80; touch-action: none; } /* matches CANVAS_BG_COLOR/water — otherwise the browser can claim a one-finger drag as a pan/scroll gesture mid-way and never deliver pointerup */
   #status, #log { display: none; } /* kept for internal state only, no longer shown */
   /* every persistent in-game HUD button (settings, end-turn, reroll, gueux
      badge, surrender, replay controls) shares one visual language — a
@@ -878,8 +879,13 @@ document.addEventListener("touchend", (e) => {
 /* ---------- CONFIG ---------- */
 const HEX_SIZE = 26;          // was 20, +30% per request — bigger tap targets on phone
 // must match the CSS `canvas { background: ... }` rule exactly — used to draw
-// province borders in the same color as the map's own backdrop (see render())
-const CANVAS_BG_COLOR = "#2b3d52";
+// province borders in the same color as the map's own backdrop (see render()).
+// Same shade as every water hex (see its own fillStyle) — everywhere that
+// isn't a royaume's own color reads as one continuous body of water now,
+// backdrop and border seams included, not a separate "void" color —
+// reported live: "tout ce qui n'est pas des royaumes c'est de l'eau [...]
+// y a pas deux couleurs d'eau différente y en a qu'une".
+const CANVAS_BG_COLOR = "#3d5f80";
 // MAP_PIXEL_RADIUS/TERRITORY_COUNT are `let`, not `const`: applyMapSize()
 // below reassigns them per the chosen map-size setting. resize()'s viewScale
 // already fits whatever island generateHexGrid() produces to the actual
@@ -2316,6 +2322,14 @@ const SWORD_INTRO_MS = 480; // sped up 20% per request (was 600)
 // calls startCombatFXFadeOut() — then every currently-visible result fades
 // out together over FX_LINGER_MS.
 const FX_LINGER_MS = 500;
+// The sword, outcome ring and +N/-N villages label all still persist until
+// end of turn via FX_LINGER_MS above — but the raw atk/def dice numbers
+// specifically fade on their own short timer instead, regardless of the
+// turn: reported live as backwards from the "persist until end of turn"
+// behavior everything else in this FX layer has ("c'est le contraire qu'il
+// fallait faire : les épées restent jusqu'à ce que je dise prochaine
+// bataille, et les chiffres par contre disparaissent assez rapidement").
+const NUMBER_FADE_MS = 1400;
 let pulseTiles = []; // [{id, start}]
 // A list, not a single slot — a fast drag-to-attack chain (or "batailles
 // instantanées" resolving several AI attacks back to back) used to have
@@ -2380,7 +2394,7 @@ function fxStep() {
   // to keep burning frames on it until startCombatFXFadeOut() actually
   // resumes the loop. Still counts as "animating" for as long as any entry
   // is mid-intro, or once the fade itself has actually started.
-  const stillAnimating = combatFXList.some(fx => now - fx.start < SWORD_INTRO_MS) ||
+  const stillAnimating = combatFXList.some(fx => now - fx.start < Math.max(SWORD_INTRO_MS, NUMBER_FADE_MS)) ||
     pulseTiles.some(p => now - p.start < PULSE_INTRO_MS) ||
     combatFXFadeStartedAt !== null;
   if (stillAnimating) {
@@ -4152,16 +4166,17 @@ function render() {
     pts.forEach(([x, y], i) => i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y));
     ctx.closePath();
     if (h2.isWater) {
-      // a touch more saturated than CANVAS_BG_COLOR (the same blue-gray
-      // showing through everywhere there's no hex at all) — distinct enough
-      // that a lake/strait reads as "crossable water", not just empty
-      // space. One single water color everywhere (used to be two — a
-      // lighter shade for an enclosed lake, a darker one for water
-      // connected to the open sea — reported live as confusing: it read as
-      // two different kinds of background rather than one continuous body
-      // of water) — waterCost still varies per hex under the hood (it
-      // drives the force cost of a crossing), it just isn't color-coded
-      // any more.
+      // Same shade as CANVAS_BG_COLOR (everywhere there's no hex at all) and
+      // as the province-border seams drawn in that same color below — the
+      // whole non-royaume surface of the map, hex or not, is one single
+      // continuous body of water now. Used to be three different shades
+      // splitting hairs nobody asked for (enclosed lake vs open-ocean-
+      // connected water, plus a separate darker "void" background) —
+      // reported live as reading like unrelated kinds of background instead
+      // of one body of water: "tout ce qui n'est pas des royaumes c'est de
+      // l'eau [...] y a pas deux couleurs d'eau différente y en a qu'une".
+      // waterCost still varies per hex under the hood (it drives the force
+      // cost of a crossing), it just isn't color-coded any more.
       ctx.fillStyle = "#3d5f80";
       ctx.fill();
       ctx.strokeStyle = "rgba(20,16,12,0.12)";
@@ -4395,20 +4410,26 @@ function render() {
     // not a separate FX) — reads as a plain organic "grows/shrinks" replay
     // instead of a numbers-heavy simulation.
     if (replaying) continue;
-    ctx.font = "bold 15px -apple-system, sans-serif"; // was 11px — +40%
-    ctx.textAlign = "center";
-    ctx.lineWidth = 2.5;
-    if (fromT) {
-      ctx.strokeStyle = `rgba(20,16,12,${alpha * 0.8})`;
-      ctx.strokeText(String(fx.atk), fromT.cx, fromT.cy + floatY);
-      ctx.fillStyle = `rgba(242,237,226,${alpha})`;
-      ctx.fillText(String(fx.atk), fromT.cx, fromT.cy + floatY);
-    }
-    if (toT) {
-      ctx.strokeStyle = `rgba(20,16,12,${alpha * 0.8})`;
-      ctx.strokeText(String(fx.def), toT.cx, toT.cy + floatY);
-      ctx.fillStyle = `rgba(242,237,226,${alpha})`;
-      ctx.fillText(String(fx.def), toT.cx, toT.cy + floatY);
+    // Own short fade, independent of alpha/end-of-turn — see NUMBER_FADE_MS's
+    // own note. Everything below this (the ring/label) still uses the
+    // long-lived `alpha`.
+    const numberAlpha = Math.max(0, 1 - (pulseNow - fx.start) / NUMBER_FADE_MS) * fadeAlpha;
+    if (numberAlpha > 0) {
+      ctx.font = "bold 15px -apple-system, sans-serif"; // was 11px — +40%
+      ctx.textAlign = "center";
+      ctx.lineWidth = 2.5;
+      if (fromT) {
+        ctx.strokeStyle = `rgba(20,16,12,${numberAlpha * 0.8})`;
+        ctx.strokeText(String(fx.atk), fromT.cx, fromT.cy + floatY);
+        ctx.fillStyle = `rgba(242,237,226,${numberAlpha})`;
+        ctx.fillText(String(fx.atk), fromT.cx, fromT.cy + floatY);
+      }
+      if (toT) {
+        ctx.strokeStyle = `rgba(20,16,12,${numberAlpha * 0.8})`;
+        ctx.strokeText(String(fx.def), toT.cx, toT.cy + floatY);
+        ctx.fillStyle = `rgba(242,237,226,${numberAlpha})`;
+        ctx.fillText(String(fx.def), toT.cx, toT.cy + floatY);
+      }
     }
 
     const ringT = fx.win ? toT : fromT;
@@ -5071,8 +5092,16 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.22";
+const GAME_VERSION = "1.23";
 const CHANGELOG = [
+  {
+    version: "1.23",
+    notes: [
+      "Le message d'accroche du début de partie est raccourci — il débordait sur la carte sur certains écrans",
+      "Une seule couleur d'eau désormais partout sur la carte (fond, eau, bordures des provinces compris) — plus de distinction entre le fond et l'eau elle-même",
+      "Combats : les épées et le résultat (« +N villages », « échec »...) restent affichés jusqu'à la fin du tour comme avant, mais les chiffres bruts d'attaque/défense disparaissent maintenant rapidement, indépendamment du tour",
+    ],
+  },
   {
     version: "1.22",
     notes: [
@@ -5812,7 +5841,11 @@ function startGame(seed) {
   // below), since it's the one bit of framing a returning player still
   // needs to see fresh each time — it always gets cleared the instant a
   // camp is actually picked, in pickFaction()'s own non-onboarding branch.
-  if (awaitingFactionPick) showOnboardingHint("Mon général, la maison Millon se déchire en quatre branches rivales — à laquelle offrez-vous votre épée ? Touchez une province pour choisir votre camp.");
+  // Kept short on purpose — the original longer phrasing wrapped to enough
+  // lines that the banner (no max-height/reflow logic of its own, it just
+  // grows with its text) reached down into the map's own top row, reported
+  // live with a screenshot circling how much shorter it needed to be.
+  if (awaitingFactionPick) showOnboardingHint("Mon général, la maison Millon se déchire. Touchez une province pour choisir votre camp.");
   else hideOnboardingHint();
   updateGroups(); // populate before resize() measures the HUD's real height
   resize();
