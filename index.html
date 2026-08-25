@@ -15,31 +15,33 @@
   }
   html, body {
     margin: 0; padding: 0; height: 100%; overflow: hidden;
-    /* matches the map's own CANVAS_BG_COLOR (was a plain near-black #1b1712,
-       unrelated to the game's actual blue theme) — the only place this
-       shows through at all is the letterboxed void around #wrap in
-       landscape (see lockPortraitStage()), and a stark, unthemed black
-       there reported as looking broken/like "a hole", rather than a
-       deliberate part of the page. */
+    /* matches the map's own CANVAS_BG_COLOR — the only place this shows
+       through at all is the strip beside #wrap when the phone is turned
+       sideways (see lockPortraitStage()), so it reads as part of the game
+       rather than a stark, unthemed void. */
     background: #2b3d52; font-family: -apple-system, system-ui, sans-serif;
     touch-action: manipulation; user-select: none;
-    /* centers #wrap when it's pinned to a smaller-than-viewport portrait box
-       in landscape (see lockPortraitStage() below) — a no-op in portrait,
-       where #wrap always fills the full 100%x100% anyway */
-    display: flex; align-items: center; justify-content: center;
+    /* horizontally centers #wrap when it's narrower than the viewport (see
+       lockPortraitStage() below) — a no-op in portrait, where #wrap always
+       fills the full width anyway. Top-aligned, not centered, vertically:
+       #wrap keeps its exact portrait height even when that's taller than
+       the current (landscape) viewport, and top-aligning is what keeps the
+       title/stats visible at the top instead of pushing half of it above
+       the visible screen. */
+    display: flex; align-items: flex-start; justify-content: center;
   }
-  /* Sized/scaled by lockPortraitStage() (called from resize()): in portrait
-     it's just 100%x100% as before. In landscape, turning the phone sideways
-     must change nothing about the game's look except the force numbers (see
-     drawForceIcon()'s mapNumberRotationRad) — everything else, HUD included,
-     stays exactly the portrait layout it already was, simply centered and
-     uniformly scaled down to fit the shorter physical height available
-     sideways (letterboxed left/right) rather than reflowing to fill the
-     wider space. Previously nothing pinned this, so the normal responsive
-     CSS/JS reflow kicked in on rotation and visibly reshaped everything
-     (map, buttons, title) — reported as "tout tourne" even though nothing
-     was literally being rotated. */
-  #wrap { position: relative; width: 100%; height: 100%; transform-origin: center center; }
+  /* Sized by lockPortraitStage() (called from resize()): 100%x100% in
+     portrait, as before. In landscape, turning the phone physically does
+     not change the game at all any more — no reflow, no shrink, no
+     rotation, nothing: #wrap simply keeps the exact pixel dimensions it
+     last had in portrait, un-scaled, as if orientation were locked.
+     Whatever doesn't fit within the new (shorter) viewport just extends
+     past the bottom edge, off-screen — nothing touches it to make it
+     "fit". (Reworked from an earlier version that scaled the whole thing
+     down to fit letterboxed, rotating only the force digits — reported
+     back as not what was actually wanted: "je veux que ça ne change rien
+     à l'écran... comme si j'avais une rotation bloquée".) */
+  #wrap { position: relative; width: 100%; height: 100%; }
   canvas { display: block; background: #2b3d52; touch-action: none; } /* otherwise the browser can claim a one-finger drag as a pan/scroll gesture mid-way and never deliver pointerup */
   #status, #log { display: none; } /* kept for internal state only, no longer shown */
   /* every persistent in-game HUD button (settings, end-turn, reroll, gueux
@@ -1095,39 +1097,37 @@ const ARCHER_IMG = loadSprite(ARCHER_IMG_SRC);
 const CHEVALIER_IMG = loadSprite(CHEVALIER_IMG_SRC);
 
 // Pins #wrap (and therefore everything inside it — canvas, HUD, all of it)
-// to a fixed portrait-shaped box when the phone is turned sideways, instead
-// of letting it reflow to fill the new (wider/shorter) physical viewport.
-// Returns the {w, h} the rest of resize() should treat as "the screen" —
-// portrait raw dimensions in portrait (unchanged behavior), or the frozen
-// portrait box's own logical size in landscape (scaled down as a whole via
-// CSS transform to actually fit the shorter physical height available
-// sideways). See #wrap's own CSS comment for why this exists.
-// Current #wrap CSS scale (1 in portrait). Any code that reads real DOM
-// geometry via getBoundingClientRect() (which reports POST-transform,
-// physical on-screen pixels) has to divide by this to convert back to the
-// logical pixel space every layout number in resize()/render()/input
-// handling is expressed in — see its uses below.
+// to whatever fixed pixel size it last had in portrait, instead of letting
+// it reflow/resize when the phone turns sideways. Landscape gets no special
+// treatment of its own at all any more: rotating the phone simply doesn't
+// touch the game, full stop — see #wrap's own CSS comment for why (this
+// replaced an earlier scale-to-fit-letterboxed version that turned out not
+// to be what was actually wanted).
+// portraitStageScale is kept (always 1 now) rather than removed outright —
+// several call sites still divide real DOM geometry (getBoundingClientRect(),
+// which used to report POST-transform physical pixels here) by it before
+// treating that as logical pixel space; leaving the division in place as a
+// harmless no-op means those call sites don't all need to be found and
+// unwound individually.
 let portraitStageScale = 1;
+let lastPortraitSize = null; // {w, h} — the last size actually measured in portrait; landscape just keeps reusing it
 function lockPortraitStage(rawW, rawH) {
   const wrapEl = document.getElementById("wrap");
   if (rawW <= rawH) {
-    // portrait (the common case) — exactly as before, no pinning needed
+    lastPortraitSize = { w: rawW, h: rawH };
     wrapEl.style.width = "100%";
     wrapEl.style.height = "100%";
-    wrapEl.style.transform = "";
-    portraitStageScale = 1;
     return { w: rawW, h: rawH };
   }
-  // landscape: the "logical" box is a portrait rectangle using this same
-  // device's own two measurements, just not swapped by the physical turn —
-  // i.e. exactly the shape this screen would show in portrait.
-  const portraitW = rawH, portraitH = rawW;
-  const scale = rawH / portraitH; // < 1 — how much smaller the sideways screen is than the portrait box's own height
-  wrapEl.style.width = portraitW + "px";
-  wrapEl.style.height = portraitH + "px";
-  wrapEl.style.transform = `scale(${scale})`;
-  portraitStageScale = scale;
-  return { w: portraitW, h: portraitH };
+  // landscape: freeze at the last known portrait size, unscaled — falls
+  // back to treating the current (landscape) reading as if it were
+  // portrait-shaped on the very first measurement, before any real
+  // portrait size has ever been recorded (e.g. the page happens to load
+  // with the phone already turned sideways).
+  const { w, h } = lastPortraitSize || { w: rawH, h: rawW };
+  wrapEl.style.width = w + "px";
+  wrapEl.style.height = h + "px";
+  return { w, h };
 }
 function resize() {
   const dpr = window.devicePixelRatio || 1;
@@ -1220,40 +1220,32 @@ function resize() {
   // (no extra phone-only boost here anymore — it was overflowing the real
   // viewport on Safari/PWA. This tight fit to the actual generated bounds is
   // the whole size increase now; see HEX_SIZE/Y_STRETCH above for the rest.)
-  updateMapNumberRotation();
   render();
 }
-// Landscape mode, deliberately minimal per request: nothing about the
-// layout changes — no rotated HUD, no repositioned buttons, the map keeps
-// filling the same space it always does. The ONLY thing that responds to
-// the phone being turned sideways is the force number drawn on each
-// hex (see drawForceIcon()), which rotates in place so it stays readable
-// instead of running sideways along with the physical rotation.
-let mapNumberRotationRad = 0;
-function updateMapNumberRotation() {
-  const isLandscape = window.innerWidth > window.innerHeight;
-  if (!isLandscape) { mapNumberRotationRad = 0; return; }
-  // screen.orientation.type is the one reliable, standardized way to tell
-  // which way the phone was turned (unlike the old numeric window.orientation,
-  // whose sign convention differed across browsers) — "primary" and
-  // "secondary" are the two landscape rotations, opposite of each other.
-  // Confirmed backwards on a real device (numbers needed a head-tilt in the
-  // wrong direction on both sides) — signs swapped from the original guess.
-  const type = (window.screen && screen.orientation && screen.orientation.type) || "";
-  mapNumberRotationRad = type === "landscape-secondary" ? Math.PI / 2 : -Math.PI / 2;
-}
+// Turning the phone sideways no longer changes anything about the game at
+// all — see lockPortraitStage()'s own note. Used to also rotate the force
+// digits in place to compensate (mapNumberRotationRad, fed from
+// screen.orientation.type) — removed along with everything else on a
+// direct request to go back to "nothing happens when I rotate the phone,
+// as if orientation were locked". Kept as an inert constant (always 0)
+// rather than deleting every read of it in drawForceIcon()/render(), so
+// reintroducing digit rotation later (if ever asked for again) is a single
+// isolated change again instead of re-threading it through those call
+// sites from scratch.
+const mapNumberRotationRad = 0;
 // try/catch, not just the truthy guard above: this runs at the top level
 // during initial script execution, so ANY uncaught exception here (e.g. iOS
 // Safari exposing `screen.orientation` as an object that doesn't actually
 // support addEventListener, or a permissions-policy restriction throwing in
 // an embedded/in-app-browser context) would silently abort every line of
 // game code still to come — reported live as the whole app failing to open
-// at all (blank white screen on iPhone), for the sake of a purely cosmetic
-// feature. CRITICAL fix — this one guard is the entire difference between
-// "landscape numbers might not rotate" and "the game doesn't load".
+// at all (blank white screen on iPhone). Kept even though nothing currently
+// listens for the orientation change any more (see mapNumberRotationRad's
+// own note) — a no-op catch is free, and re-adding a live listener later
+// only means filling this back in, not re-deriving the guard.
 try {
-  if (window.screen && screen.orientation) screen.orientation.addEventListener("change", () => { updateMapNumberRotation(); render(); });
-} catch (e) { /* landscape number rotation just won't update live — never worth crashing the whole app over */ }
+  if (window.screen && screen.orientation) screen.orientation.addEventListener("change", () => {});
+} catch (e) { /* nothing currently depends on this firing — never worth crashing the whole app over */ }
 window.addEventListener("resize", resize);
 // iOS Safari's address bar collapses/expands after load, changing the
 // visible viewport without a plain "resize" event — this keeps the map
@@ -5066,8 +5058,14 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.19";
+const GAME_VERSION = "1.20";
 const CHANGELOG = [
+  {
+    version: "1.20",
+    notes: [
+      "Mode paysage revu une nouvelle fois, sur retour terrain : tourner le téléphone ne change plus strictement rien à l'affichage (ni rétrécissement, ni chiffres qui tournent) — le jeu reste figé exactement comme il était en portrait, comme si la rotation était bloquée. Ce qui ne tient plus dans la hauteur disponible en paysage (le bas de l'écran, boutons compris) sort simplement de l'écran plutôt que d'être réduit ou réorganisé.",
+    ],
+  },
   {
     version: "1.19",
     notes: [
