@@ -24,7 +24,7 @@
 // fallback. index.html's own update-check (see checkForUpdate()) still
 // decides *when* to actually reload an already-open tab — this only
 // changes what a fresh navigation/launch fetches.
-const CACHE_NAME = "knight-wars-v3"; // bumped from v2 — the navigation fetch now forces {cache:"reload"} (see its own note); bumping purges any existing install's Cache Storage cleanly alongside that change
+const CACHE_NAME = "knight-wars-v4"; // bumped again — the v3 fetch change caused a fresh white-screen regression and was reverted (see the fetch handler's own note); bumping still purges any existing install's Cache Storage cleanly
 const APP_SHELL = ["./", "./index.html", "./manifest.json", "./icon-192.png", "./icon-512.png"];
 
 self.addEventListener("install", (event) => {
@@ -44,18 +44,20 @@ self.addEventListener("fetch", (event) => {
 
   if (event.request.mode === "navigate") {
     event.respondWith(
-      // {cache: "reload"} forces this past the browser/WebView's own native
-      // HTTP cache, a layer below our Cache Storage entirely and not
-      // something this service worker otherwise controls — a plain
-      // fetch(request) can still be answered from that layer with a stale
-      // response even though the code here genuinely tries "network first"
-      // every time. Reported live: a fresh launch of the home-screen icon
-      // stayed on a broken white-screen build even after a full force-quit
-      // and relaunch (same installed PWA, same underlying cache layers) —
-      // only deleting and re-adding the icon (a truly clean WebView/cache
-      // state) actually picked up the fix. {cache:"reload"} closes that gap
-      // without needing a full reinstall to get there.
-      fetch(event.request, { cache: "reload" })
+      // REVERTED: tried passing {cache:"reload"} here to force past the
+      // browser's own native HTTP cache layer, on the theory that it (not
+      // just Cache Storage) was the reason a fresh relaunch of the
+      // home-screen icon still showed a stale build. Shipped, and a fresh
+      // white screen was reported immediately after — a Request already
+      // carrying mode:"navigate" may not accept an overriding cache mode
+      // cleanly in every WebKit version, and if fetch() throws
+      // *synchronously* rather than rejecting, the .catch() below never
+      // even attaches, so event.respondWith() never resolves at all —
+      // exactly a blank/white navigation. Reverted rather than risk that
+      // twice; the underlying stale-native-cache theory may still be
+      // right, but needs a safer way to test it than shipping straight to
+      // this exact failure mode again.
+      fetch(event.request)
         .then((res) => {
           if (res && res.ok) {
             const resClone = res.clone();
