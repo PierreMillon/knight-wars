@@ -32,7 +32,7 @@
      shared parchment gold every other HUD button gets (see each button's
      own background rule below). */
   #settingsBtn, #endturn, #rerollBtn, #gueuxBadge, #surrenderBtn,
-  #replaySpeedBtn, #replayPauseBtn, #replayResumeHereBtn {
+  #replayPauseBtn, #replayResumeHereBtn {
     border-radius: 10px;
     border: 1.5px solid #e8c468;
     box-shadow:
@@ -49,17 +49,28 @@
   }
   #settingsBtn img { width: 100%; height: 100%; object-fit: contain; }
   #endturn {
-    position: absolute; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); right: 14px;
     pointer-events: auto; white-space: nowrap; text-align: center;
     /* background color is set inline in JS to match the player's chosen royaume */
-    padding: 10px 18px; font-size: 15px; font-weight: 700;
+    padding: 10px 12px; font-size: 15px; font-weight: 700;
     /* same min-height as gueuxBadge/surrenderBtn (see their own rules) so the
        three bottom-row buttons all line up at one consistent height — this
        one can still grow taller on its own for the two-line "Statu quo dans
        N tours" hint, min-height only sets the floor */
     min-height: 44px; box-sizing: border-box;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
+    /* fills whatever's left in #bottomHudRow rather than sizing to its own
+       text — the button used to visibly grow/shrink switching between "Fin
+       de bataille" and the longer "La guerre fait rage" + hint; now the BOX
+       stays one constant size and only the text itself (see .btnMain/
+       .btnHint's font-size) has to fit inside it. */
+    flex: 1 1 0; min-width: 0;
   }
+  /* the main line shrinks a little for the longer AI-turn label so it still
+     fits on one line inside the same fixed-width box "Fin de bataille" gets
+     — text-overflow as a last-resort safety net if a screen is narrow
+     enough that even this isn't quite enough room. */
+  #endturn .btnMain { font-size: 1em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+  #endturn.aiTurn .btnMain { font-size: .8em; }
   #endturn.aiTurn { opacity: .72; font-weight: 600; font-style: italic; }
   /* second, smaller line explaining the tap-to-fast-forward gesture — only
      shown while the AIs are playing (see updateEndTurnButton()) */
@@ -75,17 +86,28 @@
   @media (min-width: 900px) {
     .sideArt { display: block; }
   }
+  /* the three bottom-of-screen action buttons, laid out by flexbox instead
+     of individually-computed pixel offsets — space-between guarantees they
+     never overlap no matter how wide #endturn's own text/hint gets. */
+  #bottomHudRow {
+    position: absolute; left: 14px; right: 14px; bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+    display: flex; justify-content: space-between; align-items: center; gap: 8px;
+    pointer-events: none; /* the row itself is just a layout shell — each child re-enables it */
+  }
   #gueuxBadge {
-    /* reclaims the bottom-left slot #settingsBtn vacated when it moved to
-       the top-left corner */
-    position: absolute; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); left: 14px;
-    display: none; align-items: center; justify-content: center; pointer-events: auto; cursor: pointer;
+    /* always a flex layout box (never display:none) so it always reserves
+       its slot in #bottomHudRow's flex row — see .gueuxHidden just below */
+    display: flex; align-items: center; justify-content: center; pointer-events: auto; cursor: pointer;
     background: linear-gradient(135deg, #fff3c4, #e8c468, #a97e2a);
     color: #2b1d10; font-size: 12px; padding: 0 12px; font-weight: 700;
     /* same floor as #endturn/#surrenderBtn — the three bottom buttons line up */
-    min-height: 44px; box-sizing: border-box;
+    min-height: 44px; box-sizing: border-box; flex-shrink: 0;
     transition: box-shadow .15s, opacity .15s;
   }
+  /* hidden (metaProgress off) still reserves its flex slot via visibility,
+     not display:none — otherwise #surrenderBtn drifts to the row's left
+     edge instead of staying between gueux's slot and endturn's */
+  #gueuxBadge.gueuxHidden { visibility: hidden; pointer-events: none; }
   /* armed: tap a territory to spend one gueux as a reinforcement there */
   #gueuxBadge.gueuxArmed { border-color: #e8c468; box-shadow: 0 0 0 2px rgba(232,196,104,.55), 0 0 10px rgba(232,196,104,.6); }
   #endturn:disabled { background: #5a5044 !important; color: #f2ede2 !important; opacity: .6; }
@@ -228,15 +250,10 @@
     background: rgba(10,8,6,.82); text-align: center;
   }
   #winbanner .box { display: flex; flex-direction: column; align-items: center; gap: 14px; max-height: 88vh; overflow-y: auto; }
-  #rerollBtn, #replaySpeedBtn, #replayPauseBtn, #replayResumeHereBtn {
+  #rerollBtn, #replayPauseBtn, #replayResumeHereBtn {
     position: absolute; right: 14px; /* bottom is set in JS, stacked just above #endturn */
     pointer-events: auto; background: linear-gradient(135deg, #fff3c4, #e8c468, #a97e2a); color: #2b1d10;
     padding: 8px 16px; font-size: 13px; white-space: nowrap; font-weight: 700;
-  }
-  /* full-width bar, its own row above the whole button stack (see resize()) */
-  #replayScrubber {
-    position: absolute; left: 14px; right: 14px; /* bottom set in JS */
-    pointer-events: auto; margin: 0; height: 22px; accent-color: #c6a15b;
   }
   /* was a flat 24px — fine for a short line, but the longer victory/loss
      lines wrap to 6-7 lines at that size and push the chart + buttons far
@@ -360,12 +377,10 @@
      once every other button went gold — the button already requires an
      actual tap to trigger, no confirmation dialog needed either way). */
   #surrenderBtn {
-    position: absolute; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); left: 50%;
-    transform: translateX(-50%);
     pointer-events: auto; background: linear-gradient(135deg, #fff3c4, #e8c468, #a97e2a);
     /* same floor as #endturn/#gueuxBadge — the three bottom buttons line up */
     width: 44px; height: 44px; min-height: 44px; padding: 6px; box-sizing: border-box;
-    display: flex; align-items: center; justify-content: center;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
   }
   /* pixel-art skull, same asset/style as the L1 Maths "creature-svgs" set —
      shape-rendering:crispEdges keeps the low-res grid sharp instead of
@@ -462,11 +477,20 @@
     <button id="versionBtn" aria-label="Notes de version"></button>
   </div>
   <button id="settingsBtn" aria-label="Réglages"><img id="settingsBtnImg" alt=""></button>
-  <div id="gueuxBadge"></div>
-  <!-- plain icon, no confirmation — surrenders immediately (see
-       surrenderGame()); landing on the loss screen already offers
-       "recommencer" right there, so a confirm dialog would be redundant -->
-  <button id="surrenderBtn" aria-label="Abandonner"><svg viewBox="0 0 7 8" shape-rendering="crispEdges" fill="currentColor" aria-hidden="true"><rect x="1" y="0" width="1" height="1"/><rect x="2" y="0" width="1" height="1"/><rect x="3" y="0" width="1" height="1"/><rect x="4" y="0" width="1" height="1"/><rect x="5" y="0" width="1" height="1"/><rect x="0" y="1" width="1" height="1"/><rect x="1" y="1" width="1" height="1"/><rect x="2" y="1" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="1"/><rect x="6" y="1" width="1" height="1"/><rect x="0" y="2" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="3" y="2" width="1" height="1"/><rect x="4" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="6" y="2" width="1" height="1"/><rect x="0" y="3" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="2" y="3" width="1" height="1"/><rect x="3" y="3" width="1" height="1"/><rect x="4" y="3" width="1" height="1"/><rect x="5" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="0" y="4" width="1" height="1"/><rect x="3" y="4" width="1" height="1"/><rect x="6" y="4" width="1" height="1"/><rect x="0" y="5" width="1" height="1"/><rect x="3" y="5" width="1" height="1"/><rect x="6" y="5" width="1" height="1"/><rect x="1" y="6" width="1" height="1"/><rect x="2" y="6" width="1" height="1"/><rect x="4" y="6" width="1" height="1"/><rect x="5" y="6" width="1" height="1"/><rect x="2" y="7" width="1" height="1"/><rect x="3" y="7" width="1" height="1"/><rect x="4" y="7" width="1" height="1"/></svg></button>
+  <!-- one flex row for the three bottom buttons — flexbox's own
+       space-between guarantees they never overlap regardless of how wide
+       any one of them gets (endturn's text/hint especially varies a lot),
+       instead of computing pixel offsets by hand in resize() and having
+       that math fall short on a real device's actual measurements. -->
+  <div id="bottomHudRow">
+    <div id="gueuxBadge"></div>
+    <!-- plain icon, no confirmation — surrenders immediately (see
+         surrenderGame()); landing on the loss screen already offers
+         "recommencer" right there, so a confirm dialog would be redundant.
+         Always visible, even before a camp is picked — see surrenderGame(). -->
+    <button id="surrenderBtn" aria-label="Abandonner"><svg viewBox="0 0 7 8" shape-rendering="crispEdges" fill="currentColor" aria-hidden="true"><rect x="1" y="0" width="1" height="1"/><rect x="2" y="0" width="1" height="1"/><rect x="3" y="0" width="1" height="1"/><rect x="4" y="0" width="1" height="1"/><rect x="5" y="0" width="1" height="1"/><rect x="0" y="1" width="1" height="1"/><rect x="1" y="1" width="1" height="1"/><rect x="2" y="1" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="1"/><rect x="6" y="1" width="1" height="1"/><rect x="0" y="2" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="3" y="2" width="1" height="1"/><rect x="4" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="6" y="2" width="1" height="1"/><rect x="0" y="3" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="2" y="3" width="1" height="1"/><rect x="3" y="3" width="1" height="1"/><rect x="4" y="3" width="1" height="1"/><rect x="5" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="0" y="4" width="1" height="1"/><rect x="3" y="4" width="1" height="1"/><rect x="6" y="4" width="1" height="1"/><rect x="0" y="5" width="1" height="1"/><rect x="3" y="5" width="1" height="1"/><rect x="6" y="5" width="1" height="1"/><rect x="1" y="6" width="1" height="1"/><rect x="2" y="6" width="1" height="1"/><rect x="4" y="6" width="1" height="1"/><rect x="5" y="6" width="1" height="1"/><rect x="2" y="7" width="1" height="1"/><rect x="3" y="7" width="1" height="1"/><rect x="4" y="7" width="1" height="1"/></svg></button>
+    <button id="endturn">Fin de bataille</button>
+  </div>
   <div id="onboardingHint"></div>
   <div id="forceAdaptToast"></div>
   <!-- shown while the win banner is swiped away to reveal the final board
@@ -479,17 +503,15 @@
        (see updateEnemySurrenderOffer()) — accepting ends the match right
        now as a human win, without actually having to grind them down -->
   <button id="enemySurrenderBtn" style="display:none;"></button>
-  <button id="endturn">Fin de bataille</button>
   <button id="rerollBtn">🔀 Changer la carte</button>
-  <button id="replaySpeedBtn" style="display:none;">⏩ 2x</button>
-  <button id="replayPauseBtn" style="display:none;">⏸ Pause</button>
-  <!-- only shown while replayPaused — forks a new live, playable match from
-       exactly this point instead of just watching (see forkFromReplay()) -->
+  <!-- the one replay control now: starts on screen already paused (frozen)
+     — a tap turns it into "⏸ Pause" and starts playback; pausing again
+     flips it back. No scrubber, no speed toggle — simpler per request. -->
+  <button id="replayPauseBtn" style="display:none;">▶ Lire</button>
+  <!-- shown whenever replayPaused (including the initial frozen state) —
+       forks a new live, playable match from exactly this point instead of
+       just watching (see forkFromReplay()) -->
   <button id="replayResumeHereBtn" style="display:none;">▶ Reprendre depuis ici</button>
-  <!-- full-width scrubber, its own row above the button stack — dragging it
-       (released, not live-while-dragging — see its "change" handler) jumps
-       the replay to that exact point by re-simulating from the same seed -->
-  <input type="range" id="replayScrubber" min="0" max="0" value="0" style="display:none;">
   <div id="winbanner">
     <div class="box" id="winbannerBox">
       <h1 id="wintext"></h1>
@@ -506,6 +528,11 @@
         <button id="randomGameBtn">🔀 Nouvelle partie aléatoire</button>
         <button id="shareReplay">📤 Partager ma victoire</button>
       </div>
+      <!-- only shown for surrenderBeforePick() — tapping the skull before
+           ever picking a camp. There's no real match to report on (no
+           chart, no replay, no share), just the joke line + gueux penalty
+           and a way back into the game. -->
+      <button id="preGameSurrenderClose" style="display:none;">Reprendre</button>
     </div>
   </div>
   <div id="shareIntro">
@@ -635,7 +662,6 @@
           <button data-opponents="1" class="levelBtn">1</button>
           <button data-opponents="2" class="levelBtn">2</button>
           <button data-opponents="3" class="levelBtn">3</button>
-          <button data-opponents="4" class="levelBtn">4</button>
         </div>
       </div>
       <label><input type="checkbox" id="soundToggle"> Sons</label>
@@ -721,18 +747,18 @@ const CANVAS_BG_COLOR = "#2b3d52";
 let MAP_PIXEL_RADIUS = 230; // was 210 — grown a bit alongside HEX_SIZE so
                              // territories keep a similar hex count/shape
 let TERRITORY_COUNT = 26;
-const ROYAUME_COUNT = 6; // joueur + 4 IA (au maximum — voir opponentCount) + 1 neutre
+const ROYAUME_COUNT = 5; // joueur + 3 IA (au maximum — voir opponentCount) + 1 neutre
 
-// "Nombre d'adversaires" (1-4), independent of map size — previously map size
+// "Nombre d'adversaires" (1-3), independent of map size — previously map size
 // alone fixed the opponent count (small = 1, medium/large = 3); now any
-// combination is possible (a small map with 4 opponents, a big one with a
+// combination is possible (a small map with 3 opponents, a big one with a
 // single rival, etc.), so applyMapSize() below scales TERRITORY_COUNT/
 // MAP_PIXEL_RADIUS to the number of factions actually sharing the map instead
 // of a fixed value baked into the size itself.
-let opponentCount = 3; // matches the old medium/large default (3 AI opponents)
+let opponentCount = 3; // matches the old medium/large default (3 AI opponents) — also the current max
 try {
   const savedOpponentCount = parseInt(localStorage.getItem("kw_opponentCount"), 10);
-  if (savedOpponentCount >= 1 && savedOpponentCount <= 4) opponentCount = savedOpponentCount;
+  if (savedOpponentCount >= 1 && savedOpponentCount <= 3) opponentCount = savedOpponentCount;
 } catch (e) { /* ignore */ }
 
 // radius here is the ungenerated island's nominal size, in the same virtual
@@ -813,18 +839,17 @@ const SHOW_UNIT_SPRITES = false;
 // neutral (clearly reads as "nobody's"), and Châteauvieux gets its own
 // distinct color (forest green — the palette's missing 4th heraldic
 // tincture, clearly a real royaume rather than an ambiguous grey).
-// 5th real royaume (id 4) added alongside "Nombre d'adversaires" (see
-// opponentCount below) — up to 4 opponents needs 5 non-neutral seats, not
-// just the original 4. Neutral shifted from id 4 to id 5 to make room;
-// everything else in the file addresses it via ROYAUME_COUNT - 1, not a
-// literal 4, so this didn't need touching anywhere else.
+// A 5th real royaume (Roncevaux) briefly existed here to support up to 4
+// "Nombre d'adversaires" — removed per request (back to the original 4
+// family branches only), so opponentCount now maxes out at 3. Neutral is
+// id 4 again. Everything else in the file addresses the real-royaume count
+// via ROYAUME_COUNT - 1, not a literal 4, so nothing else needed touching.
 const ROYAUMES = [
   { id: 0, name: "Millon de Châteauvieux", color: "#254f1f", accent: "#f7f0f5", chief: "#931f1d" },
   { id: 1, name: "Millon de Villiers",     color: "#931f1d", accent: "#c6a15b", chief: "#0a1128" },
   { id: 2, name: "Millon de Montherlant",  color: "#d4a017", accent: "#f7f0f5", chief: "#931f1d" },
   { id: 3, name: "Millon de Beaumanoir",   color: "#001f54", accent: "#f7f0f5", chief: "#c6a15b" },
-  { id: 4, name: "Millon de Roncevaux",    color: "#eda342", accent: "#f7f0f5", chief: "#001f54" },
-  { id: 5, name: "Barbares païens pacifistes", color: "#f7f0f5", accent: "#c9c2b4", chief: "#c9c2b4", neutral: true },
+  { id: 4, name: "Barbares païens pacifistes", color: "#f7f0f5", accent: "#c9c2b4", chief: "#c9c2b4", neutral: true },
 ];
 
 // A fixed personality per royaume (indexed by id, not by "whichever 3 are AI
@@ -862,12 +887,6 @@ const AI_PERSONALITIES = [
     lore: "comptent leurs coups et achèvent sans pitié quiconque est déjà à terre — un royaume affaibli attire leurs armées comme le sang attire les loups." }, // Montherlant — opportunistic, hunts weak royaumes down
   { epithet: "les Stratèges", aggressionDelta: +0.2, mistakeDelta: -0.05, exposureWeight: 1.6, finishOffBonus: 2.0,
     lore: "jouent la longue partie, ne laissent jamais un flanc découvert et ne se pressent jamais — patients, mais rarement pris en défaut." }, // Beaumanoir — calculating, plays the long game
-  // 5th personality (Roncevaux) — a middle ground between Villiers' pure
-  // recklessness and Montherlant's calculated opportunism: bold enough to
-  // leave a flank open chasing a kill (exposureWeight between the two), but
-  // not quite as merciless-on-sight as Villiers.
-  { epithet: "les Loups", aggressionDelta: -1.2, mistakeDelta: -0.15, exposureWeight: 0.5, finishOffBonus: 3.0,
-    lore: "chassent en meute et ne laissent jamais un rival affaibli s'échapper, mais avancent parfois trop loin, trop vite, sans se soucier de leurs arrières." }, // Roncevaux — bold pack hunter
 ];
 
 // Difficulty: still a continuous 0-1 value under the hood (driving AI traits
@@ -974,38 +993,31 @@ function resize() {
   ) + 6;
   const endturnEl = document.getElementById("endturn");
   const rerollEl = document.getElementById("rerollBtn");
-  const speedEl = document.getElementById("replaySpeedBtn");
   const pauseEl = document.getElementById("replayPauseBtn");
   const resumeHereEl = document.getElementById("replayResumeHereBtn");
-  const scrubberEl = document.getElementById("replayScrubber");
   const rerollVisible = rerollEl.style.display !== "none";
-  const speedVisible = speedEl.style.display !== "none";
   const pauseVisible = pauseEl.style.display !== "none";
   const resumeHereVisible = resumeHereEl.style.display !== "none";
-  const scrubberVisible = scrubberEl.style.display !== "none";
   // Once "Choisissez un camp" has been retired (see CAMP_PROMPT_MAX),
   // endturn is hidden while awaiting a pick and rerollBtn ("Changer la
   // carte") takes over its exact bottom-right slot instead of stacking
   // above an empty reserved row — there's nothing else sharing that stack
-  // in this state (replaySpeedBtn/pause/resume-here are never shown outside
-  // a replay, and a replay never starts while awaitingFactionPick).
+  // in this state (pause/resume-here are never shown outside a replay, and
+  // a replay never starts while awaitingFactionPick).
   const rerollTakesEndturnSlot = !replaying && awaitingFactionPick && campPromptCount >= CAMP_PROMPT_MAX;
-  // rerollBtn stacks directly above endturn, replaySpeedBtn above that,
-  // replayPauseBtn above that, and replayResumeHereBtn (only while actually
-  // paused) above that in turn — not separate full-width bars, stacked
-  // bottom-right buttons only, same as the original two-button case.
+  // rerollBtn stacks directly above endturn, replayPauseBtn above that, and
+  // replayResumeHereBtn (shown whenever actually paused, including the
+  // replay's initial frozen state) above that in turn — not separate
+  // full-width bars, stacked bottom-right buttons only.
   const rightStackHeight = rerollTakesEndturnSlot
     ? (rerollVisible ? rerollEl.offsetHeight : 0)
     : endturnEl.offsetHeight
       + (rerollVisible ? rerollEl.offsetHeight + 8 : 0)
-      + (speedVisible ? speedEl.offsetHeight + 8 : 0)
       + (pauseVisible ? pauseEl.offsetHeight + 8 : 0)
       + (resumeHereVisible ? resumeHereEl.offsetHeight + 8 : 0);
-  // the scrubber is its own full-width row above that whole stack
-  const scrubberHeight = scrubberVisible ? scrubberEl.offsetHeight + 8 : 0;
   const bottomInset = Math.max(
     document.getElementById("settingsBtn").offsetHeight,
-    rightStackHeight + scrubberHeight
+    rightStackHeight
   ) + 20;
   if (rerollVisible) {
     if (rerollTakesEndturnSlot) {
@@ -1014,56 +1026,22 @@ function resize() {
       const endturnRect = endturnEl.getBoundingClientRect();
       rerollEl.style.bottom = (h - endturnRect.top + 8) + "px";
       let topOfStack = rerollEl;
-      if (speedVisible) {
-        const rerollRect = rerollEl.getBoundingClientRect();
-        speedEl.style.bottom = (h - rerollRect.top + 8) + "px";
-        topOfStack = speedEl;
-      }
       if (pauseVisible) {
-        const belowRect = topOfStack.getBoundingClientRect();
-        pauseEl.style.bottom = (h - belowRect.top + 8) + "px";
+        const rerollRect = rerollEl.getBoundingClientRect();
+        pauseEl.style.bottom = (h - rerollRect.top + 8) + "px";
         topOfStack = pauseEl;
       }
       if (resumeHereVisible) {
         const belowRect = topOfStack.getBoundingClientRect();
         resumeHereEl.style.bottom = (h - belowRect.top + 8) + "px";
-        topOfStack = resumeHereEl;
-      }
-      if (scrubberVisible) {
-        const belowRect = topOfStack.getBoundingClientRect();
-        scrubberEl.style.bottom = (h - belowRect.top + 10) + "px";
       }
     }
   }
-  // surrenderBtn sits between gueuxBadge (bottom-left) and whichever button
-  // currently occupies the bottom-right slot (endturn, or rerollBtn when it
-  // takes endturn's own slot — see rerollTakesEndturnSlot above) — a plain
-  // CSS 50%-center (its old, only positioning) could overlap endturn's own
-  // often-wide "Fin de bataille" button (text + hint line) on narrower
-  // phones, since that button's real width was never accounted for.
-  const surrenderEl = document.getElementById("surrenderBtn");
-  if (surrenderEl.style.display !== "none") {
-    const gueuxEl = document.getElementById("gueuxBadge");
-    const gueuxVisible = gueuxEl.style.display !== "none";
-    const rightOccupant = (rerollVisible && rerollTakesEndturnSlot) ? rerollEl : endturnEl;
-    const rightEdge = rightOccupant.getBoundingClientRect().left;
-    const leftEdge = gueuxVisible ? gueuxEl.getBoundingClientRect().right : 14;
-    const halfW = surrenderEl.offsetWidth / 2 || 22;
-    const margin = 6; // breathing room on each side, not just a bare touch
-    // clamp is the real guarantee, not just this "enough room" heuristic:
-    // real-device text metrics (font rendering, safe-area insets) made
-    // endturn's actual measured width vary enough from what Playwright's
-    // testing environment showed that the old plain-midpoint math still
-    // landed the button half-hidden behind endturn on a real phone even
-    // though the "gap too small, fall back to screen-center" branch never
-    // triggered. Clamping the final position — whichever branch chose it —
-    // to never cross halfW+margin past either neighbor's edge is what
-    // actually prevents the overlap, regardless of what those measurements
-    // turn out to be.
-    let mid = (rightEdge - leftEdge < 2 * (halfW + margin)) ? w / 2 : (leftEdge + rightEdge) / 2;
-    mid = Math.max(leftEdge + halfW + margin, Math.min(rightEdge - halfW - margin, mid));
-    surrenderEl.style.left = mid + "px";
-  }
+  // surrenderBtn's horizontal position is no longer computed here at all —
+  // it's a plain flex child of #bottomHudRow now (see its CSS), which
+  // guarantees it never overlaps gueuxBadge/endturn regardless of how wide
+  // either one gets, instead of three increasingly-defensive attempts at
+  // computing the same guarantee by hand from measured pixel rects.
   const availH = h - topInset - bottomInset;
   centerX = w / 2; centerY = topInset + availH / 2;
   // Fit to the map's *actual* generated extents (not a nominal guess) so it
@@ -1075,8 +1053,30 @@ function resize() {
   // (no extra phone-only boost here anymore — it was overflowing the real
   // viewport on Safari/PWA. This tight fit to the actual generated bounds is
   // the whole size increase now; see HEX_SIZE/Y_STRETCH above for the rest.)
+  updateMapNumberRotation();
   render();
 }
+// Landscape mode, deliberately minimal per request: nothing about the
+// layout changes — no rotated HUD, no repositioned buttons, the map keeps
+// filling the same space it always does. The ONLY thing that responds to
+// the phone being turned sideways is the force number drawn on each
+// hex (see drawForceIcon()), which rotates in place so it stays readable
+// instead of running sideways along with the physical rotation.
+let mapNumberRotationRad = 0;
+function updateMapNumberRotation() {
+  const isLandscape = window.innerWidth > window.innerHeight;
+  if (!isLandscape) { mapNumberRotationRad = 0; return; }
+  // screen.orientation.type is the one reliable, standardized way to tell
+  // which way the phone was turned (unlike the old numeric window.orientation,
+  // whose sign convention differed across browsers) — "primary" and
+  // "secondary" are the two landscape rotations, opposite of each other.
+  // Exactly which one maps to +90° vs -90° here is a best guess without a
+  // real device to check against both ways on — if numbers come out upside
+  // down on one side, swap the two signs below.
+  const type = (window.screen && screen.orientation && screen.orientation.type) || "";
+  mapNumberRotationRad = type === "landscape-secondary" ? -Math.PI / 2 : Math.PI / 2;
+}
+if (window.screen && screen.orientation) screen.orientation.addEventListener("change", () => { updateMapNumberRotation(); render(); });
 window.addEventListener("resize", resize);
 // iOS Safari's address bar collapses/expands after load, changing the
 // visible viewport without a plain "resize" event — this keeps the map
@@ -1829,9 +1829,11 @@ function logMove(entry) {
 }
 let replaying = false;
 let replaySpeed = 1; // AI turn-pacing divisor; set >1 during replay playback
-const REPLAY_BASE_SPEED = 0.25; // playReplay()'s starting pace; replaySpeedBtn toggles between this and 2x it
-let replayFastActive = false; // whether replaySpeedBtn's 2x boost is currently on
-let replayPaused = false; // whether replayPauseBtn currently has playback held
+const REPLAY_BASE_SPEED = 0.25; // playReplay()'s one fixed pace — no speed toggle any more, per request (kept simple: one button, no scrubber, no 2x)
+// Starts true — the replay opens paused/frozen, an explicit tap on
+// replayPauseBtn ("▶ Lire") is what actually starts it playing, rather
+// than auto-playing the instant the screen appears.
+let replayPaused = false;
 let replayIntroHighlightUntil = 0; // performance.now() timestamp — while current, render() flashes the human's starting territories gold
 // set to playReplay()'s local finish() for the whole duration of a replay,
 // null otherwise — lets rerollBtn's click handler stop a replay the *right*
@@ -1843,7 +1845,6 @@ let activeReplayFinish = null;
 // reach into playReplay()'s local closure from a module-level click/change
 // handler: null outside a replay, set to the matching local function for
 // its whole duration.
-let activeReplaySeek = null; // replayScrubber's change handler
 let activeReplayTogglePause = null; // replayPauseBtn's click handler
 let activeReplayFork = null; // replayResumeHereBtn's click handler
 // The one true record of the last match that actually finished (seed,
@@ -2098,12 +2099,18 @@ const REINFORCE_ROOT_BASE_HZ = 523.25; // C5 — always the human's own root
 function reinforceRootHzFor(royId) {
   const realRoyaumeCount = ROYAUME_COUNT - 1; // exclude the neutral slot from the ladder
   const rank = (royId - humanRoyId + realRoyaumeCount) % realRoyaumeCount; // 0 = the human's own seat
-  // negative exponent: every other royaume sits a semitone LOWER than the
-  // human's own root per step in rank (was higher) — a rival's reinforcement
-  // should read as subordinate to ours, not above it
-  return REINFORCE_ROOT_BASE_HZ * Math.pow(2, -rank / 12);
+  // flat one octave lower for EVERY other royaume, not a semitone-per-rank
+  // ladder — "une octave plus bas pour les renforts des autres joueurs",
+  // same register for all of them, just subordinate to our own
+  return rank === 0 ? REINFORCE_ROOT_BASE_HZ : REINFORCE_ROOT_BASE_HZ / 2;
 }
-const REINFORCE_CHORD_RATIOS = [1, Math.pow(2, 4 / 12), Math.pow(2, 7 / 12), 2]; // root, major third, fifth, octave
+// root, major third, fifth — deliberately NOT including the octave (2):
+// that's what the lap-doubling in processReinforceSoundQueue() already
+// produces as the *next* lap's root, so including it here too made note 4
+// (this cycle's own "2") and note 5 (next lap's root, 1*2^1 = 2) land on the
+// exact same pitch — an audible repeat right at the seam instead of a
+// continuously rising arpeggio.
+const REINFORCE_CHORD_RATIOS = [1, Math.pow(2, 4 / 12), Math.pow(2, 7 / 12)];
 // Queued, not fire-and-forget — still useful now that only the human's own
 // reinforcement plays a chime at all (see endTurn()): a "continue" chain or
 // back-to-back human turns could otherwise still overlap two calls. One
@@ -2152,10 +2159,11 @@ function processReinforceSoundQueue() {
   const n = count;
   const root = reinforceRootHzFor(royId);
   for (let i = 0; i < n; i++) {
-    // Climb the chord (root/third/fifth/octave) and keep climbing an extra
-    // octave every 4 notes instead of wrapping back down to the root — a big
-    // reinforcement should read as one continuously rising arpeggio, not the
-    // same 4-note loop repeating at the same pitch.
+    // Climb the chord (root/third/fifth) and keep climbing an extra octave
+    // every 3 notes instead of wrapping back down to the root — a big
+    // reinforcement should read as one continuously rising arpeggio, with no
+    // two notes ever landing on the same pitch (not even at the seam
+    // between one lap and the next — see REINFORCE_CHORD_RATIOS' own note).
     const lap = Math.floor(i / REINFORCE_CHORD_RATIOS.length);
     const ratio = REINFORCE_CHORD_RATIOS[i % REINFORCE_CHORD_RATIOS.length] * Math.pow(2, lap);
     scheduleSound(() => playTone(root * ratio, 0.16, { type: "sine", cutoff: 2400, volume: 0.03 }), i * 110); // volume halved per request
@@ -2214,12 +2222,13 @@ function sfxShare() { playTone(250, 0.14, { type: "triangle", cutoff: 1100, volu
 function vibrateOwnTurn() {
   try { if (navigator.vibrate) navigator.vibrate(200); } catch (e) { /* unsupported */ }
 }
-// deliberately unlike every other sound in the game — a bright, bell-like
-// two-note "ding" (square wave, high register, nothing else in the game
-// uses that timbre) so it's unmistakably "it's your turn again" even
-// half-heard from another room, next to vibrateOwnTurn()'s buzz
+// A gentle two-note "ding" — the square-wave/high-register version (880Hz,
+// 1108Hz) read as harsh and piercing in practice, not just "distinct".
+// Sine, a full register lower, still ascending and still unlike anything
+// else in the game (nothing else uses this exact pair), just soft enough to
+// actually want to hear repeatedly all match, next to vibrateOwnTurn()'s buzz.
 function sfxYourTurn() {
-  [880, 1108].forEach((f, i) => setTimeout(() => playTone(f, 0.22, { type: "square", cutoff: 3200, volume: 0.05 }), i * 130));
+  [392, 523.25].forEach((f, i) => setTimeout(() => playTone(f, 0.3, { type: "sine", cutoff: 2200, volume: 0.06 }), i * 150));
 }
 
 // No more toggle: the biggest force always wins (no dice), *except* when
@@ -2342,16 +2351,16 @@ function endTurn() {
   selected = -1;
   triggerPulse(reinforcedCounts);
   if (royId === humanRoyId) sfxEndTurn();
-  // the chime is only for the human's own reinforcements now — every royaume
-  // playing its own note back-to-back (even queued/staggered) still read as
-  // too much noise during the AIs' turns; the visual pulse (triggerPulse()
-  // above) still fires for everyone, just silently for the AI royaumes.
-  // One note per VILLAGE reinforced, not per raw point — triggerPulse()
+  // Every royaume's reinforcement plays its own chime now — queued (see
+  // processReinforceSoundQueue()) so back-to-back turns don't overlap, and
+  // pitched an octave lower than our own for every rival (reinforceRootHzFor())
+  // so they read as present but subordinate, not competing with our own
+  // note. One note per VILLAGE reinforced, not per raw point — triggerPulse()
   // above already draws exactly one ring per distinct territory in
   // reinforcedCounts (each labeled with its own point total), so the chime
   // needs to match that 1:1, not the total point count: reinforcing 2
   // villages with 2 points each should sound like two notes, not four.
-  if (royId === humanRoyId) sfxReinforce(Object.keys(reinforcedCounts).length, royId);
+  sfxReinforce(Object.keys(reinforcedCounts).length, royId);
   if (replaying || forceInstantSkip) {
     // playReplay()'s own pacing (step()'s 30ms poll) relies on currentPlayer
     // having already moved on by the time it runs again — never delay this
@@ -2621,7 +2630,7 @@ function showWin(royId) {
     // the player's own standing (peasants, honor) works for any winner
     text = `Vous jetez l'éponge, seigneur ! Pas de bataille perdue, pas de terre prise de force — juste un aveu de faiblesse pur et simple. ` +
       `${ROYAUMES[royId].name} récupère votre trône sans même avoir eu à lever le petit doigt — même les manants ne vous craignent plus. ` +
-      "Vos petits-enfants en pleureront.";
+      "Vos petits-enfants en pleureront encore pendant 100 ans.";
   } else if (humanLost) {
     // same rule as above: no pers.epithet here either, only ROYAUMES[royId].name
     // a hint of hope closes every loss, unchanged — only the humiliating
@@ -2952,23 +2961,22 @@ function playReplay(seed, difficulty, replayHumanRoyId, log, onFinish, replayMap
   // was 6, then 3, then 1 (matching live pace exactly), then 0.5 — still read
   // as too fast, since passively watching reads faster than actively playing
   // the same cadence does. Halved again: REPLAY_BASE_SPEED (0.25) quadruples
-  // every AI-move delay in scheduleTurn() (delay / replaySpeed). replaySpeedBtn
-  // lets an impatient viewer double that pace back up on demand.
+  // every AI-move delay in scheduleTurn() (delay / replaySpeed). Fixed now —
+  // no speed toggle.
   replaySpeed = REPLAY_BASE_SPEED;
-  replayFastActive = false;
-  replayPaused = false;
-  const speedBtnEl = document.getElementById("replaySpeedBtn");
-  speedBtnEl.style.display = "";
-  speedBtnEl.textContent = "⏩ 2x";
+  // Opens paused/frozen — a tap on replayPauseBtn ("▶ Lire") is what
+  // actually starts playback, instead of auto-playing the instant the
+  // screen appears (repeatedly reported as confusing: "on arrive sur la
+  // page du replay c'est figé, il faut que j'appuie sur Play").
+  replayPaused = true;
   const pauseBtnEl = document.getElementById("replayPauseBtn");
   pauseBtnEl.style.display = "";
-  pauseBtnEl.textContent = "⏸ Pause";
+  pauseBtnEl.textContent = "▶ Lire";
+  // shown from the start too — paused (including this initial frozen
+  // state) always offers "reprendre depuis ici" (forkFromReplay()), not
+  // just after a manual pause partway through
   const resumeHereBtnEl = document.getElementById("replayResumeHereBtn");
-  resumeHereBtnEl.style.display = "none"; // only shown once actually paused
-  const scrubberEl = document.getElementById("replayScrubber");
-  scrubberEl.style.display = "";
-  scrubberEl.max = String(log.length);
-  scrubberEl.value = "0";
+  resumeHereBtnEl.style.display = "";
   humanRoyId = replayHumanRoyId;
   applyDifficulty(difficulty);
   // opponentCount must be set before applyMapSize() below — its formula reads
@@ -2999,16 +3007,9 @@ function playReplay(seed, difficulty, replayHumanRoyId, log, onFinish, replayMap
   setTimeout(() => { replayIntroHighlightUntil = 0; render(); }, REPLAY_INTRO_MS);
 
   let i = 0;
-  // non-null while fast-seeking toward a scrubbed target index — see
-  // seekReplayTo(). Reuses forceInstantSkip (0ms between AI actions, see
-  // scheduleTurn()) rather than a separate fast-path, so seeking is just
-  // "replay the same deterministic log again, faster" — no new game-logic
-  // branch, and guaranteed to land on the exact same state step() itself
-  // would have reached by then.
-  let seekTarget = null;
   function step() {
     if (!replaying) return; // user could in principle navigate away; bail cleanly
-    if (seekTarget === null && replayPaused) { setTimeout(step, 120); return; }
+    if (replayPaused) { setTimeout(step, 120); return; }
     if (gameOver) {
       // the original match may have kept going past this exact point via
       // "Continuer le combat" — if the next logged action says so, replay
@@ -3016,55 +3017,25 @@ function playReplay(seed, difficulty, replayHumanRoyId, log, onFinish, replayMap
       if (i < log.length && log[i].continue) {
         i++;
         gameOver = false; truceEnded = false; truceWinnerId = -1; allCappedStreak = 0;
-        setTimeout(step, seekTarget !== null ? 0 : 30);
+        setTimeout(step, 30);
         return;
       }
       finish();
       return;
     }
-    if (currentPlayer !== humanRoyId || aiRunning) { setTimeout(step, seekTarget !== null ? 0 : 30); return; }
-    if (seekTarget !== null && i >= seekTarget) {
-      // arrived — freeze here exactly like a manual pause, until either
-      // resumed (replayPaused already true from seekReplayTo()) or seeked
-      // again
-      seekTarget = null;
-      forceInstantSkip = false;
-      render();
-      return;
-    }
+    if (currentPlayer !== humanRoyId || aiRunning) { setTimeout(step, 30); return; }
     if (i >= log.length) { finish(); return; }
     const action = log[i++];
-    scrubberEl.value = String(i);
     if (action.end) endTurn();
     else if (action.gueux !== undefined) reinforceTerritory(action.gueux); // no gueuxCount touched — replay only reproduces the force change, never spends the viewer's own stock
     else if (action.continue) { /* stray continue entry with no matching pause active — nothing to undo, just skip it rather than misreading it as attack(undefined, undefined) */ }
     else attack(action.a, action.b);
-    setTimeout(step, seekTarget !== null ? 0 : 30);
-  }
-  // Jumps to an arbitrary point in the log by re-simulating the whole match
-  // from scratch (same seed — fully deterministic) with 0ms between actions,
-  // then freezing there, paused, once reached. Used by the scrubber; also
-  // the only way to seek *backward*, since forward-only stepping can't undo
-  // territory ownership on its own.
-  function seekReplayTo(targetIndex) {
-    if (!replaying) return;
-    humanRoyId = replayHumanRoyId; // startGame() below reads this for currentPlayer
-    startGame(seed);
-    balanceStartingForces();
-    i = 0;
-    replayPaused = true;
-    seekTarget = Math.max(0, Math.min(targetIndex, log.length));
-    forceInstantSkip = true;
-    scrubberEl.value = String(seekTarget);
-    resumeHereBtnEl.style.display = "";
-    render();
-    step();
+    setTimeout(step, 30);
   }
   function togglePause() {
-    if (!replaying || seekTarget !== null) return; // mid-seek — ignore, it'll land paused on its own
+    if (!replaying) return;
     replayPaused = !replayPaused;
-    pauseBtnEl.textContent = replayPaused ? "▶ Reprendre" : "⏸ Pause";
-    resumeHereBtnEl.style.display = replayPaused ? "" : "none";
+    pauseBtnEl.textContent = replayPaused ? "▶ Lire" : "⏸ Pause";
     if (!replayPaused) step();
   }
   // Forks a brand new, actually playable match starting from exactly this
@@ -3081,11 +3052,11 @@ function playReplay(seed, difficulty, replayHumanRoyId, log, onFinish, replayMap
   // so replaying the original later always starts from its own true
   // beginning — only a *future* "Revoir la partie" on THIS forked match
   // (once it's played out to its own new ending) would ever show this
-  // continuation instead.
+  // continuation instead. Available from the moment the replay opens (it
+  // starts paused), not just after a manual pause partway through.
   function forkFromReplay() {
-    if (!replaying || seekTarget !== null) return;
+    if (!replaying) return;
     activeReplayFinish = null;
-    activeReplaySeek = null;
     activeReplayTogglePause = null;
     activeReplayFork = null;
     replaying = false;
@@ -3096,10 +3067,8 @@ function playReplay(seed, difficulty, replayHumanRoyId, log, onFinish, replayMap
     gameStartMapSize = mapSize;
     gameStartOpponentCount = opponentCount;
     document.getElementById("rerollBtn").style.display = "none";
-    speedBtnEl.style.display = "none";
     pauseBtnEl.style.display = "none";
     resumeHereBtnEl.style.display = "none";
-    scrubberEl.style.display = "none";
     document.getElementById("settingsBtn").style.display = "";
     const endturnEl = document.getElementById("endturn");
     endturnEl.style.visibility = endturnVisible() ? "" : "hidden";
@@ -3110,12 +3079,10 @@ function playReplay(seed, difficulty, replayHumanRoyId, log, onFinish, replayMap
     resize();
   }
   activeReplayFinish = finish; // rerollBtn's click handler calls this instead of starting an unrelated new game
-  activeReplaySeek = seekReplayTo; // replayScrubber's change handler
   activeReplayTogglePause = togglePause; // replayPauseBtn's click handler
   activeReplayFork = forkFromReplay; // replayResumeHereBtn's click handler
   function finish() {
     activeReplayFinish = null;
-    activeReplaySeek = null;
     activeReplayTogglePause = null;
     activeReplayFork = null;
     replaying = false;
@@ -3140,11 +3107,8 @@ function playReplay(seed, difficulty, replayHumanRoyId, log, onFinish, replayMap
     const rerollBtnEl = document.getElementById("rerollBtn");
     rerollBtnEl.style.display = awaitingFactionPick ? "" : "none";
     rerollBtnEl.textContent = "🔀 Changer la carte";
-    speedBtnEl.style.display = "none";
     pauseBtnEl.style.display = "none";
     resumeHereBtnEl.style.display = "none";
-    scrubberEl.style.display = "none";
-    replayFastActive = false;
     onFinish();
   }
   // held back until the intro spotlight has had its full still moment on
@@ -3405,7 +3369,7 @@ function parseMapCode(code) {
   const tryParse = (diffChar, sizeChar, seedPart, opponentChar) => {
     const diffIdx = parseInt(diffChar, 10);
     const opponentN = opponentChar === undefined ? opponentCount : parseInt(opponentChar, 10);
-    if (!(diffIdx >= 0 && diffIdx <= 3) || !MAP_SIZE_BY_LETTER[sizeChar] || !(opponentN >= 1 && opponentN <= 4)) return null;
+    if (!(diffIdx >= 0 && diffIdx <= 3) || !MAP_SIZE_BY_LETTER[sizeChar] || !(opponentN >= 1 && opponentN <= 3)) return null;
     const seed = parseInt(seedPart, 36);
     if (!Number.isFinite(seed) || seed <= 0) return null;
     return { seed, mapSize: MAP_SIZE_BY_LETTER[sizeChar], difficulty: DIFFICULTY_LEVELS[diffIdx].value, opponentCount: opponentN };
@@ -3471,8 +3435,11 @@ function tryParseSharedReplay() {
     const mapSize = MAP_SIZE_BY_LETTER[mapSizeLetter] || mapSizeLetter;
     // sharedOpponentCount is undefined on a link generated before this field
     // existed — playReplay() itself already falls back to the current
-    // setting in that case (see its own opponentCount note)
-    const opponentCount = (sharedOpponentCount >= 1 && sharedOpponentCount <= 4) ? sharedOpponentCount : undefined;
+    // setting in that case (see its own opponentCount note). A link shared
+    // back when Roncevaux existed could carry a 4 here — clamped to the
+    // current max (3) rather than passed through to a royaume that no
+    // longer exists.
+    const opponentCount = (sharedOpponentCount >= 1 && sharedOpponentCount <= 3) ? sharedOpponentCount : undefined;
     return { seed, difficulty, humanRoyId, log: log.map(decodeMoveFromShare), mapSize, opponentCount };
   } catch (e) { return null; }
 }
@@ -3951,8 +3918,20 @@ function drawForceIcon(t) {
     // glyph's true vertical center, so the number always read as sitting
     // low/off-center in its hexagon rather than pinned to the actual middle
     ctx.textBaseline = "middle";
-    ctx.strokeText(String(t.force), t.cx, t.cy);
-    ctx.fillText(String(t.force), t.cx, t.cy);
+    // rotated in place around its own hex center when the phone is turned
+    // sideways (mapNumberRotationRad, 0 in portrait) — see updateMapNumberRotation();
+    // everything else about the map/HUD stays exactly as it is
+    if (mapNumberRotationRad) {
+      ctx.save();
+      ctx.translate(t.cx, t.cy);
+      ctx.rotate(mapNumberRotationRad);
+      ctx.strokeText(String(t.force), 0, 0);
+      ctx.fillText(String(t.force), 0, 0);
+      ctx.restore();
+    } else {
+      ctx.strokeText(String(t.force), t.cx, t.cy);
+      ctx.fillText(String(t.force), t.cx, t.cy);
+    }
     ctx.textBaseline = "alphabetic"; // restore the default for every other text draw in render()
     return;
   }
@@ -4254,13 +4233,6 @@ document.getElementById("rerollBtn").addEventListener("click", () => {
   }
   if (!reloadIfUpdateAvailable()) startGame();
 });
-document.getElementById("replaySpeedBtn").addEventListener("click", () => {
-  if (!replaying) return;
-  replayFastActive = !replayFastActive;
-  replaySpeed = replayFastActive ? REPLAY_BASE_SPEED * 2 : REPLAY_BASE_SPEED;
-  document.getElementById("replaySpeedBtn").textContent = replayFastActive ? "🐢 Vitesse normale" : "⏩ 2x";
-  sfxToggle();
-});
 document.getElementById("replayPauseBtn").addEventListener("click", () => {
   if (activeReplayTogglePause) activeReplayTogglePause();
   sfxToggle();
@@ -4268,12 +4240,6 @@ document.getElementById("replayPauseBtn").addEventListener("click", () => {
 document.getElementById("replayResumeHereBtn").addEventListener("click", () => {
   if (activeReplayFork) activeReplayFork();
   sfxToggle();
-});
-// "change" (fires on release/commit), not "input" (fires continuously while
-// dragging) — re-simulating the whole match from scratch on every pixel of
-// drag would be needlessly heavy; only actually seek once the finger lifts
-document.getElementById("replayScrubber").addEventListener("change", () => {
-  if (activeReplaySeek) activeReplaySeek(Number(document.getElementById("replayScrubber").value));
 });
 
 const settingsPanel = document.getElementById("settingsPanel");
@@ -4405,8 +4371,21 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.10";
+const GAME_VERSION = "1.11";
 const CHANGELOG = [
+  {
+    version: "1.11",
+    notes: [
+      "Correction critique : la reprise automatique après fermeture accidentelle pouvait rester bloquée sur l'écran de replay (bouton « stop » sans effet) — corrigé, et une sauvegarde devenue incompatible après une mise à jour du jeu est désormais ignorée proprement plutôt que de provoquer ce blocage",
+      "Le replay s'ouvre maintenant toujours en pause : un bouton Lire/Pause unique, et « Reprendre la partie à partir d'ici » disponible dès le début — le curseur et le bouton de vitesse ont été retirés (trop d'options qui embrouillaient plus qu'autre chose)",
+      "Correction : le carillon de renfort jouait deux fois la même note à la jonction de deux octaves",
+      "Le carillon de renfort des adversaires est maintenant audible (une octave plus bas que le nôtre) au lieu d'être silencieux",
+      "Nouveau son, plus doux, pour annoncer que c'est votre tour",
+      "Nouveau : en mode paysage, les chiffres de force sur la carte pivotent pour rester lisibles ; le reste de l'interface ne bouge pas",
+      "Le bouton « Fin de bataille » garde maintenant une taille fixe — seule l'écriture à l'intérieur rétrécit sur les tours adverses",
+      "Suppression du royaume de Roncevaux (retour à 3 royaumes adverses maximum au lieu de 4)",
+    ],
+  },
   {
     version: "1.10",
     notes: [
@@ -4772,10 +4751,11 @@ function updateEndTurnButton() {
   // visibility back on again once a camp was actually picked
   btn.style.visibility = endturnVisible() ? "" : "hidden";
   btn.style.pointerEvents = endturnVisible() ? "" : "none";
-  // same visibility as endturn, plus hidden once the match is actually over
-  // — nothing left to surrender, and tapping it post-gameOver would just
-  // call showWin() a second time for no reason
-  document.getElementById("surrenderBtn").style.display = (endturnVisible() && !gameOver) ? "" : "none";
+  // always visible, even before a camp is picked (surrenderGame() itself
+  // handles that case with its own flavor line) — only actually hidden
+  // once the match is over: nothing left to surrender, and tapping it
+  // post-gameOver would just call showWin() a second time for no reason
+  document.getElementById("surrenderBtn").style.display = gameOver ? "none" : "";
   if (awaitingFactionPick) {
     btn.textContent = "Choisissez un camp";
     btn.classList.remove("aiTurn");
@@ -4792,15 +4772,20 @@ function updateEndTurnButton() {
     // a few turns later with no warning it was coming
     if (allCappedStreak > 0 && !gameOver) {
       const remaining = STALEMATE_TRUCE_ROUNDS - allCappedStreak;
-      btn.innerHTML = `Fin de bataille<span class="btnHint">Statu quo dans ${remaining} tour${remaining > 1 ? "s" : ""}</span>`;
+      btn.innerHTML = `<span class="btnMain">Fin de bataille</span><span class="btnHint">Statu quo dans ${remaining} tour${remaining > 1 ? "s" : ""}</span>`;
     } else {
-      btn.textContent = "Fin de bataille";
+      btn.innerHTML = `<span class="btnMain">Fin de bataille</span>`;
     }
   } else {
     // during the AIs' turn the same button doubles as a fast-forward: one tap
     // skips straight to the end of their moves instead of waiting out the
-    // normal pacing — worth a short reminder since nothing else on screen says so
-    btn.innerHTML = "La guerre fait rage<span class=\"btnHint\">Accélérer batailles</span>";
+    // normal pacing — worth a short reminder since nothing else on screen says so.
+    // Wrapped in its own .btnMain span (see #endturn.aiTurn .btnMain) so this
+    // longer label can shrink its own font-size without touching the box's
+    // fixed size (see #endturn's own note) — "Fin de bataille" and "La
+    // guerre fait rage" no longer visibly resize the button switching
+    // between them.
+    btn.innerHTML = `<span class="btnMain">La guerre fait rage</span><span class="btnHint">Accélérer batailles</span>`;
   }
   btn.classList.toggle("aiTurn", !isHuman);
   const roy = ROYAUMES[humanRoyId];
@@ -4850,7 +4835,7 @@ function showForceAdaptToast() {
 
 function refreshGueuxBadge() {
   const el = document.getElementById("gueuxBadge");
-  el.style.display = (metaProgressEnabled && !replaying) ? "flex" : "none";
+  el.classList.toggle("gueuxHidden", !(metaProgressEnabled && !replaying));
   el.textContent = `🧑‍🌾 ${gueuxCount}`;
   el.classList.toggle("gueuxArmed", placingGueux);
   el.style.opacity = gueuxCount > 0 ? "1" : ".5";
@@ -4974,20 +4959,13 @@ function startGame(seed) {
   const rerollBtnEl = document.getElementById("rerollBtn");
   rerollBtnEl.style.display = (awaitingFactionPick || replaying) ? "" : "none";
   rerollBtnEl.textContent = replaying ? "⏹ Arrêter le replay" : "🔀 Changer la carte";
-  // startGame() runs both for a fresh game and (with replaying already true)
-  // at the top of a replay — only hide the speed toggle on the fresh-game
-  // path, since playReplay() itself is responsible for showing it
-  if (!replaying) {
-    document.getElementById("replaySpeedBtn").style.display = "none";
-    replayFastActive = false;
-  }
   // the rest of the interface is inert during a replay (taps are ignored —
   // see handlePointer()/endturn's click handler) — hide it instead of
   // leaving buttons on screen that do nothing when pressed.
   // endturn specifically uses visibility (not display:none): rerollBtn and
-  // replaySpeedBtn stack their position off endturn's own bottom-anchored
+  // the replay controls stack their position off endturn's own bottom-anchored
   // rect in resize() even while replaying, and display:none would collapse
-  // that rect to (0,0), throwing both buttons off-screen during playback.
+  // that rect to (0,0), throwing those buttons off-screen during playback.
   // (updateStatus()/updateEndTurnButton() below sets this same thing based
   // on the same endturnVisible() check — set here too since it also needs
   // to be correct for the resize() call a few lines down, before that runs.)
@@ -5020,7 +4998,7 @@ function startGame(seed) {
   // closes that overlay and starts a new game in the same breath — on a
   // real device the panel's own closing animation/reflow can still be
   // settling right when resize() above measures everything, throwing off
-  // rerollBtn/replaySpeedBtn's position (anchored off endturn's own rect —
+  // rerollBtn/the replay controls' position (anchored off endturn's own rect —
   // see resize()). Same fix as the existing page-load safety net just
   // below (setTimeout(resize, 300)): re-measure shortly after, once things
   // have actually settled.
@@ -5072,6 +5050,7 @@ function resumeSavedGame(saved) {
   const log = saved.moveLog;
   let i = 0;
   function step() {
+    if (!replaying) return; // escaped via rerollBtn's "stop" (see activeReplayFinish below) — bail cleanly
     if (gameOver) {
       // mirrors playReplay()'s own handling of a logged "continue" entry
       // (accepting a truce's "keep fighting" option) — without this, a
@@ -5080,25 +5059,32 @@ function resumeSavedGame(saved) {
       if (i < log.length && log[i].continue) {
         i++;
         gameOver = false; truceEnded = false; truceWinnerId = -1; allCappedStreak = 0;
-        setTimeout(step, 0);
+        queueMicrotask(step);
         return;
       }
       finish();
       return;
     }
-    if (currentPlayer !== humanRoyId || aiRunning) { setTimeout(step, 0); return; }
+    if (currentPlayer !== humanRoyId || aiRunning) { queueMicrotask(step); return; }
     if (i >= log.length) { finish(); return; }
     const action = log[i++];
     if (action.end) endTurn();
     else if (action.gueux !== undefined) reinforceTerritory(action.gueux);
     else if (action.continue) { /* stray entry with no matching pause active — nothing to undo, just skip it */ }
     else attack(action.a, action.b);
-    setTimeout(step, 0);
+    // queueMicrotask, not setTimeout(fn, 0) — browsers throttle a *chain* of
+    // nested zero-delay setTimeout calls to a real ~4ms floor each, which a
+    // deep match's full moveLog (every action, every AI turn in between)
+    // can chain through hundreds of times — reported as looking exactly
+    // like a stuck/frozen replay screen on a long match, with no visible
+    // progress for many seconds. Microtasks aren't subject to that throttle.
+    queueMicrotask(step);
   }
   // Hands back to the live game exactly where the log left off — same
   // cleanup forkFromReplay() does when turning a paused replay into a live
   // match, since this is the same underlying transition (replaying -> live).
   function finish() {
+    activeReplayFinish = null;
     replaying = false;
     forceInstantSkip = false;
     soundEnabled = soundWasEnabled;
@@ -5117,6 +5103,11 @@ function resumeSavedGame(saved) {
     resize();
     saveGameState(); // keep the autosave current (or clear it, if the match had actually already ended)
   }
+  // Safety net: rerollBtn already shows "⏹ Arrêter le replay" and calls
+  // activeReplayFinish() whenever `replaying` is true (see its own click
+  // handler) — without wiring this up, that tap silently did nothing during
+  // a reconstruction, leaving no way out of a slow/stuck one at all.
+  activeReplayFinish = finish;
   step();
 }
 
@@ -5124,11 +5115,21 @@ function tryLoadSavedGame() {
   let raw;
   try { raw = localStorage.getItem(SAVED_GAME_KEY); } catch (e) { return null; }
   if (!raw) return null;
+  const reject = () => { try { localStorage.removeItem(SAVED_GAME_KEY); } catch (e2) { /* ignore */ } return null; };
   try {
     const saved = JSON.parse(raw);
-    if (typeof saved.seed !== "number" || !Array.isArray(saved.moveLog) || typeof saved.humanRoyId !== "number") return null;
+    if (typeof saved.seed !== "number" || !Array.isArray(saved.moveLog) || typeof saved.humanRoyId !== "number") return reject();
+    // A save recorded under a since-changed ruleset (e.g. Roncevaux/opponentCount
+    // up to 4, since removed) can't be faithfully reconstructed — the map
+    // itself would regenerate differently (a different ROYAUME_COUNT changes
+    // assignRoyaumes()'s own RNG consumption), so the saved moveLog's
+    // territory ids would no longer mean what they meant when recorded.
+    // Replaying it anyway silently desynced worse and worse, reported as a
+    // reconstruction that never finished ("bloqué sur l'écran du replay").
+    // Reject it outright and fall through to a fresh game instead.
+    if (!(saved.opponentCount >= 1 && saved.opponentCount <= 3)) return reject();
     return saved;
-  } catch (e) { return null; } // corrupted/old-format entry — treat as no save rather than crash
+  } catch (e) { return reject(); } // corrupted/old-format entry — treat as no save rather than crash
 }
 
 const pendingSharedReplay = tryParseSharedReplay();
