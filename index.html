@@ -17,8 +17,23 @@
     margin: 0; padding: 0; height: 100%; overflow: hidden;
     background: #1b1712; font-family: -apple-system, system-ui, sans-serif;
     touch-action: manipulation; user-select: none;
+    /* centers #wrap when it's pinned to a smaller-than-viewport portrait box
+       in landscape (see lockPortraitStage() below) — a no-op in portrait,
+       where #wrap always fills the full 100%x100% anyway */
+    display: flex; align-items: center; justify-content: center;
   }
-  #wrap { position: relative; width: 100%; height: 100%; }
+  /* Sized/scaled by lockPortraitStage() (called from resize()): in portrait
+     it's just 100%x100% as before. In landscape, turning the phone sideways
+     must change nothing about the game's look except the force numbers (see
+     drawForceIcon()'s mapNumberRotationRad) — everything else, HUD included,
+     stays exactly the portrait layout it already was, simply centered and
+     uniformly scaled down to fit the shorter physical height available
+     sideways (letterboxed left/right) rather than reflowing to fill the
+     wider space. Previously nothing pinned this, so the normal responsive
+     CSS/JS reflow kicked in on rotation and visibly reshaped everything
+     (map, buttons, title) — reported as "tout tourne" even though nothing
+     was literally being rotated. */
+  #wrap { position: relative; width: 100%; height: 100%; transform-origin: center center; }
   canvas { display: block; background: #2b3d52; touch-action: none; } /* otherwise the browser can claim a one-finger drag as a pan/scroll gesture mid-way and never deliver pointerup */
   #status, #log { display: none; } /* kept for internal state only, no longer shown */
   /* every persistent in-game HUD button (settings, end-turn, reroll, gueux
@@ -748,6 +763,50 @@
 <script>
 "use strict";
 
+// Global safety net — installed as the very first thing this script does,
+// before any code that could throw. Without this, an uncaught exception
+// ANYWHERE below (however unlikely) silently aborts the rest of the script:
+// nothing renders, no buttons get wired up, and the player sees a blank
+// white page with zero indication of what went wrong — exactly the "app
+// doesn't open at all" reports that are otherwise impossible to diagnose
+// without access to the player's own device console. This turns that into
+// a visible, readable message instead (and, now that a genuinely visible
+// symptom exists, we've bumped GAME_VERSION on top of it so its own display
+// stays trustworthy proof a given fix actually reached this device — a
+// stale service-worker cache is the other prime "reload does nothing"
+// suspect this rules in/out).
+(function () {
+  let shown = false;
+  function showFatalError(detail) {
+    if (shown) return; // only the first error gets a banner — avoid stacking
+    shown = true;
+    try {
+      const el = document.createElement("div");
+      el.style.cssText = "position:fixed;inset:0;z-index:99999;background:#1b1712;color:#f2ede2;" +
+        "font:14px -apple-system,sans-serif;padding:24px;box-sizing:border-box;overflow:auto;" +
+        "white-space:pre-wrap;line-height:1.5;";
+      el.textContent = "Knight Wars n'a pas pu se charger.\n\n" +
+        "Détail technique (utile pour signaler le bug) :\n" + detail +
+        "\n\nEssaie de recharger la page. Si ça persiste, essaie de vider les données du site " +
+        "(Réglages > Safari > Avancé > Données de sites web) puis recharge à nouveau.";
+      const btn = document.createElement("button");
+      btn.textContent = "Recharger";
+      btn.style.cssText = "margin-top:16px;padding:10px 20px;font-size:14px;border-radius:8px;border:none;" +
+        "background:#e8c468;color:#2b1d10;font-weight:700;";
+      btn.onclick = () => location.reload();
+      el.appendChild(document.createElement("br"));
+      el.appendChild(btn);
+      document.body.appendChild(el);
+    } catch (e) { /* if even this fails, there is truly nothing more we can do */ }
+  }
+  window.addEventListener("error", (e) => {
+    showFatalError((e && e.error && e.error.stack) || e.message || String(e));
+  });
+  window.addEventListener("unhandledrejection", (e) => {
+    showFatalError("Unhandled promise rejection: " + ((e.reason && e.reason.stack) || e.reason || "?"));
+  });
+})();
+
 /* ---------- CONFIG ---------- */
 const HEX_SIZE = 26;          // was 20, +30% per request — bigger tap targets on phone
 // must match the CSS `canvas { background: ... }` rule exactly — used to draw
@@ -982,6 +1041,41 @@ const GUEUX_IMG = loadSprite(GUEUX_IMG_SRC);
 const ARCHER_IMG = loadSprite(ARCHER_IMG_SRC);
 const CHEVALIER_IMG = loadSprite(CHEVALIER_IMG_SRC);
 
+// Pins #wrap (and therefore everything inside it — canvas, HUD, all of it)
+// to a fixed portrait-shaped box when the phone is turned sideways, instead
+// of letting it reflow to fill the new (wider/shorter) physical viewport.
+// Returns the {w, h} the rest of resize() should treat as "the screen" —
+// portrait raw dimensions in portrait (unchanged behavior), or the frozen
+// portrait box's own logical size in landscape (scaled down as a whole via
+// CSS transform to actually fit the shorter physical height available
+// sideways). See #wrap's own CSS comment for why this exists.
+// Current #wrap CSS scale (1 in portrait). Any code that reads real DOM
+// geometry via getBoundingClientRect() (which reports POST-transform,
+// physical on-screen pixels) has to divide by this to convert back to the
+// logical pixel space every layout number in resize()/render()/input
+// handling is expressed in — see its uses below.
+let portraitStageScale = 1;
+function lockPortraitStage(rawW, rawH) {
+  const wrapEl = document.getElementById("wrap");
+  if (rawW <= rawH) {
+    // portrait (the common case) — exactly as before, no pinning needed
+    wrapEl.style.width = "100%";
+    wrapEl.style.height = "100%";
+    wrapEl.style.transform = "";
+    portraitStageScale = 1;
+    return { w: rawW, h: rawH };
+  }
+  // landscape: the "logical" box is a portrait rectangle using this same
+  // device's own two measurements, just not swapped by the physical turn —
+  // i.e. exactly the shape this screen would show in portrait.
+  const portraitW = rawH, portraitH = rawW;
+  const scale = rawH / portraitH; // < 1 — how much smaller the sideways screen is than the portrait box's own height
+  wrapEl.style.width = portraitW + "px";
+  wrapEl.style.height = portraitH + "px";
+  wrapEl.style.transform = `scale(${scale})`;
+  portraitStageScale = scale;
+  return { w: portraitW, h: portraitH };
+}
 function resize() {
   const dpr = window.devicePixelRatio || 1;
   // visualViewport reflects what's actually visible on iOS Safari — its
@@ -989,8 +1083,9 @@ function resize() {
   // a taller area than what's really on screen, which is exactly what let
   // the map overflow past the real bottom/right edge there.
   const vv = window.visualViewport;
-  const w = vv ? vv.width : window.innerWidth;
-  const h = vv ? vv.height : window.innerHeight;
+  const rawW = vv ? vv.width : window.innerWidth;
+  const rawH = vv ? vv.height : window.innerHeight;
+  const { w, h } = lockPortraitStage(rawW, rawH);
   canvas.width = w * dpr; canvas.height = h * dpr;
   canvas.style.width = w + "px"; canvas.style.height = h + "px";
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -1037,17 +1132,22 @@ function resize() {
     if (rerollTakesEndturnSlot) {
       rerollEl.style.bottom = "calc(10px + env(safe-area-inset-bottom, 0px))"; // the exact slot endturn's own CSS default sits in
     } else {
+      // getBoundingClientRect() reports POST-transform physical pixels (see
+      // lockPortraitStage()) — divide by portraitStageScale to convert back
+      // to the logical space `h`/style.bottom are both expressed in, or this
+      // stacking math silently breaks (elements land in the wrong place)
+      // whenever the phone is turned sideways.
       const endturnRect = endturnEl.getBoundingClientRect();
-      rerollEl.style.bottom = (h - endturnRect.top + 8) + "px";
+      rerollEl.style.bottom = (h - endturnRect.top / portraitStageScale + 8) + "px";
       let topOfStack = rerollEl;
       if (pauseVisible) {
         const rerollRect = rerollEl.getBoundingClientRect();
-        pauseEl.style.bottom = (h - rerollRect.top + 8) + "px";
+        pauseEl.style.bottom = (h - rerollRect.top / portraitStageScale + 8) + "px";
         topOfStack = pauseEl;
       }
       if (resumeHereVisible) {
         const belowRect = topOfStack.getBoundingClientRect();
-        resumeHereEl.style.bottom = (h - belowRect.top + 8) + "px";
+        resumeHereEl.style.bottom = (h - belowRect.top / portraitStageScale + 8) + "px";
       }
     }
   }
@@ -2992,7 +3092,12 @@ function statChartIndexAtClientX(clientX) {
   // single-snapshot match still has 2 "slots" to scrub across (both the
   // same instant), so this divides by 1 instead of 0.
   const effectiveLen = Math.max(2, statHistory.length);
-  const localX = clientX - rect.left;
+  // rect is POST-transform physical pixels (see lockPortraitStage()), same
+  // portraitStageScale correction as territoryAtClientPoint() — otherwise
+  // scrubbing the chart lands on the wrong point whenever the phone is
+  // turned sideways (the win banner is inside #wrap too, and gets scaled
+  // down along with everything else there).
+  const localX = (clientX - rect.left) / portraitStageScale;
   const frac = (localX - STAT_CHART_PANEL_X) / STAT_CHART_PANEL_W;
   return Math.max(0, Math.min(effectiveLen - 1, Math.round(frac * (effectiveLen - 1))));
 }
@@ -3002,7 +3107,7 @@ function statChartIndexAtClientX(clientX) {
 function statChartXAtClientX(clientX) {
   const canvas = document.getElementById("statChart");
   const rect = canvas.getBoundingClientRect();
-  const localX = clientX - rect.left;
+  const localX = (clientX - rect.left) / portraitStageScale;
   return Math.max(STAT_CHART_PANEL_X, Math.min(STAT_CHART_PANEL_X + STAT_CHART_PANEL_W, localX));
 }
 {
@@ -4048,8 +4153,12 @@ function drawForceIcon(t) {
 /* ---------- INPUT ---------- */
 function territoryAtClientPoint(clientX, clientY) {
   const rect = canvas.getBoundingClientRect();
-  const localX = (clientX - rect.left - centerX) / viewScale;
-  const localY = (clientY - rect.top - centerY) / viewScale;
+  // rect is POST-transform physical pixels (see lockPortraitStage()) while
+  // centerX/centerY/viewScale are all logical — divide by portraitStageScale
+  // first or every tap/drag hit-tests against the wrong spot whenever the
+  // phone is turned sideways (the map's own scale-down was invisible here).
+  const localX = ((clientX - rect.left) / portraitStageScale - centerX) / viewScale;
+  const localY = ((clientY - rect.top) / portraitStageScale - centerY) / viewScale;
   const { q, r } = pixelToAxial(localX, localY);
   const h2 = hexes[`${q},${r}`];
   return h2 ? territories[h2.territoryId] : null;
@@ -4467,8 +4576,15 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.13";
+const GAME_VERSION = "1.14";
 const CHANGELOG = [
+  {
+    version: "1.14",
+    notes: [
+      "Correction critique : l'app pouvait ne plus s'ouvrir du tout sur certains iPhone (écran blanc) — une exception non interceptée dans le code de rotation du mode paysage interrompait tout le chargement du jeu ; en plus du correctif, toute erreur imprévue affiche désormais un message lisible plutôt qu'un écran blanc muet",
+      "Mode paysage revu en profondeur : tourner le téléphone ne change plus du tout la mise en page (carte, boutons, texte) — seuls les chiffres de force pivotent, le reste reste identique au portrait, simplement centré et réduit pour tenir dans la largeur disponible",
+    ],
+  },
   {
     version: "1.13",
     notes: [
