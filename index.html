@@ -351,6 +351,20 @@
     box-shadow: 0 0 0 1px rgba(20,16,12,.7), 0 2px 6px rgba(0,0,0,.45);
     font-family: Georgia, "Iowan Old Style", Palatino, "Times New Roman", serif;
   }
+  /* same slot/style as #onboardingHint just above it (stacks below it via
+     top offset — the two are never both visible at once in practice, since
+     the onboarding hint only ever shows very early in a first match, long
+     before a rival could be down to a hopeless last few territories), but
+     an actual tappable button, not just an inert text bubble */
+  #enemySurrenderBtn {
+    position: absolute; top: calc(90px + env(safe-area-inset-top, 0px)); left: 50%;
+    transform: translateX(-50%); z-index: 5; pointer-events: auto;
+    max-width: 78vw; text-align: center; white-space: normal;
+    background: rgba(20,16,12,.75); color: #f2ede2; font-size: 13px; font-weight: 700;
+    padding: 8px 14px; border-radius: 10px; border: 1px solid #8a6d3b;
+    box-shadow: 0 0 0 1px rgba(20,16,12,.7), 0 2px 6px rgba(0,0,0,.45);
+    font-family: Georgia, "Iowan Old Style", Palatino, "Times New Roman", serif;
+  }
 </style>
 </head>
 <body>
@@ -370,6 +384,10 @@
   <button id="settingsBtn" aria-label="Réglages"><img id="settingsBtnImg" alt=""></button>
   <div id="gueuxBadge"></div>
   <div id="onboardingHint"></div>
+  <!-- only ever shown when the sole remaining rival is hopelessly outmatched
+       (see updateEnemySurrenderOffer()) — accepting ends the match right
+       now as a human win, without actually having to grind them down -->
+  <button id="enemySurrenderBtn" style="display:none;"></button>
   <button id="endturn">Fin de bataille</button>
   <button id="rerollBtn">🔀 Changer la carte</button>
   <button id="replaySpeedBtn" style="display:none;">⏩ 2x</button>
@@ -979,7 +997,7 @@ let hexes = {};          // key "q,r" -> {q,r,x,y,territoryId}
 let mapExtentX = 0, mapExtentY = 0; // actual generated island bounds, set by generateHexGrid()
 let territories = [];    // {id, hexKeys[], owner, force, cx, cy, neighbors:Set}
 let players = [];        // per-royaume runtime state
-let territoryBorderSegments = []; // [[x1,y1],[x2,y2]] edges between two different territories, precomputed once
+let territoryBorderSegments = []; // [{p1,p2,terrA,terrB,px,py}] edges between two different territories, precomputed once — see generateHexGrid()
 let currentSeed = 0;     // the seed this match was generated from — the whole match is reproducible from this + the human's move list
 
 function rand(n) { return Math.floor(rngFloat() * n); }
@@ -1224,7 +1242,22 @@ function generateTerritories() {
         if (!seenPairs.has(pairKey)) {
           seenPairs.add(pairKey);
           const edge = sharedHexEdge(h, nh);
-          if (edge) territoryBorderSegments.push(edge);
+          if (edge) {
+            const [p1, p2] = edge;
+            // perpendicular unit vector, oriented so it points toward h's
+            // (terrA's) side of the boundary — used at render time to offset
+            // two thin parallel strokes to either side of the shared edge,
+            // one per territory, instead of one single centered line.
+            // Precomputed once here (map geometry is static) even though
+            // which royaume owns terrA/terrB can change all match — only the
+            // ids are stored, owners are looked up live at render time.
+            const dx = p2[0] - p1[0], dy = p2[1] - p1[1];
+            const len = Math.hypot(dx, dy) || 1;
+            let px = -dy / len, py = dx / len;
+            const midX = (p1[0] + p2[0]) / 2, midY = (p1[1] + p2[1]) / 2;
+            if ((h.x - midX) * px + (h.y - midY) * py < 0) { px = -px; py = -py; }
+            territoryBorderSegments.push({ p1, p2, terrA: h.territoryId, terrB: nh.territoryId, px, py });
+          }
         }
       }
     }
@@ -1435,6 +1468,7 @@ let lastStalemateFingerprint = null; // dice-mode-only: territories.map(owner) f
 let truceWinnerId = -1;
 let truceEnded = false; // showWin() uses different flavor text for a truce than an outright win
 let humanSurrendered = false; // showWin() uses a distinct, mocking flavor line for a self-inflicted loss
+let mercyGranted = false; // the human accepted the last rival's surrender instead of finishing them off in combat — showWin() uses its own distinct line
 
 // One click, no confirmation, immediate — ends the match right now as a
 // loss for the human. Whichever AI royaume currently holds the most
@@ -1451,6 +1485,48 @@ function surrenderGame() {
   gameOver = true;
   humanSurrendered = true;
   showWin(winnerId);
+}
+
+// A lone, hopelessly outmatched last rival can offer to submit instead of
+// being ground down hex by hex — see updateEnemySurrenderOffer() for when
+// the offer is actually on the table. Accepting it ends the match as a
+// human win right now, but is NOT a conquest: the rival's own territory is
+// left exactly as it was (nothing captured, nothing reassigned) — this is a
+// political resolution, not a combat one. Declining is just not clicking
+// the button; nothing else to do, the siege continues normally.
+const ENEMY_SURRENDER_SHARE = 0.2; // the sole remaining rival must hold at most this share of all non-neutral territory
+function livingRivalIds() {
+  const ids = [];
+  for (let r = 0; r < ROYAUME_COUNT - 1; r++) if (r !== humanRoyId && isAlive(r)) ids.push(r);
+  return ids;
+}
+function updateEnemySurrenderOffer() {
+  const btn = document.getElementById("enemySurrenderBtn");
+  if (gameOver || replaying || awaitingFactionPick || currentPlayer !== humanRoyId) { btn.style.display = "none"; return; }
+  const rivals = livingRivalIds();
+  if (rivals.length !== 1) { btn.style.display = "none"; return; }
+  const rivalId = rivals[0];
+  let rivalCount = 0, totalCount = 0;
+  for (const t of territories) {
+    if (ROYAUMES[t.owner].neutral) continue;
+    totalCount++;
+    if (t.owner === rivalId) rivalCount++;
+  }
+  const share = totalCount > 0 ? rivalCount / totalCount : 0;
+  if (share > 0 && share <= ENEMY_SURRENDER_SHARE) {
+    btn.textContent = `🏳️ ${ROYAUMES[rivalId].name} demande votre clémence`;
+    btn.style.display = "";
+  } else {
+    btn.style.display = "none";
+  }
+}
+function grantMercy() {
+  if (gameOver || replaying || awaitingFactionPick) return;
+  if (livingRivalIds().length !== 1) return; // stale click — state moved on since the button last refreshed
+  gameOver = true;
+  mercyGranted = true;
+  document.getElementById("enemySurrenderBtn").style.display = "none";
+  showWin(humanRoyId);
 }
 let humanStartTerritories = 0; // set in pickFaction() — baseline for the end-of-game "gained ground?" line
 // "batailles instantanées" — when on, AI turns resolve back-to-back with no
@@ -1470,7 +1546,15 @@ let fastForward = instantBattlesSetting;
 // minimum keeps it very fast while still giving each action a beat to
 // actually be seen.
 const FASTFORWARD_MIN_DELAY_MS = 90;
-function scheduleTurn(fn, delay) { setTimeout(fn, fastForward ? FASTFORWARD_MIN_DELAY_MS : delay); }
+// Separate from fastForward/instantBattlesSetting on purpose: that one is a
+// standing preference that still keeps FASTFORWARD_MIN_DELAY_MS's small
+// per-action beat so flashes stay visible during ordinary automatic play.
+// Tapping "La guerre fait rage" mid-AI-turn is a different, more urgent
+// action — "get me out of here right now" — so it drops the delay to 0
+// entirely instead of just switching to the smaller floor. Reset back to
+// false the moment control returns to the human (see updateStatus()).
+let forceInstantSkip = false;
+function scheduleTurn(fn, delay) { setTimeout(fn, forceInstantSkip ? 0 : (fastForward ? FASTFORWARD_MIN_DELAY_MS : delay)); }
 // A perceivable beat every royaume's turn-end reinforcement gets before
 // play continues — every royaume now plays its own reinforcement chime
 // (see sfxReinforce), and without this "batailles instantanées" collapsed
@@ -1780,20 +1864,16 @@ function reinforceRootHzFor(royId) {
   return REINFORCE_ROOT_BASE_HZ * Math.pow(2, rank / 12);
 }
 const REINFORCE_CHORD_RATIOS = [1, Math.pow(2, 4 / 12), Math.pow(2, 7 / 12), 2]; // root, major third, fifth, octave
-// Queued, not fire-and-forget: every royaume's turn already gets a short
-// perceivable pause before play continues (see endTurn()/REINFORCE_PAUSE_MS),
-// but that pause is much shorter than the full note-per-point melody a big
-// reinforcement used to play — back to back, the next royaume's chime
-// started right over the tail of the previous one, blurring their
-// otherwise-distinct root notes together instead of reading as separate
-// "voices". Now only a short taste of each royaume's melody plays (not the
-// whole count-scaled run), followed by its own pause, before the next
-// queued royaume's chime starts. Runs independently of — and can lag
-// slightly behind — the actual turn-advance pacing above, since all this
-// queue does is eventually play a sound; it never blocks or delays the game
-// itself.
-const REINFORCE_CHIME_QUEUE_NOTES = 2; // "une première section courte" — enough to place the melody, not the whole run
-const REINFORCE_CHIME_GAP_MS = 130; // silent gap between one royaume's chime and the next
+// Queued, not fire-and-forget — still useful now that only the human's own
+// reinforcement plays a chime at all (see endTurn()): a "continue" chain or
+// back-to-back human turns could otherwise still overlap two calls. One
+// note per point, matching the pulse rings 1:1 (triggerPulse() staggers the
+// same way) — no longer capped to a short "taste": that cap used to exist
+// because every royaume's chime played back-to-back, but with only the
+// human's own reinforcement making any sound now, there's no more pile-up to
+// guard against, and cutting a 4-point reinforcement down to 2 notes just
+// read as "half the circles didn't get a sound".
+const REINFORCE_CHIME_GAP_MS = 130; // silent gap before the next queued chime, if any
 let reinforceSoundQueue = []; // [{count, royId}]
 let reinforceSoundPlaying = false;
 // Every multi-note sound (reinforcement chime, victory/defeat/truce stingers)
@@ -1826,7 +1906,7 @@ function processReinforceSoundQueue() {
   if (reinforceSoundPlaying || !reinforceSoundQueue.length) return;
   reinforceSoundPlaying = true;
   const { count, royId } = reinforceSoundQueue.shift();
-  const n = Math.min(count, REINFORCE_CHIME_QUEUE_NOTES);
+  const n = count;
   const root = reinforceRootHzFor(royId);
   for (let i = 0; i < n; i++) {
     const ratio = REINFORCE_CHORD_RATIOS[i % REINFORCE_CHORD_RATIOS.length];
@@ -1878,6 +1958,14 @@ function sfxPickFaction() {
   [165, 220].forEach((f, i) => setTimeout(() => playTone(f, 0.18, { type: "triangle", cutoff: 900, volume: 0.07 }), i * 90));
 }
 function sfxShare() { playTone(250, 0.14, { type: "triangle", cutoff: 1100, volume: 0.07, slideTo: 350 }); }
+// navigator.vibrate has no effect at all on iOS Safari (Apple has never
+// exposed the Vibration API to web content there) — this quietly does
+// nothing on iPhone, which is deliberate: no fallback exists, so the
+// try/catch just keeps that from ever throwing rather than pretending to
+// simulate one some other way.
+function vibrateOwnTurn() {
+  try { if (navigator.vibrate) navigator.vibrate(200); } catch (e) { /* unsupported */ }
+}
 
 // No more toggle: the biggest force always wins (no dice), *except* when
 // both sides are exactly at FORCE_CAP — a strict tie there would otherwise
@@ -2004,10 +2092,14 @@ function endTurn() {
   // too much noise during the AIs' turns; the visual pulse (triggerPulse()
   // above) still fires for everyone, just silently for the AI royaumes
   if (royId === humanRoyId) sfxReinforce(reinforcement, royId);
-  if (replaying) {
+  if (replaying || forceInstantSkip) {
     // playReplay()'s own pacing (step()'s 30ms poll) relies on currentPlayer
     // having already moved on by the time it runs again — never delay this
-    // during replay, only during live play (see REINFORCE_PAUSE_MS above)
+    // during replay, only during live play (see REINFORCE_PAUSE_MS above).
+    // Same for an explicit "La guerre fait rage" tap: forceInstantSkip means
+    // every remaining royaume's turn this round should end with 0 delay, not
+    // just the delay between its own attacks — otherwise a 3-royaume AI
+    // cascade still added up to several unwanted reinforcement pauses.
     advanceTurn();
   } else {
     setTimeout(advanceTurn, REINFORCE_PAUSE_MS);
@@ -2042,13 +2134,19 @@ function advanceTurn() {
     // get misread as a plain attack instead.
     checkStalemate();
     if (gameOver) return;
+    // a light buzz the moment it's the human's own turn again — meant for
+    // stepping away mid-AI-turn (a smoke break, a conversation) without
+    // having to keep glancing at the screen. Not during a replay: that
+    // cycles back to the human every simulated turn too, which would buzz
+    // constantly instead of meaning anything.
+    if (!replaying) vibrateOwnTurn();
   }
   updateStatus();
   render();
   if (checkWinner()) return;
   if (currentPlayer !== humanRoyId && !ROYAUMES[currentPlayer].neutral) {
     aiRunning = true;
-    scheduleTurn(runAI, 350 / replaySpeed); // 500 * 0.7 — AI turn pacing sped up 30%
+    scheduleTurn(runAI, 700 / replaySpeed); // slowed 50% (was 350) — easier to actually follow the AI's own moves
   }
 }
 
@@ -2221,7 +2319,12 @@ function showWin(royId) {
   // regardless of which branch actually ran — throwing and leaving the whole
   // win banner broken every single time a truce was accepted.
   let text;
-  if (truceEnded) {
+  if (mercyGranted) {
+    // the rival's own territory is left exactly as it was — this is a
+    // political resolution, not a conquest, so there's nothing to record
+    // about it beyond the flavor line itself
+    text = "Votre clémence vous honore, seigneur, ou bien est-ce de la faiblesse ? Seul le temps le dira — espérons qu'ils ne fomentent pas de rébellion.";
+  } else if (truceEnded) {
     text = "Match nul — la paix, l'affaire des gueux.";
   } else if (humanLost && humanSurrendered) {
     // no AI_PERSONALITIES reference here — epithets ("les Enragés" etc.) are
@@ -2244,6 +2347,9 @@ function showWin(royId) {
         `Essayez ${hobby} plutôt que la guerre la prochaine fois.`,
       `Foutrecouille ! Vous n'auriez pas dû faire bombance hier soir, sire. L'ennemi vous a surnommé Bidoumol, ` +
         `et ${ROYAUMES[royId].name} rit encore de votre déroute.`,
+      // same anachronistic-aside style validated on the "étendard" victory
+      // line — the character breaks for a beat, then goes right back to it
+      `${ROYAUMES[royId].name} s'effondre, vaincu, sans terre ni couronne. *ferme les yeux une seconde, souffle un bon coup* ... Allez. Nouvelle partie.`,
     ];
     const HOPE_ENDING = " Mais un seigneur déchu n'est pas un seigneur mort — quelque part, vous rêvez déjà de lever une nouvelle armée, " +
       "ou de trouver des alliés assez généreux pour vous aider à vous relever.";
@@ -2272,7 +2378,7 @@ function showWin(royId) {
       // voice on purpose, the moment the battle itself is actually over.
       `Toutes les terres sont vôtres, seigneur, ${ROYAUMES[royId].name}. Un royaume de plus sous votre étendard, et déjà l'horizon en réclame un autre. Vos hommes terminent de compter les morts et vous souriez, que c'est beau un champ de bataille. *croque son sandwich vegan, la larme à l'œil*`,
       `Victoire, seigneur, ${ROYAUMES[royId].name} ! Les hurlements vous manquent déjà.`,
-      `${ROYAUMES[royId].name} règne sans partage. L'odeur de la paix n'égalera jamais celle de la chair brûlée. *soupir*`,
+      `${ROYAUMES[royId].name} règne sans partage, mais l'odeur de la paix n'égalera jamais celle de la chair brûlée. *soupir*`,
     ];
     text = VICTORY_LINES[Math.abs(currentSeed + royId) % VICTORY_LINES.length];
   }
@@ -2657,7 +2763,22 @@ document.getElementById("shareReplay").addEventListener("click", () => { shareRe
 // Duplicates drawStatChart()'s core band-filling logic rather than
 // refactoring it to be shared, so this new export path can't accidentally
 // break the existing, already-tested on-screen chart.
-const CHART_EXPORT_W = 1080, CHART_EXPORT_H = 1920; // final portrait size
+// Final portrait size — matches whatever screen is actually showing the
+// game, not a fixed 1080x1920: a wallpaper set from an image with a
+// different aspect ratio than the real screen gets zoomed/cropped by the OS
+// to fill it, which is exactly what was reported ("un poil plus grand, ça
+// se zoome"). Height fixed at a high-res baseline, width derived from the
+// device's own aspect ratio (screen.width/height, not window.innerWidth —
+// the actual screen a wallpaper fills, not just the browser viewport).
+// Math.min/max guards against a browser ever reporting the pair swapped —
+// this game is always played in portrait, so the narrower dimension is
+// always the width regardless of which property happens to hold it.
+function chartExportSize() {
+  const sw = screen.width || 1, sh = screen.height || 1;
+  const aspect = Math.min(sw, sh) / Math.max(sw, sh);
+  const h = 1920;
+  return { w: Math.round(h * aspect), h };
+}
 function renderStreamgraphBands(c, W, H) {
   if (statHistory.length < 2) return false;
   const royIdSet = new Set();
@@ -2699,14 +2820,17 @@ function renderStreamgraphBands(c, W, H) {
     c.closePath();
     c.fillStyle = ROYAUMES[royId].color;
     c.fill();
-    c.strokeStyle = "rgba(43,29,16,.35)";
-    c.lineWidth = Math.max(0.75, W / 400);
-    c.stroke();
+    // no stroke: each band's own outline traced the same shared boundary as
+    // its neighbor, and with two semi-transparent strokes landing right on
+    // top of each other there, it read as an extra dark seam between every
+    // pair of colors — reported as an unwanted line "between each color"
+    // where there should just be flat color meeting flat color, no border.
     prevY = curY;
   });
   return true;
 }
 function buildChartWallpaperImage() {
+  const { w: CHART_EXPORT_W, h: CHART_EXPORT_H } = chartExportSize();
   // drawn in landscape at the final portrait's dimensions swapped, so the
   // 90° rotation below is an exact pixel transpose — no scaling/resampling
   // blur from stretching a smaller source image up to wallpaper size
@@ -2749,7 +2873,13 @@ function saveChartImage() {
   sfxShare();
   const canvas = buildChartWallpaperImage();
   const blob = dataURLToBlobSync(canvas.toDataURL("image/png"));
-  const file = new File([blob], "knight-wars-territoire.png", { type: "image/png" });
+  // name + version + this exact match's map code, so a saved file (or one
+  // sent to someone else) says on its own what it's from — the thumbnail
+  // preview itself not showing up in the iOS share sheet is a WebKit
+  // limitation with in-memory generated images we can't fix from the page
+  // (nothing changes that from here; a real file already on disk gets a
+  // thumbnail, one built fresh in JS often doesn't)
+  const file = new File([blob], `knight-wars-v${GAME_VERSION}-${buildMapCode()}.png`, { type: "image/png" });
   if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
     navigator.share({ files: [file], title: "Knight Wars" }).catch(() => {
       // cancelled, or share failed after all — fall back to opening the
@@ -2914,10 +3044,10 @@ function runAI() {
   const mistakeRate = Math.max(0, Math.min(1, escalated(AI_MISTAKE_RATE, 0.05) + pers.mistakeDelta));
   if (mv && rngFloat() >= mistakeRate) {
     attack(mv.from, mv.to);
-    scheduleTurn(runAI, 315 / replaySpeed); // 450 * 0.7
+    scheduleTurn(runAI, 630 / replaySpeed); // slowed 50% (was 315) — same request as above
   } else {
     aiRunning = false;
-    scheduleTurn(endTurn, 210 / replaySpeed); // 300 * 0.7
+    scheduleTurn(endTurn, 420 / replaySpeed); // slowed 50% (was 210)
   }
 }
 
@@ -3057,33 +3187,35 @@ function render() {
   // map — a territory is every hex sharing one color blob, and this is the
   // only line telling you where one blob (and its tap target) stops and the
   // next starts, so it's drawn clearly and always-on, not just on hover/select.
-  // A thick, solidly-opaque dark ring first, then a thin bright silver
-  // core on top: against a dark fill (Beaumanoir's navy) the bright core
-  // reads clearly; against a light fill (the near-white neutral, and
-  // Montherlant's tan/gold — the dark ring was too faint at 0.35 alpha to
-  // actually show up there) the dark ring itself is now the visible edge.
-  // One of the two always contrasts, regardless of how light or dark the
-  // fill is.
+  // A single shared silver/dark line used to run down the middle of every
+  // border, uniform regardless of what was on either side — against some
+  // fills (green in particular) that one fixed treatment sometimes barely
+  // showed up at all. Now two separate thin strokes instead, one offset to
+  // each side of the shared edge, each independently colored to contrast
+  // with *its own* side's fill (same luminance rule textColorFor() already
+  // uses for button text: dark stroke on a light fill, cream stroke on a
+  // dark one) — so every border reads clearly against whatever color is
+  // actually under it, on both sides, instead of one global compromise.
   ctx.lineCap = "round";
-  ctx.strokeStyle = "rgba(20,16,12,0.8)";
-  ctx.lineWidth = 3.2;
-  for (const [[x1, y1], [x2, y2]] of territoryBorderSegments) {
+  // bumped up twice from an initial pass (1.6/1.1, then 2.4/1.8) — verified
+  // via a direct pixel sample (getImageData at each stroke's own center)
+  // that those were still too thin at typical viewScale (~0.6-0.7) for the
+  // two colors to read as reliably separate once anti-aliased on a real
+  // phone screen, rather than blurring toward whichever side painted last
+  ctx.lineWidth = 2.8;
+  const BORDER_STROKE_OFFSET = 2.2;
+  for (const seg of territoryBorderSegments) {
+    const ownerA = territories[seg.terrA].owner, ownerB = territories[seg.terrB].owner;
+    const ox = seg.px * BORDER_STROKE_OFFSET, oy = seg.py * BORDER_STROKE_OFFSET;
+    ctx.strokeStyle = textColorFor(ROYAUMES[ownerA].color);
     ctx.beginPath();
-    ctx.moveTo(x1, y1);
-    ctx.lineTo(x2, y2);
+    ctx.moveTo(seg.p1[0] + ox, seg.p1[1] + oy);
+    ctx.lineTo(seg.p2[0] + ox, seg.p2[1] + oy);
     ctx.stroke();
-  }
-  const [borderC0, borderC1, borderC2] = OUTLINE_GRADIENTS.silver;
-  const borderGrad = ctx.createLinearGradient(-mapExtentX, -mapExtentY, mapExtentX, mapExtentY);
-  borderGrad.addColorStop(0, borderC0);
-  borderGrad.addColorStop(0.5, borderC1);
-  borderGrad.addColorStop(1, borderC2);
-  ctx.strokeStyle = borderGrad;
-  ctx.lineWidth = 1.1;
-  for (const [[x1, y1], [x2, y2]] of territoryBorderSegments) {
+    ctx.strokeStyle = textColorFor(ROYAUMES[ownerB].color);
     ctx.beginPath();
-    ctx.moveTo(x1, y1);
-    ctx.lineTo(x2, y2);
+    ctx.moveTo(seg.p1[0] - ox, seg.p1[1] - oy);
+    ctx.lineTo(seg.p2[0] - ox, seg.p2[1] - oy);
     ctx.stroke();
   }
 
@@ -3279,6 +3411,7 @@ function updateGroups() {
     `<span class="chip"><span class="swatch" style="background:${r.roy.color}"></span>` +
     `<span class="n">${r.connected}</span>·${r.force}·${r.pct}%</span>`
   ).join("");
+  updateEnemySurrenderOffer();
 }
 
 const UNIT_IMG = { triangle: GUEUX_IMG, square: ARCHER_IMG, circle: CHEVALIER_IMG };
@@ -3559,8 +3692,12 @@ document.getElementById("endturn").addEventListener("click", () => {
   } else {
     // "La guerre fait rage" — tapping it while the AIs are playing instantly
     // fast-forwards through the rest of their turns instead of waiting out
-    // the usual pacing delay between moves.
+    // the usual pacing delay between moves. forceInstantSkip drops that to
+    // truly 0ms (see its own note) — even faster than "batailles
+    // instantanées" itself, since this is an explicit "skip this now" tap,
+    // not the ambient always-on setting.
     fastForward = true;
+    forceInstantSkip = true;
   }
 });
 document.getElementById("restart").addEventListener("click", () => {
@@ -3700,8 +3837,21 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.6";
+const GAME_VERSION = "1.7";
 const CHANGELOG = [
+  {
+    version: "1.7",
+    notes: [
+      "Nouveau : un royaume clairement écrasé peut proposer sa reddition — accepter termine la partie tout de suite, sans avoir à l'achever au combat",
+      "Nouveau : une petite vibration quand c'est de nouveau votre tour (après le tour des adversaires) — pratique pour s'éloigner de l'écran un instant",
+      "Frontières entre provinces refaites : deux traits fins, chacun dans une couleur qui contraste avec son propre côté (au lieu d'une bordure argentée uniforme, parfois peu lisible contre certaines couleurs)",
+      "Le carillon de renfort joue maintenant une note par point de renfort (au lieu d'être limité à deux notes)",
+      "Tours des adversaires ralentis de 50 % pour mieux suivre leurs attaques",
+      "Le bouton « La guerre fait rage » termine maintenant vraiment le tour des adversaires tout de suite (avant : toujours un peu de délai)",
+      "Export du graphique en fond d'écran : suppression d'un trait indésirable entre les couleurs, nom de fichier avec la version et le code de la carte, proportions ajustées à celles de l'écran (évite le zoom/recadrage une fois en fond d'écran)",
+      "Nouvelles répliques de fin de partie",
+    ],
+  },
   {
     version: "1.6",
     notes: [
@@ -3823,6 +3973,10 @@ document.getElementById("surrenderBtn").addEventListener("click", () => {
   settingsPanel.style.display = "none";
   sfxMenuClose();
   surrenderGame();
+});
+document.getElementById("enemySurrenderBtn").addEventListener("click", () => {
+  sfxToggle();
+  grantMercy();
 });
 const soundToggle = document.getElementById("soundToggle");
 soundToggle.checked = soundEnabled;
@@ -3953,7 +4107,7 @@ function updateStatus() {
   // once it's the human's turn again, drop back to the persisted "batailles
   // instantanées" setting — a manual tap-to-skip during the AI's turn is a
   // one-off, not a standing override
-  if (currentPlayer === humanRoyId) fastForward = instantBattlesSetting;
+  if (currentPlayer === humanRoyId) { fastForward = instantBattlesSetting; forceInstantSkip = false; }
 }
 
 // luminance-based contrast pick so light royaume colors (e.g. Châteauvieux's
@@ -4105,7 +4259,9 @@ function startGame(seed) {
   document.getElementById("truceOverlay").style.display = "none";
   document.getElementById("endturn").disabled = false;
   gameOver = false; selected = -1; aiRunning = false;
-  allCappedStreak = 0; lastStalemateFingerprint = null; truceEnded = false; truceWinnerId = -1; humanSurrendered = false;
+  allCappedStreak = 0; lastStalemateFingerprint = null; truceEnded = false; truceWinnerId = -1; humanSurrendered = false; mercyGranted = false;
+  document.getElementById("enemySurrenderBtn").style.display = "none";
+  forceInstantSkip = false; // leftover from a manual "La guerre fait rage" tap in a just-abandoned match shouldn't carry over
   // a stray queued chime (or an already-scheduled note from one) from a
   // just-abandoned match (e.g. "Nouvelle guerre" tapped mid AI-cascade, or a
   // replay stopped mid-playback) shouldn't bleed into the new one
