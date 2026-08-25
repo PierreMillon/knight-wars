@@ -4696,6 +4696,12 @@ document.getElementById("lorePersonalities").innerHTML = ROYAUMES.slice(0, ROYAU
   </div>
 `).join("");
 document.getElementById("loreBtn").addEventListener("click", () => {
+  // #loreOverlay and #settingsPanel share the same z-index (10); DOM order
+  // alone would otherwise leave #settingsPanel (declared later) painted on
+  // top, so opening Le lore from within Réglages showed nothing at all —
+  // the overlay WAS open underneath, just fully hidden. Reported live as
+  // "le lore marche pas" (and the identical bug next door in Conseils).
+  settingsPanel.style.display = "none";
   document.getElementById("loreOverlay").style.display = "flex";
   sfxMenuOpen();
 });
@@ -4706,6 +4712,8 @@ function closeLore() {
 document.getElementById("closeLore").addEventListener("click", closeLore);
 enableSwipeToDismiss(document.getElementById("loreBox"), document.getElementById("loreBox"), closeLore);
 document.getElementById("conseilsBtn").addEventListener("click", () => {
+  // same fix as loreBtn just above — see its own comment
+  settingsPanel.style.display = "none";
   document.getElementById("conseilsOverlay").style.display = "flex";
   sfxMenuOpen();
 });
@@ -4721,8 +4729,14 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.15";
+const GAME_VERSION = "1.16";
 const CHANGELOG = [
+  {
+    version: "1.16",
+    notes: [
+      "Correction : les boutons « Le lore » et « 🎓 Conseils » depuis le menu Réglages ne faisaient plus rien à l'usage — l'écran s'ouvrait bien, mais restait caché derrière le menu Réglages resté ouvert par-dessus",
+    ],
+  },
   {
     version: "1.15",
     notes: [
