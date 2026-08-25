@@ -838,10 +838,23 @@
     } catch (e) { /* if even this fails, there is truly nothing more we can do */ }
   }
   window.addEventListener("error", (e) => {
-    showFatalError((e && e.error && e.error.stack) || e.message || String(e));
+    const base = (e && e.error && e.error.stack) || e.message || String(e);
+    // "Script error." with no stack and no file/line is the browser's own
+    // sanitized message for an error it won't give detail on (classically a
+    // cross-origin script — doesn't obviously apply here, everything is
+    // inline/same-origin, but reported live as happening specifically from
+    // Safari's "Add to Home Screen" share-sheet flow, an execution context
+    // this handler has never been confirmed to actually run inside). Include
+    // whatever location info the event does carry (often present even when
+    // the message itself is suppressed) plus the user agent, so a report
+    // built from this is actually actionable instead of just "Script error."
+    // again.
+    const loc = [e && e.filename, e && e.lineno, e && e.colno].filter((v) => v).join(":");
+    const detail = base + (loc ? ` (at ${loc})` : "") + `\nUA: ${navigator.userAgent}`;
+    showFatalError(detail);
   });
   window.addEventListener("unhandledrejection", (e) => {
-    showFatalError("Unhandled promise rejection: " + ((e.reason && e.reason.stack) || e.reason || "?"));
+    showFatalError("Unhandled promise rejection: " + ((e.reason && e.reason.stack) || e.reason || "?") + `\nUA: ${navigator.userAgent}`);
   });
 })();
 
