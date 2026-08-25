@@ -22,18 +22,29 @@
   canvas { display: block; background: #2b3d52; touch-action: none; } /* otherwise the browser can claim a one-finger drag as a pan/scroll gesture mid-way and never deliver pointerup */
   #status, #log { display: none; } /* kept for internal state only, no longer shown */
   /* every persistent in-game HUD button (settings, end-turn, reroll, gueux
-     badge) shares one visual language — a bronze/gold keyline and a serif
-     label — the same materials the menu overlays already use, so the HUD
-     and the menu read as one consistent interface instead of two */
-  #settingsBtn, #endturn, #rerollBtn, #gueuxBadge, #surrenderBtn {
+     badge, surrender, replay controls) shares one visual language — a
+     shiny gold 3D keyline (bright bevel on top, dark bevel on bottom,
+     bronze outer ring, same materials the menu overlays already use) and a
+     serif label, so the HUD and the menu read as one consistent interface
+     instead of two. Only endturn's actual *fill* differs (see
+     updateEndTurnButton()): it's the one button that carries faction
+     meaning, so its background is the player's own royaume color, not the
+     shared parchment gold every other HUD button gets (see each button's
+     own background rule below). */
+  #settingsBtn, #endturn, #rerollBtn, #gueuxBadge, #surrenderBtn,
+  #replaySpeedBtn, #replayPauseBtn, #replayResumeHereBtn {
     border-radius: 10px;
-    border: 1px solid #8a6d3b;
-    box-shadow: 0 0 0 1px rgba(20,16,12,.7), 0 2px 6px rgba(0,0,0,.45);
+    border: 1.5px solid #e8c468;
+    box-shadow:
+      0 0 0 1px rgba(20,16,12,.75),
+      inset 0 1px 0 rgba(255,255,255,.6),
+      inset 0 -2px 3px rgba(0,0,0,.3),
+      0 2px 6px rgba(0,0,0,.45);
     font-family: Georgia, "Iowan Old Style", Palatino, "Times New Roman", serif;
   }
   #settingsBtn {
     position: absolute; top: calc(8px + env(safe-area-inset-top, 0px)); right: 10px;
-    pointer-events: auto; background: rgba(20,16,12,.55);
+    pointer-events: auto; background: linear-gradient(135deg, #fff3c4, #e8c468, #a97e2a);
     width: 34px; height: 34px; padding: 3px;
   }
   #settingsBtn img { width: 100%; height: 100%; object-fit: contain; }
@@ -63,8 +74,8 @@
        the top-left corner */
     position: absolute; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); left: 14px;
     display: none; align-items: center; pointer-events: auto; cursor: pointer;
-    background: rgba(20,16,12,.55);
-    color: #f2ede2; font-size: 12px; padding: 8px 12px; font-weight: 700;
+    background: linear-gradient(135deg, #fff3c4, #e8c468, #a97e2a);
+    color: #2b1d10; font-size: 12px; padding: 8px 12px; font-weight: 700;
     transition: box-shadow .15s, opacity .15s;
   }
   /* armed: tap a territory to spend one gueux as a reinforcement there */
@@ -211,7 +222,7 @@
   #winbanner .box { display: flex; flex-direction: column; align-items: center; gap: 14px; max-height: 88vh; overflow-y: auto; }
   #rerollBtn, #replaySpeedBtn, #replayPauseBtn, #replayResumeHereBtn {
     position: absolute; right: 14px; /* bottom is set in JS, stacked just above #endturn */
-    pointer-events: auto; background: rgba(20,16,12,.6); color: #f2ede2;
+    pointer-events: auto; background: linear-gradient(135deg, #fff3c4, #e8c468, #a97e2a); color: #2b1d10;
     padding: 8px 16px; font-size: 13px; white-space: nowrap; font-weight: 700;
   }
   /* full-width bar, its own row above the whole button stack (see resize()) */
@@ -335,17 +346,24 @@
     padding: 10px 20px; font-size: 15px; font-weight: 700;
   }
   /* plain icon button, main HUD, bottom-center between #gueuxBadge (left)
-     and #endturn (right) — same circular treatment as #settingsBtn.
-     "Abandonner" is destructive (forfeits the match instantly, no confirm
-     dialog — landing on the loss screen already offers "recommencer" right
-     there) so it deliberately does NOT get the warm gold HUD-button look. */
+     and #endturn (right) — same circular gold treatment as #settingsBtn now
+     (it used to deliberately stay dark/unadorned as a "destructive action"
+     cue, but that read as visually inconsistent with the rest of the HUD
+     once every other button went gold — the button already requires an
+     actual tap to trigger, no confirmation dialog needed either way). */
   #surrenderBtn {
     position: absolute; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); left: 50%;
     transform: translateX(-50%);
-    pointer-events: auto; background: rgba(20,16,12,.55);
-    width: 34px; height: 34px; padding: 3px; font-size: 17px;
+    pointer-events: auto; background: linear-gradient(135deg, #fff3c4, #e8c468, #a97e2a);
+    width: 34px; height: 34px; padding: 3px;
     display: flex; align-items: center; justify-content: center;
   }
+  /* pixel-art skull, same asset/style as the L1 Maths "creature-svgs" set —
+     shape-rendering:crispEdges keeps the low-res grid sharp instead of
+     getting antialiased into mush at this small size; color is set via
+     currentColor (the button's own text color) rather than baked into the
+     SVG so it stays consistent if the HUD palette ever shifts. */
+  #surrenderBtn svg { width: 20px; height: auto; color: #2b1d10; }
   /* the least essential action in the panel — a support link, not a game
      action — so it's a calm, muted button (not the loud gold gradient the
      real settings buttons use), separated from "Partie en cours" by a thin
@@ -388,6 +406,22 @@
     box-shadow: 0 0 0 1px rgba(20,16,12,.7), 0 2px 6px rgba(0,0,0,.45);
     font-family: Georgia, "Iowan Old Style", Palatino, "Times New Roman", serif;
   }
+  /* one-shot notice explaining the (deliberate) force jump the moment a
+     faction is picked — see showForceAdaptToast(). Same materials as the
+     hint/surrender slots above it, stacked one further down so a first-time
+     player can see all three without overlap; unlike those two, this one
+     always fades itself out on its own rather than waiting for the player
+     to act, since there's nothing to tap in response to it. */
+  #forceAdaptToast {
+    position: absolute; top: calc(130px + env(safe-area-inset-top, 0px)); left: 50%;
+    transform: translateX(-50%); z-index: 5; pointer-events: none;
+    max-width: 78vw; text-align: center;
+    background: rgba(20,16,12,.75); color: #f2ede2; font-size: 12px; font-weight: 600;
+    padding: 7px 13px; border-radius: 10px; border: 1px solid #8a6d3b;
+    box-shadow: 0 0 0 1px rgba(20,16,12,.7), 0 2px 6px rgba(0,0,0,.45);
+    font-family: Georgia, "Iowan Old Style", Palatino, "Times New Roman", serif;
+    display: none; opacity: 0; transition: opacity .6s ease;
+  }
 </style>
 </head>
 <body>
@@ -409,8 +443,9 @@
   <!-- plain icon, no confirmation — surrenders immediately (see
        surrenderGame()); landing on the loss screen already offers
        "recommencer" right there, so a confirm dialog would be redundant -->
-  <button id="surrenderBtn" aria-label="Abandonner">💀</button>
+  <button id="surrenderBtn" aria-label="Abandonner"><svg viewBox="0 0 7 8" shape-rendering="crispEdges" fill="currentColor" aria-hidden="true"><rect x="1" y="0" width="1" height="1"/><rect x="2" y="0" width="1" height="1"/><rect x="3" y="0" width="1" height="1"/><rect x="4" y="0" width="1" height="1"/><rect x="5" y="0" width="1" height="1"/><rect x="0" y="1" width="1" height="1"/><rect x="1" y="1" width="1" height="1"/><rect x="2" y="1" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="1"/><rect x="6" y="1" width="1" height="1"/><rect x="0" y="2" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="3" y="2" width="1" height="1"/><rect x="4" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="6" y="2" width="1" height="1"/><rect x="0" y="3" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="2" y="3" width="1" height="1"/><rect x="3" y="3" width="1" height="1"/><rect x="4" y="3" width="1" height="1"/><rect x="5" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="0" y="4" width="1" height="1"/><rect x="3" y="4" width="1" height="1"/><rect x="6" y="4" width="1" height="1"/><rect x="0" y="5" width="1" height="1"/><rect x="3" y="5" width="1" height="1"/><rect x="6" y="5" width="1" height="1"/><rect x="1" y="6" width="1" height="1"/><rect x="2" y="6" width="1" height="1"/><rect x="4" y="6" width="1" height="1"/><rect x="5" y="6" width="1" height="1"/><rect x="2" y="7" width="1" height="1"/><rect x="3" y="7" width="1" height="1"/><rect x="4" y="7" width="1" height="1"/></svg></button>
   <div id="onboardingHint"></div>
+  <div id="forceAdaptToast"></div>
   <!-- only ever shown when the sole remaining rival is hopelessly outmatched
        (see updateEnemySurrenderOffer()) — accepting ends the match right
        now as a human win, without actually having to grind them down -->
@@ -500,7 +535,7 @@
         <p><strong>Le combat est sans hasard</strong> : la plus grande force gagne toujours. Seule exception — attaquant ET défenseur tous les deux au plafond (12 contre 12) : là, et seulement là, les dés tranchent, sinon une frontière bloquée au plafond des deux côtés ne pourrait jamais bouger.</p>
         <p><strong>Le renfort de fin de tour</strong> dépend de votre part du territoire par rapport à une part égale entre les royaumes encore debout — au-dessus de la moyenne, vous gagnez plus ; en dessous, moins (jamais 0). Un vaste royaume touche en plus un bonus qui grandit avec sa taille réelle, pas seulement sa part relative : un empire qui domine vraiment continue de gagner en puissance de feu à mesure qu'il s'étend, au lieu de plafonner.</p>
         <p><strong>La trêve</strong> se déclenche quand toutes les frontières sont bloquées au plafond et que rien ne bouge depuis plusieurs tours d'affilée — signe qu'aucune attaque n'a de chance d'aboutir. Vous pouvez l'accepter (match nul) ou continuer le siège en espérant un 12 contre 12 favorable.</p>
-        <p><strong>La difficulté</strong> règle le comportement des royaumes adverses, pas juste un chiffre abstrait : à Page, ils hésitent beaucoup et n'attaquent que sur un avantage écrasant ; à Seigneur, ils attaquent à la moindre ouverture et se trompent presque jamais. Elle change aussi la part de terres neutres au départ (bien plus nombreuses à Page, presque absentes à Seigneur) et votre avance de force initiale.</p>
+        <p><strong>La difficulté</strong> règle le comportement des royaumes adverses, pas juste un chiffre abstrait : à Page, ils hésitent beaucoup et n'attaquent que sur un avantage écrasant ; à Seigneur, ils attaquent à la moindre ouverture et se trompent presque jamais. Elle change aussi la part de terres neutres au départ (bien plus nombreuses à Page, presque absentes à Seigneur) et votre avance de force initiale. C'est aussi pour ça que la force de vos adversaires change d'un coup au moment où vous choisissez votre camp : leur avantage lié à la difficulté ne peut s'appliquer qu'une fois qu'on sait qui joue qui — un petit message l'annonce sur le moment.</p>
         <p><strong>Les gueux</strong> sont une réserve d'un tour à l'autre (activable dans les réglages) : vous en gagnez un à chaque victoire, et pouvez en dépenser un en touchant le badge puis une de vos provinces, pour lui donner +1 de force sur-le-champ, avant même la bataille suivante.</p>
       </div>
       <button id="closeConseils">Fermer</button>
@@ -970,6 +1005,24 @@ function resize() {
         scrubberEl.style.bottom = (h - belowRect.top + 10) + "px";
       }
     }
+  }
+  // surrenderBtn sits between gueuxBadge (bottom-left) and whichever button
+  // currently occupies the bottom-right slot (endturn, or rerollBtn when it
+  // takes endturn's own slot — see rerollTakesEndturnSlot above) — a plain
+  // CSS 50%-center (its old, only positioning) could overlap endturn's own
+  // often-wide "Fin de bataille" button (text + hint line) on narrower
+  // phones, since that button's real width was never accounted for.
+  const surrenderEl = document.getElementById("surrenderBtn");
+  if (surrenderEl.style.display !== "none") {
+    const gueuxEl = document.getElementById("gueuxBadge");
+    const gueuxVisible = gueuxEl.style.display !== "none";
+    const rightOccupant = (rerollVisible && rerollTakesEndturnSlot) ? rerollEl : endturnEl;
+    const rightEdge = rightOccupant.getBoundingClientRect().left;
+    const leftEdge = gueuxVisible ? gueuxEl.getBoundingClientRect().right : 14;
+    // not enough room to fit cleanly between them — fall back to
+    // screen-center rather than guarantee a collision either way
+    const mid = (rightEdge - leftEdge < 50) ? w / 2 : (leftEdge + rightEdge) / 2;
+    surrenderEl.style.left = mid + "px";
   }
   const availH = h - topInset - bottomInset;
   centerX = w / 2; centerY = topInset + availH / 2;
@@ -2008,7 +2061,12 @@ function processReinforceSoundQueue() {
   const n = count;
   const root = reinforceRootHzFor(royId);
   for (let i = 0; i < n; i++) {
-    const ratio = REINFORCE_CHORD_RATIOS[i % REINFORCE_CHORD_RATIOS.length];
+    // Climb the chord (root/third/fifth/octave) and keep climbing an extra
+    // octave every 4 notes instead of wrapping back down to the root — a big
+    // reinforcement should read as one continuously rising arpeggio, not the
+    // same 4-note loop repeating at the same pitch.
+    const lap = Math.floor(i / REINFORCE_CHORD_RATIOS.length);
+    const ratio = REINFORCE_CHORD_RATIOS[i % REINFORCE_CHORD_RATIOS.length] * Math.pow(2, lap);
     scheduleSound(() => playTone(root * ratio, 0.16, { type: "sine", cutoff: 2400, volume: 0.03 }), i * 110); // volume halved per request
   }
   const noteSpanMs = (n - 1) * 110 + 160; // last note's own start offset + its own duration
@@ -2252,7 +2310,13 @@ function advanceTurn() {
   if (checkWinner()) return;
   if (currentPlayer !== humanRoyId && !ROYAUMES[currentPlayer].neutral) {
     aiRunning = true;
-    scheduleTurn(runAI, 700 / replaySpeed); // slowed 50% (was 350) — easier to actually follow the AI's own moves
+    // slowed 50% (was 350) for live play only — easier to actually follow the
+    // AI's own moves; NOT applied during a replay, whose own pacing is
+    // already separately tuned via replaySpeed (REPLAY_BASE_SPEED and its
+    // own long history of adjustments) — stacking this on top of that used
+    // to double every replay's already-deliberate pace, reported as "méga
+    // lent".
+    scheduleTurn(runAI, (replaying ? 350 : 700) / replaySpeed);
   }
 }
 
@@ -3304,10 +3368,10 @@ function runAI() {
   const mistakeRate = Math.max(0, Math.min(1, escalated(AI_MISTAKE_RATE, 0.05) + pers.mistakeDelta));
   if (mv && rngFloat() >= mistakeRate) {
     attack(mv.from, mv.to);
-    scheduleTurn(runAI, 630 / replaySpeed); // slowed 50% (was 315) — same request as above
+    scheduleTurn(runAI, (replaying ? 315 : 630) / replaySpeed); // slowed 50% for live play only — same fix as above
   } else {
     aiRunning = false;
-    scheduleTurn(endTurn, 420 / replaySpeed); // slowed 50% (was 210)
+    scheduleTurn(endTurn, (replaying ? 210 : 420) / replaySpeed); // slowed 50% for live play only — same fix as above
   }
 }
 
@@ -3364,7 +3428,9 @@ function drawOutline(tId, style = "silver") {
 // silver) and stroked exactly once.
 function drawHighlightOutlines() {
   const goldId = selected;
-  const silverIds = dragPath.filter((tId) => tId !== goldId);
+  const allDragIds = new Set();
+  for (const drag of activeDrags.values()) for (const tId of drag.path) allDragIds.add(tId);
+  const silverIds = [...allDragIds].filter((tId) => tId !== goldId);
   if (goldId === -1 && !silverIds.length) return;
   const edgeMap = new Map(); // edgeKey -> { style, edge }
   function collectEdges(tId, style) {
@@ -3478,12 +3544,15 @@ function render() {
   if (replaying && performance.now() < replayIntroHighlightUntil) {
     for (const t of territories) if (t.owner === humanRoyId) drawOutline(t.id, "gold");
   }
-  if (dragPath.length >= 2) {
+  // each active finger draws its own dashed chain line independently — two
+  // concurrent drags never share one path array any more (see activeDrags)
+  for (const drag of activeDrags.values()) {
+    if (drag.path.length < 2) continue;
     ctx.beginPath();
-    const p0 = territories[dragPath[0]];
+    const p0 = territories[drag.path[0]];
     ctx.moveTo(p0.cx, p0.cy);
-    for (let i = 1; i < dragPath.length; i++) {
-      const p = territories[dragPath[i]];
+    for (let i = 1; i < drag.path.length; i++) {
+      const p = territories[drag.path[i]];
       ctx.lineTo(p.cx, p.cy);
     }
     ctx.strokeStyle = "rgba(244,246,249,0.85)";
@@ -3606,15 +3675,17 @@ function render() {
       // how big that province actually was. Now it's the real village
       // (hex) count of whichever territory just changed hands — and when
       // it's OUR OWN territory being taken (the human as defender, not
-      // attacker), the whole thing flips to red "-N villages pour nous"
-      // instead of a green "+N" credited to whichever AI just took it.
+      // attacker), the whole thing flips to red "-N villages" instead of a
+      // green "+N" credited to whichever AI just took it. Red already reads
+      // as "this is a loss for us" on its own — what the attacker gained
+      // isn't the point, so no separate "pour nous" wording is needed.
       const humanLostThis = fx.win && fx.defenderRoyId === humanRoyId;
       const isGreen = fx.win && !humanLostThis;
       const n = fx.hexCount || 1;
       const villageWord = n > 1 ? "villages" : "village";
       let label;
       if (!fx.win) label = "échec";
-      else if (humanLostThis) label = `-${n} ${villageWord} pour nous`;
+      else if (humanLostThis) label = `-${n} ${villageWord}`;
       else label = `+${n} ${villageWord}`;
       const outcomeColor = isGreen ? `rgba(90,200,120,${alpha})` : `rgba(200,70,60,${alpha})`;
 
@@ -3778,6 +3849,7 @@ function pickFaction(royId) {
   document.getElementById("rerollBtn").style.display = "none";
   sfxPickFaction();
   balanceStartingForces();
+  if (DIFFICULTY > 0) showForceAdaptToast(); // Page (0) applies no edge at all — nothing actually changed, so no point announcing it
   // baseline for the end-of-game "gained ground?" flavor line — territory
   // ownership itself isn't touched by the pick or by balanceStartingForces()
   humanStartTerritories = territories.filter(t => t.owner === royId).length;
@@ -3854,55 +3926,70 @@ function handlePointer(clientX, clientY) {
 // tap-only player needed — removed rather than keep an inert setting.
 const dragToAttackEnabled = true;
 const DRAG_THRESHOLD = 18; // px in screen space, below this it's treated as a plain tap
-let dragStartPos = null; // {x, y} — set on every pointerdown, used both for the drag threshold and to know a gesture is in progress
-let dragActive = false;
-// the planned attack chain for this gesture (drag-to-attack only): territory
-// ids in order, first one owned by the player. Drawn live (see render()) so
-// small territories give immediate confirmation of what's under the finger,
-// and dragging back onto the previous node undoes that hop instead of
-// forcing a restart.
-let dragPath = [];
+// Every in-progress gesture is keyed by its own pointerId instead of one
+// shared set of globals — two fingers can now each drive an independent
+// attack-chain drag at the same time (e.g. one hand pushing on the left
+// flank, the other on the right) without the second touch clobbering the
+// first one's state. { startPos:{x,y}, active:bool, path:[territory ids] }
+// — path is the planned attack chain for that one gesture (drag-to-attack
+// only): territory ids in order, first one owned by the player. Drawn live
+// (see render()) so small territories give immediate confirmation of what's
+// under the finger, and dragging back onto the previous node undoes that
+// hop instead of forcing a restart.
+let activeDrags = new Map(); // pointerId -> drag state
 canvas.addEventListener("pointerdown", (e) => {
   if (replaying || gameOver || aiRunning) return;
-  dragStartPos = { x: e.clientX, y: e.clientY };
-  dragActive = false;
-  dragPath = [];
-  if (dragToAttackEnabled && currentPlayer === humanRoyId) {
-    const t = territoryAtClientPoint(e.clientX, e.clientY);
-    if (t && t.owner === currentPlayer && t.force > 1) {
-      dragPath = [t.id];
-      // no render() here on purpose — a plain tap starts and clears this
-      // same 1-node path within a few ms, so painting it immediately just
-      // makes the selection outline flash on/off/on for a simple tap.
-      // pointermove already renders as soon as the path actually grows.
+  const drag = { startPos: { x: e.clientX, y: e.clientY }, active: false, path: [] };
+  const t = dragToAttackEnabled && currentPlayer === humanRoyId ? territoryAtClientPoint(e.clientX, e.clientY) : null;
+  if (t && t.owner === currentPlayer && t.force > 1) {
+    drag.path = [t.id];
+    // no render() here on purpose — a plain tap starts and clears this
+    // same 1-node path within a few ms, so painting it immediately just
+    // makes the selection outline flash on/off/on for a simple tap.
+    // pointermove already renders as soon as the path actually grows.
+  } else if (!t) {
+    // a second finger tapping empty water/void space is a deliberate
+    // "cancel" gesture — instantly clears every other finger's in-progress
+    // attack-chain drag, instead of having to drag each one all the way
+    // back to its own starting village to undo it hop by hop.
+    let cancelledAny = false;
+    for (const other of activeDrags.values()) {
+      if (other.path.length) { other.path = []; other.cancelled = true; cancelledAny = true; }
     }
+    if (cancelledAny) render();
   }
+  activeDrags.set(e.pointerId, drag);
 });
 canvas.addEventListener("pointermove", (e) => {
-  if (!dragStartPos) return;
-  if (Math.hypot(e.clientX - dragStartPos.x, e.clientY - dragStartPos.y) > DRAG_THRESHOLD) dragActive = true;
-  if (!dragPath.length) return; // no chain in progress (drag-to-attack off, or didn't start on a valid territory)
+  const drag = activeDrags.get(e.pointerId);
+  if (!drag) return;
+  if (Math.hypot(e.clientX - drag.startPos.x, e.clientY - drag.startPos.y) > DRAG_THRESHOLD) drag.active = true;
+  if (!drag.path.length) return; // no chain in progress (drag-to-attack off, or didn't start on a valid territory)
   const hoverT = territoryAtClientPoint(e.clientX, e.clientY);
   if (!hoverT) return;
-  const lastId = dragPath[dragPath.length - 1];
+  const lastId = drag.path[drag.path.length - 1];
   if (hoverT.id === lastId) return;
-  if (dragPath.length >= 2 && hoverT.id === dragPath[dragPath.length - 2]) {
-    dragPath.pop(); // dragged back onto the previous node — undo that hop
+  if (drag.path.length >= 2 && hoverT.id === drag.path[drag.path.length - 2]) {
+    drag.path.pop(); // dragged back onto the previous node — undo that hop
     render();
     return;
   }
-  if (dragPath.includes(hoverT.id)) return; // no cycles
+  if (drag.path.includes(hoverT.id)) return; // no cycles within this one gesture
   if (hoverT.owner === currentPlayer) return; // can't attack your own territory
   if (!territories[lastId].neighbors.has(hoverT.id)) return; // must extend one adjacent hop at a time
-  dragPath.push(hoverT.id);
+  drag.path.push(hoverT.id);
   render();
 });
 canvas.addEventListener("pointerup", (e) => {
-  if (!dragStartPos) return;
-  const path = dragPath, wasActive = dragActive;
-  dragStartPos = null; dragActive = false; dragPath = [];
+  const drag = activeDrags.get(e.pointerId);
+  if (!drag) return;
+  activeDrags.delete(e.pointerId);
+  const path = drag.path, wasActive = drag.active;
   if (wasActive && path.length >= 2) {
-    // a real attack-chain drag
+    // a real attack-chain drag — executeAttackChain() re-validates every hop
+    // against the live board as it plays out, so it's harmless if another
+    // finger's own chain has meanwhile changed who owns a territory along
+    // this path; this one just stops at whichever hop no longer holds up.
     if (onboarding) {
       onboarding = false;
       try { localStorage.setItem("kw_playedBefore", "1"); } catch (err) { /* ignore */ }
@@ -3913,6 +4000,13 @@ canvas.addEventListener("pointerup", (e) => {
     executeAttackChain(path);
     return;
   }
+  if (drag.cancelled) {
+    // this finger's chain was deliberately wiped mid-flight by another
+    // finger tapping empty water/void space — releasing it here shouldn't
+    // also register as a fresh tap wherever it happens to lift off
+    render();
+    return;
+  }
   // otherwise: a plain tap — short movement, or drag-to-attack didn't build
   // a valid chain. Handled directly here (see comment above).
   render();
@@ -3920,10 +4014,12 @@ canvas.addEventListener("pointerup", (e) => {
 });
 // the browser can cancel an in-progress touch instead of ever delivering
 // pointerup (e.g. it decided the gesture was a scroll, or another touch
-// interrupted it) — without this, dragPath could get stuck set, making the
-// next real tap misbehave until reset
-canvas.addEventListener("pointercancel", () => {
-  dragStartPos = null; dragActive = false; dragPath = [];
+// interrupted it) — without this, that one pointer's drag state could get
+// stuck set, making its next real tap misbehave until reset. Only that one
+// pointerId is cleared — a second finger's own in-progress gesture is
+// unaffected.
+canvas.addEventListener("pointercancel", (e) => {
+  activeDrags.delete(e.pointerId);
   render();
 });
 
@@ -4114,8 +4210,21 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.8";
+const GAME_VERSION = "1.9";
 const CHANGELOG = [
+  {
+    version: "1.9",
+    notes: [
+      "Correction : le replay tournait deux fois plus lentement que prévu depuis le ralentissement des tours adverses en direct — sa propre vitesse (déjà réglée à part) ne devait pas cumuler avec ce ralenti-là",
+      "Correction : le bouton d'abandon (tête de mort) pouvait se retrouver caché derrière « Fin de bataille » sur les écrans étroits — repositionné dynamiquement entre les deux boutons voisins",
+      "Nouveau : deux doigts peuvent désormais préparer deux chaînes d'attaque en même temps, chacune indépendamment ; toucher l'eau/le vide avec un deuxième doigt annule d'un coup la chaîne en cours de l'autre",
+      "Le carillon de renfort continue de monter en gamme au-delà de 4 notes au lieu de reboucler sur la même octave",
+      "L'icône de reddition est maintenant le vrai dessin de tête de mort (au lieu de l'emoji 💀)",
+      "Nouveau : un petit message explique désormais, sur le moment, le réajustement de force des adversaires au choix du camp — et c'est expliqué dans les Conseils",
+      "Combat : suppression du « pour nous » sur « -N villages » — le rouge suffit à dire que c'est nous qui perdons",
+      "Tous les boutons de l'écran de jeu (réglages, gueux, reddition, changer de carte, contrôles du replay) reprennent maintenant le même liseré doré 3D que les menus",
+    ],
+  },
   {
     version: "1.8",
     notes: [
@@ -4464,6 +4573,27 @@ function showOnboardingHint(msg) {
 }
 function hideOnboardingHint() {
   document.getElementById("onboardingHint").style.display = "none";
+}
+
+// Explains, in the moment, the one-time force jump balanceStartingForces()
+// applies to the AI seats the instant a faction is picked (see its own
+// comment) — every number on the map you can already see, including your
+// own reinforcement math, visibly shifts right when you tap a territory,
+// and without this it reads as a bug rather than the intended
+// difficulty-driven handicap. Holds for a beat, then fades on its own —
+// there's nothing to tap in response, so it shouldn't linger like the
+// onboarding hint or a real button does.
+let forceAdaptToastTimer = null;
+function showForceAdaptToast() {
+  const el = document.getElementById("forceAdaptToast");
+  clearTimeout(forceAdaptToastTimer);
+  el.textContent = "Adaptation de la force des adversaires selon la difficulté";
+  el.style.display = "block";
+  requestAnimationFrame(() => { el.style.opacity = "1"; });
+  forceAdaptToastTimer = setTimeout(() => {
+    el.style.opacity = "0";
+    forceAdaptToastTimer = setTimeout(() => { el.style.display = "none"; }, 650); // matches the CSS opacity transition duration
+  }, 1000);
 }
 
 function refreshGueuxBadge() {
