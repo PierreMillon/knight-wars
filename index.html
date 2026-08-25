@@ -1136,7 +1136,15 @@ let lastPortraitSize = null; // {w, h} — the last size actually measured in po
 let wrapRotationDeg = 0;
 function lockPortraitStage(rawW, rawH) {
   const wrapEl = document.getElementById("wrap");
-  if (rawW <= rawH) {
+  // Only phone-sized viewports ever get frozen+rotated (same 900px
+  // breakpoint .sideArt's own desktop-only media query uses) — a desktop
+  // browser window is landscape by default and was never "a phone turned
+  // sideways"; without this check, any ordinary wide desktop window
+  // rotated the WHOLE game (including the desktop-only side art!) 90° on
+  // every load, discovered live once rotate()+translate() actually landed
+  // it corner-to-corner instead of leaving it subtly off enough to miss.
+  const isPhoneSized = Math.max(rawW, rawH) < 900;
+  if (rawW <= rawH || !isPhoneSized) {
     lastPortraitSize = { w: rawW, h: rawH };
     wrapEl.style.width = "100%";
     wrapEl.style.height = "100%";
@@ -5148,8 +5156,14 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.25";
+const GAME_VERSION = "1.26";
 const CHANGELOG = [
+  {
+    version: "1.26",
+    notes: [
+      "Correction : sur ordinateur (fenêtre plus large que haute), le jeu se retrouvait tourné à 90° dès l'ouverture — la bascule paysage/portrait du téléphone ne s'applique désormais qu'aux écrans de taille téléphone",
+    ],
+  },
   {
     version: "1.25",
     notes: [
