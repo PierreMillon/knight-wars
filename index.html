@@ -5058,8 +5058,14 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.21";
+const GAME_VERSION = "1.22";
 const CHANGELOG = [
+  {
+    version: "1.22",
+    notes: [
+      "Annulé le correctif de la version 1.21 (écran d'accueil parfois bloqué sur un écran blanc) : il provoquait lui-même un nouvel écran blanc immédiatement après sa mise en ligne. Retour à la version qui fonctionnait juste avant, avec un nouveau cache pour repartir sur une base saine.",
+    ],
+  },
   {
     version: "1.21",
     notes: [
