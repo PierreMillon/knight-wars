@@ -3049,12 +3049,17 @@ const STAT_CHART_PANEL_X = 6, STAT_CHART_PANEL_W = STAT_CHART_W - 12;
 // drawStatChart() (on-screen) and renderStreamgraphBands() (wallpaper
 // export) so the two always agree, and by the legend so "top of chart" and
 // "top of legend" are always the same royaume.
+// Fixed stacking/legend order (top to bottom): Montherlant, Barbares,
+// Villiers, Beaumanoir, Châteauvieux — royaume id 2,4,1,3,0. Picked from
+// "Ordre du Chroniqueur" (order #70 of all 120 possible arrangements),
+// chosen for how the resulting band colors read together rather than any
+// gameplay meaning — same fixed order regardless of who's human or which
+// royaume that turns out to be (see the legend's own "(Nous, Sire !)" tag
+// for that, independent of position).
+const CHART_ROYAUME_ORDER = [2, 4, 1, 3, 0];
 function chartRoyaumeOrder(royIdSet, neutralId) {
-  const others = [...royIdSet].filter((id) => id !== humanRoyId).sort((a, b) => a - b);
-  // neutral goes first (top band, top legend row) now, human's own royaume
-  // right after, then everyone else ascending — was neutral last, flipped
-  // per request
-  return [neutralId, humanRoyId, ...others];
+  const present = new Set([...royIdSet, neutralId]); // only royaumes that actually appeared in this match (e.g. fewer opponents)
+  return CHART_ROYAUME_ORDER.filter((id) => present.has(id));
 }
 function drawStatChart() {
   const canvas = document.getElementById("statChart");
@@ -4753,8 +4758,14 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.17";
+const GAME_VERSION = "1.18";
 const CHANGELOG = [
+  {
+    version: "1.18",
+    notes: [
+      "Ordre fixe des couleurs dans le graphique de fin de partie et sa légende (Montherlant, Barbares, Villiers, Beaumanoir, Châteauvieux), choisi pour son rendu visuel",
+    ],
+  },
   {
     version: "1.17",
     notes: [
