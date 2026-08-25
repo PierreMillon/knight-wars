@@ -1117,36 +1117,75 @@ const CHEVALIER_IMG = loadSprite(CHEVALIER_IMG_SRC);
 
 // Pins #wrap (and therefore everything inside it — canvas, HUD, all of it)
 // to whatever fixed pixel size it last had in portrait, instead of letting
-// it reflow/resize when the phone turns sideways. Landscape gets no special
-// treatment of its own at all any more: rotating the phone simply doesn't
-// touch the game, full stop — see #wrap's own CSS comment for why (this
-// replaced an earlier scale-to-fit-letterboxed version that turned out not
-// to be what was actually wanted).
-// portraitStageScale is kept (always 1 now) rather than removed outright —
-// several call sites still divide real DOM geometry (getBoundingClientRect(),
-// which used to report POST-transform physical pixels here) by it before
-// treating that as logical pixel space; leaving the division in place as a
-// harmless no-op means those call sites don't all need to be found and
-// unwound individually.
+// it reflow/resize when the phone turns sideways — then, in landscape,
+// rotates that whole frozen portrait rectangle ±90° so it fills the
+// (now-landscape) viewport EXACTLY, corner to corner, with no cropping and
+// no scaling: a portrait phone's landscape dimensions are just its own
+// portrait dimensions transposed, so a 90°-rotated portrait box is always
+// a perfect pixel-for-pixel fit. Trades "readable without turning your
+// head" for "nothing is ever cut off" — proposed live as a deliberate
+// cheat once true OS-level orientation lock was confirmed impossible for
+// any web content on iPhone (see the manifest/screen.orientation.lock()
+// research): "si je tourne vers la droite, on ne peut pas tourner le jeu
+// vers la gauche ?" (reported after the previous frozen-but-unrotated
+// version left literally half the screen — bottom half, buttons included
+// — cut off past the shorter landscape viewport).
 let portraitStageScale = 1;
 let lastPortraitSize = null; // {w, h} — the last size actually measured in portrait; landscape just keeps reusing it
+// 0 in portrait; ±90 in landscape (sign per screen.orientation.type, same
+// mapping confirmed correct live for the old per-digit rotation this
+// replaces) — every client-point-to-logical-space conversion below needs
+// to know this to correctly invert the rotation, not just a uniform scale
+// the way portraitStageScale (kept at a permanent 1 now) used to cover.
+let wrapRotationDeg = 0;
 function lockPortraitStage(rawW, rawH) {
   const wrapEl = document.getElementById("wrap");
   if (rawW <= rawH) {
     lastPortraitSize = { w: rawW, h: rawH };
     wrapEl.style.width = "100%";
     wrapEl.style.height = "100%";
+    wrapEl.style.transform = "";
+    wrapRotationDeg = 0;
     return { w: rawW, h: rawH };
   }
-  // landscape: freeze at the last known portrait size, unscaled — falls
-  // back to treating the current (landscape) reading as if it were
-  // portrait-shaped on the very first measurement, before any real
-  // portrait size has ever been recorded (e.g. the page happens to load
-  // with the phone already turned sideways).
+  // landscape: freeze at the last known portrait size, then rotate the
+  // whole thing ±90° about its own center — falls back to treating the
+  // current (landscape) reading as if it were portrait-shaped on the very
+  // first measurement, before any real portrait size has ever been
+  // recorded (e.g. the page happens to load with the phone already turned
+  // sideways).
   const { w, h } = lastPortraitSize || { w: rawH, h: rawW };
   wrapEl.style.width = w + "px";
   wrapEl.style.height = h + "px";
+  const type = (window.screen && screen.orientation && screen.orientation.type) || "";
+  wrapRotationDeg = type === "landscape-secondary" ? 90 : -90;
+  wrapEl.style.transform = `rotate(${wrapRotationDeg}deg)`;
   return { w, h };
+}
+// Converts a point in physical/viewport pixels (as e.clientX/clientY report)
+// into a rotated element's own pre-rotation logical coordinate space (0..w
+// by 0..h, top-left origin). `rect` must be that same element's own
+// getBoundingClientRect() (post-rotation physical pixels) — since #wrap's
+// rotation applies to its whole subtree as one rigid transform, this works
+// for ANY descendant, not just one that fills #wrap: the map canvas fills
+// #wrap exactly, so its own w/h (lastPortraitSize) are the default, but a
+// smaller element nested inside (e.g. the win banner's stat-chart canvas)
+// passes its own localW/localH instead. For a pure ±90° rotation the rect
+// stays axis-aligned (just width/height swapped versus the unrotated
+// element), so plain rect.left/top plus the element's own logical w/h stay
+// meaningful without needing the full CSS transform matrix.
+//
+// Derived by hand (corner-case check: rotate a portrait rectangle CW 90° —
+// its old top-left corner swings to the new top-right corner, etc.) rather
+// than guessed — a first draft had the two branches swapped, which would
+// have silently sent every tap in landscape to the wrong hex.
+function physicalToWrapLocal(clientX, clientY, rect, localW, localH) {
+  const relX = clientX - rect.left, relY = clientY - rect.top;
+  const w = localW != null ? localW : (lastPortraitSize && lastPortraitSize.w) || rect.height;
+  const h = localH != null ? localH : (lastPortraitSize && lastPortraitSize.h) || rect.width;
+  if (wrapRotationDeg === 90) return { x: relY, y: h - relX };
+  if (wrapRotationDeg === -90) return { x: w - relY, y: relX };
+  return { x: relX, y: relY };
 }
 function resize() {
   const dpr = window.devicePixelRatio || 1;
@@ -1205,21 +1244,26 @@ function resize() {
       rerollEl.style.bottom = "calc(10px + env(safe-area-inset-bottom, 0px))"; // the exact slot endturn's own CSS default sits in
     } else {
       // getBoundingClientRect() reports POST-transform physical pixels (see
-      // lockPortraitStage()) — divide by portraitStageScale to convert back
-      // to the logical space `h`/style.bottom are both expressed in, or this
-      // stacking math silently breaks (elements land in the wrong place)
-      // whenever the phone is turned sideways.
+      // lockPortraitStage()) — run each corner through physicalToWrapLocal()
+      // (against the map canvas's rect, which fills #wrap exactly) to get
+      // back to the logical space `h`/style.bottom are both expressed in, or
+      // this stacking math silently breaks (elements land in the wrong
+      // place) whenever the phone is turned sideways.
+      const wrapRect = canvas.getBoundingClientRect();
       const endturnRect = endturnEl.getBoundingClientRect();
-      rerollEl.style.bottom = (h - endturnRect.top / portraitStageScale + 8) + "px";
+      const endturnLocal = physicalToWrapLocal(endturnRect.left, endturnRect.top, wrapRect);
+      rerollEl.style.bottom = (h - endturnLocal.y + 8) + "px";
       let topOfStack = rerollEl;
       if (pauseVisible) {
         const rerollRect = rerollEl.getBoundingClientRect();
-        pauseEl.style.bottom = (h - rerollRect.top / portraitStageScale + 8) + "px";
+        const rerollLocal = physicalToWrapLocal(rerollRect.left, rerollRect.top, wrapRect);
+        pauseEl.style.bottom = (h - rerollLocal.y + 8) + "px";
         topOfStack = pauseEl;
       }
       if (resumeHereVisible) {
         const belowRect = topOfStack.getBoundingClientRect();
-        resumeHereEl.style.bottom = (h - belowRect.top / portraitStageScale + 8) + "px";
+        const belowLocal = physicalToWrapLocal(belowRect.left, belowRect.top, wrapRect);
+        resumeHereEl.style.bottom = (h - belowLocal.y + 8) + "px";
       }
     }
   }
@@ -3422,7 +3466,7 @@ function drawStatChart() {
   `).join("");
 }
 
-function statChartIndexAtClientX(clientX) {
+function statChartIndexAtClientX(clientX, clientY) {
   const canvas = document.getElementById("statChart");
   const rect = canvas.getBoundingClientRect();
   // canvas.style.width is set to STAT_CHART_W px, so client coordinates map
@@ -3431,36 +3475,36 @@ function statChartIndexAtClientX(clientX) {
   // single-snapshot match still has 2 "slots" to scrub across (both the
   // same instant), so this divides by 1 instead of 0.
   const effectiveLen = Math.max(2, statHistory.length);
-  // rect is POST-transform physical pixels (see lockPortraitStage()), same
-  // portraitStageScale correction as territoryAtClientPoint() — otherwise
-  // scrubbing the chart lands on the wrong point whenever the phone is
-  // turned sideways (the win banner is inside #wrap too, and gets scaled
-  // down along with everything else there).
-  const localX = (clientX - rect.left) / portraitStageScale;
+  // rect is POST-transform physical pixels (see lockPortraitStage()) — the
+  // win banner (and this chart with it) is inside #wrap too, so it rotates
+  // right along with the map; physicalToWrapLocal() needs this canvas's own
+  // logical size (STAT_CHART_W/H), not #wrap's, since the chart is much
+  // smaller than the whole rotated stage.
+  const localX = physicalToWrapLocal(clientX, clientY, rect, STAT_CHART_W, STAT_CHART_H).x;
   const frac = (localX - STAT_CHART_PANEL_X) / STAT_CHART_PANEL_W;
   return Math.max(0, Math.min(effectiveLen - 1, Math.round(frac * (effectiveLen - 1))));
 }
 // Raw, continuous panel-relative x for the cursor LINE itself (clamped to
 // the panel bounds) — see statChartScrubX's own note on why this is kept
 // separate from the snapped-to-nearest-round index above.
-function statChartXAtClientX(clientX) {
+function statChartXAtClientX(clientX, clientY) {
   const canvas = document.getElementById("statChart");
   const rect = canvas.getBoundingClientRect();
-  const localX = (clientX - rect.left) / portraitStageScale;
+  const localX = physicalToWrapLocal(clientX, clientY, rect, STAT_CHART_W, STAT_CHART_H).x;
   return Math.max(STAT_CHART_PANEL_X, Math.min(STAT_CHART_PANEL_X + STAT_CHART_PANEL_W, localX));
 }
 {
   const statChartEl = document.getElementById("statChart");
   statChartEl.addEventListener("pointerdown", (e) => {
     if (statHistory.length < 1) return;
-    statChartScrubIndex = statChartIndexAtClientX(e.clientX);
-    statChartScrubX = statChartXAtClientX(e.clientX);
+    statChartScrubIndex = statChartIndexAtClientX(e.clientX, e.clientY);
+    statChartScrubX = statChartXAtClientX(e.clientX, e.clientY);
     drawStatChart();
   });
   statChartEl.addEventListener("pointermove", (e) => {
     if (statChartScrubIndex === -1) return; // only while actively dragging
-    statChartScrubIndex = statChartIndexAtClientX(e.clientX);
-    statChartScrubX = statChartXAtClientX(e.clientX);
+    statChartScrubIndex = statChartIndexAtClientX(e.clientX, e.clientY);
+    statChartScrubX = statChartXAtClientX(e.clientX, e.clientY);
     drawStatChart();
   });
   const endScrub = () => { if (statChartScrubIndex !== -1) { statChartScrubIndex = -1; drawStatChart(); } };
@@ -4599,11 +4643,12 @@ function drawForceIcon(t) {
 function hexAtClientPoint(clientX, clientY) {
   const rect = canvas.getBoundingClientRect();
   // rect is POST-transform physical pixels (see lockPortraitStage()) while
-  // centerX/centerY/viewScale are all logical — divide by portraitStageScale
-  // first or every tap/drag hit-tests against the wrong spot whenever the
-  // phone is turned sideways (the map's own scale-down was invisible here).
-  const localX = ((clientX - rect.left) / portraitStageScale - centerX) / viewScale;
-  const localY = ((clientY - rect.top) / portraitStageScale - centerY) / viewScale;
+  // centerX/centerY/viewScale are all logical — invert the rotation via
+  // physicalToWrapLocal() first, or every tap/drag hit-tests against the
+  // wrong spot whenever the phone is turned sideways.
+  const local = physicalToWrapLocal(clientX, clientY, rect);
+  const localX = (local.x - centerX) / viewScale;
+  const localY = (local.y - centerY) / viewScale;
   const { q, r } = pixelToAxial(localX, localY);
   return hexes[`${q},${r}`] || null;
 }
@@ -5092,8 +5137,14 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.23";
+const GAME_VERSION = "1.24";
 const CHANGELOG = [
+  {
+    version: "1.24",
+    notes: [
+      "Mode paysage repensé : un vrai blocage de rotation étant impossible sur iPhone (confirmé), tourner le téléphone tourne maintenant le jeu dans l'autre sens à la place — l'écran se remplit exactement, sans rien couper ni réduire, au prix d'une lecture tête penchée",
+    ],
+  },
   {
     version: "1.23",
     notes: [
