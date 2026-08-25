@@ -24,7 +24,7 @@
 // fallback. index.html's own update-check (see checkForUpdate()) still
 // decides *when* to actually reload an already-open tab — this only
 // changes what a fresh navigation/launch fetches.
-const CACHE_NAME = "knight-wars-v2"; // bumped from v1 — forces every existing install (PWA icons included) to purge its stale cache on next launch, rather than depending on background revalidation ever having succeeded
+const CACHE_NAME = "knight-wars-v3"; // bumped from v2 — the navigation fetch now forces {cache:"reload"} (see its own note); bumping purges any existing install's Cache Storage cleanly alongside that change
 const APP_SHELL = ["./", "./index.html", "./manifest.json", "./icon-192.png", "./icon-512.png"];
 
 self.addEventListener("install", (event) => {
@@ -44,7 +44,18 @@ self.addEventListener("fetch", (event) => {
 
   if (event.request.mode === "navigate") {
     event.respondWith(
-      fetch(event.request)
+      // {cache: "reload"} forces this past the browser/WebView's own native
+      // HTTP cache, a layer below our Cache Storage entirely and not
+      // something this service worker otherwise controls — a plain
+      // fetch(request) can still be answered from that layer with a stale
+      // response even though the code here genuinely tries "network first"
+      // every time. Reported live: a fresh launch of the home-screen icon
+      // stayed on a broken white-screen build even after a full force-quit
+      // and relaunch (same installed PWA, same underlying cache layers) —
+      // only deleting and re-adding the icon (a truly clean WebView/cache
+      // state) actually picked up the fix. {cache:"reload"} closes that gap
+      // without needing a full reinstall to get there.
+      fetch(event.request, { cache: "reload" })
         .then((res) => {
           if (res && res.ok) {
             const resClone = res.clone();
