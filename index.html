@@ -1090,7 +1090,18 @@ function updateMapNumberRotation() {
   const type = (window.screen && screen.orientation && screen.orientation.type) || "";
   mapNumberRotationRad = type === "landscape-secondary" ? -Math.PI / 2 : Math.PI / 2;
 }
-if (window.screen && screen.orientation) screen.orientation.addEventListener("change", () => { updateMapNumberRotation(); render(); });
+// try/catch, not just the truthy guard above: this runs at the top level
+// during initial script execution, so ANY uncaught exception here (e.g. iOS
+// Safari exposing `screen.orientation` as an object that doesn't actually
+// support addEventListener, or a permissions-policy restriction throwing in
+// an embedded/in-app-browser context) would silently abort every line of
+// game code still to come — reported live as the whole app failing to open
+// at all (blank white screen on iPhone), for the sake of a purely cosmetic
+// feature. CRITICAL fix — this one guard is the entire difference between
+// "landscape numbers might not rotate" and "the game doesn't load".
+try {
+  if (window.screen && screen.orientation) screen.orientation.addEventListener("change", () => { updateMapNumberRotation(); render(); });
+} catch (e) { /* landscape number rotation just won't update live — never worth crashing the whole app over */ }
 window.addEventListener("resize", resize);
 // iOS Safari's address bar collapses/expands after load, changing the
 // visible viewport without a plain "resize" event — this keeps the map
