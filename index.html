@@ -22,27 +22,23 @@
        sideways (see lockPortraitStage()). */
     background: #3d5f80; font-family: -apple-system, system-ui, sans-serif;
     touch-action: manipulation; user-select: none;
-    /* horizontally centers #wrap when it's narrower than the viewport (see
-       lockPortraitStage() below) — a no-op in portrait, where #wrap always
-       fills the full width anyway. Top-aligned, not centered, vertically:
-       #wrap keeps its exact portrait height even when that's taller than
-       the current (landscape) viewport, and top-aligning is what keeps the
-       title/stats visible at the top instead of pushing half of it above
-       the visible screen. */
-    display: flex; align-items: flex-start; justify-content: center;
   }
   /* Sized by lockPortraitStage() (called from resize()): 100%x100% in
-     portrait, as before. In landscape, turning the phone physically does
-     not change the game at all any more — no reflow, no shrink, no
-     rotation, nothing: #wrap simply keeps the exact pixel dimensions it
-     last had in portrait, un-scaled, as if orientation were locked.
-     Whatever doesn't fit within the new (shorter) viewport just extends
-     past the bottom edge, off-screen — nothing touches it to make it
-     "fit". (Reworked from an earlier version that scaled the whole thing
-     down to fit letterboxed, rotating only the force digits — reported
-     back as not what was actually wanted: "je veux que ça ne change rien
-     à l'écran... comme si j'avais une rotation bloquée".) */
-  #wrap { position: relative; width: 100%; height: 100%; }
+     portrait, as before. In landscape, #wrap freezes at its last-measured
+     portrait pixel size and rotates ±90° about its own center — a
+     portrait-shaped box rotated 90° is an exact, uncropped fit for the
+     (transposed) landscape viewport, so turning the phone tilts the whole
+     game instead of cropping or shrinking it (a real OS-level orientation
+     lock being confirmed impossible on iPhone, in Safari or as an
+     installed PWA). Fixed at top:0/left:0 (not a flex-centered body child
+     any more) so lockPortraitStage() can position it with a single,
+     self-contained transform — translate() to compensate for the
+     rotation swapping width/height (see its own note), then rotate() —
+     instead of depending on the flex layout of an ancestor to land in the
+     right place, which silently broke (map and every HUD button ending up
+     shifted from where they visually belong) the first time this shipped
+     with rotate() alone and no compensating translate. */
+  #wrap { position: fixed; top: 0; left: 0; width: 100%; height: 100%; }
   canvas { display: block; background: #3d5f80; touch-action: none; } /* matches CANVAS_BG_COLOR/water — otherwise the browser can claim a one-finger drag as a pan/scroll gesture mid-way and never deliver pointerup */
   #status, #log { display: none; } /* kept for internal state only, no longer shown */
   /* every persistent in-game HUD button (settings, end-turn, reroll, gueux
@@ -1159,7 +1155,22 @@ function lockPortraitStage(rawW, rawH) {
   wrapEl.style.height = h + "px";
   const type = (window.screen && screen.orientation && screen.orientation.type) || "";
   wrapRotationDeg = type === "landscape-secondary" ? 90 : -90;
-  wrapEl.style.transform = `rotate(${wrapRotationDeg}deg)`;
+  // rotate() alone isn't enough: it turns the box in place around its own
+  // center, but since w !== h (portrait is always taller than wide) that
+  // center isn't where the rotated box needs to sit to fill a viewport
+  // that starts at (0,0) — the whole frozen w×h rectangle (top-left
+  // pinned at 0,0 by #wrap's own CSS) drifts off to one side instead of
+  // covering the screen (reported live: map and every HUD button landing
+  // somewhere other than where they visually belong). A rotated w×h box's
+  // bounding box is h×w, still centered on the same point — translating
+  // by ((h-w)/2, (w-h)/2) *after* the rotation (i.e. listed first: CSS
+  // applies the rightmost transform function to the box first, then the
+  // next one over on the *already-rotated* result, along the parent's own
+  // unrotated axes) is exactly the shift that brings that bounding box's
+  // corner back to (0,0), filling the transposed h×w viewport corner to
+  // corner regardless of which way it rotated.
+  const tx = (h - w) / 2, ty = (w - h) / 2;
+  wrapEl.style.transform = `translate(${tx}px, ${ty}px) rotate(${wrapRotationDeg}deg)`;
   return { w, h };
 }
 // Converts a point in physical/viewport pixels (as e.clientX/clientY report)
@@ -5137,8 +5148,14 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.24";
+const GAME_VERSION = "1.25";
 const CHANGELOG = [
+  {
+    version: "1.25",
+    notes: [
+      "Correctif du mode paysage v1.24 : la carte et les boutons ne se plaçaient pas exactement où ils devaient (décalés par rapport à l'écran) — corrigé, tout reste visuellement à sa place une fois le jeu tourné",
+    ],
+  },
   {
     version: "1.24",
     notes: [
