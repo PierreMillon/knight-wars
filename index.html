@@ -120,12 +120,19 @@
     border: 1px solid #8a6d3b;
     box-shadow: 0 0 0 5px #1b1712, inset 0 0 0 1px rgba(139,109,59,.6), 0 12px 30px rgba(0,0,0,.5);
   }
-  /* extra top padding makes room for #closeSettings, an absolutely
-     positioned corner button (matches #closeChangelog's treatment) instead
-     of a "Fermer" button taking its own row at the top of a long panel */
-  #settingsPanel .box { max-height: 86vh; overflow-y: auto; padding-top: 44px; position: relative; }
+  /* no "Réglages" title/row any more — content starts right at the top of
+     the box, its own top edge level with #closeSettings's (both 10px down
+     from the box's outer edge); the ✕ is absolutely positioned so it simply
+     overlaps the corner above the first field's short label instead of
+     pushing it down.
+     .box itself no longer scrolls (overflow now lives on #settingsScroll,
+     its one flex child) — closeSettings stays floating at the fixed corner
+     of .box regardless of how far the content underneath has scrolled,
+     instead of scrolling away with it. */
+  #settingsPanel .box { max-height: 86vh; padding-top: 10px; position: relative; display: flex; flex-direction: column; overflow: hidden; }
+  #settingsScroll { overflow-y: auto; flex: 1 1 auto; min-height: 0; touch-action: pan-y; }
   #closeSettings {
-    position: absolute; top: 10px; right: 10px; margin: 0;
+    position: absolute; top: 10px; right: 10px; margin: 0; z-index: 1;
     width: 30px; height: 30px; padding: 0; border-radius: 50%;
     font-size: 16px; line-height: 1;
     display: flex; align-items: center; justify-content: center;
@@ -205,6 +212,9 @@
   .winButtons { display: flex; gap: 10px; }
   #winActionsGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-self: stretch; }
   #winActionsGrid button { margin: 0; }
+  /* was shrinking to its own content width and centering, unlike every
+     other full-width button/grid in this card — stretched to match */
+  #saveChartImage { align-self: stretch; }
   #shareIntro {
     position: absolute; inset: 0; display: none;
     align-items: center; justify-content: center;
@@ -374,7 +384,7 @@
            separate full-width buttons below, which read as one inconsistent
            block instead of one clean rectangle -->
       <div id="winActionsGrid">
-        <button id="restart">Rejouer</button>
+        <button id="restart">Rejouer la même carte</button>
         <button id="watchReplay">▶ Revoir la partie</button>
         <button id="randomGameBtn">🔀 Nouvelle partie aléatoire</button>
         <button id="shareReplay">📜 Partager ma victoire</button>
@@ -423,6 +433,14 @@
         <div class="hLevel hRoyaume"><span class="hName">Royaume</span><span class="hDesc">toutes les provinces d'une même couleur</span></div>
         <div class="hLevel hPays"><span class="hName">Pays</span><span class="hDesc">toute la carte, une fois qu'un seul royaume reste debout</span></div>
       </div>
+      <!-- color/name reference, right where "Royaume" was just explained
+           above — moved here from the settings panel per request: a quick
+           glance mid-match belongs with the rest of the rules reference,
+           not the persistent-preferences panel. -->
+      <div class="fieldGroup">
+        <div class="fieldLabel">Les royaumes</div>
+        <div id="royaumesList"></div>
+      </div>
       <div id="conseilsMechanics">
         <p><strong>La force est plafonnée à 12</strong> par province — impossible d'empiler plus haut, quelle que soit la taille de votre royaume.</p>
         <p><strong>Le combat est sans hasard</strong> : la plus grande force gagne toujours. Seule exception — attaquant ET défenseur tous les deux au plafond (12 contre 12) : là, et seulement là, les dés tranchent, sinon une frontière bloquée au plafond des deux côtés ne pourrait jamais bouger.</p>
@@ -444,13 +462,33 @@
     </div>
   </div>
   <div id="settingsPanel">
-    <div class="box">
+    <div class="box" id="settingsBox">
       <button id="closeSettings" aria-label="Fermer">✕</button>
-      <h2>Réglages</h2>
+      <!-- everything else lives in its own scrolling wrapper, not directly
+           in .box — .box itself no longer scrolls (see #settingsPanel .box),
+           so closeSettings (absolutely positioned against .box) stays
+           floating at the top-right corner no matter how far down the
+           content underneath is scrolled. -->
+      <div id="settingsScroll">
+
+      <!-- moved to the very top, above "Difficulté" and everything else —
+           the actions on the CURRENT match are what someone reaches for
+           fastest mid-game. "Abandonner" is styled as destructive (see
+           #settingsPanel #surrenderBtn) so it doesn't look as inviting as
+           the rest. No "Réglages" title/section label above this any more —
+           this block is the very first thing in the panel, flush with the
+           top of the ✕ (padding-top:10px above; see .box, and the
+           :first-of-type rule below that drops its own top border/padding
+           now that it's first). -->
+      <div class="settingsSectionLabel">Partie en cours</div>
+      <button id="newWarBtn">⚔ Nouvelle guerre — abandonne la partie et recommence</button>
+      <button id="surrenderBtn">💀 Abandonner — capituler tout de suite</button>
 
       <!-- Tier 1: the settings someone actually comes here to change, most
-           often — how hard, how big, and the always-on toggles. -->
-      <div class="settingsSectionLabel">Préférences de jeu</div>
+           often — how hard, how big, and the always-on toggles. No section
+           label of its own (no "Réglages"/"Préférences de jeu" heading) — it
+           reads fine directly under "Partie en cours"'s two buttons above,
+           separated by that section's own top border/padding. -->
       <div class="fieldGroup">
         <div class="fieldLabel">Difficulté</div>
         <div id="difficultyLevels" class="levelRow">
@@ -468,28 +506,18 @@
           <button data-mapsize="large" class="levelBtn">Grande Campagne</button>
         </div>
       </div>
-      <!-- a short, portable code for the exact map in play — not a full
-           share link, just enough (seed + map size + difficulty) to
-           regenerate the identical map later, e.g. dictated over voice/text
-           instead of copy-pasting a whole URL -->
+      <!-- independent of map size — any combination is possible (a small
+           map with 4 opponents, a big one with a single rival...); the
+           territory count scales to fit whichever is picked (see
+           applyMapSize()). -->
       <div class="fieldGroup">
-        <!-- tap the code itself to copy it (no separate copy button) — a
-           small clipboard icon inside the field hints that it's tappable,
-           and the field briefly shows "Copié !" as confirmation -->
-        <div class="fieldLabel">Code de cette carte — touchez pour copier</div>
-        <div id="mapCodeRow">
-          <input id="mapCodeDisplay" type="text" readonly>
-          <span class="mapCodeIcon">📋</span>
+        <div class="fieldLabel">Nombre d'adversaires — s'applique à la prochaine guerre</div>
+        <div id="opponentCountLevels" class="levelRow">
+          <button data-opponents="1" class="levelBtn">1 adversaire</button>
+          <button data-opponents="2" class="levelBtn">2 adversaires</button>
+          <button data-opponents="3" class="levelBtn">3 adversaires</button>
+          <button data-opponents="4" class="levelBtn">4 adversaires</button>
         </div>
-        <!-- tap the input to try pasting the clipboard automatically; if
-           there's nothing to paste (or no permission), it just focuses for
-           manual typing like any other text field -->
-        <div class="fieldLabel" style="margin-top:10px;">Charger une carte par son code — touchez pour coller</div>
-        <div id="mapCodeLoadRow">
-          <input id="mapCodeInput" type="text" placeholder="ex. kf12oim1">
-          <span class="mapCodeIcon">📥</span>
-        </div>
-        <button id="loadMapCode">Charger</button>
       </div>
       <label><input type="checkbox" id="soundToggle"> Sons</label>
       <label><input type="checkbox" id="instantBattlesToggle"> Batailles instantanées — les tours adverses se résolvent sans attendre</label>
@@ -497,15 +525,11 @@
 
       <!-- Tier 2: reference/display info, not something you "change" so
            much as glance at — separated from the toggles above it.
-           The royaume color/name list was removed once (same content as
-           "Le lore", just the swatch+name without the full paragraph) but
-           brought back — mid-match, checking which color is which royaume
-           needs a quick glance, not "Le lore"'s fuller paragraphs. -->
+           The royaume color/name list itself now lives in Conseils
+           (a quick glance mid-match belongs with the rest of the rules
+           reference, not this persistent-preferences panel) — only the
+           sort control stays here since it's an actual setting. -->
       <div class="settingsSectionLabel">Affichage</div>
-      <div class="fieldGroup">
-        <div class="fieldLabel">Les royaumes</div>
-        <div id="royaumesList"></div>
-      </div>
       <div class="fieldGroup">
         <div class="fieldLabel">Classer les royaumes par</div>
         <div id="sortLevels" class="levelRow">
@@ -526,19 +550,38 @@
         <button id="loreBtn">📜 Le lore</button>
       </div>
 
-      <!-- Tier 4: actions on the CURRENT match — the only buttons in this
-           panel that end or restart the game you're playing right now.
-           "Abandonner" is styled as destructive (see #settingsPanel
-           #surrenderBtn) so it doesn't look as inviting as the rest. -->
-      <div class="settingsSectionLabel">Partie en cours</div>
-      <button id="newWarBtn">⚔ Nouvelle guerre — abandonne la partie et recommence</button>
-      <button id="surrenderBtn">💀 Abandonner — capituler tout de suite</button>
+      <!-- a short, portable code for the exact map in play — not a full
+           share link, just enough (seed + map size + difficulty) to
+           regenerate the identical map later, e.g. dictated over voice/text
+           instead of copy-pasting a whole URL. Moved down here, right above
+           the support link — the least-reached-for field in the panel, not
+           something to wade through on the way to the actual settings above. -->
+      <div class="fieldGroup">
+        <!-- tap the code itself to copy it (no separate copy button) — a
+           small clipboard icon inside the field hints that it's tappable,
+           and the field briefly shows "Copié !" as confirmation -->
+        <div class="fieldLabel">Code de cette carte — touchez pour copier</div>
+        <div id="mapCodeRow">
+          <input id="mapCodeDisplay" type="text" readonly>
+          <span class="mapCodeIcon">📋</span>
+        </div>
+        <!-- tap the input to try pasting the clipboard automatically; if
+           there's nothing to paste (or no permission), it just focuses for
+           manual typing like any other text field -->
+        <div class="fieldLabel" style="margin-top:10px;">Charger une carte par son code — touchez pour coller</div>
+        <div id="mapCodeLoadRow">
+          <input id="mapCodeInput" type="text" placeholder="ex. kf12oim1">
+          <span class="mapCodeIcon">📥</span>
+        </div>
+        <button id="loadMapCode">Charger</button>
+      </div>
 
       <!-- Least essential of all — a support link, not a game action — a
            calm, muted button below a divider (see #supportLink), not
            another loud button competing with the real settings above. -->
       <div id="supportLinkWrap">
         <a id="supportLink" href="https://ko-fi.com/knightwars" target="_blank" rel="noopener">❤️ Soutenir le jeu 😊</a>
+      </div>
       </div>
     </div>
   </div>
@@ -557,14 +600,20 @@ const HEX_SIZE = 26;          // was 20, +30% per request — bigger tap targets
 let MAP_PIXEL_RADIUS = 230; // was 210 — grown a bit alongside HEX_SIZE so
                              // territories keep a similar hex count/shape
 let TERRITORY_COUNT = 26;
-const ROYAUME_COUNT = 5; // joueur + 3 IA + 1 neutre
+const ROYAUME_COUNT = 6; // joueur + 4 IA (au maximum — voir opponentCount) + 1 neutre
 
-// Small keeps only 2 of the 4 real royaume slots actually on the map (the
-// other 2 start with zero territory — see mergeDownToActiveRoyaumes()), so
-// whichever one the human ends up picking, exactly one AI opponent remains:
-// isAlive()/checkWinner() already treat zero-territory royaumes as
-// eliminated (the same code path a mid-game elimination goes through), so
-// this needs no new game-logic branch, just fewer seats actually populated.
+// "Nombre d'adversaires" (1-4), independent of map size — previously map size
+// alone fixed the opponent count (small = 1, medium/large = 3); now any
+// combination is possible (a small map with 4 opponents, a big one with a
+// single rival, etc.), so applyMapSize() below scales TERRITORY_COUNT/
+// MAP_PIXEL_RADIUS to the number of factions actually sharing the map instead
+// of a fixed value baked into the size itself.
+let opponentCount = 3; // matches the old medium/large default (3 AI opponents)
+try {
+  const savedOpponentCount = parseInt(localStorage.getItem("kw_opponentCount"), 10);
+  if (savedOpponentCount >= 1 && savedOpponentCount <= 4) opponentCount = savedOpponentCount;
+} catch (e) { /* ignore */ }
+
 // radius here is the ungenerated island's nominal size, in the same virtual
 // units as HEX_SIZE — NOT the on-screen size, which resize()'s viewScale
 // always shrinks to fit whatever's generated into the actual viewport. A
@@ -574,10 +623,16 @@ const ROYAUME_COUNT = 5; // joueur + 3 IA + 1 neutre
 // that the on-screen hex size barely changes, while still generating
 // meaningfully more hexes/provinces (island area scales roughly with
 // radius², so even this modest bump is a real step up in content).
+// territoryCount/radius below are each size's baseline at baseFactions total
+// royaumes (2 for small — it was always meant as a tight 1v1 skirmish, 4 for
+// medium/large, matching what activeRoyaumes used to hard-code) — applyMapSize()
+// scales both to whatever opponentCount actually is now, so each faction's
+// own slice of the map stays roughly the same size regardless of how many
+// are sharing it.
 const MAP_SIZES = {
-  small: { label: "Escarmouche", territoryCount: 6, radius: 95, activeRoyaumes: 2 },
-  medium: { label: "Campagne", territoryCount: 26, radius: 230, activeRoyaumes: 4 },
-  large: { label: "Grande Campagne", territoryCount: 36, radius: 255, activeRoyaumes: 4 },
+  small: { label: "Escarmouche", territoryCount: 6, radius: 95, baseFactions: 2 },
+  medium: { label: "Campagne", territoryCount: 26, radius: 230, baseFactions: 4 },
+  large: { label: "Grande Campagne", territoryCount: 36, radius: 255, baseFactions: 4 },
 };
 let mapSize = "medium";
 try {
@@ -592,8 +647,14 @@ try {
 function applyMapSize(size) {
   const cfg = MAP_SIZES[size] || MAP_SIZES.medium;
   mapSize = MAP_SIZES[size] ? size : "medium";
-  TERRITORY_COUNT = cfg.territoryCount;
-  MAP_PIXEL_RADIUS = cfg.radius;
+  const totalFactions = opponentCount + 1; // + the human's own seat
+  const scale = totalFactions / cfg.baseFactions;
+  TERRITORY_COUNT = Math.max(totalFactions * 2, Math.round(cfg.territoryCount * scale));
+  // area (and so hex/territory count) scales roughly with radius², not
+  // radius itself — sqrt(scale) keeps hex density (and on-screen hex size)
+  // similar across opponent counts instead of the island just getting
+  // proportionally emptier or more cramped
+  MAP_PIXEL_RADIUS = Math.round(cfg.radius * Math.sqrt(scale));
 }
 function mergeDownToActiveRoyaumes(activeCount) {
   for (let royId = activeCount; royId < ROYAUME_COUNT - 1; royId++) {
@@ -626,12 +687,18 @@ const SHOW_UNIT_SPRITES = false;
 // neutral (clearly reads as "nobody's"), and Châteauvieux gets its own
 // distinct color (forest green — the palette's missing 4th heraldic
 // tincture, clearly a real royaume rather than an ambiguous grey).
+// 5th real royaume (id 4) added alongside "Nombre d'adversaires" (see
+// opponentCount below) — up to 4 opponents needs 5 non-neutral seats, not
+// just the original 4. Neutral shifted from id 4 to id 5 to make room;
+// everything else in the file addresses it via ROYAUME_COUNT - 1, not a
+// literal 4, so this didn't need touching anywhere else.
 const ROYAUMES = [
   { id: 0, name: "Millon de Châteauvieux", color: "#2d6a4f", accent: "#f7f0f5", chief: "#931f1d" },
   { id: 1, name: "Millon de Villiers",     color: "#931f1d", accent: "#c6a15b", chief: "#0a1128" },
   { id: 2, name: "Millon de Montherlant",  color: "#c6a15b", accent: "#f7f0f5", chief: "#931f1d" },
   { id: 3, name: "Millon de Beaumanoir",   color: "#001f54", accent: "#f7f0f5", chief: "#c6a15b" },
-  { id: 4, name: "Neutre",                 color: "#f7f0f5", accent: "#c9c2b4", chief: "#c9c2b4", neutral: true },
+  { id: 4, name: "Millon de Roncevaux",    color: "#5c2d91", accent: "#f7f0f5", chief: "#001f54" },
+  { id: 5, name: "Barbares païens",         color: "#f7f0f5", accent: "#c9c2b4", chief: "#c9c2b4", neutral: true },
 ];
 
 // A fixed personality per royaume (indexed by id, not by "whichever 3 are AI
@@ -669,6 +736,12 @@ const AI_PERSONALITIES = [
     lore: "comptent leurs coups et achèvent sans pitié quiconque est déjà à terre — un royaume affaibli attire leurs armées comme le sang attire les loups." }, // Montherlant — opportunistic, hunts weak royaumes down
   { epithet: "les Stratèges", aggressionDelta: +0.2, mistakeDelta: -0.05, exposureWeight: 1.6, finishOffBonus: 2.0,
     lore: "jouent la longue partie, ne laissent jamais un flanc découvert et ne se pressent jamais — patients, mais rarement pris en défaut." }, // Beaumanoir — calculating, plays the long game
+  // 5th personality (Roncevaux) — a middle ground between Villiers' pure
+  // recklessness and Montherlant's calculated opportunism: bold enough to
+  // leave a flank open chasing a kill (exposureWeight between the two), but
+  // not quite as merciless-on-sight as Villiers.
+  { epithet: "les Loups", aggressionDelta: -1.2, mistakeDelta: -0.15, exposureWeight: 0.5, finishOffBonus: 3.0,
+    lore: "chassent en meute et ne laissent jamais un rival affaibli s'échapper, mais avancent parfois trop loin, trop vite, sans se soucier de leurs arrières." }, // Roncevaux — bold pack hunter
 ];
 
 // Difficulty: still a continuous 0-1 value under the hood (driving AI traits
@@ -778,22 +851,34 @@ function resize() {
   const speedEl = document.getElementById("replaySpeedBtn");
   const rerollVisible = rerollEl.style.display !== "none";
   const speedVisible = speedEl.style.display !== "none";
+  // Once "Choisissez un camp" has been retired (see CAMP_PROMPT_MAX),
+  // endturn is hidden while awaiting a pick and rerollBtn ("Changer la
+  // carte") takes over its exact bottom-right slot instead of stacking
+  // above an empty reserved row — there's nothing else sharing that stack
+  // in this state (replaySpeedBtn is never shown outside a replay).
+  const rerollTakesEndturnSlot = !replaying && awaitingFactionPick && campPromptCount >= CAMP_PROMPT_MAX;
   // rerollBtn stacks directly above endturn, and replaySpeedBtn (only shown
   // during replay) stacks above that in turn (not a separate full-width bar
   // any more — that used to visually overlap endturn on real devices)
-  const rightStackHeight = endturnEl.offsetHeight
-    + (rerollVisible ? rerollEl.offsetHeight + 8 : 0)
-    + (speedVisible ? speedEl.offsetHeight + 8 : 0);
+  const rightStackHeight = rerollTakesEndturnSlot
+    ? (rerollVisible ? rerollEl.offsetHeight : 0)
+    : endturnEl.offsetHeight
+      + (rerollVisible ? rerollEl.offsetHeight + 8 : 0)
+      + (speedVisible ? speedEl.offsetHeight + 8 : 0);
   const bottomInset = Math.max(
     document.getElementById("settingsBtn").offsetHeight,
     rightStackHeight
   ) + 20;
   if (rerollVisible) {
-    const endturnRect = endturnEl.getBoundingClientRect();
-    rerollEl.style.bottom = (h - endturnRect.top + 8) + "px";
-    if (speedVisible) {
-      const rerollRect = rerollEl.getBoundingClientRect();
-      speedEl.style.bottom = (h - rerollRect.top + 8) + "px";
+    if (rerollTakesEndturnSlot) {
+      rerollEl.style.bottom = "calc(10px + env(safe-area-inset-bottom, 0px))"; // the exact slot endturn's own CSS default sits in
+    } else {
+      const endturnRect = endturnEl.getBoundingClientRect();
+      rerollEl.style.bottom = (h - endturnRect.top + 8) + "px";
+      if (speedVisible) {
+        const rerollRect = rerollEl.getBoundingClientRect();
+        speedEl.style.bottom = (h - rerollRect.top + 8) + "px";
+      }
     }
   }
   const availH = h - topInset - bottomInset;
@@ -1438,11 +1523,21 @@ let gameStartDifficulty = DIFFICULTY;
 // different island (different TERRITORY_COUNT/MAP_PIXEL_RADIUS) instead of
 // the exact one the original match was played on, even with the same seed.
 let gameStartMapSize = mapSize;
+// same idea, for "Nombre d'adversaires" — TERRITORY_COUNT/MAP_PIXEL_RADIUS
+// (via applyMapSize()) now depend on opponentCount too, not just map size, so
+// a replay needs to freeze and restore this exactly the same way
+let gameStartOpponentCount = opponentCount;
 let replaying = false;
 let replaySpeed = 1; // AI turn-pacing divisor; set >1 during replay playback
 const REPLAY_BASE_SPEED = 0.25; // playReplay()'s starting pace; replaySpeedBtn toggles between this and 2x it
 let replayFastActive = false; // whether replaySpeedBtn's 2x boost is currently on
 let replayIntroHighlightUntil = 0; // performance.now() timestamp — while current, render() flashes the human's starting territories gold
+// set to playReplay()'s local finish() for the whole duration of a replay,
+// null otherwise — lets rerollBtn's click handler stop a replay the *right*
+// way (restore state, run the context-correct onFinish) instead of just
+// setting replaying = false and starting an unrelated new game (see rerollBtn
+// listener below).
+let activeReplayFinish = null;
 
 function recordRoundSnapshot() {
   const stats = {};
@@ -1511,7 +1606,11 @@ function triggerPulse(counts) {
   const ids = Object.keys(counts);
   if (!ids.length) return;
   const now = performance.now();
-  pulseTiles = ids.map(id => ({ id: Number(id), amount: counts[id], start: now }));
+  // staggered 110ms apart, same cadence as the reinforcement chime's own
+  // notes (see processReinforceSoundQueue) — they used to all pop in
+  // simultaneously, reading as unrelated to the chime playing out note by
+  // note right alongside them
+  pulseTiles = ids.map((id, i) => ({ id: Number(id), amount: counts[id], start: now + i * 110 }));
   ensureFXLoop();
 }
 function triggerCombatFX(fromId, toId, atk, def, win) {
@@ -1697,6 +1796,28 @@ const REINFORCE_CHIME_QUEUE_NOTES = 2; // "une première section courte" — eno
 const REINFORCE_CHIME_GAP_MS = 130; // silent gap between one royaume's chime and the next
 let reinforceSoundQueue = []; // [{count, royId}]
 let reinforceSoundPlaying = false;
+// Every multi-note sound (reinforcement chime, victory/defeat/truce stingers)
+// schedules its notes via bare setTimeout — fine on its own, but stopping a
+// replay mid-playback (rerollBtn) used to leave every already-scheduled note
+// to keep firing regardless, so the audio kept going well after the screen
+// had already jumped back to the previous win banner. scheduleSound() tracks
+// every one of those timer ids so clearPendingSounds() can cut them all off
+// at once.
+let pendingSoundTimeouts = [];
+function scheduleSound(fn, delay) {
+  const id = setTimeout(() => {
+    pendingSoundTimeouts = pendingSoundTimeouts.filter((t) => t !== id);
+    fn();
+  }, delay);
+  pendingSoundTimeouts.push(id);
+  return id;
+}
+function clearPendingSounds() {
+  pendingSoundTimeouts.forEach((id) => clearTimeout(id));
+  pendingSoundTimeouts = [];
+  reinforceSoundQueue = [];
+  reinforceSoundPlaying = false;
+}
 function sfxReinforce(count, royId = humanRoyId) {
   reinforceSoundQueue.push({ count, royId });
   processReinforceSoundQueue();
@@ -1709,10 +1830,10 @@ function processReinforceSoundQueue() {
   const root = reinforceRootHzFor(royId);
   for (let i = 0; i < n; i++) {
     const ratio = REINFORCE_CHORD_RATIOS[i % REINFORCE_CHORD_RATIOS.length];
-    setTimeout(() => playTone(root * ratio, 0.16, { type: "sine", cutoff: 2400, volume: 0.06 }), i * 110);
+    scheduleSound(() => playTone(root * ratio, 0.16, { type: "sine", cutoff: 2400, volume: 0.06 }), i * 110);
   }
   const noteSpanMs = (n - 1) * 110 + 160; // last note's own start offset + its own duration
-  setTimeout(() => {
+  scheduleSound(() => {
     reinforceSoundPlaying = false;
     processReinforceSoundQueue();
   }, noteSpanMs + REINFORCE_CHIME_GAP_MS);
@@ -1727,7 +1848,7 @@ function sfxVictory(royId = humanRoyId) {
   const root = reinforceRootHzFor(royId);
   CHAIN_MAJOR_INTERVALS.forEach((interval, i) => {
     const freq = root * Math.pow(2, interval / 12);
-    setTimeout(() => playTone(freq, 0.22, { type: "triangle", cutoff: 1400, volume: 0.09 }), i * 130);
+    scheduleSound(() => playTone(freq, 0.22, { type: "triangle", cutoff: 1400, volume: 0.09 }), i * 130);
   });
 }
 // same chord shape and the human's own root, run in reverse — the fall
@@ -1736,25 +1857,27 @@ function sfxDefeat(royId = humanRoyId) {
   const root = reinforceRootHzFor(royId);
   [...CHAIN_MAJOR_INTERVALS].reverse().forEach((interval, i) => {
     const freq = root * Math.pow(2, interval / 12);
-    setTimeout(() => playTone(freq, 0.22, { type: "triangle", cutoff: 1000, volume: 0.08 }), i * 130);
+    scheduleSound(() => playTone(freq, 0.22, { type: "triangle", cutoff: 1000, volume: 0.08 }), i * 130);
   });
 }
 // a truce is neither a win nor a loss — a little indecisive wobble instead
 // of either stinger, not rooted on any one royaume since nobody actually won
 function sfxTruce() {
   [440, 392, 440, 392].forEach((f, i) => {
-    setTimeout(() => playTone(f, 0.18, { type: "square", cutoff: 900, volume: 0.05 }), i * 140);
+    scheduleSound(() => playTone(f, 0.18, { type: "square", cutoff: 900, volume: 0.05 }), i * 140);
   });
 }
 // menu/UI sounds — kept even more discreet than the in-game ones since these
 // fire on every tap of a settings control
-function sfxMenuOpen() { playTone(260, 0.1, { type: "sine", cutoff: 700, volume: 0.05, slideTo: 340 }); }
-function sfxMenuClose() { playTone(260, 0.09, { type: "sine", cutoff: 700, volume: 0.05, slideTo: 190 }); }
-function sfxToggle() { playTone(520, 0.05, { type: "square", cutoff: 1400, volume: 0.03 }); }
+// dropped a full octave (all frequencies halved) — reported as unpleasantly
+// shrill at the original register, even at their already-low volumes
+function sfxMenuOpen() { playTone(130, 0.1, { type: "sine", cutoff: 700, volume: 0.05, slideTo: 170 }); }
+function sfxMenuClose() { playTone(130, 0.09, { type: "sine", cutoff: 700, volume: 0.05, slideTo: 95 }); }
+function sfxToggle() { playTone(260, 0.05, { type: "square", cutoff: 1400, volume: 0.03 }); }
 function sfxPickFaction() {
-  [330, 440].forEach((f, i) => setTimeout(() => playTone(f, 0.18, { type: "triangle", cutoff: 900, volume: 0.07 }), i * 90));
+  [165, 220].forEach((f, i) => setTimeout(() => playTone(f, 0.18, { type: "triangle", cutoff: 900, volume: 0.07 }), i * 90));
 }
-function sfxShare() { playTone(500, 0.14, { type: "triangle", cutoff: 1100, volume: 0.07, slideTo: 700 }); }
+function sfxShare() { playTone(250, 0.14, { type: "triangle", cutoff: 1100, volume: 0.07, slideTo: 350 }); }
 
 // No more toggle: the biggest force always wins (no dice), *except* when
 // both sides are exactly at FORCE_CAP — a strict tie there would otherwise
@@ -1876,7 +1999,11 @@ function endTurn() {
   selected = -1;
   triggerPulse(reinforcedCounts);
   if (royId === humanRoyId) sfxEndTurn();
-  sfxReinforce(reinforcement, royId); // every royaume now gets its own chime, rooted on its own note — see reinforceRootHzFor()
+  // the chime is only for the human's own reinforcements now — every royaume
+  // playing its own note back-to-back (even queued/staggered) still read as
+  // too much noise during the AIs' turns; the visual pulse (triggerPulse()
+  // above) still fires for everyone, just silently for the AI royaumes
+  if (royId === humanRoyId) sfxReinforce(reinforcement, royId);
   if (replaying) {
     // playReplay()'s own pacing (step()'s 30ms poll) relies on currentPlayer
     // having already moved on by the time it runs again — never delay this
@@ -2097,12 +2224,14 @@ function showWin(royId) {
   if (truceEnded) {
     text = "Match nul — la paix, l'affaire des gueux.";
   } else if (humanLost && humanSurrendered) {
-    const pers = AI_PERSONALITIES[royId];
+    // no AI_PERSONALITIES reference here — epithets ("les Enragés" etc.) are
+    // reserved for "Le lore", not general defeat banter; a generic jab at
+    // the player's own standing (peasants, honor) works for any winner
     text = `Vous jetez l'éponge, seigneur ! Pas de bataille perdue, pas de terre prise de force — juste un aveu de faiblesse pur et simple. ` +
-      `${ROYAUMES[royId].name} récupère votre trône sans même avoir eu à lever le petit doigt, et ${pers.epithet} n'en reviennent toujours pas. ` +
+      `${ROYAUMES[royId].name} récupère votre trône sans même avoir eu à lever le petit doigt — même les manants ne vous craignent plus. ` +
       "Vos petits-enfants en riront encore dans cent ans.";
   } else if (humanLost) {
-    const pers = AI_PERSONALITIES[royId];
+    // same rule as above: no pers.epithet here either, only ROYAUMES[royId].name
     // a hint of hope closes every loss, unchanged — only the humiliating
     // part varies, both in which joke it tells and (for the hobby-shaming
     // one) which hobby it suggests, picked deterministically from the seed
@@ -2110,7 +2239,7 @@ function showWin(royId) {
     const HOBBIES = ["la poterie", "la danse", "la broderie", "la peinture", "courir la gueuse", "conter fleurette à la souillon"];
     const hobby = HOBBIES[Math.abs(currentSeed + royId) % HOBBIES.length];
     const LOSS_OPENERS = [
-      `${ROYAUMES[royId].name} et ${pers.epithet} ne vous ont laissé ni terre ni honneur. ` +
+      `${ROYAUMES[royId].name} ne vous a laissé ni terre ni honneur. ` +
         "Vous avez tout donné, tout dépensé, et voilà : plus de terre, plus de soldats, seul et honteux devant vos pairs. " +
         `Essayez ${hobby} plutôt que la guerre la prochaine fois.`,
       `Foutrecouille ! Vous n'auriez pas dû faire bombance hier soir, sire. L'ennemi vous a surnommé Bidoumol, ` +
@@ -2136,8 +2265,13 @@ function showWin(royId) {
       `Victoire, seigneur ! Sous la bannière de ${ROYAUMES[royId].name}, plus une seule couronne rivale ne tient debout. Mais un trône ne se garde pas, il se défend — d'autres terres attendent d'être prises.`,
       `Le sang a coulé, les dernières bannières rivales sont tombées. ${ROYAUMES[royId].name} règne seul. Votre nom sera chanté dans les tavernes... jusqu'à la prochaine guerre.`,
       `Victoire ! Plus aucun ennemi ne conteste ${ROYAUMES[royId].name}. Gravez ce jour dans la pierre, puis reprenez l'épée — la conquête ne s'arrête jamais.`,
-      `Toutes les terres sont vôtres, seigneur de ${ROYAUMES[royId].name}. Un royaume de plus sous votre étendard, et déjà l'horizon en réclame un autre.`,
-      `Victoire, seigneur de ${ROYAUMES[royId].name} ! Les hurlements vous manquent déjà.`,
+      // "seigneur de Millon de X" doubled up on "de" — ROYAUMES[royId].name
+      // already starts with "Millon de", so this address is a comma, not a
+      // second "de". The anachronistic aside at the end (in the same
+      // *asterisks* style as the "*soupir*" line below) breaks the medieval
+      // voice on purpose, the moment the battle itself is actually over.
+      `Toutes les terres sont vôtres, seigneur, ${ROYAUMES[royId].name}. Un royaume de plus sous votre étendard, et déjà l'horizon en réclame un autre. Vos hommes terminent de compter les morts et vous souriez, que c'est beau un champ de bataille. *croque son sandwich vegan, la larme à l'œil*`,
+      `Victoire, seigneur, ${ROYAUMES[royId].name} ! Les hurlements vous manquent déjà.`,
       `${ROYAUMES[royId].name} règne sans partage. L'odeur de la paix n'égalera jamais celle de la chair brûlée. *soupir*`,
     ];
     text = VICTORY_LINES[Math.abs(currentSeed + royId) % VICTORY_LINES.length];
@@ -2304,7 +2438,7 @@ function drawStatChart() {
   document.getElementById("chartLegend").innerHTML = [...royIdSet].sort((a, b) => a - b).concat(neutralId).map(id => `
     <div class="royaumeRow">
       <span class="swatch" style="background:${ROYAUMES[id].color}"></span>
-      <span class="rname">${ROYAUMES[id].name}${id === humanRoyId ? " (Nous, Monseigneur !)" : ""}</span>
+      <span class="rname">${ROYAUMES[id].name}${id === humanRoyId ? " (Nous, Sire !)" : ""}</span>
     </div>
   `).join("");
 }
@@ -2340,10 +2474,11 @@ function statChartIndexAtClientX(clientX) {
 // back only the recorded human-seat choices — the AI and dice reproduce
 // identically since they're driven by the same seeded RNG stream. Shared by
 // both "revoir ma partie" (own match) and a shared match opened from a link.
-function playReplay(seed, difficulty, replayHumanRoyId, log, onFinish, replayMapSize) {
+function playReplay(seed, difficulty, replayHumanRoyId, log, onFinish, replayMapSize, replayOpponentCount) {
   const levelToRestore = difficultyLevel;
   const humanToRestore = humanRoyId;
   const mapSizeToRestore = mapSize;
+  const opponentCountToRestore = opponentCount;
 
   document.getElementById("winbanner").style.display = "none";
   // rerollBtn stays visible/available during playback (see startGame()) as
@@ -2362,6 +2497,11 @@ function playReplay(seed, difficulty, replayHumanRoyId, log, onFinish, replayMap
   speedBtnEl.textContent = "⏩ 2x";
   humanRoyId = replayHumanRoyId;
   applyDifficulty(difficulty);
+  // opponentCount must be set before applyMapSize() below — its formula reads
+  // opponentCount directly (not passed in), and TERRITORY_COUNT/MAP_PIXEL_
+  // RADIUS both depend on it now. Falls back to the current setting for an
+  // older/foreign share link or map code recorded before this field existed.
+  opponentCount = replayOpponentCount || opponentCountToRestore;
   // must be applied before startGame() generates the island — otherwise it
   // regenerates using whatever map-size setting happens to be active *now*
   // instead of the one the original match was actually played on, producing
@@ -2410,10 +2550,12 @@ function playReplay(seed, difficulty, replayHumanRoyId, log, onFinish, replayMap
     setTimeout(step, 30);
   }
   function finish() {
+    activeReplayFinish = null;
     replaying = false;
     replaySpeed = 1;
     humanRoyId = humanToRestore;
     applyDifficulty(DIFFICULTY_LEVELS[levelToRestore].value);
+    opponentCount = opponentCountToRestore; // must come before applyMapSize() — see its own opponentCount note above
     applyMapSize(mapSizeToRestore); // back to the viewer's own setting, not the replayed match's
     // Reset explicitly rather than leaving it to startGame()/pickFaction():
     // "Revoir la partie"'s onFinish only re-shows the win banner, it doesn't
@@ -2427,6 +2569,7 @@ function playReplay(seed, difficulty, replayHumanRoyId, log, onFinish, replayMap
     replayFastActive = false;
     onFinish();
   }
+  activeReplayFinish = finish; // rerollBtn's click handler calls this instead of starting an unrelated new game
   // held back until the intro spotlight has had its full still moment on
   // screen — starting step() immediately let the very first action fire
   // while the map was still dimmed/mid-fade, which read as "already moving"
@@ -2438,7 +2581,7 @@ function startReplay() {
   if (!moveLog.length) return;
   playReplay(currentSeed, gameStartDifficulty, humanRoyId, moveLog.slice(), () => {
     document.getElementById("winbanner").style.display = "flex";
-  }, gameStartMapSize);
+  }, gameStartMapSize, gameStartOpponentCount);
 }
 
 // --- share: encode the just-finished match (seed + difficulty + which seat
@@ -2480,7 +2623,7 @@ function decodeMoveFromShare(tuple) {
 function buildShareUrl() {
   let diffField = DIFFICULTY_LEVELS.findIndex((l) => l.value === gameStartDifficulty);
   if (diffField === -1) diffField = gameStartDifficulty; // defensive fallback — see decode below
-  const payload = [currentSeed, diffField, humanRoyId, gameStartMapSize[0], moveLog.map(encodeMoveForShare)];
+  const payload = [currentSeed, diffField, humanRoyId, gameStartMapSize[0], moveLog.map(encodeMoveForShare), gameStartOpponentCount];
   const encoded = btoa(JSON.stringify(payload));
   const url = new URL(location.href);
   url.hash = ""; url.search = "";
@@ -2505,92 +2648,156 @@ async function shareReplay() {
 }
 document.getElementById("shareReplay").addEventListener("click", () => { shareReplay(); });
 
-// A composite image (title + the streamgraph itself + a text legend, since
-// the on-screen legend is a separate DOM element the canvas alone doesn't
-// include) — reported as pretty enough to want to keep or send to someone,
-// not just glance at once. Reuses the already-rendered #statChart canvas
-// (drawImage) rather than re-running drawStatChart()'s own drawing logic a
-// second time against an offscreen context.
-function buildChartShareImage() {
-  const chartCanvas = document.getElementById("statChart");
-  const scale = 2; // crisper than the on-screen chart alone — decent for a phone wallpaper
-  const pad = 24 * scale;
-  const chartW = STAT_CHART_W * scale, chartH = STAT_CHART_H * scale;
-  const titleH = 44 * scale;
-  const legendRowH = 24 * scale;
+// Just the streamgraph itself, no title/legend framing — reported as
+// pretty enough on its own to want as a phone wallpaper. Rendered directly
+// from statHistory at a large fixed resolution (not by upscaling the small
+// on-screen canvas, which would blur once stretched that far), then rotated
+// 90° clockwise so time flows top (start of the match) to bottom (its end),
+// like reading a scroll, instead of the on-screen chart's left-to-right.
+// Duplicates drawStatChart()'s core band-filling logic rather than
+// refactoring it to be shared, so this new export path can't accidentally
+// break the existing, already-tested on-screen chart.
+const CHART_EXPORT_W = 1080, CHART_EXPORT_H = 1920; // final portrait size
+function renderStreamgraphBands(c, W, H) {
+  if (statHistory.length < 2) return false;
   const royIdSet = new Set();
   for (const entry of statHistory) for (const k of Object.keys(entry.stats)) royIdSet.add(Number(k));
-  const royIdsShown = [...royIdSet].sort((a, b) => a - b).concat(ROYAUME_COUNT - 1);
-  const W = chartW + pad * 2;
-  const H = titleH + chartH + legendRowH * royIdsShown.length + pad * 2;
-  const out = document.createElement("canvas");
-  out.width = W; out.height = H;
-  const ctx = out.getContext("2d");
-  const grad = ctx.createLinearGradient(0, 0, W, H);
-  grad.addColorStop(0, "#f6ecd2");
-  grad.addColorStop(1, "#e6d3a3");
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, W, H);
-  ctx.fillStyle = "#6b2318";
-  ctx.textAlign = "center";
-  ctx.font = `bold ${22 * scale}px Georgia, "Iowan Old Style", Palatino, serif`;
-  ctx.fillText("Knight Wars", W / 2, pad + 20 * scale);
-  ctx.drawImage(chartCanvas, pad, titleH + pad, chartW, chartH);
-  let ly = titleH + chartH + pad + 16 * scale;
-  ctx.textAlign = "left";
-  ctx.font = `${13 * scale}px Georgia, "Iowan Old Style", Palatino, serif`;
-  for (const id of royIdsShown) {
-    ctx.fillStyle = ROYAUMES[id].color;
-    ctx.beginPath();
-    ctx.arc(pad + 6 * scale, ly, 6 * scale, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = "#2b1d10";
-    ctx.fillText(ROYAUMES[id].name + (id === humanRoyId ? " (Nous, Monseigneur !)" : ""), pad + 18 * scale, ly + 4 * scale);
-    ly += legendRowH;
+  const neutralId = ROYAUME_COUNT - 1;
+  const royIds = [neutralId, ...[...royIdSet].sort((a, b) => a - b)];
+  const xForIndex = (i) => (i / (statHistory.length - 1)) * W;
+  const totalTerritories = territories.length;
+  const rawFractions = royIds.map((royId) => statHistory.map((entry) => {
+    if (royId === neutralId) {
+      let realSum = 0;
+      for (const k in entry.stats) realSum += entry.stats[k].territories;
+      return Math.max(0, totalTerritories - realSum) / totalTerritories;
+    }
+    return entry.stats[royId] ? entry.stats[royId].territories / totalTerritories : 0;
+  }));
+  const cumulative = new Array(statHistory.length).fill(0);
+  const rawBoundaries = rawFractions.map((fracRow) => fracRow.map((f, i) => (cumulative[i] += f)));
+  function smooth(vals) {
+    return vals.map((v, i) => {
+      let sum = 0, count = 0;
+      for (let d = -2; d <= 2; d++) {
+        const j = i + d;
+        if (j >= 0 && j < vals.length) { sum += vals[j]; count++; }
+      }
+      return sum / count;
+    });
   }
+  const smoothedBoundaries = rawBoundaries.map(smooth);
+  let prevY = new Array(statHistory.length).fill(0);
+  royIds.forEach((royId, bandIdx) => {
+    const curY = smoothedBoundaries[bandIdx].map((f) => f * H);
+    c.beginPath();
+    for (let i = 0; i < statHistory.length; i++) {
+      const x = xForIndex(i);
+      i === 0 ? c.moveTo(x, prevY[i]) : c.lineTo(x, prevY[i]);
+    }
+    for (let i = statHistory.length - 1; i >= 0; i--) c.lineTo(xForIndex(i), curY[i]);
+    c.closePath();
+    c.fillStyle = ROYAUMES[royId].color;
+    c.fill();
+    c.strokeStyle = "rgba(43,29,16,.35)";
+    c.lineWidth = Math.max(0.75, W / 400);
+    c.stroke();
+    prevY = curY;
+  });
+  return true;
+}
+function buildChartWallpaperImage() {
+  // drawn in landscape at the final portrait's dimensions swapped, so the
+  // 90° rotation below is an exact pixel transpose — no scaling/resampling
+  // blur from stretching a smaller source image up to wallpaper size
+  const landscape = document.createElement("canvas");
+  landscape.width = CHART_EXPORT_H;
+  landscape.height = CHART_EXPORT_W;
+  const lctx = landscape.getContext("2d");
+  lctx.fillStyle = "#e6d3a3";
+  lctx.fillRect(0, 0, landscape.width, landscape.height);
+  renderStreamgraphBands(lctx, landscape.width, landscape.height);
+
+  const out = document.createElement("canvas");
+  out.width = CHART_EXPORT_W;
+  out.height = CHART_EXPORT_H;
+  const octx = out.getContext("2d");
+  octx.save();
+  octx.translate(out.width, 0);
+  octx.rotate(Math.PI / 2); // clockwise: the source's left edge (match start) becomes the top, its right edge (match end) becomes the bottom
+  octx.drawImage(landscape, 0, 0);
+  octx.restore();
   return out;
+}
+// toDataURL()/atob() are fully synchronous, unlike canvas.toBlob() (which
+// hands the blob back in a later task). navigator.share() only counts as
+// still "inside the click" on iOS Safari if nothing async happened first —
+// go through toBlob's callback and the share sheet shows up whenever the
+// encode happens to finish fast enough and silently falls back to just
+// opening the image the rest of the time. Building the Blob by hand here
+// keeps the whole thing on the same tick as the click, so the share sheet
+// opens every time, not just when the timing happens to line up.
+function dataURLToBlobSync(dataURL) {
+  const commaIdx = dataURL.indexOf(",");
+  const mime = dataURL.slice(5, dataURL.indexOf(";"));
+  const binary = atob(dataURL.slice(commaIdx + 1));
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return new Blob([bytes], { type: mime });
 }
 function saveChartImage() {
   sfxShare();
-  const canvas = buildChartShareImage();
-  canvas.toBlob(async (blob) => {
-    if (!blob) return;
-    const file = new File([blob], "knight-wars-territoire.png", { type: "image/png" });
-    if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-      try { await navigator.share({ files: [file], title: "Knight Wars" }); return; } catch (e) { /* cancelled — fall through */ }
-    }
-    // fallback: open the image in its own tab so it can be long-pressed/
-    // saved manually on devices/browsers without navigator.share for files
-    const url = URL.createObjectURL(blob);
-    window.open(url, "_blank");
-  }, "image/png");
+  const canvas = buildChartWallpaperImage();
+  const blob = dataURLToBlobSync(canvas.toDataURL("image/png"));
+  const file = new File([blob], "knight-wars-territoire.png", { type: "image/png" });
+  if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+    navigator.share({ files: [file], title: "Knight Wars" }).catch(() => {
+      // cancelled, or share failed after all — fall back to opening the
+      // image in its own tab so it can still be long-pressed/saved manually
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank");
+    });
+    return;
+  }
+  const url = URL.createObjectURL(blob);
+  window.open(url, "_blank");
 }
 document.getElementById("saveChartImage").addEventListener("click", () => { saveChartImage(); });
 
 const MAP_SIZE_BY_LETTER = { s: "small", m: "medium", l: "large" };
-// A short, portable map code — just enough (seed + map size + difficulty)
-// to regenerate the exact same map later, e.g. dictated over voice/text
-// instead of copy-pasting a whole share URL. Not a full match replay (no
-// move log) — this is for "I want this same map again", not "watch what I
-// did on it". Packed as base36(seed) + one map-size letter + one
-// difficulty digit, with no separators — the last two characters are
-// always exactly those two fields, so decoding just peels them off the end.
+// A short, portable map code — just enough (seed + map size + difficulty +
+// number of opponents) to regenerate the exact same map later, e.g. dictated
+// over voice/text instead of copy-pasting a whole share URL. Not a full
+// match replay (no move log) — this is for "I want this same map again",
+// not "watch what I did on it". Packed as base36(seed) + one map-size letter
+// + one difficulty digit + one opponent-count digit, with no separators —
+// the last three characters are always exactly those three fields, so
+// decoding just peels them off the end.
 function buildMapCode() {
   let diffIdx = DIFFICULTY_LEVELS.findIndex((l) => l.value === gameStartDifficulty);
   if (diffIdx === -1) diffIdx = difficultyLevel; // defensive fallback — see buildShareUrl()'s own note
-  return currentSeed.toString(36) + (gameStartMapSize[0] || "m") + diffIdx;
+  return currentSeed.toString(36) + (gameStartMapSize[0] || "m") + diffIdx + gameStartOpponentCount;
 }
 function parseMapCode(code) {
   code = (code || "").trim().toLowerCase();
   if (code.length < 3) return null;
-  const diffChar = code[code.length - 1];
-  const sizeChar = code[code.length - 2];
-  const seedPart = code.slice(0, -2);
-  const diffIdx = parseInt(diffChar, 10);
-  if (!(diffIdx >= 0 && diffIdx <= 3) || !MAP_SIZE_BY_LETTER[sizeChar]) return null;
-  const seed = parseInt(seedPart, 36);
-  if (!Number.isFinite(seed) || seed <= 0) return null;
-  return { seed, mapSize: MAP_SIZE_BY_LETTER[sizeChar], difficulty: DIFFICULTY_LEVELS[diffIdx].value };
+  // new 3-trailing-char codes carry the opponent count too; a code saved
+  // before this field existed only has the 2 trailing chars (size+difficulty)
+  // — try the new scheme first, fall back to the old one (defaulting
+  // opponentCount to the current setting) so an old code still loads.
+  const tryParse = (diffChar, sizeChar, seedPart, opponentChar) => {
+    const diffIdx = parseInt(diffChar, 10);
+    const opponentN = opponentChar === undefined ? opponentCount : parseInt(opponentChar, 10);
+    if (!(diffIdx >= 0 && diffIdx <= 3) || !MAP_SIZE_BY_LETTER[sizeChar] || !(opponentN >= 1 && opponentN <= 4)) return null;
+    const seed = parseInt(seedPart, 36);
+    if (!Number.isFinite(seed) || seed <= 0) return null;
+    return { seed, mapSize: MAP_SIZE_BY_LETTER[sizeChar], difficulty: DIFFICULTY_LEVELS[diffIdx].value, opponentCount: opponentN };
+  };
+  if (code.length >= 4) {
+    const parsed3 = tryParse(code[code.length - 2], code[code.length - 3], code.slice(0, -3), code[code.length - 1]);
+    if (parsed3) return parsed3;
+  }
+  return tryParse(code[code.length - 1], code[code.length - 2], code.slice(0, -2), undefined);
 }
 function refreshMapCodeDisplay() {
   document.getElementById("mapCodeDisplay").value = buildMapCode();
@@ -2628,6 +2835,9 @@ document.getElementById("loadMapCode").addEventListener("click", () => {
   settingsPanel.style.display = "none";
   sfxMenuClose();
   applyDifficulty(parsed.difficulty);
+  opponentCount = parsed.opponentCount; // before applyMapSize() — its formula reads this directly
+  try { localStorage.setItem("kw_opponentCount", String(opponentCount)); } catch (e) { /* ignore */ }
+  refreshOpponentCountButtons();
   applyMapSize(parsed.mapSize);
   if (!reloadIfUpdateAvailable()) startGame(parsed.seed);
 });
@@ -2635,14 +2845,18 @@ function tryParseSharedReplay() {
   try {
     const encoded = new URLSearchParams(location.search).get("replay");
     if (!encoded) return null;
-    const [seed, diffField, humanRoyId, mapSizeLetter, log] = JSON.parse(atob(encoded));
+    const [seed, diffField, humanRoyId, mapSizeLetter, log, sharedOpponentCount] = JSON.parse(atob(encoded));
     if (typeof seed !== "number" || typeof humanRoyId !== "number" || !Array.isArray(log)) return null;
     // diffField is a DIFFICULTY_LEVELS index (0-3) in the normal case, or —
     // only via the defensive fallback in buildShareUrl() — a raw float for
     // some unexpected difficulty value that didn't match any of the 4 levels
     const difficulty = (Number.isInteger(diffField) && DIFFICULTY_LEVELS[diffField]) ? DIFFICULTY_LEVELS[diffField].value : diffField;
     const mapSize = MAP_SIZE_BY_LETTER[mapSizeLetter] || mapSizeLetter;
-    return { seed, difficulty, humanRoyId, log: log.map(decodeMoveFromShare), mapSize };
+    // sharedOpponentCount is undefined on a link generated before this field
+    // existed — playReplay() itself already falls back to the current
+    // setting in that case (see its own opponentCount note)
+    const opponentCount = (sharedOpponentCount >= 1 && sharedOpponentCount <= 4) ? sharedOpponentCount : undefined;
+    return { seed, difficulty, humanRoyId, log: log.map(decodeMoveFromShare), mapSize, opponentCount };
   } catch (e) { return null; }
 }
 document.getElementById("watchSharedReplay").addEventListener("click", () => {
@@ -2650,7 +2864,7 @@ document.getElementById("watchSharedReplay").addEventListener("click", () => {
   const payload = pendingSharedReplay;
   playReplay(payload.seed, payload.difficulty, payload.humanRoyId, payload.log, () => {
     startGame(); // drop the visitor into their own fresh game right after
-  }, payload.mapSize);
+  }, payload.mapSize, payload.opponentCount);
 });
 document.getElementById("playInstead").addEventListener("click", () => {
   document.getElementById("shareIntro").style.display = "none";
@@ -2913,6 +3127,7 @@ function render() {
     const t = territories[p.id];
     if (!t) continue;
     const elapsed = pulseNow - p.start;
+    if (elapsed < 0) continue; // its own staggered start hasn't arrived yet — see triggerPulse()
     if (elapsed >= PULSE_DURATION) continue;
     const progress = elapsed / PULSE_DURATION;
     // centered on the force number's actual position (t.cy, matching
@@ -3152,6 +3367,14 @@ function pickFaction(royId) {
   humanRoyId = royId;
   currentPlayer = royId; // whichever royaume is picked always plays first, not whatever seat happened to be numbered 0
   awaitingFactionPick = false;
+  // "Choisissez un camp" only shows for the first CAMP_PROMPT_MAX times a
+  // camp is actually picked — counted here (once per real pick), not per
+  // visit to the faction-pick screen, so rerolling the map a few times
+  // beforehand doesn't burn through the count on its own
+  if (campPromptCount < CAMP_PROMPT_MAX) {
+    campPromptCount++;
+    try { localStorage.setItem("kw_campPromptCount", String(campPromptCount)); } catch (e) { /* ignore */ }
+  }
   // authoritative hide, independent of *what* the player does next (attack,
   // end turn, open settings...) — previously this only hid on a follow-up
   // territory tap, so pressing "Fin de bataille" right after picking left it
@@ -3357,7 +3580,18 @@ document.getElementById("restart").addEventListener("click", () => {
 document.getElementById("randomGameBtn").addEventListener("click", () => { if (!reloadIfUpdateAvailable()) startGame(); });
 document.getElementById("watchReplay").addEventListener("click", () => startReplay());
 document.getElementById("rerollBtn").addEventListener("click", () => {
-  if (replaying) replaying = false; // abort any in-progress replay (own or shared) instead of continuing it
+  if (replaying) {
+    // stop means stop: cut off whatever chime/stinger is still mid-flight
+    // (see scheduleSound()/clearPendingSounds()), then run the replay's own
+    // finish() — restores humanRoyId/difficulty/mapSize and calls the
+    // context-correct onFinish (back to the previous win banner for "Revoir
+    // la partie", or straight into a fresh game for a shared replay link) —
+    // instead of the old "replaying = false; startGame()" shortcut, which
+    // skipped that restoration and always launched an unrelated new game.
+    clearPendingSounds();
+    if (activeReplayFinish) activeReplayFinish();
+    return;
+  }
   if (!reloadIfUpdateAvailable()) startGame();
 });
 document.getElementById("replaySpeedBtn").addEventListener("click", () => {
@@ -3380,10 +3614,58 @@ document.getElementById("settingsBtn").addEventListener("click", () => {
   refreshMapCodeDisplay();
   sfxMenuOpen();
 });
-document.getElementById("closeSettings").addEventListener("click", () => {
+function closeSettingsPanel() {
   settingsPanel.style.display = "none";
   sfxMenuClose();
-});
+}
+document.getElementById("closeSettings").addEventListener("click", closeSettingsPanel);
+// Drag-to-dismiss: swipe the whole panel straight down to close it, like an
+// iOS sheet — an alternative to tapping the ✕ for anyone who'd rather just
+// pull the panel away and reveal the map dimmed underneath. Only ever starts
+// once the finger has moved a few pixels mostly *downward* (so a plain tap
+// on a button/checkbox/input never gets hijacked into a drag) and only from
+// rest at the very top of #settingsScroll (so scrolling the actual content
+// up/down is never fought over) — the same "pull past the top" gesture
+// native sheets use, not a swipe-from-anywhere.
+function enableSwipeToDismiss(boxEl, scrollEl, onDismiss) {
+  let dragging = false, pointerId = null, startX = 0, startY = 0, dy = 0;
+  const DISMISS_THRESHOLD = 90, DRAG_START_SLOP = 6;
+  boxEl.addEventListener("pointerdown", (e) => {
+    if (e.button) return; // ignore right/middle click on desktop
+    pointerId = e.pointerId; startX = e.clientX; startY = e.clientY; dy = 0; dragging = false;
+  });
+  boxEl.addEventListener("pointermove", (e) => {
+    if (e.pointerId !== pointerId) return;
+    const curDy = e.clientY - startY, dx = e.clientX - startX;
+    if (!dragging) {
+      if (Math.abs(curDy) < DRAG_START_SLOP && Math.abs(dx) < DRAG_START_SLOP) return;
+      if (curDy <= 0 || Math.abs(dx) > Math.abs(curDy) || scrollEl.scrollTop > 0) { pointerId = null; return; }
+      dragging = true;
+      boxEl.style.transition = "";
+      boxEl.setPointerCapture(pointerId);
+    }
+    dy = Math.max(0, curDy);
+    boxEl.style.transform = `translateY(${dy}px)`;
+    e.preventDefault();
+  });
+  function finish(e) {
+    if (e.pointerId !== pointerId) return;
+    pointerId = null;
+    if (!dragging) return;
+    dragging = false;
+    if (dy > DISMISS_THRESHOLD) {
+      boxEl.style.transition = "transform .18s ease-in";
+      boxEl.style.transform = `translateY(${boxEl.offsetHeight + 60}px)`;
+      setTimeout(() => { boxEl.style.transition = ""; boxEl.style.transform = ""; onDismiss(); }, 180);
+    } else {
+      boxEl.style.transition = "transform .22s ease";
+      boxEl.style.transform = "";
+    }
+  }
+  boxEl.addEventListener("pointerup", finish);
+  boxEl.addEventListener("pointercancel", finish);
+}
+enableSwipeToDismiss(document.getElementById("settingsBox"), document.getElementById("settingsScroll"), closeSettingsPanel);
 document.getElementById("newWarBtn").addEventListener("click", () => {
   settingsPanel.style.display = "none";
   sfxMenuClose();
@@ -3418,8 +3700,27 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.5";
+const GAME_VERSION = "1.6";
 const CHANGELOG = [
+  {
+    version: "1.6",
+    notes: [
+      "Nouveau : « Nombre d'adversaires » (1 à 4), indépendant de la taille de carte — 5ᵉ royaume (Roncevaux)",
+      "Réglages réorganisés : « Partie en cours » tout en haut, code de carte tout en bas, plus de titre « Réglages »",
+      "Réglages : la croix pour fermer reste flottante, et on peut aussi glisser tout le panneau vers le bas pour le fermer",
+      "La liste des royaumes est maintenant dans les Conseils (plus dans les Réglages, pour ne pas les surcharger)",
+      "« Nous, Monseigneur ! » devient « Nous, Sire ! » ; les territoires neutres s'appellent maintenant « Barbares païens »",
+      "« Rejouer » devient « Rejouer la même carte »",
+      "Correction : arrêter un replay en cours de route ramenait sur une partie aléatoire au lieu de l'écran de fin précédent (et les sons continuaient à jouer)",
+      "Correction : « Nouvelle partie » pouvait donner l'impression que deux royaumes recevaient des renforts instantanément",
+      "Les petits cercles de renfort apparaissent maintenant avec le même décalage que les notes du carillon",
+      "Le carillon de renfort ne joue plus que pour nous, plus pour les adversaires",
+      "Sons de menu (boutons, partage...) baissés d'une octave",
+      "Le texte de capitulation/défaite ne cite plus l'épithète des adversaires (réservée au lore)",
+      "Export du graphique en fond d'écran : le partage s'ouvre maintenant de façon fiable à chaque fois",
+      "« Choisissez un camp » ne s'affiche plus que lors des deux premières parties",
+    ],
+  },
   {
     version: "1.5",
     notes: [
@@ -3606,6 +3907,26 @@ document.querySelectorAll("#mapSizeLevels .levelBtn").forEach((btn) => {
   });
 });
 
+function refreshOpponentCountButtons() {
+  document.querySelectorAll("#opponentCountLevels .levelBtn").forEach((btn) => {
+    btn.classList.toggle("active", Number(btn.dataset.opponents) === opponentCount);
+  });
+}
+refreshOpponentCountButtons();
+document.querySelectorAll("#opponentCountLevels .levelBtn").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    // same immediate-restart treatment as map size, for the same reason —
+    // a running match's territories are already generated for the old count
+    opponentCount = Number(btn.dataset.opponents);
+    try { localStorage.setItem("kw_opponentCount", String(opponentCount)); } catch (e) { /* ignore */ }
+    refreshOpponentCountButtons();
+    applyMapSize(mapSize); // re-derive TERRITORY_COUNT/MAP_PIXEL_RADIUS for the new count
+    sfxToggle();
+    settingsPanel.style.display = "none";
+    if (!reloadIfUpdateAvailable()) startGame();
+  });
+});
+
 function refreshSortButtons() {
   document.querySelectorAll("#sortLevels .levelBtn").forEach((btn) => {
     btn.classList.toggle("active", btn.dataset.sort === sortGroupsBy);
@@ -3646,6 +3967,13 @@ function textColorFor(hex) {
 
 function updateEndTurnButton() {
   const btn = document.getElementById("endturn");
+  // authoritative every time, not just while replaying (see endturnVisible())
+  // — the very first thing this function used to do was an early return
+  // while awaitingFactionPick, so once that branch started hiding the button
+  // outright (after CAMP_PROMPT_MAX picks) it never got a chance to turn
+  // visibility back on again once a camp was actually picked
+  btn.style.visibility = endturnVisible() ? "" : "hidden";
+  btn.style.pointerEvents = endturnVisible() ? "" : "none";
   if (awaitingFactionPick) {
     btn.textContent = "Choisissez un camp";
     btn.classList.remove("aiTurn");
@@ -3755,6 +4083,22 @@ document.addEventListener("visibilitychange", () => { if (!document.hidden) chec
 /* ---------- BOOT ---------- */
 let onboarding = false;
 try { onboarding = localStorage.getItem("kw_playedBefore") !== "1"; } catch (e) { /* ignore */ }
+// "Choisissez un camp" (the endturn button's own label while awaitingFactionPick)
+// only shown the first CAMP_PROMPT_MAX times someone actually picks a camp —
+// by then tapping a province to pick a side is assumed to be understood, and
+// the button just sits there doing nothing until it is (attacks/end-turn are
+// blocked while awaitingFactionPick), so it's hidden outright afterwards. See
+// endturnVisible()/resize() for what takes over that bottom-right slot once
+// it's gone (rerollBtn — no more stacking a button above an empty label).
+const CAMP_PROMPT_MAX = 2;
+let campPromptCount = 0;
+try { campPromptCount = parseInt(localStorage.getItem("kw_campPromptCount") || "0", 10) || 0; } catch (e) { /* ignore */ }
+// true whenever endturn should actually be shown — false both mid-replay
+// (unchanged, pre-existing) and once the "Choisissez un camp" prompt has
+// been retired (new)
+function endturnVisible() {
+  return !replaying && !(awaitingFactionPick && campPromptCount >= CAMP_PROMPT_MAX);
+}
 
 function startGame(seed) {
   document.getElementById("winbanner").style.display = "none";
@@ -3762,9 +4106,18 @@ function startGame(seed) {
   document.getElementById("endturn").disabled = false;
   gameOver = false; selected = -1; aiRunning = false;
   allCappedStreak = 0; lastStalemateFingerprint = null; truceEnded = false; truceWinnerId = -1; humanSurrendered = false;
-  // a stray queued chime from a just-abandoned match (e.g. "Nouvelle
-  // guerre" tapped mid AI-cascade) shouldn't bleed into the new one
-  reinforceSoundQueue = []; reinforceSoundPlaying = false;
+  // a stray queued chime (or an already-scheduled note from one) from a
+  // just-abandoned match (e.g. "Nouvelle guerre" tapped mid AI-cascade, or a
+  // replay stopped mid-playback) shouldn't bleed into the new one
+  clearPendingSounds();
+  // same idea for any still-animating pulse/combat flash from the previous
+  // match — territory ids are just array indices, so a leftover pulse (from
+  // the previous match's last reinforcement/attack, still mid-animation
+  // when "Nouvelle guerre" or a map code got tapped) kept rendering against
+  // whichever *new* territory happened to share that same id, reading as a
+  // random royaume instantly getting reinforced the moment the new game
+  // started.
+  pulseTiles = []; combatFXList = [];
   // must reset even during a replay — it re-simulates from round 0, and
   // leaving this at the original match's final value threw off escalated()
   // (and thus the AI's behavior, and thus the outcome) from the first
@@ -3805,18 +4158,21 @@ function startGame(seed) {
   // replaySpeedBtn stack their position off endturn's own bottom-anchored
   // rect in resize() even while replaying, and display:none would collapse
   // that rect to (0,0), throwing both buttons off-screen during playback.
+  // (updateStatus()/updateEndTurnButton() below sets this same thing based
+  // on the same endturnVisible() check — set here too since it also needs
+  // to be correct for the resize() call a few lines down, before that runs.)
   const endturnHideEl = document.getElementById("endturn");
-  endturnHideEl.style.visibility = replaying ? "hidden" : "";
-  endturnHideEl.style.pointerEvents = replaying ? "none" : "";
+  endturnHideEl.style.visibility = endturnVisible() ? "" : "hidden";
+  endturnHideEl.style.pointerEvents = endturnVisible() ? "" : "none";
   document.getElementById("settingsBtn").style.display = replaying ? "none" : "";
   refreshGueuxBadge();
   generateHexGrid();
   generateTerritories();
   assignRoyaumes(); // with humanRoyId === -1 this comes out an equal split (no AI edge) until the pick
-  const activeRoyaumes = MAP_SIZES[mapSize].activeRoyaumes;
+  const activeRoyaumes = opponentCount + 1; // + the human's own seat — see "Nombre d'adversaires"
   if (activeRoyaumes < ROYAUME_COUNT - 1) mergeDownToActiveRoyaumes(activeRoyaumes);
   if (!replaying) {
-    statHistory = []; moveLog = []; gameStartDifficulty = DIFFICULTY; gameStartMapSize = mapSize;
+    statHistory = []; moveLog = []; gameStartDifficulty = DIFFICULTY; gameStartMapSize = mapSize; gameStartOpponentCount = opponentCount;
     recordRoundSnapshot();
   }
   updateStatus();
