@@ -1367,8 +1367,38 @@ function generateHexGrid() {
   // landmasses — which would strand some royaume's territory somewhere no
   // attack could ever reach. Keep only the single largest connected group of
   // hexes so every game stays one fully-reachable island no matter how
-  // extreme the random shape/voids came out.
+  // extreme the random shape/voids came out. Water hexes count as "existing"
+  // here same as land — a land pocket only reachable by boat across a void
+  // is legitimately reachable now, not stranded, so it's correctly kept.
   keepLargestConnectedComponent();
+  classifyWaterBlobs();
+}
+// Tags every water hex with its own crossing cost: 1 force per hex for a
+// lake fully enclosed by land/other water, 2 for a hex whose blob touches
+// the open sea beyond the island's own silhouette (a neighbor position with
+// no hex there at all) — riskier/rougher water, costs more to cross. Purely
+// deterministic flood-fill, no RNG involved, so it can't affect replay
+// determinism regardless of where it runs.
+function classifyWaterBlobs() {
+  const visited = new Set();
+  for (const key in hexes) {
+    if (!hexes[key].isWater || visited.has(key)) continue;
+    const blob = [key];
+    const stack = [key];
+    visited.add(key);
+    let touchesOpenSea = false;
+    while (stack.length) {
+      const cur = stack.pop();
+      const h = hexes[cur];
+      for (const nk of neighborsOf(h.q, h.r)) {
+        const nh = hexes[nk];
+        if (!nh) { touchesOpenSea = true; continue; }
+        if (nh.isWater && !visited.has(nk)) { visited.add(nk); stack.push(nk); blob.push(nk); }
+      }
+    }
+    const cost = touchesOpenSea ? 2 : 1;
+    for (const k of blob) hexes[k].waterCost = cost;
+  }
 }
 
 function keepLargestConnectedComponent() {
@@ -1398,23 +1428,33 @@ function keepLargestConnectedComponent() {
   }
 }
 
-// Interior lakes/impassable pockets — chunks of the island that belong to no
-// territory at all (just empty background, unclickable, no village). Purely
-// visual/tactical texture so the island isn't one uniform blob; carving is
-// capped so there's always plenty of room left for every territory to seed
-// and grow normally.
+// Interior lakes/water pockets — chunks of the island that belong to no
+// territory at all (no village, not directly claimable) but, unlike a true
+// gap, can still be crossed by an attack for a force cost per hex (see
+// computeWaterRoutes()/attack()) — a tactical/visual texture so the island
+// isn't one uniform blob, now doubling as the water/boat-attack mechanic.
+// Carving is capped so there's always plenty of room left for every
+// territory to seed and grow normally.
 // Count and size are randomized per game (more voids, and occasionally much
 // bigger ones, than a fixed "always 2 small pockets"). Each void is either a
 // round-ish blob (organic lake) or an elongated "channel" that snakes mostly
 // in one direction instead of flooding outward evenly — a channel that
 // nearly reaches across the island leaves the strip of land beside its tip
 // as a narrow 1-2-hex chokepoint between two otherwise-separated areas.
+//
+// Hexes here are FLAGGED (h.isWater = true), never deleted — earlier
+// versions deleted them outright, back when a void was pure inert
+// background; every `Object.keys(hexes)`/`hexes[k]` truthy-check below is
+// therefore now paired with an explicit `.isWater` exclusion, so the exact
+// same candidate pools and RNG-consumption pattern as that old code are
+// preserved (matters for replay determinism — see simulate.js).
 const VOID_MIN_SIZE = 3, VOID_MAX_SIZE = 16;
 function carveVoids() {
+  const landHexCount = () => Object.keys(hexes).filter((k) => !hexes[k].isWater).length;
   const minRemaining = TERRITORY_COUNT * 3;
   const voidCount = 2 + rand(5); // 2-6 voids per game, up from a flat 2
   for (let v = 0; v < voidCount; v++) {
-    const candidates = Object.keys(hexes);
+    const candidates = Object.keys(hexes).filter((k) => !hexes[k].isWater);
     if (candidates.length <= minRemaining) break;
     const seedKey = pick(candidates);
     const targetSize = VOID_MIN_SIZE + rand(VOID_MAX_SIZE - VOID_MIN_SIZE + 1);
@@ -1432,13 +1472,13 @@ function carveVoids() {
         const [dq, dr] = NEI[dirIdx];
         const nk = `${cur.q + dq},${cur.r + dr}`;
         const nh = hexes[nk];
-        if (!nh || seen.has(nk)) {
+        if (!nh || nh.isWater || seen.has(nk)) {
           // blocked this step — try a neighboring direction once instead of stopping outright
           dirIdx = (dirIdx + 1) % NEI.length;
           const [dq2, dr2] = NEI[dirIdx];
           const nk2 = `${cur.q + dq2},${cur.r + dr2}`;
           const nh2 = hexes[nk2];
-          if (!nh2 || seen.has(nk2)) break;
+          if (!nh2 || nh2.isWater || seen.has(nk2)) break;
           seen.add(nk2); blob.push(nk2); cur = nh2;
           continue;
         }
@@ -1452,20 +1492,23 @@ function carveVoids() {
         if (!h) continue;
         for (const nk of neighborsOf(h.q, h.r)) {
           if (blob.length >= targetSize) break;
-          if (seen.has(nk) || !hexes[nk]) continue;
+          if (seen.has(nk) || !hexes[nk] || hexes[nk].isWater) continue;
           seen.add(nk);
           blob.push(nk);
           frontier.push(nk);
         }
       }
     }
-    if (Object.keys(hexes).length - blob.length < minRemaining) continue; // would carve too much
-    for (const k of blob) delete hexes[k];
+    if (landHexCount() - blob.length < minRemaining) continue; // would carve too much
+    for (const k of blob) hexes[k].isWater = true;
   }
 }
 
 function generateTerritories() {
-  const keys = Object.keys(hexes);
+  // water hexes (see carveVoids()) belong to no territory — same exclusion
+  // as when they used to be deleted outright, kept here via .isWater so the
+  // seed-shuffle below consumes RNG identically either way
+  const keys = Object.keys(hexes).filter((k) => !hexes[k].isWater);
   const seeds = [];
   const shuffled = keys.slice().sort(() => rngFloat() - 0.5);
   for (let i = 0; i < TERRITORY_COUNT && i < shuffled.length; i++) seeds.push(shuffled[i]);
@@ -1486,7 +1529,7 @@ function generateTerritories() {
         const h = hexes[hk];
         for (const nk of neighborsOf(h.q, h.r)) {
           const nh = hexes[nk];
-          if (nh && nh.territoryId === -1) candidates.push(nk);
+          if (nh && !nh.isWater && nh.territoryId === -1) candidates.push(nk);
         }
       }
       if (candidates.length) {
@@ -1519,14 +1562,18 @@ function generateTerritories() {
   }
 
   // adjacency + the shared edge (for a visible territory border) between
-  // every pair of hexes that belong to two different territories
+  // every pair of hexes that belong to two different territories — water
+  // hexes are skipped entirely (isWater, no territoryId of their own); their
+  // own fill (see render()) already reads as a coastline against land
+  // without needing a tracked border segment.
   territoryBorderSegments = [];
   const seenPairs = new Set();
   for (const key in hexes) {
     const h = hexes[key];
+    if (h.isWater) continue;
     for (const nk of neighborsOf(h.q, h.r)) {
       const nh = hexes[nk];
-      if (nh && nh.territoryId !== h.territoryId) {
+      if (nh && !nh.isWater && nh.territoryId !== h.territoryId) {
         territories[h.territoryId].neighbors.add(nh.territoryId);
         const pairKey = key < nk ? `${key}|${nk}` : `${nk}|${key}`;
         if (!seenPairs.has(pairKey)) {
@@ -1548,6 +1595,57 @@ function generateTerritories() {
             if ((h.x - midX) * px + (h.y - midY) * py < 0) { px = -px; py = -py; }
             territoryBorderSegments.push({ p1, p2, terrA: h.territoryId, terrB: nh.territoryId, px, py });
           }
+        }
+      }
+    }
+  }
+}
+
+// Water-crossing attack routes: for every pair of territories not already
+// directly land-adjacent, the cheapest path through water hexes only (if
+// one exists within MAX_WATER_ROUTE_COST) connecting them — a multi-source
+// Dijkstra per territory, starting from every water hex touching its own
+// land, through water hexes only (cost = each hex's own waterCost, see
+// classifyWaterBlobs()), until reaching another territory's land. Purely
+// deterministic given the map layout already generated — no RNG involved,
+// so this can't affect replay determinism regardless of when it runs.
+// AI never considers these (see bestMove()) — only the human player can
+// launch a boat attack in this first version of the mechanic.
+const MAX_WATER_ROUTE_COST = 6; // ~6 lake hexes, or 3 ocean hexes, or a mix — beyond that it's not a realistic crossing
+function computeWaterRoutes() {
+  for (const t of territories) t.waterRoutes = new Map(); // targetTerritoryId -> cost
+  const hasWater = Object.keys(hexes).some((k) => hexes[k].isWater);
+  if (!hasWater) return;
+  for (const startT of territories) {
+    const dist = new Map(); // waterHexKey -> cheapest accumulated cost reaching it from startT
+    const frontier = []; // [cost, key] — small maps, a plain array re-sorted each pop is plenty fast
+    for (const hk of startT.hexKeys) {
+      const h = hexes[hk];
+      for (const nk of neighborsOf(h.q, h.r)) {
+        const nh = hexes[nk];
+        if (nh && nh.isWater) {
+          const c = nh.waterCost;
+          if ((!dist.has(nk) || dist.get(nk) > c) && c <= MAX_WATER_ROUTE_COST) { dist.set(nk, c); frontier.push([c, nk]); }
+        }
+      }
+    }
+    const settled = new Set();
+    while (frontier.length) {
+      frontier.sort((a, b) => a[0] - b[0]);
+      const [cost, key] = frontier.shift();
+      if (settled.has(key) || dist.get(key) < cost) continue; // already settled, or a stale (superseded) entry
+      settled.add(key);
+      const h = hexes[key];
+      for (const nk of neighborsOf(h.q, h.r)) {
+        const nh = hexes[nk];
+        if (!nh) continue;
+        if (nh.isWater) {
+          const nc = cost + nh.waterCost;
+          if (nc <= MAX_WATER_ROUTE_COST && (!dist.has(nk) || dist.get(nk) > nc)) { dist.set(nk, nc); frontier.push([nc, nk]); }
+        } else if (nh.territoryId !== startT.id) {
+          const destId = nh.territoryId;
+          const existing = startT.waterRoutes.get(destId);
+          if (existing === undefined || existing > cost) startT.waterRoutes.set(destId, cost);
         }
       }
     }
@@ -2405,11 +2503,22 @@ function isDeterministicMatchup(atkForce, defForce) {
 }
 
 let lastAttackWasGrind = false; // both sides near the force cap — used for the victory flavor text
+// 0 for an ordinary land-adjacent attack; otherwise the cheapest water route
+// cost between the two territories (see computeWaterRoutes()) — force spent
+// just getting there, before any dice are even rolled.
+function waterCostBetween(fromT, toId) {
+  return fromT.neighbors.has(toId) ? 0 : (fromT.waterRoutes.get(toId) || 0);
+}
 function attack(fromId, toId, chainIndex = -1) {
   const from = territories[fromId], to = territories[toId];
-  lastAttackWasGrind = from.force >= FORCE_CAP - 2 && to.force >= FORCE_CAP - 2;
-  const deterministic = isDeterministicMatchup(from.force, to.force);
-  const atk = deterministic ? from.force : rollSum(from.force);
+  const waterCost = waterCostBetween(from, toId);
+  // the force that actually arrives to fight, after paying for the crossing
+  // — everything below reads this instead of from.force wherever it's the
+  // attacking side, exactly as if a smaller army had marched up to attack.
+  const attackingForce = Math.max(1, from.force - waterCost);
+  lastAttackWasGrind = attackingForce >= FORCE_CAP - 2 && to.force >= FORCE_CAP - 2;
+  const deterministic = isDeterministicMatchup(attackingForce, to.force);
+  const atk = deterministic ? attackingForce : rollSum(attackingForce);
   const def = deterministic ? to.force : rollSum(to.force);
   const win = atk > def;
   logMsg(`${ROYAUMES[from.owner].name} attaque ${ROYAUMES[to.owner].name} — ${atk} vs ${def} — ${win ? "victoire" : "échec"}`);
@@ -2417,7 +2526,7 @@ function attack(fromId, toId, chainIndex = -1) {
   sfxAttack(win, chainIndex);
   if (win) {
     to.owner = from.owner;
-    to.force = Math.max(1, from.force - 1);
+    to.force = Math.max(1, attackingForce - 1);
     from.force = 1;
   } else {
     from.force = 1;
@@ -2579,6 +2688,19 @@ function advanceTurn() {
     // cycles back to the human every simulated turn too, which would buzz
     // constantly instead of meaning anything.
     if (!replaying) { vibrateOwnTurn(); sfxYourTurn(); }
+  } else if (!isAlive(humanRoyId)) {
+    // The human has already been eliminated (2+ AI royaumes still standing —
+    // checkWinner() below only ends the match once exactly one remains) —
+    // checkStalemate() would otherwise never run again, since it was only
+    // ever gated on "it's the human's own turn", a turn that will now never
+    // come back around. A genuine deadlock among the surviving AIs (every
+    // contested border already at FORCE_CAP) would then have no truce
+    // mechanism left at all, and could in principle continue turn after
+    // turn indefinitely with the human able to do nothing but watch. Check
+    // every turn instead of once per round in this case — firing sooner
+    // than usual is harmless; an unresolvable AI-only war is not.
+    checkStalemate();
+    if (gameOver) return;
   }
   updateStatus();
   render();
@@ -3810,12 +3932,24 @@ function render() {
   const spotlightActive = replaying && performance.now() < replayIntroHighlightUntil;
   for (const key in hexes) {
     const h2 = hexes[key];
-    const t = territories[h2.territoryId];
-    const roy = ROYAUMES[t.owner];
     const pts = hexCorners(h2.x, h2.y, HEX_SIZE + 0.6);
     ctx.beginPath();
     pts.forEach(([x, y], i) => i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y));
     ctx.closePath();
+    if (h2.isWater) {
+      // a touch more saturated than CANVAS_BG_COLOR (the same blue-gray
+      // showing through everywhere there's no hex at all) — distinct enough
+      // that a lake/strait reads as "crossable water", not just empty space,
+      // deeper still for open-ocean-connected water (waterCost 2, riskier)
+      ctx.fillStyle = h2.waterCost >= 2 ? "#33506c" : "#3d5f80";
+      ctx.fill();
+      ctx.strokeStyle = "rgba(20,16,12,0.12)";
+      ctx.lineWidth = 0.5;
+      ctx.stroke();
+      continue;
+    }
+    const t = territories[h2.territoryId];
+    const roy = ROYAUMES[t.owner];
     ctx.fillStyle = roy.color;
     if (spotlightActive && t.owner !== humanRoyId) ctx.globalAlpha = 0.15;
     ctx.fill();
@@ -4161,7 +4295,11 @@ function territoryAtClientPoint(clientX, clientY) {
   const localY = ((clientY - rect.top) / portraitStageScale - centerY) / viewScale;
   const { q, r } = pixelToAxial(localX, localY);
   const h2 = hexes[`${q},${r}`];
-  return h2 ? territories[h2.territoryId] : null;
+  // a water hex isn't a territory (no owner, not directly tappable) — same
+  // "nothing here" contract as a true gap/off-the-map point, so a finger
+  // gliding over water mid-drag doesn't cancel the gesture (see the
+  // pointermove handler below) and a tap directly on water is a no-op
+  return (h2 && !h2.isWater) ? territories[h2.territoryId] : null;
 }
 
 // tapping any of a real royaume's territories while awaiting a pick claims
@@ -4233,7 +4371,7 @@ function handlePointer(clientX, clientY) {
     selected = -1;
   } else {
     const selTerr = territories[selected];
-    if (t.owner !== currentPlayer && selTerr.neighbors.has(tId)) {
+    if (t.owner !== currentPlayer && (selTerr.neighbors.has(tId) || selTerr.waterRoutes.has(tId))) {
       if (onboarding) {
         onboarding = false;
         try { localStorage.setItem("kw_playedBefore", "1"); } catch (e) { /* ignore */ }
@@ -4315,7 +4453,12 @@ canvas.addEventListener("pointermove", (e) => {
   }
   if (drag.path.includes(hoverT.id)) return; // no cycles within this one gesture
   if (hoverT.owner === currentPlayer) return; // can't attack your own territory
-  if (!territories[lastId].neighbors.has(hoverT.id)) return; // must extend one adjacent hop at a time
+  // one adjacent hop at a time — either a direct land border, or (see
+  // computeWaterRoutes()) a boat crossing; the finger simply glides over the
+  // water hexes in between with no effect (territoryAtClientPoint() returns
+  // null for those, same as any empty gap — see the early `if (!hoverT)` above)
+  const lastT = territories[lastId];
+  if (!(lastT.neighbors.has(hoverT.id) || lastT.waterRoutes.has(hoverT.id))) return;
   drag.path.push(hoverT.id);
   render();
 });
@@ -4371,14 +4514,16 @@ function executeAttackChain(path, i = 0) {
   if (i >= path.length - 1 || gameOver) { render(); return; }
   const fromId = path[i], toId = path[i + 1];
   const fromT = territories[fromId];
-  if (fromT.owner !== currentPlayer || fromT.force <= 1 || !fromT.neighbors.has(toId)) { render(); return; }
+  if (fromT.owner !== currentPlayer || fromT.force <= 1 || !(fromT.neighbors.has(toId) || fromT.waterRoutes.has(toId))) { render(); return; }
   logMove({ a: fromId, b: toId });
   const win = attack(fromId, toId, i);
   if (!win || gameOver) { render(); return; }
   // paced, not instant — back-to-back synchronous calls all landed in the
   // same paint frame, so a 4-5 hop chain used to just jump straight to its
-  // final state with no visible "tac tac tac" of each battle along the way
-  setTimeout(() => executeAttackChain(path, i + 1), 220);
+  // final state with no visible "tac tac tac" of each battle along the way.
+  // A water hop takes twice as long — rowing across is slower than marching.
+  const isWaterHop = !fromT.neighbors.has(toId);
+  setTimeout(() => executeAttackChain(path, i + 1), isWaterHop ? 440 : 220);
 }
 
 document.getElementById("endturn").addEventListener("click", () => {
@@ -4576,8 +4721,16 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.14";
+const GAME_VERSION = "1.15";
 const CHANGELOG = [
+  {
+    version: "1.15",
+    notes: [
+      "Nouveau : les étendues d'eau sur la carte (anciennes zones vides) sont maintenant traversables — attaquer un village de l'autre côté depuis un village adjacent à l'eau coûte de la force par case d'eau traversée (plus cher pour une eau reliée à l'océan extérieur), et l'assaut est deux fois plus lent qu'une attaque terrestre",
+      "Correction : une guerre entre intelligences artificielles pouvait continuer indéfiniment une fois le joueur éliminé, faute de détection de trêve après sa propre élimination",
+      "Correction : le service worker pouvait garder l'application bloquée sur une ancienne version après une mise à jour, y compris pour l'app installée sur l'écran d'accueil (PWA) — le document se charge maintenant en priorité depuis le réseau",
+    ],
+  },
   {
     version: "1.14",
     notes: [
@@ -5203,6 +5356,7 @@ function startGame(seed) {
   refreshGueuxBadge();
   generateHexGrid();
   generateTerritories();
+  computeWaterRoutes();
   assignRoyaumes(); // with humanRoyId === -1 this comes out an equal split (no AI edge) until the pick
   const activeRoyaumes = opponentCount + 1; // + the human's own seat — see "Nombre d'adversaires"
   if (activeRoyaumes < ROYAUME_COUNT - 1) mergeDownToActiveRoyaumes(activeRoyaumes);
