@@ -15,7 +15,13 @@
   }
   html, body {
     margin: 0; padding: 0; height: 100%; overflow: hidden;
-    background: #1b1712; font-family: -apple-system, system-ui, sans-serif;
+    /* matches the map's own CANVAS_BG_COLOR (was a plain near-black #1b1712,
+       unrelated to the game's actual blue theme) — the only place this
+       shows through at all is the letterboxed void around #wrap in
+       landscape (see lockPortraitStage()), and a stark, unthemed black
+       there reported as looking broken/like "a hole", rather than a
+       deliberate part of the page. */
+    background: #2b3d52; font-family: -apple-system, system-ui, sans-serif;
     touch-action: manipulation; user-select: none;
     /* centers #wrap when it's pinned to a smaller-than-viewport portrait box
        in landscape (see lockPortraitStage() below) — a no-op in portrait,
@@ -161,15 +167,14 @@
   }
   .chip { display: flex; align-items: center; gap: 5px; font-size: 12px; white-space: nowrap; flex: none; }
   .chip .swatch { width: 11px; height: 11px; border-radius: 50%; flex: none; box-shadow: 0 0 0 1px rgba(0,0,0,.5); }
-  /* villages/troops/percent each get their own fixed-width, left-aligned
-     column (like the swatch already is) instead of one run-on text node —
-     so every row's troops number starts at the same X regardless of how
-     many digits the villages count next to it happens to have, even if
-     that leaves a little empty space after a short value */
-  .chip .n, .chip .f, .chip .p { display: inline-block; text-align: left; }
+  /* villages/troops each get their own fixed-width, left-aligned column
+     (like the swatch already is) instead of one run-on text node — so
+     every row's troops number starts at the same X regardless of how many
+     digits the villages count next to it happens to have, even if that
+     leaves a little empty space after a short value */
+  .chip .n, .chip .f { display: inline-block; text-align: left; }
   .chip .n { font-weight: 700; min-width: 1.7em; }
   .chip .f { min-width: 2.3em; }
-  .chip .p { min-width: 2.8em; }
   #settingsPanel {
     position: absolute; inset: 0; display: none;
     align-items: center; justify-content: center;
@@ -477,6 +482,21 @@
     font-family: Georgia, "Iowan Old Style", Palatino, "Times New Roman", serif;
     display: none; opacity: 0; transition: opacity .6s ease;
   }
+  /* same slot/materials as #forceAdaptToast right above — the two never show
+     at once in practice (that one only ever fires once, right at faction
+     pick) — for the little running joke in showOceanTapEasterEgg(): a tap
+     or drag-release landing on open water instead of a real target. A
+     little wider since the longer of its three lines runs on. */
+  #oceanTapToast {
+    position: absolute; top: calc(130px + env(safe-area-inset-top, 0px)); left: 50%;
+    transform: translateX(-50%); z-index: 5; pointer-events: none;
+    max-width: 84vw; text-align: center;
+    background: rgba(20,16,12,.75); color: #f2ede2; font-size: 12px; font-weight: 600;
+    padding: 7px 13px; border-radius: 10px; border: 1px solid #8a6d3b;
+    box-shadow: 0 0 0 1px rgba(20,16,12,.7), 0 2px 6px rgba(0,0,0,.45);
+    font-family: Georgia, "Iowan Old Style", Palatino, "Times New Roman", serif;
+    display: none; opacity: 0; transition: opacity .6s ease;
+  }
   /* the two floating actions while the win banner is swiped out of the way
      (see revealFinalBoard()) — sit at the bottom, in the exact same slot
      #bottomHudRow occupies during live play (which revealFinalBoard() now
@@ -530,6 +550,7 @@
   </div>
   <div id="onboardingHint"></div>
   <div id="forceAdaptToast"></div>
+  <div id="oceanTapToast"></div>
   <!-- shown while the win banner is swiped away to reveal the final board
        underneath (see enableSwipeToDismiss on #winbannerBox / revealFinalBoard()) —
        same idea as a paused replay: a way back to the summary screen, and a
@@ -821,6 +842,23 @@
     showFatalError("Unhandled promise rejection: " + ((e.reason && e.reason.stack) || e.reason || "?"));
   });
 })();
+
+// iOS Safari can still recognize its own native double-tap-to-zoom gesture
+// in some versions even with the viewport's user-scalable=no/maximum-scale=1
+// and touch-action:manipulation/none already set everywhere — those aren't
+// reliably enough on their own on every iOS version. Reported live as a
+// small movable magnifier window popping up on a plain double-tap anywhere
+// on the map, not reproducible anywhere else on the phone (i.e. specific to
+// this page's own gesture handling, not a system-wide setting). Standard
+// belt-and-braces fix: explicitly swallow the second tap of any fast
+// double-tap globally, so the browser never sees two taps close enough
+// together to recognize as its own zoom gesture in the first place.
+let lastTouchEndAt = 0;
+document.addEventListener("touchend", (e) => {
+  const now = Date.now();
+  if (now - lastTouchEndAt <= 350) e.preventDefault();
+  lastTouchEndAt = now;
+}, { passive: false });
 
 /* ---------- CONFIG ---------- */
 const HEX_SIZE = 26;          // was 20, +30% per request — bigger tap targets on phone
@@ -1199,11 +1237,10 @@ function updateMapNumberRotation() {
   // which way the phone was turned (unlike the old numeric window.orientation,
   // whose sign convention differed across browsers) — "primary" and
   // "secondary" are the two landscape rotations, opposite of each other.
-  // Exactly which one maps to +90° vs -90° here is a best guess without a
-  // real device to check against both ways on — if numbers come out upside
-  // down on one side, swap the two signs below.
+  // Confirmed backwards on a real device (numbers needed a head-tilt in the
+  // wrong direction on both sides) — signs swapped from the original guess.
   const type = (window.screen && screen.orientation && screen.orientation.type) || "";
-  mapNumberRotationRad = type === "landscape-secondary" ? -Math.PI / 2 : Math.PI / 2;
+  mapNumberRotationRad = type === "landscape-secondary" ? Math.PI / 2 : -Math.PI / 2;
 }
 // try/catch, not just the truthy guard above: this runs at the top level
 // during initial script execution, so ANY uncaught exception here (e.g. iOS
@@ -1416,24 +1453,56 @@ function classifyWaterBlobs() {
   }
 }
 
+// Never more than this many consecutive water hexes in a row, anywhere a
+// water gap ends up bridging two pieces of land — shared with
+// computeWaterRoutes()' own identical cap (see its own note) so "how far a
+// boat attack can reach" and "how far the map generator considers two
+// shores actually connected" always agree with each other. A wider gap
+// than this severs the island for real, same as if it had been open sea
+// with nothing there at all — reported live as landing on a map with a
+// water crossing so long it silently reduced an attack to a token
+// force ("j'envoie 12 contre 12 et c'est perdu"): letting a technically-
+// reachable-but-absurd crossing exist at all was the actual bug, not just
+// its force-cost math.
+const MAX_WATER_CROSSING_HOPS = 3;
 function keepLargestConnectedComponent() {
   const keys = Object.keys(hexes);
   if (!keys.length) return;
-  const visited = new Set();
+  const globalVisited = new Set();
   const components = [];
-  for (const k of keys) {
-    if (visited.has(k)) continue;
-    const comp = [];
-    const stack = [k];
-    visited.add(k);
-    while (stack.length) {
-      const cur = stack.pop();
-      comp.push(cur);
-      const h = hexes[cur];
-      for (const nk of neighborsOf(h.q, h.r)) {
-        if (hexes[nk] && !visited.has(nk)) { visited.add(nk); stack.push(nk); }
+  for (const startKey of keys) {
+    if (globalVisited.has(startKey)) continue;
+    // Label-correcting flood fill (not a plain BFS): minStreak[key] tracks
+    // the FEWEST consecutive water hexes needed to reach that hex from
+    // startKey, and a hex is re-relaxed whenever a lower streak arrives —
+    // a plain "visited once" BFS could lock in a hex via a long, capped-out
+    // water streak first and never revisit it via a shorter land-adjacent
+    // route that would have kept expanding past it.
+    const minStreak = new Map();
+    const startH = hexes[startKey];
+    minStreak.set(startKey, startH.isWater ? 1 : 0);
+    let frontier = [startKey];
+    while (frontier.length) {
+      const nextFrontier = [];
+      for (const cur of frontier) {
+        const curStreak = minStreak.get(cur);
+        const h = hexes[cur];
+        for (const nk of neighborsOf(h.q, h.r)) {
+          const nh = hexes[nk];
+          if (!nh) continue;
+          const nextStreak = nh.isWater ? curStreak + 1 : 0;
+          if (nextStreak > MAX_WATER_CROSSING_HOPS) continue; // gap too wide here — don't bridge through it
+          const known = minStreak.get(nk);
+          if (known === undefined || nextStreak < known) {
+            minStreak.set(nk, nextStreak);
+            nextFrontier.push(nk);
+          }
+        }
       }
+      frontier = nextFrontier;
     }
+    const comp = [...minStreak.keys()];
+    for (const k of comp) globalVisited.add(k);
     components.push(comp);
   }
   if (components.length <= 1) return;
@@ -1618,49 +1687,84 @@ function generateTerritories() {
 
 // Water-crossing attack routes: for every pair of territories not already
 // directly land-adjacent, the cheapest path through water hexes only (if
-// one exists within MAX_WATER_ROUTE_COST) connecting them — a multi-source
-// Dijkstra per territory, starting from every water hex touching its own
-// land, through water hexes only (cost = each hex's own waterCost, see
-// classifyWaterBlobs()), until reaching another territory's land. Purely
-// deterministic given the map layout already generated — no RNG involved,
-// so this can't affect replay determinism regardless of when it runs.
-// AI never considers these (see bestMove()) — only the human player can
-// launch a boat attack in this first version of the mechanic.
-const MAX_WATER_ROUTE_COST = 6; // ~6 lake hexes, or 3 ocean hexes, or a mix — beyond that it's not a realistic crossing
+// one exists within MAX_WATER_CROSSING_HOPS consecutive water hexes)
+// connecting them — a multi-source Dijkstra per territory, starting from
+// every water hex touching its own land, through water hexes only (cost =
+// each hex's own waterCost, see classifyWaterBlobs()), until reaching
+// another territory's land. Purely deterministic given the map layout
+// already generated — no RNG involved, so this can't affect replay
+// determinism regardless of when it runs. AI never considers these (see
+// bestMove()) — only the human player can launch a boat attack in this
+// first version of the mechanic.
+//
+// Capped by HOP COUNT now (shared MAX_WATER_CROSSING_HOPS, same as
+// keepLargestConnectedComponent() — see its own note), not accumulated
+// cost like the old MAX_WATER_ROUTE_COST used to be. The two caps used to
+// disagree with each other (a 6-lake-hex path cost 6 and was allowed here,
+// even though the map generator only ever guarantees two shores stay
+// "connected" within 3 water hexes) — a route could exist on paper between
+// two territories the generator itself would otherwise have severed as
+// separate islands, and conversely a genuinely short (3-hex) but
+// expensive all-ocean crossing could get capped out here even though it's
+// exactly the kind of crossing the generator guarantees stays reachable.
+// Since a hex can be reached via different (hop-count, cost) trade-offs —
+// a cheaper-but-longer path might unlock hexes a pricier-but-shorter one
+// can't, or vice versa — state here is keyed by (hex, exact hop count),
+// not just hex, so every hop-count "layer" up to the cap is explored on
+// its own rather than only ever keeping the single cheapest state per hex
+// (which could silently prune a still-legal, cap-respecting continuation).
+//
+// Each route also now stores its actual hex-by-hex path (not just the
+// total cost) — used to trace the crossing on screen and to float each
+// hex's own force cost on it, instead of just showing one lump total on
+// the two endpoints (reported live: "trace le chemin aussi sur l'eau en
+// ajoutant à chaque hexagone le nombre de soldat retiré").
 function computeWaterRoutes() {
-  for (const t of territories) t.waterRoutes = new Map(); // targetTerritoryId -> cost
+  for (const t of territories) t.waterRoutes = new Map(); // targetTerritoryId -> { cost, path }
   const hasWater = Object.keys(hexes).some((k) => hexes[k].isWater);
   if (!hasWater) return;
   for (const startT of territories) {
-    const dist = new Map(); // waterHexKey -> cheapest accumulated cost reaching it from startT
-    const frontier = []; // [cost, key] — small maps, a plain array re-sorted each pop is plenty fast
+    const dist = new Map(); // `${hexKey}:${hops}` -> cheapest cost reaching that exact (hex, hop-count) state
+    const frontier = []; // [cost, hops, key, path] — small maps, a plain array re-sorted each pop is plenty fast
     for (const hk of startT.hexKeys) {
       const h = hexes[hk];
       for (const nk of neighborsOf(h.q, h.r)) {
         const nh = hexes[nk];
         if (nh && nh.isWater) {
           const c = nh.waterCost;
-          if ((!dist.has(nk) || dist.get(nk) > c) && c <= MAX_WATER_ROUTE_COST) { dist.set(nk, c); frontier.push([c, nk]); }
+          const stateKey = `${nk}:1`;
+          if (!dist.has(stateKey) || dist.get(stateKey) > c) { dist.set(stateKey, c); frontier.push([c, 1, nk, [nk]]); }
         }
       }
     }
     const settled = new Set();
     while (frontier.length) {
       frontier.sort((a, b) => a[0] - b[0]);
-      const [cost, key] = frontier.shift();
-      if (settled.has(key) || dist.get(key) < cost) continue; // already settled, or a stale (superseded) entry
-      settled.add(key);
+      const [cost, hops, key, path] = frontier.shift();
+      const stateKey = `${key}:${hops}`;
+      if (settled.has(stateKey) || dist.get(stateKey) < cost) continue; // already settled, or a stale (superseded) entry
+      settled.add(stateKey);
       const h = hexes[key];
       for (const nk of neighborsOf(h.q, h.r)) {
         const nh = hexes[nk];
         if (!nh) continue;
         if (nh.isWater) {
+          if (hops >= MAX_WATER_CROSSING_HOPS) continue; // one more water hex here would exceed the cap
           const nc = cost + nh.waterCost;
-          if (nc <= MAX_WATER_ROUTE_COST && (!dist.has(nk) || dist.get(nk) > nc)) { dist.set(nk, nc); frontier.push([nc, nk]); }
+          const nhops = hops + 1;
+          const nStateKey = `${nk}:${nhops}`;
+          if (!dist.has(nStateKey) || dist.get(nStateKey) > nc) {
+            const npath = [...path, nk];
+            dist.set(nStateKey, nc);
+            frontier.push([nc, nhops, nk, npath]);
+          }
         } else if (nh.territoryId !== startT.id) {
+          // arriving at land isn't itself a water hop, so this is checked
+          // regardless of the current hop count — even a state already at
+          // the cap can still legally end its crossing here
           const destId = nh.territoryId;
           const existing = startT.waterRoutes.get(destId);
-          if (existing === undefined || existing > cost) startT.waterRoutes.set(destId, cost);
+          if (existing === undefined || existing.cost > cost) startT.waterRoutes.set(destId, { cost, path });
         }
       }
     }
@@ -1973,8 +2077,41 @@ let forceInstantSkip = false;
 // worse the further into a match you seek). Microtasks aren't subject to
 // that throttle and still run one at a time off the current call stack (no
 // stack-overflow risk from chaining them), so a "0ms" delay is actually ~0ms.
+// Every AI-continuation timer during replay (an AI's own next attack, or the
+// end-of-turn handoff) funnels through here — tracked in
+// pendingScheduledTurnTimeouts so playReplay()'s Stop can cancel every one
+// of them outright the instant it's pressed. Without this, a runAI()/
+// endTurn() call already scheduled from just before Stop was pressed would
+// still fire once its timer elapsed regardless — reported live as the
+// replay quietly continuing to play out in the background after "Arrêter
+// le replay" ("il y a encore et toujours la [action] qui continue en
+// arrière"). Also paused-aware during replay now: an AI's own turn used to
+// ignore replayPaused entirely (only the human-move half of playReplay()'s
+// step() actually checked it), which is why "Pause" visibly did nothing for
+// most of a replay (mostly AI turns) — reported live as "le bouton pause ne
+// marche pas".
+let pendingScheduledTurnTimeouts = new Set();
+function cancelAllScheduledTurns() {
+  for (const id of pendingScheduledTurnTimeouts) clearTimeout(id);
+  pendingScheduledTurnTimeouts.clear();
+}
 function scheduleTurn(fn, delay) {
   if (forceInstantSkip) { queueMicrotask(fn); return; }
+  if (replaying) {
+    // fixed, uniform pace for every action — see REPLAY_STEP_MS's own note
+    // (replaces the old per-caller delay/replaySpeed math, which gave AI
+    // turns and human-move turns visibly different, uneven pacing)
+    let id;
+    const fire = () => {
+      pendingScheduledTurnTimeouts.delete(id);
+      if (!replaying) return; // stopped mid-flight
+      if (replayPaused) { id = setTimeout(fire, REPLAY_STEP_MS); pendingScheduledTurnTimeouts.add(id); return; }
+      fn();
+    };
+    id = setTimeout(fire, REPLAY_STEP_MS);
+    pendingScheduledTurnTimeouts.add(id);
+    return;
+  }
   setTimeout(fn, fastForward ? FASTFORWARD_MIN_DELAY_MS : delay);
 }
 // A perceivable beat every royaume's turn-end reinforcement gets before
@@ -2066,8 +2203,14 @@ function logMove(entry) {
   saveGameState();
 }
 let replaying = false;
-let replaySpeed = 1; // AI turn-pacing divisor; set >1 during replay playback
-const REPLAY_BASE_SPEED = 0.25; // playReplay()'s one fixed pace — no speed toggle any more, per request (kept simple: one button, no scrubber, no 2x)
+// One fixed, uniform pace for every single action during replay (an AI
+// attack, a human move from the log, an end-of-turn handoff...) — see
+// scheduleTurn()'s own note. Used to be a per-caller delay divided by a
+// "replaySpeed" multiplier, which gave AI turns and human-move turns
+// visibly different pacing (dead time on AI-heavy stretches) — reported
+// live: "le replay doit y avoir aucun temps mort [...] chaque action a la
+// même durée [...] assez rapide".
+const REPLAY_STEP_MS = 50;
 // Starts true — the replay opens paused/frozen, an explicit tap on
 // replayPauseBtn ("▶ Lire") is what actually starts it playing, rather
 // than auto-playing the instant the screen appears.
@@ -2140,12 +2283,22 @@ function totalForce(royId) {
 // brief non-blocking visual effects (reinforcement glow, combat flash) —
 // makes "why did this go from 2 to 6" / "who just won that fight" visible
 // without pausing the game or adding any confirmation step
-const PULSE_DURATION = 1000; // was 500 — +100%, per request
+// Intro-only now (ring shrink + label float-up) — used to also govern how
+// long the whole pulse stayed visible at all, fading it out on this fixed
+// timer regardless of what the player was doing. That meant a reinforcement
+// pulse could vanish well before "Fin de bataille", inconsistent with the
+// combat FX right next to it (swords/atk-def numbers/outcome ring), which
+// already persist until end of turn — reported live: "les épées restent
+// jusqu'au bouton fin de bataille mais les ajout de villages disparaissent
+// avant, lentement". Now it just holds at rest once the intro settles, and
+// only actually fades alongside combatFXList once startCombatFXFadeOut()
+// runs (see fxStep()/render() below) — same clock, same FX_LINGER_MS.
+const PULSE_INTRO_MS = 1000; // was PULSE_DURATION 1000 — +100%, per request
 // The sword-swing itself is a quick, fixed-length flourish (see its own
 // intro-only rendering below) — independent from how long the *result* of
 // that attack (the atk/def numbers + outcome ring) then stays on screen,
 // which is FX_LINGER_MS below.
-const SWORD_INTRO_MS = 600;
+const SWORD_INTRO_MS = 480; // sped up 20% per request (was 600)
 // Used to be a flat wall-clock timer (COMBAT_FX_DURATION, up to 7040ms —
 // "was 880, then 4x, doubled again per request") that quietly faded every
 // hit's result on its own, regardless of what the player was doing. On a
@@ -2173,7 +2326,9 @@ let combatFXList = []; // [{fromId, toId, atk, def, win, start}]
 // rather than each on its own separate timer.
 let combatFXFadeStartedAt = null;
 function startCombatFXFadeOut() {
-  if (!combatFXList.length || combatFXFadeStartedAt !== null) return;
+  // pulseTiles shares this same fade clock now (see its own note) — a turn
+  // with reinforcements but no attacks still needs this to actually fire.
+  if ((!combatFXList.length && !pulseTiles.length) || combatFXFadeStartedAt !== null) return;
   combatFXFadeStartedAt = performance.now();
   ensureFXLoop(); // may have gone idle once its intro settled — the fade needs the loop running again to animate out
 }
@@ -2200,28 +2355,30 @@ function triggerPulse(counts) {
   pulseTiles.push(...ids.map((id, i) => ({ id: Number(id), amount: counts[id], start: now + i * 110 })));
   ensureFXLoop();
 }
-function triggerCombatFX(fromId, toId, atk, def, win, attackerRoyId, defenderRoyId, hexCount) {
+function triggerCombatFX(fromId, toId, atk, def, win, attackerRoyId, defenderRoyId, hexCount, waterPath = null) {
   // a fresh hit always renders at full strength, even if a previous fade-out
   // was already mid-flight (e.g. a reroll/new game right as one was fading)
   combatFXFadeStartedAt = null;
-  combatFXList.push({ fromId, toId, atk, def, win, attackerRoyId, defenderRoyId, hexCount, start: performance.now() });
+  combatFXList.push({ fromId, toId, atk, def, win, attackerRoyId, defenderRoyId, hexCount, waterPath, start: performance.now() });
   ensureFXLoop();
 }
 function fxStep() {
   const now = performance.now();
-  pulseTiles = pulseTiles.filter(p => now - p.start < PULSE_DURATION);
   if (combatFXFadeStartedAt !== null && now - combatFXFadeStartedAt >= FX_LINGER_MS) {
     combatFXList = [];
+    pulseTiles = []; // shares combatFXList's own fade clock now — see PULSE_INTRO_MS's note
     combatFXFadeStartedAt = null;
   }
   render();
   // Once every result's own quick intro has settled, a fully-lingering
-  // (not yet fading) combatFXList is a static picture — no need to keep
-  // burning frames on it until startCombatFXFadeOut() actually resumes the
-  // loop. Still counts as "animating" for as long as any entry is mid-intro,
-  // or once the fade itself has actually started.
-  const stillAnimating = combatFXList.some(fx => now - fx.start < SWORD_INTRO_MS) || combatFXFadeStartedAt !== null;
-  if (pulseTiles.length || stillAnimating) {
+  // (not yet fading) combatFXList/pulseTiles is a static picture — no need
+  // to keep burning frames on it until startCombatFXFadeOut() actually
+  // resumes the loop. Still counts as "animating" for as long as any entry
+  // is mid-intro, or once the fade itself has actually started.
+  const stillAnimating = combatFXList.some(fx => now - fx.start < SWORD_INTRO_MS) ||
+    pulseTiles.some(p => now - p.start < PULSE_INTRO_MS) ||
+    combatFXFadeStartedAt !== null;
+  if (stillAnimating) {
     requestAnimationFrame(fxStep);
   } else {
     fxRAFRunning = false;
@@ -2522,11 +2679,25 @@ let lastAttackWasGrind = false; // both sides near the force cap — used for th
 // cost between the two territories (see computeWaterRoutes()) — force spent
 // just getting there, before any dice are even rolled.
 function waterCostBetween(fromT, toId) {
-  return fromT.neighbors.has(toId) ? 0 : (fromT.waterRoutes.get(toId) || 0);
+  if (fromT.neighbors.has(toId)) return 0;
+  const route = fromT.waterRoutes.get(toId);
+  return route ? route.cost : 0;
+}
+// the actual water hexes crossed by the cheapest route between the two, in
+// order — null for a land-adjacent pair (even one that also happens to
+// have a redundant water route; land is always preferred, same rule as
+// waterCostBetween()) or one with no route at all. Purely for tracing the
+// crossing on screen (see triggerCombatFX()/render()) — doesn't affect the
+// force math itself.
+function waterPathBetween(fromT, toId) {
+  if (fromT.neighbors.has(toId)) return null;
+  const route = fromT.waterRoutes.get(toId);
+  return route ? route.path : null;
 }
 function attack(fromId, toId, chainIndex = -1) {
   const from = territories[fromId], to = territories[toId];
   const waterCost = waterCostBetween(from, toId);
+  const waterPath = from.neighbors.has(toId) ? null : waterPathBetween(from, toId);
   // the force that actually arrives to fight, after paying for the crossing
   // — everything below reads this instead of from.force wherever it's the
   // attacking side, exactly as if a smaller army had marched up to attack.
@@ -2537,7 +2708,7 @@ function attack(fromId, toId, chainIndex = -1) {
   const def = deterministic ? to.force : rollSum(to.force);
   const win = atk > def;
   logMsg(`${ROYAUMES[from.owner].name} attaque ${ROYAUMES[to.owner].name} — ${atk} vs ${def} — ${win ? "victoire" : "échec"}`);
-  triggerCombatFX(fromId, toId, atk, def, win, from.owner, to.owner, to.hexKeys.length);
+  triggerCombatFX(fromId, toId, atk, def, win, from.owner, to.owner, to.hexKeys.length, waterPath);
   sfxAttack(win, chainIndex);
   if (win) {
     to.owner = from.owner;
@@ -2722,13 +2893,11 @@ function advanceTurn() {
   if (checkWinner()) return;
   if (currentPlayer !== humanRoyId && !ROYAUMES[currentPlayer].neutral) {
     aiRunning = true;
-    // slowed 50% (was 350) for live play only — easier to actually follow the
-    // AI's own moves; NOT applied during a replay, whose own pacing is
-    // already separately tuned via replaySpeed (REPLAY_BASE_SPEED and its
-    // own long history of adjustments) — stacking this on top of that used
-    // to double every replay's already-deliberate pace, reported as "méga
-    // lent".
-    scheduleTurn(runAI, (replaying ? 350 : 700) / replaySpeed);
+    // slowed 50% for live play only — easier to actually follow the AI's own
+    // moves; the delay argument here is simply ignored during a replay,
+    // which paces itself uniformly via REPLAY_STEP_MS instead (see
+    // scheduleTurn()'s own note).
+    scheduleTurn(runAI, 560); // live-play combat pacing sped up 20% per request (was 700)
   }
 }
 
@@ -3296,12 +3465,6 @@ function playReplay(seed, difficulty, replayHumanRoyId, log, onFinish, replayMap
   // an escape hatch — tapping it aborts the replay and jumps straight into
   // a fresh game instead of forcing the player to watch it through
   replaying = true;
-  // was 6, then 3, then 1 (matching live pace exactly), then 0.5 — still read
-  // as too fast, since passively watching reads faster than actively playing
-  // the same cadence does. Halved again: REPLAY_BASE_SPEED (0.25) quadruples
-  // every AI-move delay in scheduleTurn() (delay / replaySpeed). Fixed now —
-  // no speed toggle.
-  replaySpeed = REPLAY_BASE_SPEED;
   // Opens paused/frozen — a tap on replayPauseBtn ("▶ Lire") is what
   // actually starts playback, instead of auto-playing the instant the
   // screen appears (repeatedly reported as confusing: "on arrive sur la
@@ -3345,9 +3508,21 @@ function playReplay(seed, difficulty, replayHumanRoyId, log, onFinish, replayMap
   setTimeout(() => { replayIntroHighlightUntil = 0; render(); }, REPLAY_INTRO_MS);
 
   let i = 0;
+  // this closure's own pending setTimeout id (paused-poll or inter-action
+  // beat) — tracked separately from pendingScheduledTurnTimeouts (the AI's
+  // own turn-continuation timers, see scheduleTurn()) so Stop/fork can
+  // cancel this side of the replay too; between the two, nothing is left
+  // able to fire once either one calls stopAllReplayTimers() below.
+  let stepTimeoutId = null;
+  function scheduleStep(ms) { stepTimeoutId = setTimeout(step, ms); }
+  function stopAllReplayTimers() {
+    if (stepTimeoutId !== null) { clearTimeout(stepTimeoutId); stepTimeoutId = null; }
+    cancelAllScheduledTurns();
+  }
   function step() {
+    stepTimeoutId = null;
     if (!replaying) return; // user could in principle navigate away; bail cleanly
-    if (replayPaused) { setTimeout(step, 120); return; }
+    if (replayPaused) { scheduleStep(REPLAY_STEP_MS); return; }
     if (gameOver) {
       // the original match may have kept going past this exact point via
       // "Continuer le combat" — if the next logged action says so, replay
@@ -3355,20 +3530,20 @@ function playReplay(seed, difficulty, replayHumanRoyId, log, onFinish, replayMap
       if (i < log.length && log[i].continue) {
         i++;
         gameOver = false; truceEnded = false; truceWinnerId = -1; allCappedStreak = 0;
-        setTimeout(step, 30);
+        scheduleStep(REPLAY_STEP_MS);
         return;
       }
       finish();
       return;
     }
-    if (currentPlayer !== humanRoyId || aiRunning) { setTimeout(step, 30); return; }
+    if (currentPlayer !== humanRoyId || aiRunning) { scheduleStep(REPLAY_STEP_MS); return; }
     if (i >= log.length) { finish(); return; }
     const action = log[i++];
     if (action.end) endTurn();
     else if (action.gueux !== undefined) reinforceTerritory(action.gueux); // no gueuxCount touched — replay only reproduces the force change, never spends the viewer's own stock
     else if (action.continue) { /* stray continue entry with no matching pause active — nothing to undo, just skip it rather than misreading it as attack(undefined, undefined) */ }
     else attack(action.a, action.b);
-    setTimeout(step, 30);
+    scheduleStep(REPLAY_STEP_MS);
   }
   function togglePause() {
     if (!replaying) return;
@@ -3398,6 +3573,7 @@ function playReplay(seed, difficulty, replayHumanRoyId, log, onFinish, replayMap
     activeReplayTogglePause = null;
     activeReplayFork = null;
     replaying = false;
+    stopAllReplayTimers(); // no leftover replay timer should keep firing into the now-live, forked match
     replayPaused = false;
     forceInstantSkip = false;
     moveLog = log.slice(0, i);
@@ -3424,7 +3600,12 @@ function playReplay(seed, difficulty, replayHumanRoyId, log, onFinish, replayMap
     activeReplayTogglePause = null;
     activeReplayFork = null;
     replaying = false;
-    replaySpeed = 1;
+    // Without this, a runAI()/endTurn() call already scheduled from just
+    // before Stop was pressed would still fire once its timer elapsed
+    // regardless of `replaying` now being false (neither function checks
+    // it) — reported live as the replay quietly continuing to play out in
+    // the background after "Arrêter le replay".
+    stopAllReplayTimers();
     replayPaused = false;
     // any note still scheduled (a reinforcement chime queued mid-replay, or
     // the tail of the victory/defeat/truce stinger the deciding move just
@@ -3453,7 +3634,7 @@ function playReplay(seed, difficulty, replayHumanRoyId, log, onFinish, replayMap
   // screen — starting step() immediately let the very first action fire
   // while the map was still dimmed/mid-fade, which read as "already moving"
   // instead of a beat to actually look at the highlighted territory first
-  setTimeout(step, REPLAY_INTRO_MS);
+  scheduleStep(REPLAY_INTRO_MS);
 }
 
 function startReplay() {
@@ -3836,10 +4017,10 @@ function runAI() {
   const mistakeRate = Math.max(0, Math.min(1, escalated(AI_MISTAKE_RATE, 0.05) + pers.mistakeDelta));
   if (mv && rngFloat() >= mistakeRate) {
     attack(mv.from, mv.to);
-    scheduleTurn(runAI, (replaying ? 315 : 630) / replaySpeed); // slowed 50% for live play only — same fix as above
+    scheduleTurn(runAI, 504); // live-play combat pacing sped up 20% per request (was 630) — ignored during replay, see scheduleTurn()'s own note
   } else {
     aiRunning = false;
-    scheduleTurn(endTurn, (replaying ? 210 : 420) / replaySpeed); // slowed 50% for live play only — same fix as above
+    scheduleTurn(endTurn, 336); // live-play combat pacing sped up 20% per request (was 420) — ignored during replay, see scheduleTurn()'s own note
   }
 }
 
@@ -3968,9 +4149,15 @@ function render() {
     if (h2.isWater) {
       // a touch more saturated than CANVAS_BG_COLOR (the same blue-gray
       // showing through everywhere there's no hex at all) — distinct enough
-      // that a lake/strait reads as "crossable water", not just empty space,
-      // deeper still for open-ocean-connected water (waterCost 2, riskier)
-      ctx.fillStyle = h2.waterCost >= 2 ? "#33506c" : "#3d5f80";
+      // that a lake/strait reads as "crossable water", not just empty
+      // space. One single water color everywhere (used to be two — a
+      // lighter shade for an enclosed lake, a darker one for water
+      // connected to the open sea — reported live as confusing: it read as
+      // two different kinds of background rather than one continuous body
+      // of water) — waterCost still varies per hex under the hood (it
+      // drives the force cost of a crossing), it just isn't color-coded
+      // any more.
+      ctx.fillStyle = "#3d5f80";
       ctx.fill();
       ctx.strokeStyle = "rgba(20,16,12,0.12)";
       ctx.lineWidth = 0.5;
@@ -4032,7 +4219,17 @@ function render() {
     const p0 = territories[drag.path[0]];
     ctx.moveTo(p0.cx, p0.cy);
     for (let i = 1; i < drag.path.length; i++) {
+      const prev = territories[drag.path[i - 1]];
       const p = territories[drag.path[i]];
+      if (!prev.neighbors.has(p.id)) {
+        // water hop — bend the preview through the actual hexes crossed
+        // (see computeWaterRoutes()' stored path) instead of cutting a
+        // straight line across however much water sits between the two
+        // villages, same idea as the post-attack trace in the combat FX
+        // loop above.
+        const wp = waterPathBetween(prev, p.id);
+        if (wp) for (const hk of wp) { const wh = hexes[hk]; if (wh) ctx.lineTo(wh.x, wh.y); }
+      }
       ctx.lineTo(p.cx, p.cy);
     }
     ctx.strokeStyle = "rgba(244,246,249,0.85)";
@@ -4047,35 +4244,42 @@ function render() {
     drawForceIcon(t);
   }
 
-  // reinforcement pulse — a brief fading ring on territories that just gained force
+  // reinforcement pulse — a ring on territories that just gained force. Ring
+  // shrink + label float-up plays out over PULSE_INTRO_MS then holds at
+  // rest — visibility itself (pulseFadeAlpha) shares combatFXList's own
+  // end-of-turn fade clock now, not a separate fixed timer (see
+  // PULSE_INTRO_MS's own note on why).
   const pulseNow = performance.now();
-  for (const p of pulseTiles) {
-    const t = territories[p.id];
-    if (!t) continue;
-    const elapsed = pulseNow - p.start;
-    if (elapsed < 0) continue; // its own staggered start hasn't arrived yet — see triggerPulse()
-    if (elapsed >= PULSE_DURATION) continue;
-    const progress = elapsed / PULSE_DURATION;
-    // centered on the force number's actual position (t.cy, matching
-    // drawForceIcon()'s plain-number branch now that it's true-centered too)
-    const ringCy = t.cy;
-    // reversed from expanding-outward to converging-inward per request — a
-    // ring that starts wide and shrinks toward the village reads as troops
-    // actually arriving there, rather than something radiating away from it
-    ctx.beginPath();
-    ctx.arc(t.cx, ringCy, 28 - progress * 14, 0, Math.PI * 2);
-    ctx.strokeStyle = `rgba(255, 214, 92, ${1 - progress})`;
-    ctx.lineWidth = 2.5;
-    ctx.stroke();
+  const pulseFadeAlpha = combatFXFadeStartedAt === null ? 1 : Math.max(0, 1 - (pulseNow - combatFXFadeStartedAt) / FX_LINGER_MS);
+  // hidden entirely during replay — see the "no number indications" note
+  // above combatFXList's own numeric draws below
+  if (!replaying && pulseFadeAlpha > 0) {
+    for (const p of pulseTiles) {
+      const t = territories[p.id];
+      if (!t) continue;
+      const elapsed = pulseNow - p.start;
+      if (elapsed < 0) continue; // its own staggered start hasn't arrived yet — see triggerPulse()
+      const introProgress = Math.min(1, elapsed / PULSE_INTRO_MS);
+      // centered on the force number's actual position (t.cy, matching
+      // drawForceIcon()'s plain-number branch now that it's true-centered too)
+      const ringCy = t.cy;
+      // reversed from expanding-outward to converging-inward per request — a
+      // ring that starts wide and shrinks toward the village reads as troops
+      // actually arriving there, rather than something radiating away from it
+      ctx.beginPath();
+      ctx.arc(t.cx, ringCy, 28 - introProgress * 14, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(255, 214, 92, ${pulseFadeAlpha})`;
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
 
-    const alpha = 1 - progress;
-    ctx.font = "bold 17px -apple-system, sans-serif"; // was 12px — +40%
-    ctx.textAlign = "center";
-    ctx.strokeStyle = `rgba(20,16,12,${alpha * 0.8})`;
-    ctx.lineWidth = 2.5;
-    ctx.strokeText(`+${p.amount}`, t.cx, ringCy - 22 - (1 - progress) * 14);
-    ctx.fillStyle = `rgba(255, 214, 92, ${alpha})`;
-    ctx.fillText(`+${p.amount}`, t.cx, ringCy - 22 - (1 - progress) * 14);
+      ctx.font = "bold 17px -apple-system, sans-serif"; // was 12px — +40%
+      ctx.textAlign = "center";
+      ctx.strokeStyle = `rgba(20,16,12,${pulseFadeAlpha * 0.8})`;
+      ctx.lineWidth = 2.5;
+      ctx.strokeText(`+${p.amount}`, t.cx, ringCy - 22 - (1 - introProgress) * 14);
+      ctx.fillStyle = `rgba(255, 214, 92, ${pulseFadeAlpha})`;
+      ctx.fillText(`+${p.amount}`, t.cx, ringCy - 22 - (1 - introProgress) * 14);
+    }
   }
 
   // combat flash — the atk/def rolls float briefly over both territories,
@@ -4138,6 +4342,54 @@ function render() {
       ctx.restore();
     }
 
+    // Water-crossing attacks aren't a straight shot — see waterPathBetween()
+    // — so trace the actual hexes the route crosses instead of letting the
+    // sword above imply a straight line through however much water (or
+    // land beyond it) happens to sit between the two territories. Each
+    // crossed hex floats its own "-N" (that hex's own waterCost, see
+    // classifyWaterBlobs()) so the force actually spent getting there reads
+    // hex by hex, not as one opaque total on the two endpoints — reported
+    // live: "trace le chemin aussi sur l'eau en ajoutant à chaque hexagone
+    // le nombre de soldat retiré en chiffre flottant". Skipped during
+    // replay along with every other numeric indicator (see note below) —
+    // replay keeps only the sword and the territory recolor itself.
+    if (!replaying && fx.waterPath && fx.waterPath.length && fromT && toT) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(fromT.cx, fromT.cy);
+      for (const hk of fx.waterPath) {
+        const wh = hexes[hk];
+        if (wh) ctx.lineTo(wh.x, wh.y);
+      }
+      ctx.lineTo(toT.cx, toT.cy);
+      ctx.strokeStyle = `rgba(244,246,249,${alpha * 0.75})`;
+      ctx.lineWidth = 2;
+      ctx.setLineDash([5, 4]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
+
+      ctx.font = "bold 13px -apple-system, sans-serif";
+      ctx.textAlign = "center";
+      ctx.lineWidth = 2;
+      for (const hk of fx.waterPath) {
+        const wh = hexes[hk];
+        if (!wh) continue;
+        const label = `-${wh.waterCost}`;
+        ctx.strokeStyle = `rgba(20,16,12,${alpha * 0.8})`;
+        ctx.strokeText(label, wh.x, wh.y + floatY);
+        ctx.fillStyle = `rgba(255,150,120,${alpha})`;
+        ctx.fillText(label, wh.x, wh.y + floatY);
+      }
+    }
+
+    // atk/def rolls + outcome ring/label are all numeric indicators — see
+    // the replay note above the water-path block — hidden during replay,
+    // which keeps only the sword strike and the territory's own color
+    // change (already inherent to render() redrawing with the new owner,
+    // not a separate FX) — reads as a plain organic "grows/shrinks" replay
+    // instead of a numbers-heavy simulation.
+    if (replaying) continue;
     ctx.font = "bold 15px -apple-system, sans-serif"; // was 11px — +40%
     ctx.textAlign = "center";
     ctx.lineWidth = 2.5;
@@ -4205,15 +4457,8 @@ function updateGroups() {
   const rows = [];
   for (let royId = 0; royId < ROYAUME_COUNT - 1; royId++) { // exclude neutral (last)
     if (!isAlive(royId)) continue;
-    const ownedCount = territories.reduce((n, t) => n + (t.owner === royId ? 1 : 0), 0);
-    const maxForce = ownedCount * FORCE_CAP;
     const force = totalForce(royId);
-    // % of the max force this royaume's current land could field (every
-    // province they hold at FORCE_CAP) — how "topped up" their army is, on
-    // the same line as the village/force numbers instead of a separate stat
-    // block, since it's just another number about the same royaume.
-    const pct = maxForce > 0 ? Math.round((force / maxForce) * 100) : 0;
-    rows.push({ roy: ROYAUMES[royId], connected: largestConnectedGroup(royId), force, pct });
+    rows.push({ roy: ROYAUMES[royId], connected: largestConnectedGroup(royId), force });
   }
   if (sortGroupsBy === "turnOrder") {
     // your own royaume first, then everyone else in actual turn order
@@ -4228,7 +4473,7 @@ function updateGroups() {
   // legend line is gone too
   el.innerHTML = rows.map(r =>
     `<span class="chip"><span class="swatch" style="background:${r.roy.color}"></span>` +
-    `<span class="n">${r.connected}</span><span class="f">·${r.force}</span><span class="p">·${r.pct}%</span></span>`
+    `<span class="n">${r.connected}</span><span class="f">·${r.force}</span></span>`
   ).join("");
   updateEnemySurrenderOffer();
 }
@@ -4252,6 +4497,13 @@ const UNIT_CONTENT_FRACTION = { triangle: 1.0, square: 0.91, circle: 0.62 };
 
 function drawForceIcon(t) {
   if (t.force === 0) return; // undefended neutral land — no army, no number to show
+  // Replay hides every numeric indicator on the map (see the combat-FX loop's
+  // own note) — the sword strike and the territory's own color change are
+  // the only things left, so a replay reads as an organic blob growing and
+  // shrinking rather than a numbers-heavy simulation — reported live: "on va
+  // enlever toutes les indications de chiffre, laisse que les épées puis le
+  // gain de territoire".
+  if (replaying) return;
 
   // NOTE: pre-pick, these numbers are the raw per-tile rolls from
   // generateTerritories(). balanceStartingForces() only ever touches the AI
@@ -4314,7 +4566,11 @@ function drawForceIcon(t) {
 }
 
 /* ---------- INPUT ---------- */
-function territoryAtClientPoint(clientX, clientY) {
+// Shared coordinate math for every tap/drag hit-test below — pulled out on
+// its own so the ocean-tap Easter egg (see handlePointer()) can tell "true
+// gap, nothing here at all" apart from "a real water hex", which
+// territoryAtClientPoint() itself treats identically (both return null).
+function hexAtClientPoint(clientX, clientY) {
   const rect = canvas.getBoundingClientRect();
   // rect is POST-transform physical pixels (see lockPortraitStage()) while
   // centerX/centerY/viewScale are all logical — divide by portraitStageScale
@@ -4323,7 +4579,10 @@ function territoryAtClientPoint(clientX, clientY) {
   const localX = ((clientX - rect.left) / portraitStageScale - centerX) / viewScale;
   const localY = ((clientY - rect.top) / portraitStageScale - centerY) / viewScale;
   const { q, r } = pixelToAxial(localX, localY);
-  const h2 = hexes[`${q},${r}`];
+  return hexes[`${q},${r}`] || null;
+}
+function territoryAtClientPoint(clientX, clientY) {
+  const h2 = hexAtClientPoint(clientX, clientY);
   // a water hex isn't a territory (no owner, not directly tappable) — same
   // "nothing here" contract as a true gap/off-the-map point, so a finger
   // gliding over water mid-drag doesn't cancel the gesture (see the
@@ -4360,6 +4619,7 @@ function pickFaction(royId) {
   humanStartTerritories = territories.filter(t => t.owner === royId).length;
   logMsg(`Vous jouez ${ROYAUMES[royId].name}.`);
   if (onboarding) showOnboardingHint("Touchez une de vos provinces pour la sélectionner.");
+  else hideOnboardingHint(); // clears the "à laquelle offrez-vous votre épée" banner from startGame() — shown every match now, not just onboarding, so it needs clearing every match too
   updateStatus();
   updateGroups();
   render();
@@ -4371,7 +4631,18 @@ function pickFaction(royId) {
 function handlePointer(clientX, clientY) {
   if (replaying || gameOver) return;
   const t = territoryAtClientPoint(clientX, clientY);
-  if (!t) return;
+  if (!t) {
+    // a tap or drag-release landing on open water instead of a real target
+    // — see showOceanTapEasterEgg() — only during the player's own live
+    // turn, same guard as everything below; awaitingFactionPick and
+    // placingGueux each already have their own unrelated meaning for a tap
+    // that resolves to nothing, so this only fires once neither applies
+    if (!awaitingFactionPick && !placingGueux && !aiRunning && currentPlayer === humanRoyId) {
+      const h = hexAtClientPoint(clientX, clientY);
+      if (h && h.isWater) showOceanTapEasterEgg();
+    }
+    return;
+  }
 
   if (awaitingFactionPick) {
     if (t.owner >= 0 && t.owner < ROYAUME_COUNT - 1) pickFaction(t.owner); // any real royaume, not neutral — reroll's visibility is handled there
@@ -4466,12 +4737,12 @@ canvas.addEventListener("pointerdown", (e) => {
   }
   activeDrags.set(e.pointerId, drag);
 });
-canvas.addEventListener("pointermove", (e) => {
-  const drag = activeDrags.get(e.pointerId);
-  if (!drag) return;
-  if (Math.hypot(e.clientX - drag.startPos.x, e.clientY - drag.startPos.y) > DRAG_THRESHOLD) drag.active = true;
-  if (!drag.path.length) return; // no chain in progress (drag-to-attack off, or didn't start on a valid territory)
-  const hoverT = territoryAtClientPoint(e.clientX, e.clientY);
+// One sampled point's worth of the drag-extension logic — pulled out of
+// the pointermove handler below so it can be replayed at several
+// interpolated points along one event's travel, not just the raw event
+// position itself (see the handler's own note on why that matters).
+function extendDragPath(drag, clientX, clientY) {
+  const hoverT = territoryAtClientPoint(clientX, clientY);
   if (!hoverT) return;
   const lastId = drag.path[drag.path.length - 1];
   if (hoverT.id === lastId) return;
@@ -4490,6 +4761,33 @@ canvas.addEventListener("pointermove", (e) => {
   if (!(lastT.neighbors.has(hoverT.id) || lastT.waterRoutes.has(hoverT.id))) return;
   drag.path.push(hoverT.id);
   render();
+}
+canvas.addEventListener("pointermove", (e) => {
+  const drag = activeDrags.get(e.pointerId);
+  if (!drag) return;
+  if (Math.hypot(e.clientX - drag.startPos.x, e.clientY - drag.startPos.y) > DRAG_THRESHOLD) drag.active = true;
+  if (!drag.path.length) { drag.lastPos = { x: e.clientX, y: e.clientY }; return; } // no chain in progress (drag-to-attack off, or didn't start on a valid territory)
+  // touchmove isn't sampled per-pixel, and gets throttled further under
+  // load — a fast swipe can jump many px between two consecutive events, so
+  // sampling only the raw event position can skip clean over a small
+  // intermediate territory (e.g. a lone island sitting in open water)
+  // without a single sample ever landing on it. That hop then never
+  // registers, and the chain locks onto whatever's under the *next* sample
+  // instead — often a farther target the player never meant to pick
+  // (reported live: "Pas logique mon attaque j'ai visé l'île", dragging
+  // toward a nearby island but the attack landing on the mainland beyond
+  // it). Replaying the extension check at several points along the
+  // screen-space segment since the last event closes that gap.
+  const last = drag.lastPos || drag.startPos;
+  const dist = Math.hypot(e.clientX - last.x, e.clientY - last.y);
+  const STEP_PX = 10; // comfortably under one hex's on-screen size at any zoom level actually in use
+  const steps = Math.min(60, Math.max(1, Math.ceil(dist / STEP_PX)));
+  for (let s = 1; s <= steps; s++) {
+    const x = last.x + (e.clientX - last.x) * (s / steps);
+    const y = last.y + (e.clientY - last.y) * (s / steps);
+    extendDragPath(drag, x, y);
+  }
+  drag.lastPos = { x: e.clientX, y: e.clientY };
 });
 canvas.addEventListener("pointerup", (e) => {
   const drag = activeDrags.get(e.pointerId);
@@ -4552,7 +4850,8 @@ function executeAttackChain(path, i = 0) {
   // final state with no visible "tac tac tac" of each battle along the way.
   // A water hop takes twice as long — rowing across is slower than marching.
   const isWaterHop = !fromT.neighbors.has(toId);
-  setTimeout(() => executeAttackChain(path, i + 1), isWaterHop ? 440 : 220);
+  // sped up 20% per request (was 440/220)
+  setTimeout(() => executeAttackChain(path, i + 1), isWaterHop ? 352 : 176);
 }
 
 document.getElementById("endturn").addEventListener("click", () => {
@@ -4583,6 +4882,15 @@ document.getElementById("restart").addEventListener("click", () => {
   // difficulty-dependent, so a live difficulty drift since match-start would
   // otherwise regenerate a different map from the same seed.
   applyDifficulty(gameStartDifficulty);
+  // same reasoning applies to opponentCount: applyMapSize()'s formulas read
+  // the live global directly, so if it drifted since match-start (opponent
+  // count changed mid-match without restarting) this must be restored
+  // first too, or "Rejouer la même carte" silently regenerates a different
+  // map from the same seed — reported live ("Demande à rejouer la même
+  // carte et c'était pas la même").
+  opponentCount = gameStartOpponentCount;
+  try { localStorage.setItem("kw_opponentCount", String(opponentCount)); } catch (e) { /* ignore */ }
+  refreshOpponentCountButtons();
   applyMapSize(gameStartMapSize);
   startGame(currentSeed);
 });
@@ -4758,8 +5066,26 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.18";
+const GAME_VERSION = "1.19";
 const CHANGELOG = [
+  {
+    version: "1.19",
+    notes: [
+      "Les traversées d'eau sont désormais limitées à 3 cases d'eau au maximum, aussi bien pour la génération de la carte (plus jamais un royaume séparé du reste par une étendue d'eau trop large pour être vraiment traversée) que pour les routes d'attaque elles-mêmes",
+      "Le chemin d'une attaque à travers l'eau se trace maintenant sur les vraies cases traversées (plus une ligne droite) avec le coût en force de chacune affiché en chiffre flottant",
+      "Une seule couleur d'eau sur la carte, au lieu de deux nuances différentes selon qu'elle touche l'océan extérieur ou non",
+      "Correction : « Rejouer la même carte » pouvait générer une carte différente si le nombre d'adversaires avait changé depuis le début de la partie",
+      "Correction : un glisser rapide pouvait sauter par-dessus une petite île isolée pour attaquer une cible plus lointaine à la place",
+      "Retiré le pourcentage des statistiques en haut de l'écran (ne restent que villages et force)",
+      "Message d'accroche du début de partie revu : un écuyer s'adresse à vous comme à un général de guerre engagé par l'une des quatre branches de la maison Millon, plutôt qu'un simple choix de camp",
+      "Combats environ 20% plus rapides",
+      "Correction : les renforts (« +N » flottant) disparaissaient d'eux-mêmes après une seconde, contrairement aux épées et numéros de combat qui restent jusqu'à la fin du tour — les deux se comportent maintenant pareil",
+      "Revoir la partie : le bouton Stop arrête vraiment tout immédiatement (il continuait parfois en arrière-plan), le bouton Pause fonctionne enfin, le rythme est uniforme et rapide (plus aucun temps mort), et les chiffres disparaissent pendant la lecture — ne restent que les épées et les provinces qui changent de couleur",
+      "Correction : en mode paysage, les chiffres de force tournaient dans le mauvais sens ; le fond visible autour de la carte reprend maintenant la couleur du jeu plutôt qu'un noir qui tranchait",
+      "Correction : un double-tap sur la carte pouvait déclencher la loupe de zoom native d'iOS",
+      "Petit clin d'œil si l'on tente d'envoyer des troupes en pleine mer sans cible",
+    ],
+  },
   {
     version: "1.18",
     notes: [
@@ -5268,6 +5594,33 @@ function showForceAdaptToast() {
   }, 1000);
 }
 
+// A little running joke for a tap or drag-release that lands on open water
+// instead of a real target (see handlePointer()) — used to be a silent
+// no-op. Escalates over the course of one match, one line further each
+// time, and stays on the third line for any further attempt rather than
+// cycling back — resets with a fresh startGame(). Held onscreen a beat
+// longer than showForceAdaptToast() above since the later lines run long.
+const OCEAN_TAP_LINES = [
+  "Et plouf !",
+  "Les hommes racontent des histoires de monstres marins à faire froid dans le dos. Il devient difficile d'engager des marins pour vos expéditions, mon général.",
+  "Les pieuvres géantes vous remercient pour le rhum, mais elles auraient préféré GTA VI.",
+];
+let oceanTapCount = 0;
+let oceanTapToastTimer = null;
+function showOceanTapEasterEgg() {
+  oceanTapCount++;
+  const line = OCEAN_TAP_LINES[Math.min(oceanTapCount, OCEAN_TAP_LINES.length) - 1];
+  const el = document.getElementById("oceanTapToast");
+  clearTimeout(oceanTapToastTimer);
+  el.textContent = line;
+  el.style.display = "block";
+  requestAnimationFrame(() => { el.style.opacity = "1"; });
+  oceanTapToastTimer = setTimeout(() => {
+    el.style.opacity = "0";
+    oceanTapToastTimer = setTimeout(() => { el.style.display = "none"; }, 650); // matches the CSS opacity transition duration
+  }, 2200);
+}
+
 function refreshGueuxBadge() {
   const el = document.getElementById("gueuxBadge");
   el.classList.toggle("gueuxHidden", !(metaProgressEnabled && !replaying));
@@ -5352,6 +5705,7 @@ function startGame(seed) {
   document.getElementById("truceOverlay").style.display = "none";
   document.getElementById("endturn").disabled = false;
   gameOver = false; selected = -1; aiRunning = false;
+  oceanTapCount = 0; // fresh running gag for a fresh match — see showOceanTapEasterEgg()
   allCappedStreak = 0; lastStalemateFingerprint = null; truceEnded = false; truceWinnerId = -1; humanSurrendered = false; mercyGranted = false;
   mercyOfferShownAtRound = null;
   document.getElementById("enemySurrenderBtn").style.display = "none";
@@ -5426,7 +5780,16 @@ function startGame(seed) {
   }
   updateStatus();
   logMsg(awaitingFactionPick ? "Choisissez votre camp : touchez une province." : "Nouvelle partie.");
-  if (onboarding && awaitingFactionPick) showOnboardingHint("Touchez une province pour choisir votre camp.");
+  // Voiced as an écuyer briefing a hired général de guerre, not a lord who'd
+  // already know his own house — the player is a mercenary commander sold
+  // to whichever Millon branch they pick this campaign (all four royaumes
+  // share that family name — see ROYAUMES), which is why "choosing a camp"
+  // makes sense in-story at all. Shown every match at this exact moment
+  // (not gated behind `onboarding`, unlike the other tutorial-only hints
+  // below), since it's the one bit of framing a returning player still
+  // needs to see fresh each time — it always gets cleared the instant a
+  // camp is actually picked, in pickFaction()'s own non-onboarding branch.
+  if (awaitingFactionPick) showOnboardingHint("Mon général, la maison Millon se déchire en quatre branches rivales — à laquelle offrez-vous votre épée ? Touchez une province pour choisir votre camp.");
   else hideOnboardingHint();
   updateGroups(); // populate before resize() measures the HUD's real height
   resize();
