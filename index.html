@@ -40,6 +40,20 @@
      with rotate() alone and no compensating translate. */
   #wrap { position: fixed; top: 0; left: 0; width: 100%; height: 100%; }
   canvas { display: block; background: #3d5f80; touch-action: none; } /* matches CANVAS_BG_COLOR/water — otherwise the browser can claim a one-finger drag as a pan/scroll gesture mid-way and never deliver pointerup */
+  /* landscape (see resize()'s own toggle): distraction-free, map only —
+     every persistent HUD element hidden outright, !important so it wins
+     over whatever display/visibility a button's own JS logic set it to
+     (e.g. #endturn.aiTurn, #rerollBtn only while awaitingFactionPick...).
+     Tapping the ocean takes over #endturn's job instead — see
+     handlePointer()/handleEndTurnTap(). Overlays actually opened while
+     already in landscape (settings, win banner...) are deliberately left
+     alone here: this only hides the *persistent* always-there chrome, not
+     something the player explicitly asked to see. */
+  body.landscapeHud #topBar, body.landscapeHud #gameTitleBlock,
+  body.landscapeHud #settingsBtn, body.landscapeHud #bottomHudRow,
+  body.landscapeHud #rerollBtn, body.landscapeHud #replayPauseBtn,
+  body.landscapeHud #replayResumeHereBtn, body.landscapeHud #onboardingHint,
+  body.landscapeHud #oceanTapToast { display: none !important; }
   #status, #log { display: none; } /* kept for internal state only, no longer shown */
   /* every persistent in-game HUD button (settings, end-turn, reroll, gueux
      badge, surrender, replay controls) shares one visual language — a
@@ -1216,6 +1230,12 @@ function resize() {
   const rawW = vv ? vv.width : window.innerWidth;
   const rawH = vv ? vv.height : window.innerHeight;
   const { w, h } = lockPortraitStage(rawW, rawH);
+  // Landscape (phone turned sideways, not desktop — see lockPortraitStage's
+  // own isPhoneSized guard) hides the entire persistent HUD for a
+  // distraction-free view: just the map, same tiles/numbers/animations as
+  // ever. Tapping the ocean takes over #endturn's own job in that state —
+  // see handlePointer()'s and handleEndTurnTap()'s own notes.
+  document.body.classList.toggle("landscapeHud", wrapRotationDeg !== 0);
   canvas.width = w * dpr; canvas.height = h * dpr;
   canvas.style.width = w + "px"; canvas.style.height = h + "px";
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -4722,14 +4742,27 @@ function handlePointer(clientX, clientY) {
   if (replaying || gameOver) return;
   const t = territoryAtClientPoint(clientX, clientY);
   if (!t) {
-    // a tap or drag-release landing on open water instead of a real target
-    // — see showOceanTapEasterEgg() — only during the player's own live
-    // turn, same guard as everything below; awaitingFactionPick and
-    // placingGueux each already have their own unrelated meaning for a tap
-    // that resolves to nothing, so this only fires once neither applies
-    if (!awaitingFactionPick && !placingGueux && !aiRunning && currentPlayer === humanRoyId) {
+    // a tap or drag-release landing on open water instead of a real target.
+    // awaitingFactionPick and placingGueux each already have their own
+    // unrelated meaning for a tap that resolves to nothing, so neither
+    // branch below fires while either applies.
+    if (!awaitingFactionPick && !placingGueux) {
       const h = hexAtClientPoint(clientX, clientY);
-      if (h && h.isWater) showOceanTapEasterEgg();
+      if (h && h.isWater) {
+        // Landscape hides the entire persistent HUD for a distraction-free
+        // view (see applyLandscapeHud()) — #endturn included — so tapping
+        // the ocean takes over its job instead: once during the player's
+        // own turn, ends it; again while the AI turns are still resolving,
+        // fast-forwards them, exactly what tapping #endturn itself does in
+        // either state (see handleEndTurnTap(), now shared by both). Not
+        // gated on currentPlayer/aiRunning the way the portrait Easter egg
+        // below is — handleEndTurnTap() already handles both states itself.
+        if (wrapRotationDeg !== 0) { handleEndTurnTap(); return; }
+        // portrait only, and only during the player's own live turn: the
+        // running Easter egg gag (see showOceanTapEasterEgg()) — landscape
+        // has no room for a toast anyway, being map-only.
+        if (!aiRunning && currentPlayer === humanRoyId) showOceanTapEasterEgg();
+      }
     }
     return;
   }
@@ -4944,7 +4977,11 @@ function executeAttackChain(path, i = 0) {
   setTimeout(() => executeAttackChain(path, i + 1), isWaterHop ? 352 : 176);
 }
 
-document.getElementById("endturn").addEventListener("click", () => {
+// Shared by the #endturn button's own click AND (in landscape, where the
+// whole HUD including this very button is hidden — see applyLandscapeHud())
+// a tap on open water, which takes over its job: see handlePointer()'s own
+// note on why.
+function handleEndTurnTap() {
   if (replaying || gameOver) return;
   if (currentPlayer === humanRoyId) {
     if (aiRunning) return;
@@ -4960,7 +4997,8 @@ document.getElementById("endturn").addEventListener("click", () => {
     fastForward = true;
     forceInstantSkip = true;
   }
-});
+}
+document.getElementById("endturn").addEventListener("click", handleEndTurnTap);
 document.getElementById("restart").addEventListener("click", () => {
   if (reloadIfUpdateAvailable()) return;
   // "Rejouer" replays the exact same map the just-finished match was played
@@ -5156,8 +5194,14 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.26";
+const GAME_VERSION = "1.27";
 const CHANGELOG = [
+  {
+    version: "1.27",
+    notes: [
+      "Mode paysage : version « sans distraction » — toute l'interface (statistiques, réglages, boutons) disparaît, il ne reste que la carte plein écran. Toucher l'océan finit le tour à la place du bouton « Fin de bataille » ; un second appui pendant que les autres royaumes jouent encore accélère leur résolution",
+    ],
+  },
   {
     version: "1.26",
     notes: [
