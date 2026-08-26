@@ -2508,18 +2508,33 @@ let pulseTiles = []; // [{id, start}]
 // actually showed a sword. Every hit now gets its own entry and plays out
 // its own intro independently of whatever fires after it, then lingers
 // until the turn actually ends.
-let combatFXList = []; // [{fromId, toId, atk, def, win, start}]
-// null while mid-turn (every current result just persists); set the moment
-// startCombatFXFadeOut() runs (see endTurn()) — every entry in
-// combatFXList then fades out together from wherever it currently is,
-// rather than each on its own separate timer.
-let combatFXFadeStartedAt = null;
+let combatFXList = []; // [{fromId, toId, atk, def, win, start, fadeStart}]
+// Each entry fades independently via its own `fadeStart` (set once, by
+// startCombatFXFadeOut(), for the turn this entry belongs to) rather than a
+// single shared clock. An earlier version used one shared timestamp:
+// endTurn() set it once and EVERY entry in combatFXList faded from it
+// together — which silently broke across a run of several AI turns, because
+// triggerCombatFX() reset that shared clock to null on every fresh hit,
+// including a hit from the *next* player's turn, reviving a previous
+// player's already-fading sword back to full strength just because someone
+// else also attacked soon after (AI hand-off is ~140-300ms, well under the
+// 500ms fade window). Reported live: "ça reste pendant TOUT, le tour des IA
+// c'est une erreur" — swords from a whole run of AI turns piling up together
+// instead of each clearing at the end of its OWN turn. `fadeStart` is only
+// ever set on entries that don't already have one, and only by the turn
+// that's actually ending — since startCombatFXFadeOut() runs synchronously
+// before any next-turn attack can possibly happen (JS is single-threaded;
+// every next turn is gated behind a setTimeout), any entry still missing a
+// fadeStart at that moment necessarily belongs to the turn now ending, with
+// no explicit per-turn tag needed to tell them apart.
 function startCombatFXFadeOut() {
-  // pulseTiles shares this same fade clock now (see its own note) — a turn
-  // with reinforcements but no attacks still needs this to actually fire.
-  if ((!combatFXList.length && !pulseTiles.length) || combatFXFadeStartedAt !== null) return;
-  combatFXFadeStartedAt = performance.now();
-  ensureFXLoop(); // may have gone idle once its intro settled — the fade needs the loop running again to animate out
+  if (!combatFXList.length) return;
+  const now = performance.now();
+  let any = false;
+  for (const fx of combatFXList) {
+    if (fx.fadeStart == null) { fx.fadeStart = now; any = true; }
+  }
+  if (any) ensureFXLoop(); // may have gone idle once its intro settled — the fade needs the loop running again to animate out
 }
 let fxRAFRunning = false;
 function ensureFXLoop() {
@@ -2545,28 +2560,28 @@ function triggerPulse(counts) {
   ensureFXLoop();
 }
 function triggerCombatFX(fromId, toId, atk, def, win, attackerRoyId, defenderRoyId, hexCount, waterPath = null) {
-  // a fresh hit always renders at full strength, even if a previous fade-out
-  // was already mid-flight (e.g. a reroll/new game right as one was fading)
-  combatFXFadeStartedAt = null;
-  combatFXList.push({ fromId, toId, atk, def, win, attackerRoyId, defenderRoyId, hexCount, waterPath, start: performance.now() });
+  // a fresh hit always renders at full strength — fadeStart stays unset
+  // until its OWN turn ends (see the big note above combatFXList)
+  combatFXList.push({ fromId, toId, atk, def, win, attackerRoyId, defenderRoyId, hexCount, waterPath, start: performance.now(), fadeStart: null });
   ensureFXLoop();
 }
 function fxStep() {
   const now = performance.now();
-  if (combatFXFadeStartedAt !== null && now - combatFXFadeStartedAt >= FX_LINGER_MS) {
-    combatFXList = [];
-    pulseTiles = []; // shares combatFXList's own fade clock now — see PULSE_INTRO_MS's note
-    combatFXFadeStartedAt = null;
-  }
+  // Sweep out only the entries whose OWN fade has actually finished — each
+  // one fades independently on its own fadeStart (see the big note above
+  // combatFXList), not a shared clock.
+  combatFXList = combatFXList.filter((fx) => fx.fadeStart == null || now - fx.fadeStart < FX_LINGER_MS);
+  // pulseTiles already fade on their own independent clock too (own p.start,
+  // see render()) — just sweep out fully-faded ones so the array doesn't
+  // grow across a long game.
+  pulseTiles = pulseTiles.filter((p) => now - p.start < Math.max(PULSE_INTRO_MS, PULSE_FADE_MS));
   render();
-  // Once every result's own quick intro has settled, a fully-lingering
-  // (not yet fading) combatFXList/pulseTiles is a static picture — no need
-  // to keep burning frames on it until startCombatFXFadeOut() actually
-  // resumes the loop. Still counts as "animating" for as long as any entry
-  // is mid-intro, or once the fade itself has actually started.
-  const stillAnimating = combatFXList.some(fx => now - fx.start < Math.max(SWORD_INTRO_MS, NUMBER_FADE_MS)) ||
-    pulseTiles.some(p => now - p.start < Math.max(PULSE_INTRO_MS, PULSE_FADE_MS)) ||
-    combatFXFadeStartedAt !== null;
+  // Once every result's own quick intro has settled and nothing is actively
+  // fading, a fully-lingering combatFXList/pulseTiles is a static picture —
+  // no need to keep burning frames on it until startCombatFXFadeOut() (or a
+  // fresh triggerPulse()) actually resumes the loop.
+  const stillAnimating = combatFXList.some((fx) => now - fx.start < Math.max(SWORD_INTRO_MS, NUMBER_FADE_MS) || fx.fadeStart != null) ||
+    pulseTiles.length > 0;
   if (stillAnimating) {
     requestAnimationFrame(fxStep);
   } else {
@@ -4507,8 +4522,9 @@ function render() {
     // full strength (fadeAlpha stays 1) until startCombatFXFadeOut() actually
     // starts counting down FX_LINGER_MS, see fxStep()'s own comment above.
     const introProgress = Math.min(1, (pulseNow - fx.start) / SWORD_INTRO_MS);
-    const fadeAlpha = combatFXFadeStartedAt === null ? 1 : Math.max(0, 1 - (pulseNow - combatFXFadeStartedAt) / FX_LINGER_MS);
-    if (fadeAlpha <= 0) continue; // fully faded — fxStep() sweeps combatFXList clean on the very next tick anyway
+    // Own fadeStart, not a shared clock — see the big note above combatFXList.
+    const fadeAlpha = fx.fadeStart == null ? 1 : Math.max(0, 1 - (pulseNow - fx.fadeStart) / FX_LINGER_MS);
+    if (fadeAlpha <= 0) continue; // fully faded — fxStep() sweeps this entry on the very next tick anyway
     // Shared short fade for everything EXCEPT the sword now: the water-path
     // trace/cost numbers, the raw atk/def numbers, and the outcome ring/
     // label all fade out together on their own short clock, independent of
@@ -5361,8 +5377,14 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.35";
+const GAME_VERSION = "1.36";
 const CHANGELOG = [
+  {
+    version: "1.36",
+    notes: [
+      "Corrigé un second bug de combat, plus profond que le précédent : l'épée pouvait rester affichée pendant TOUT l'enchaînement des tours de l'IA au lieu de disparaître à la fin de chacun de ses propres tours — chaque épée disparaît maintenant sur son propre horodatage plutôt qu'une horloge partagée qu'une attaque d'un tour suivant réinitialisait par erreur",
+    ],
+  },
   {
     version: "1.35",
     notes: [
