@@ -2441,42 +2441,44 @@ function totalForce(royId) {
 // brief non-blocking visual effects (reinforcement glow, combat flash) —
 // makes "why did this go from 2 to 6" / "who just won that fight" visible
 // without pausing the game or adding any confirmation step
-// Intro-only now (ring shrink + label float-up) — used to also govern how
-// long the whole pulse stayed visible at all, fading it out on this fixed
-// timer regardless of what the player was doing. That meant a reinforcement
-// pulse could vanish well before "Fin de bataille", inconsistent with the
-// combat FX right next to it (swords/atk-def numbers/outcome ring), which
-// already persist until end of turn — reported live: "les épées restent
-// jusqu'au bouton fin de bataille mais les ajout de villages disparaissent
-// avant, lentement". Now it just holds at rest once the intro settles, and
-// only actually fades alongside combatFXList once startCombatFXFadeOut()
-// runs (see fxStep()/render() below) — same clock, same FX_LINGER_MS.
+//
+// Final split, after several live back-and-forths on exactly this point:
+// the SWORD is the only thing that persists until end of turn (FX_LINGER_MS
+// below, via startCombatFXFadeOut()/endTurn()) — every circle and number
+// (the reinforcement ring + its "+N", the outcome ring + its "+N villages"/
+// "échec" label, the raw atk/def dice, the water-crossing path trace/cost
+// numbers) appears, does its job, and fades out on its own short clock
+// (NUMBER_FADE_MS / PULSE_FADE_MS below) regardless of the turn. This has
+// flipped direction more than once live: first everything faded on a flat
+// timer regardless of the turn ("les épées restent jusqu'au bouton fin de
+// bataille mais les ajouts de villages disparaissent avant" got the pulse
+// ring moved onto the persist-until-end-of-turn clock); then the numbers
+// specifically were split back out to fade quickly ("c'est le contraire...
+// les chiffres par contre disparaissent assez rapidement"); the sword
+// itself was ALSO (bug, not intent) quietly fading within a quarter-second
+// of landing this whole time, via its own separate swordAlpha calculation
+// completely independent of fadeAlpha (see its own note) — so "persist
+// until end of turn" never actually applied to the one thing it was
+// supposed to apply to. Landed here, explicitly, after that bug was found
+// and fixed: sword persists, everything else (circles included) fades fast.
 const PULSE_INTRO_MS = 1000; // was PULSE_DURATION 1000 — +100%, per request
 // The sword-swing itself is a quick, fixed-length flourish (see its own
-// intro-only rendering below) — independent from how long the *result* of
-// that attack (the atk/def numbers + outcome ring) then stays on screen,
-// which is FX_LINGER_MS below.
+// intro-only rendering below) — independent from how long the sword ITSELF
+// then stays on screen after landing, which is FX_LINGER_MS below.
 const SWORD_INTRO_MS = 480; // sped up 20% per request (was 600)
-// Used to be a flat wall-clock timer (COMBAT_FX_DURATION, up to 7040ms —
-// "was 880, then 4x, doubled again per request") that quietly faded every
-// hit's result on its own, regardless of what the player was doing. On a
-// turn with several attacks or a longer think, the first hits had already
-// faded away well before the player actually tapped "Fin de bataille" —
-// reported live: "laisser les épées afficher jusqu'à ce que je passe mon
-// tour". Now a result just holds at full strength indefinitely (see
-// fxStep()'s loop below, which stops re-rendering once nothing is actually
-// animating rather than ever expiring these on its own) until endTurn()
-// calls startCombatFXFadeOut() — then every currently-visible result fades
-// out together over FX_LINGER_MS.
+// Governs only the sword now (see the big note above this section) — holds
+// at full strength indefinitely (fxStep()'s loop below stops re-rendering
+// once nothing is actually animating rather than ever expiring this on its
+// own) until endTurn() calls startCombatFXFadeOut(), then fades over this
+// many ms.
 const FX_LINGER_MS = 500;
-// The sword, outcome ring and +N/-N villages label all still persist until
-// end of turn via FX_LINGER_MS above — but the raw atk/def dice numbers
-// specifically fade on their own short timer instead, regardless of the
-// turn: reported live as backwards from the "persist until end of turn"
-// behavior everything else in this FX layer has ("c'est le contraire qu'il
-// fallait faire : les épées restent jusqu'à ce que je dise prochaine
-// bataille, et les chiffres par contre disparaissent assez rapidement").
+// Independent short fade shared by the ring/label, the raw atk/def dice,
+// and the water-crossing path trace/cost numbers — see the big note above.
 const NUMBER_FADE_MS = 1400;
+// Same idea as NUMBER_FADE_MS, for the reinforcement pulse ring + its "+N"
+// specifically (kept as its own constant since it's a visually distinct
+// effect, even though the value matches for now).
+const PULSE_FADE_MS = 1400;
 let pulseTiles = []; // [{id, start}]
 // A list, not a single slot — a fast drag-to-attack chain (or "batailles
 // instantanées" resolving several AI attacks back to back) used to have
@@ -2542,7 +2544,7 @@ function fxStep() {
   // resumes the loop. Still counts as "animating" for as long as any entry
   // is mid-intro, or once the fade itself has actually started.
   const stillAnimating = combatFXList.some(fx => now - fx.start < Math.max(SWORD_INTRO_MS, NUMBER_FADE_MS)) ||
-    pulseTiles.some(p => now - p.start < PULSE_INTRO_MS) ||
+    pulseTiles.some(p => now - p.start < Math.max(PULSE_INTRO_MS, PULSE_FADE_MS)) ||
     combatFXFadeStartedAt !== null;
   if (stillAnimating) {
     requestAnimationFrame(fxStep);
@@ -4412,20 +4414,26 @@ function render() {
   }
 
   // reinforcement pulse — a ring on territories that just gained force. Ring
-  // shrink + label float-up plays out over PULSE_INTRO_MS then holds at
-  // rest — visibility itself (pulseFadeAlpha) shares combatFXList's own
-  // end-of-turn fade clock now, not a separate fixed timer (see
-  // PULSE_INTRO_MS's own note on why).
+  // shrink + label float-up plays out over PULSE_INTRO_MS, then the whole
+  // thing fades out on its own short clock (PULSE_FADE_MS, per tile, from
+  // its own staggered start) — NOT combatFXList's end-of-turn fade clock:
+  // an earlier version shared that clock, keeping the ring/number stuck on
+  // screen the same way the combat ring/numbers used to. Reported live:
+  // "les cercles et les petites animations avec les chiffres... ils
+  // apparaissent pour faire leur job et ils disparaissent assez
+  // rapidement" — reverted back to a quick, independent fade, same family
+  // as NUMBER_FADE_MS. Only the sword itself persists to end of turn now.
   const pulseNow = performance.now();
-  const pulseFadeAlpha = combatFXFadeStartedAt === null ? 1 : Math.max(0, 1 - (pulseNow - combatFXFadeStartedAt) / FX_LINGER_MS);
   // hidden entirely during replay — see the "no number indications" note
   // above combatFXList's own numeric draws below
-  if (!replaying && pulseFadeAlpha > 0) {
+  if (!replaying) {
     for (const p of pulseTiles) {
       const t = territories[p.id];
       if (!t) continue;
       const elapsed = pulseNow - p.start;
       if (elapsed < 0) continue; // its own staggered start hasn't arrived yet — see triggerPulse()
+      const pulseFadeAlpha = Math.max(0, 1 - elapsed / PULSE_FADE_MS);
+      if (pulseFadeAlpha <= 0) continue;
       const introProgress = Math.min(1, elapsed / PULSE_INTRO_MS);
       // centered on the force number's actual position (t.cy, matching
       // drawForceIcon()'s plain-number branch now that it's true-centered too)
@@ -4461,16 +4469,32 @@ function render() {
     const introProgress = Math.min(1, (pulseNow - fx.start) / SWORD_INTRO_MS);
     const fadeAlpha = combatFXFadeStartedAt === null ? 1 : Math.max(0, 1 - (pulseNow - combatFXFadeStartedAt) / FX_LINGER_MS);
     if (fadeAlpha <= 0) continue; // fully faded — fxStep() sweeps combatFXList clean on the very next tick anyway
-    const alpha = fadeAlpha;
+    // Shared short fade for everything EXCEPT the sword now: the water-path
+    // trace/cost numbers, the raw atk/def numbers, and the outcome ring/
+    // label all fade out together on their own short clock, independent of
+    // fadeAlpha/end-of-turn — "les cercles et les petites animations avec
+    // les chiffres... ils apparaissent pour faire leur job et ils
+    // disparaissent assez rapidement", reported live after an earlier
+    // version kept the ring/label tied to fadeAlpha too. Only the sword
+    // itself persists to end of turn (see swordAlpha's own note below).
+    const numberAlpha = Math.max(0, 1 - (pulseNow - fx.start) / NUMBER_FADE_MS);
     const fromT = territories[fx.fromId];
     const toT = territories[fx.toId];
     const floatY = -20 - introProgress * 14; // was -14 - progress*10 — +40%
 
     // a small drawn sword, midway between attacker and defender and pointed
-    // toward the defender, drawn only for the first half of the intro so it
-    // reads as a quick strike rather than lingering (was a plain line+arrowhead)
-    if (fromT && toT && introProgress < 0.5) {
-      const swordAlpha = (1 - introProgress / 0.5) * fadeAlpha;
+    // toward the defender (was a plain line+arrowhead). Used to draw only
+    // for the first half of the intro, fading to 0 well within it
+    // (swordAlpha decaying independently of fadeAlpha) — meant to read as
+    // a quick strike, but that directly fought the sword's own persist-
+    // until-end-of-turn requirement (reported live, repeatedly: the ring
+    // and numbers correctly stuck around, but the sword itself kept
+    // vanishing a fraction of a second after landing regardless). The
+    // sword now shares the exact same fadeAlpha as the ring/label below —
+    // it appears and then simply stays, exactly as long as everything else
+    // in this combat's own result does.
+    if (fromT && toT) {
+      const swordAlpha = fadeAlpha;
       const dx = toT.cx - fromT.cx, dy = toT.cy - fromT.cy;
       const dist = Math.hypot(dx, dy);
       const ux = dx / dist, uy = dy / dist;
@@ -4528,7 +4552,7 @@ function render() {
         if (wh) ctx.lineTo(wh.x, wh.y);
       }
       ctx.lineTo(toT.cx, toT.cy);
-      ctx.strokeStyle = `rgba(244,246,249,${alpha * 0.75})`;
+      ctx.strokeStyle = `rgba(244,246,249,${numberAlpha * 0.75})`;
       ctx.lineWidth = 2;
       ctx.setLineDash([5, 4]);
       ctx.stroke();
@@ -4542,8 +4566,8 @@ function render() {
         const wh = hexes[hk];
         if (!wh) continue;
         const label = `-${wh.waterCost}`;
-        ctx.strokeStyle = `rgba(20,16,12,${alpha * 0.8})`;
-        ctx.fillStyle = `rgba(255,150,120,${alpha})`;
+        ctx.strokeStyle = `rgba(20,16,12,${numberAlpha * 0.8})`;
+        ctx.fillStyle = `rgba(255,150,120,${numberAlpha})`;
         drawMapNumber(label, wh.x, wh.y + floatY);
       }
     }
@@ -4555,10 +4579,6 @@ function render() {
     // not a separate FX) — reads as a plain organic "grows/shrinks" replay
     // instead of a numbers-heavy simulation.
     if (replaying) continue;
-    // Own short fade, independent of alpha/end-of-turn — see NUMBER_FADE_MS's
-    // own note. Everything below this (the ring/label) still uses the
-    // long-lived `alpha`.
-    const numberAlpha = Math.max(0, 1 - (pulseNow - fx.start) / NUMBER_FADE_MS) * fadeAlpha;
     if (numberAlpha > 0) {
       ctx.font = "bold 15px -apple-system, sans-serif"; // was 11px — +40%
       ctx.textAlign = "center";
@@ -4576,7 +4596,7 @@ function render() {
     }
 
     const ringT = fx.win ? toT : fromT;
-    if (ringT) {
+    if (ringT && numberAlpha > 0) {
       // "+1 province" said the same thing on every single win regardless of
       // how big that province actually was. Now it's the real village
       // (hex) count of whichever territory just changed hands — and when
@@ -4593,7 +4613,7 @@ function render() {
       if (!fx.win) label = "échec";
       else if (humanLostThis) label = `-${n} ${villageWord}`;
       else label = `+${n} ${villageWord}`;
-      const outcomeColor = isGreen ? `rgba(90,200,120,${alpha})` : `rgba(200,70,60,${alpha})`;
+      const outcomeColor = isGreen ? `rgba(90,200,120,${numberAlpha})` : `rgba(200,70,60,${numberAlpha})`;
 
       ctx.beginPath();
       ctx.arc(ringT.cx, ringT.cy, 15 + introProgress * 8, 0, Math.PI * 2); // was 11 + progress*6 — +40%
@@ -4603,7 +4623,7 @@ function render() {
 
       // plain-language outcome, in addition to the raw dice numbers above
       ctx.font = "bold 15px -apple-system, sans-serif"; // was 11px — +40%
-      ctx.strokeStyle = `rgba(20,16,12,${alpha * 0.8})`;
+      ctx.strokeStyle = `rgba(20,16,12,${numberAlpha * 0.8})`;
       ctx.lineWidth = 2.5;
       ctx.fillStyle = outcomeColor;
       drawMapNumber(label, ringT.cx, ringT.cy + floatY - 17);
@@ -5295,8 +5315,15 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.32";
+const GAME_VERSION = "1.33";
 const CHANGELOG = [
+  {
+    version: "1.33",
+    notes: [
+      "Corrigé un vrai bug de combat : l'épée avait son propre fondu indépendant qui la faisait disparaître en un quart de seconde, contredisant en silence la consigne « reste affichée jusqu'à la fin du tour » depuis le début — l'épée reste maintenant vraiment jusqu'au bouton « Fin de bataille »",
+      "En contrepartie, le cercle de résultat, son étiquette, les dés bruts et le cercle de renfort disparaissent maintenant assez rapidement tout seuls, indépendamment du tour — seule l'épée reste affichée",
+    ],
+  },
   {
     version: "1.32",
     notes: [
