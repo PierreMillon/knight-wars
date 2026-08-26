@@ -1586,6 +1586,14 @@ function classifyWaterBlobs() {
 // force ("j'envoie 12 contre 12 et c'est perdu"): letting a technically-
 // reachable-but-absurd crossing exist at all was the actual bug, not just
 // its force-cost math.
+// MAP GENERATION only now — decides whether an island survives at all (is
+// it within 3 consecutive water hexes of the rest of the map, chaining
+// through intervening land if needed — see keepLargestConnectedComponent()
+// below). No longer used to cap an individual boat attack's own crossing
+// distance once a map is generated (see computeWaterRoutes()'s own note on
+// why the two were split apart): "le plafond saute, la limite c'est que si
+// tu crées une île quelque part, elle doit pas être séparée de plus de 3
+// cases" — that's this constant's only job now.
 const MAX_WATER_CROSSING_HOPS = 3;
 function keepLargestConnectedComponent() {
   const keys = Object.keys(hexes);
@@ -1747,19 +1755,38 @@ function generateTerritories() {
       }
     }
   }
-  // fallback: any leftover unclaimed hex -> nearest territory by centroid distance (rare edge case)
-  for (const key of keys) {
-    if (hexes[key].territoryId === -1) {
-      const h = hexes[key];
-      let best = 0, bestD = Infinity;
-      for (const t of territories) {
-        const c = centroidOf(t);
-        const d = (c.x - h.x) ** 2 + (c.y - h.y) ** 2;
-        if (d < bestD) { bestD = d; best = t.id; }
+  // Fallback: any hex still unclaimed is land the loop above's land-only
+  // adjacency search could never reach from any seed — a small island
+  // pocket carveVoids() left surrounded entirely by water (a legitimate,
+  // boat-reachable island, not deleted by keepLargestConnectedComponent()'s
+  // own pruning). This used to force-merge each such hex into whichever
+  // territory's CENTROID happened to be nearest, regardless of actual
+  // adjacency — which could silently create a territory made of two
+  // entirely separate land blobs (a real village plus a merged-in orphan
+  // island), breaking the one rule a province can never break: it's always
+  // ONE connected patch of land, island or not, never two islands stitched
+  // together ("une province est forcément une zone de terre rattachée...
+  // je peux pas avoir une province qui englobe une autre île qui est plus
+  // loin"). Each connected group of leftover hexes becomes its OWN new
+  // territory instead — still guaranteed contiguous, even if it's just one
+  // lone hex ("si j'ai une case toute seule ça peut être qu'une province").
+  const leftover = new Set(keys.filter((k) => hexes[k].territoryId === -1));
+  while (leftover.size) {
+    const startKey = leftover.values().next().value;
+    const group = [];
+    const stack = [startKey];
+    leftover.delete(startKey);
+    while (stack.length) {
+      const k = stack.pop();
+      group.push(k);
+      const h = hexes[k];
+      for (const nk of neighborsOf(h.q, h.r)) {
+        if (leftover.has(nk)) { leftover.delete(nk); stack.push(nk); }
       }
-      h.territoryId = best;
-      territories[best].hexKeys.push(key);
     }
+    const newId = territories.length;
+    for (const k of group) hexes[k].territoryId = newId;
+    territories.push({ id: newId, hexKeys: group, owner: -1, force: 1, cx: 0, cy: 0, neighbors: new Set() });
   }
 
   for (const t of territories) {
@@ -1808,8 +1835,7 @@ function generateTerritories() {
 }
 
 // Water-crossing attack routes: for every pair of territories not already
-// directly land-adjacent, the cheapest path through water hexes only (if
-// one exists within MAX_WATER_CROSSING_HOPS consecutive water hexes)
+// directly land-adjacent, the cheapest path through water hexes only
 // connecting them — a multi-source Dijkstra per territory, starting from
 // every water hex touching its own land, through water hexes only (cost =
 // each hex's own waterCost, see classifyWaterBlobs()), until reaching
@@ -1819,71 +1845,66 @@ function generateTerritories() {
 // bestMove()) — only the human player can launch a boat attack in this
 // first version of the mechanic.
 //
-// Capped by HOP COUNT now (shared MAX_WATER_CROSSING_HOPS, same as
-// keepLargestConnectedComponent() — see its own note), not accumulated
-// cost like the old MAX_WATER_ROUTE_COST used to be. The two caps used to
-// disagree with each other (a 6-lake-hex path cost 6 and was allowed here,
-// even though the map generator only ever guarantees two shores stay
-// "connected" within 3 water hexes) — a route could exist on paper between
-// two territories the generator itself would otherwise have severed as
-// separate islands, and conversely a genuinely short (3-hex) but
-// expensive all-ocean crossing could get capped out here even though it's
-// exactly the kind of crossing the generator guarantees stays reachable.
-// Since a hex can be reached via different (hop-count, cost) trade-offs —
-// a cheaper-but-longer path might unlock hexes a pricier-but-shorter one
-// can't, or vice versa — state here is keyed by (hex, exact hop count),
-// not just hex, so every hop-count "layer" up to the cap is explored on
-// its own rather than only ever keeping the single cheapest state per hex
-// (which could silently prune a still-legal, cap-respecting continuation).
+// No hop-count cap any more: an earlier version capped this at
+// MAX_WATER_CROSSING_HOPS, the same limit keepLargestConnectedComponent()
+// uses at MAP-GENERATION time to decide whether an island even survives as
+// reachable at all (see its own note) — but that generation-time rule can
+// chain several separate ≤3-hex gaps through intervening land to keep an
+// island "connected" overall, while this function was finding the cheapest
+// DIRECT water-only path between two specific territories, which can
+// legitimately wind through more than 3 hexes (a lake snaking across a
+// large island, say) even though both ends are perfectly reachable per the
+// generator's own guarantee. Capping the two separately meant a route the
+// generator itself guarantees stays connected could still get discarded
+// here as "too far" ("le plafond saute, la limite c'est que si tu crées
+// une île quelque part, elle doit pas être séparée de plus de 3 cases" —
+// that limit is generation's alone now, not repeated here). A boat attack
+// can now cross any distance of real water, as long as there's enough
+// force to pay the accumulated cost — MAX_WATER_CROSSING_HOPS still
+// governs island generation, untouched.
 //
-// Each route also now stores its actual hex-by-hex path (not just the
-// total cost) — used to trace the crossing on screen and to float each
-// hex's own force cost on it, instead of just showing one lump total on
-// the two endpoints (reported live: "trace le chemin aussi sur l'eau en
-// ajoutant à chaque hexagone le nombre de soldat retiré").
+// Each route stores its actual hex-by-hex path (not just the total cost)
+// — used to trace the crossing on screen and to float each hex's own
+// force cost on it, instead of just showing one lump total on the two
+// endpoints (reported live: "trace le chemin aussi sur l'eau en ajoutant
+// à chaque hexagone le nombre de soldat retiré").
 function computeWaterRoutes() {
   for (const t of territories) t.waterRoutes = new Map(); // targetTerritoryId -> { cost, path }
   const hasWater = Object.keys(hexes).some((k) => hexes[k].isWater);
   if (!hasWater) return;
   for (const startT of territories) {
-    const dist = new Map(); // `${hexKey}:${hops}` -> cheapest cost reaching that exact (hex, hop-count) state
-    const frontier = []; // [cost, hops, key, path] — small maps, a plain array re-sorted each pop is plenty fast
+    const dist = new Map(); // hexKey -> cheapest cost reaching that water hex
+    const bestPath = new Map(); // hexKey -> the path (array of hex keys) achieving that cost
+    const frontier = []; // [cost, key] — small maps, a plain array re-sorted each pop is plenty fast
     for (const hk of startT.hexKeys) {
       const h = hexes[hk];
       for (const nk of neighborsOf(h.q, h.r)) {
         const nh = hexes[nk];
         if (nh && nh.isWater) {
           const c = nh.waterCost;
-          const stateKey = `${nk}:1`;
-          if (!dist.has(stateKey) || dist.get(stateKey) > c) { dist.set(stateKey, c); frontier.push([c, 1, nk, [nk]]); }
+          if (!dist.has(nk) || dist.get(nk) > c) { dist.set(nk, c); bestPath.set(nk, [nk]); frontier.push([c, nk]); }
         }
       }
     }
     const settled = new Set();
     while (frontier.length) {
       frontier.sort((a, b) => a[0] - b[0]);
-      const [cost, hops, key, path] = frontier.shift();
-      const stateKey = `${key}:${hops}`;
-      if (settled.has(stateKey) || dist.get(stateKey) < cost) continue; // already settled, or a stale (superseded) entry
-      settled.add(stateKey);
+      const [cost, key] = frontier.shift();
+      if (settled.has(key) || dist.get(key) < cost) continue; // already settled, or a stale (superseded) entry
+      settled.add(key);
+      const path = bestPath.get(key);
       const h = hexes[key];
       for (const nk of neighborsOf(h.q, h.r)) {
         const nh = hexes[nk];
         if (!nh) continue;
         if (nh.isWater) {
-          if (hops >= MAX_WATER_CROSSING_HOPS) continue; // one more water hex here would exceed the cap
           const nc = cost + nh.waterCost;
-          const nhops = hops + 1;
-          const nStateKey = `${nk}:${nhops}`;
-          if (!dist.has(nStateKey) || dist.get(nStateKey) > nc) {
-            const npath = [...path, nk];
-            dist.set(nStateKey, nc);
-            frontier.push([nc, nhops, nk, npath]);
+          if (!dist.has(nk) || dist.get(nk) > nc) {
+            dist.set(nk, nc);
+            bestPath.set(nk, [...path, nk]);
+            frontier.push([nc, nk]);
           }
         } else if (nh.territoryId !== startT.id) {
-          // arriving at land isn't itself a water hop, so this is checked
-          // regardless of the current hop count — even a state already at
-          // the cap can still legally end its crossing here
           const destId = nh.territoryId;
           const existing = startT.waterRoutes.get(destId);
           if (existing === undefined || existing.cost > cost) startT.waterRoutes.set(destId, { cost, path });
@@ -4692,6 +4713,27 @@ function drawForceIcon(t) {
 // its own so the ocean-tap Easter egg (see handlePointer()) can tell "true
 // gap, nothing here at all" apart from "a real water hex", which
 // territoryAtClientPoint() itself treats identically (both return null).
+// Returns the real generated hex at (q,r) if one exists there, or a
+// synthesized, never-stored "background ocean" hex otherwise — one single
+// ocean concept everywhere, not two ("il y a un seul type d'océan que toute
+// la carte derrière c'est l'océan de manière générale tout le temps"): a
+// carved-out lake and the plain background void beyond the generated
+// island are the exact same continuous body of water, both now real,
+// addressable hex-shaped objects instead of one being a real tile and the
+// other being nothing at all. A pure function of (q,r) only — never tied
+// to viewport/screen size (which differs per device and per orientation),
+// so synthesizing rather than pre-generating these keeps map generation,
+// and therefore replay determinism, completely untouched: two players on
+// different-sized screens replaying the same seed still see the exact same
+// real land/water tiles; the infinite synthetic ocean around them is just
+// computed identically on demand, never stored, never seeded.
+function hexAt(q, r) {
+  const key = `${q},${r}`;
+  const real = hexes[key];
+  if (real) return real;
+  const { x, y } = axialToPixel(q, r);
+  return { q, r, x, y, isWater: true, territoryId: -1, synthetic: true };
+}
 function hexAtClientPoint(clientX, clientY) {
   const rect = canvas.getBoundingClientRect();
   // rect is POST-transform physical pixels (see lockPortraitStage()) while
@@ -4702,15 +4744,15 @@ function hexAtClientPoint(clientX, clientY) {
   const localX = (local.x - centerX) / viewScale;
   const localY = (local.y - centerY) / viewScale;
   const { q, r } = pixelToAxial(localX, localY);
-  return hexes[`${q},${r}`] || null;
+  return hexAt(q, r);
 }
 function territoryAtClientPoint(clientX, clientY) {
   const h2 = hexAtClientPoint(clientX, clientY);
-  // a water hex isn't a territory (no owner, not directly tappable) — same
-  // "nothing here" contract as a true gap/off-the-map point, so a finger
+  // a water hex (real or the synthesized background ocean, see hexAt())
+  // isn't a territory (no owner, not directly tappable) — so a finger
   // gliding over water mid-drag doesn't cancel the gesture (see the
   // pointermove handler below) and a tap directly on water is a no-op
-  return (h2 && !h2.isWater) ? territories[h2.territoryId] : null;
+  return h2.isWater ? null : territories[h2.territoryId];
 }
 
 // tapping any of a real royaume's territories while awaiting a pick claims
@@ -5209,8 +5251,15 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.30";
+const GAME_VERSION = "1.31";
 const CHANGELOG = [
+  {
+    version: "1.31",
+    notes: [
+      "Un seul type d'océan désormais partout dans le code (case d'eau ou simple fond, même donnée) ; les attaques en bateau ne sont plus plafonnées à 3 cases d'eau une fois la carte générée — seule la génération de la carte garde cette limite pour décider si un îlot est rattaché",
+      "Corrigé un bug rare : une province pouvait se retrouver composée de deux bouts de terre non adjacents (un village fusionné avec un îlot isolé plus loin) — chaque groupe de cases orphelines forme maintenant sa propre province à part entière",
+    ],
+  },
   {
     version: "1.30",
     notes: [
