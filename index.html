@@ -2702,6 +2702,25 @@ function sfxAttack(win, chainIndex = -1) {
   playTone(baseFreq * mul, 0.16, { type: "triangle", cutoff: 700, volume: 0.09, slideTo: baseSlide * mul });
 }
 function sfxEndTurn() { playTone(120, 0.14, { type: "sine", cutoff: 480, volume: 0.06 }); }
+// Discreet cue for each extra village joining a drag-to-attack chain,
+// BEFORE release — not the attack itself, just anticipation that this hop
+// is now part of the planned chain. Same melody shape as sfxAttack()'s own
+// chain climb (CHAIN_MAJOR_INTERVALS), transposed down a full fifth and
+// quieter/shorter, so it reads as organic background texture rather than
+// the attack sound repeating early: "quelque chose de discret et
+// organique, plus la même mélodie que l'attaque mais une quinte plus bas."
+function sfxDragExtend(chainIndex) {
+  const interval = CHAIN_MAJOR_INTERVALS[Math.min(Math.max(0, chainIndex), CHAIN_MAJOR_INTERVALS.length - 1)];
+  const mul = Math.pow(2, (interval - 2) / 12) * Math.pow(2, -7 / 12); // -7 semitones = a fifth lower
+  playTone(220 * mul, 0.1, { type: "triangle", cutoff: 700, volume: 0.05, slideTo: 160 * mul });
+}
+// A short, subtle pulse per hop — much shorter than vibrateOwnTurn()'s
+// 200ms "it's your turn" buzz, matching sfxDragExtend()'s own "discreet"
+// intent. No effect on iOS Safari (see vibrateOwnTurn()'s own note) but
+// harmless there, and works on Android.
+function vibrateDragExtend() {
+  try { if (navigator.vibrate) navigator.vibrate(15); } catch (e) { /* unsupported */ }
+}
 // Reinforcement chime: one bright, single-note "carillon" hit per point
 // gained, climbing a major triad (root, third, fifth, octave, ...) — each
 // note clearly audible on its own, one after another, not blended into one
@@ -5025,6 +5044,12 @@ function extendDragPath(drag, clientX, clientY) {
   const lastT = territories[lastId];
   if (!(lastT.neighbors.has(hoverT.id) || lastT.waterRoutes.has(hoverT.id))) return;
   drag.path.push(hoverT.id);
+  // chainIndex matches what executeAttackChain() will actually use for
+  // this exact hop once released (path.length-2: the hop from the
+  // second-to-last to the last node just added) — see sfxAttack()'s own
+  // chain-climb math.
+  vibrateDragExtend();
+  sfxDragExtend(drag.path.length - 2);
   render();
 }
 canvas.addEventListener("pointermove", (e) => {
@@ -5336,8 +5361,14 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.34";
+const GAME_VERSION = "1.35";
 const CHANGELOG = [
+  {
+    version: "1.35",
+    notes: [
+      "Vibration + petite note discrète à chaque village ajouté pendant un glisser d'attaque en chaîne, pas seulement au relâchement — même mélodie que l'attaque mais une quinte plus bas",
+    ],
+  },
   {
     version: "1.34",
     notes: [
