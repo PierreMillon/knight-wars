@@ -4760,22 +4760,24 @@ function handlePointer(clientX, clientY) {
     // unrelated meaning for a tap that resolves to nothing, so neither
     // branch below fires while either applies.
     if (!awaitingFactionPick && !placingGueux) {
+      // Landscape hides the entire persistent HUD for a distraction-free
+      // view (see applyLandscapeHud()) — #endturn included — so the whole
+      // visible "ocean" takes over its job instead: not just water hexes
+      // within the generated island, but every blue pixel on screen,
+      // background void beyond the map included — "c'est toute la zone
+      // bleue, tout ce qui est au fond en bleu ça sert de bouton" (they're
+      // one continuous body of water anyway, same color, see
+      // CANVAS_BG_COLOR's own note). Once during the player's own turn,
+      // ends it; again while the AI turns are still resolving, fast-
+      // forwards them — exactly what tapping #endturn itself does in
+      // either state (see handleEndTurnTap(), now shared by both).
+      if (wrapRotationDeg !== 0) { handleEndTurnTap(); return; }
+      // portrait only, and only on an actual water hex (not the
+      // background void) during the player's own live turn: the running
+      // Easter egg gag (see showOceanTapEasterEgg()) — unrelated to the
+      // landscape end-turn takeover above, left exactly as it was.
       const h = hexAtClientPoint(clientX, clientY);
-      if (h && h.isWater) {
-        // Landscape hides the entire persistent HUD for a distraction-free
-        // view (see applyLandscapeHud()) — #endturn included — so tapping
-        // the ocean takes over its job instead: once during the player's
-        // own turn, ends it; again while the AI turns are still resolving,
-        // fast-forwards them, exactly what tapping #endturn itself does in
-        // either state (see handleEndTurnTap(), now shared by both). Not
-        // gated on currentPlayer/aiRunning the way the portrait Easter egg
-        // below is — handleEndTurnTap() already handles both states itself.
-        if (wrapRotationDeg !== 0) { handleEndTurnTap(); return; }
-        // portrait only, and only during the player's own live turn: the
-        // running Easter egg gag (see showOceanTapEasterEgg()) — landscape
-        // has no room for a toast anyway, being map-only.
-        if (!aiRunning && currentPlayer === humanRoyId) showOceanTapEasterEgg();
-      }
+      if (h && h.isWater && !aiRunning && currentPlayer === humanRoyId) showOceanTapEasterEgg();
     }
     return;
   }
@@ -5207,8 +5209,14 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.28";
+const GAME_VERSION = "1.29";
 const CHANGELOG = [
+  {
+    version: "1.29",
+    notes: [
+      "Correction : en mode paysage, toucher l'océan pour finir le tour ne marchait que sur une vraie case d'eau — désormais toute la zone bleue fait bouton, y compris le fond au-delà de la carte générée",
+    ],
+  },
   {
     version: "1.28",
     notes: [
