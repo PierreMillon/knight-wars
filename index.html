@@ -2561,6 +2561,14 @@ function triggerCombatFX(fromId, toId, atk, def, win, attackerRoyId, defenderRoy
   combatFXList.push({ fromId, toId, atk, def, win, attackerRoyId, defenderRoyId, hexCount, waterPath, start: performance.now(), fadeStart: null });
   ensureFXLoop();
 }
+// Same list, same persist-to-end-of-turn/fade lifecycle as a real combat
+// hit above — just a different render shape (see render()'s own
+// isSacrifice branch): no defender, no dice, the sword lands on the final
+// water hex itself instead of a territory.
+function triggerWaterSacrificeFX(fromId, waterPath, isRitual) {
+  combatFXList.push({ fromId, isSacrifice: true, isRitual, waterPath, start: performance.now(), fadeStart: null });
+  ensureFXLoop();
+}
 function fxStep() {
   const now = performance.now();
   // Sweep out only the entries whose OWN fade has actually finished — each
@@ -2932,6 +2940,110 @@ function waterPathBetween(fromT, toId) {
   if (fromT.neighbors.has(toId)) return null;
   const route = fromT.waterRoutes.get(toId);
   return route ? route.path : null;
+}
+// Dijkstra from a territory's own bordering water hexes out to one SPECIFIC
+// water hex (not another territory — see computeWaterRoutes(), which only
+// ever enumerates territory-to-territory routes) — used only by the water-
+// sacrifice mechanic below, where a tap-select-then-tap-target release
+// names an exact destination hex out in open water with nothing on the
+// other side. Capped at MAX_SACRIFICE_SEARCH_HEXES purely as a runaway
+// guard (hexAt() synthesizes water forever outward, so an unreachable or
+// mistaken destKey — e.g. one that's actually land — would otherwise search
+// endlessly instead of just failing): the destination is always a hex the
+// player just tapped on screen, always far closer than this cap in
+// practice, so it never actually constrains a real tap.
+const MAX_SACRIFICE_SEARCH_HEXES = 4000;
+function waterPathToHex(startT, destKey) {
+  const dist = new Map();
+  const bestPath = new Map();
+  const frontier = [];
+  for (const hk of startT.hexKeys) {
+    const h = hexes[hk];
+    for (const nk of neighborsOf(h.q, h.r)) {
+      const [nq, nr] = nk.split(",").map(Number);
+      const nh = hexAt(nq, nr);
+      if (nh.isWater) {
+        const c = nh.waterCost || 2;
+        if (!dist.has(nk) || dist.get(nk) > c) { dist.set(nk, c); bestPath.set(nk, [nk]); frontier.push([c, nk]); }
+      }
+    }
+  }
+  const settled = new Set();
+  let guard = 0;
+  while (frontier.length) {
+    if (++guard > MAX_SACRIFICE_SEARCH_HEXES) return null;
+    frontier.sort((a, b) => a[0] - b[0]);
+    const [cost, key] = frontier.shift();
+    if (settled.has(key) || dist.get(key) < cost) continue;
+    settled.add(key);
+    if (key === destKey) return bestPath.get(key);
+    const path = bestPath.get(key);
+    const [q, r] = key.split(",").map(Number);
+    for (const nk of neighborsOf(q, r)) {
+      const [nq, nr] = nk.split(",").map(Number);
+      const nh = hexAt(nq, nr);
+      if (!nh.isWater) continue;
+      const nc = cost + (nh.waterCost || 2);
+      if (!dist.has(nk) || dist.get(nk) > nc) { dist.set(nk, nc); bestPath.set(nk, [...path, nk]); frontier.push([nc, nk]); }
+    }
+  }
+  return null; // destKey isn't actually reachable through water from startT
+}
+function isHexAdjacentToTerritory(hexKey, territory) {
+  for (const hk of territory.hexKeys) {
+    if (neighborsOf(hexes[hk].q, hexes[hk].r).includes(hexKey)) return true;
+  }
+  return false;
+}
+// Same decay math a water-sacrifice release actually applies (see
+// executeWaterSacrifice()), factored out so the live drag preview shows
+// exactly what would happen if the finger lifted right now, not an
+// approximation of it. sentForce mirrors attack()'s own "1 always stays
+// behind as a fresh garrison" convention — the rest is what actually
+// travels, then decays by each crossed hex's own waterCost (1 lake, 2 open
+// sea; a synthesized void hex has no stored waterCost at all, so it
+// defaults to the open-sea cost — see hexAt()'s own note on why the
+// background void IS the open sea, just never stored).
+function computeWaterTailDecay(startForce, waterHexKeys) {
+  const sentForce = Math.max(0, startForce - 1);
+  let cumulativeCost = 0;
+  let allOpenSea = true;
+  for (const key of waterHexKeys) {
+    const [q, r] = key.split(",").map(Number);
+    const h = hexAt(q, r);
+    const cost = h.waterCost || 2;
+    if (cost !== 2) allOpenSea = false;
+    cumulativeCost += cost;
+  }
+  const rawRemaining = sentForce - cumulativeCost;
+  return { sentForce, cumulativeCost, rawRemaining, remaining: Math.max(1, rawRemaining), allOpenSea, reachedFloor: rawRemaining <= 1 };
+}
+// A drag or tap-select that ends in pure open water instead of any real
+// territory — no combat, no ownership change, just force spent traveling
+// deep enough that some or all of it doesn't come back.
+//
+// The escalating "offrande" Easter egg (OCEAN_TAP_LINES/
+// showOceanTapEasterEgg(), moved here from a bare water tap per request:
+// "c'est vraiment si on fait une offrande, en fait c'est vraiment un
+// easter egg") only fires for the deliberate, full ritual — worked through
+// live, precisely: a maxed-out village (FORCE_CAP, 12 force) sent straight
+// into open sea (never through a lake, never tacked onto the end of a
+// chain that already conquered elsewhere this same turn) far enough that
+// the decay actually bottoms out at the floor of 1. Anything short of that
+// still costs the force for real, but only earns the plain, one-line
+// "Baignade forcée" — the rare, deliberate sacrifice stays rare.
+function executeWaterSacrifice(fromId, waterHexKeys, pureDirectDive = true) {
+  const from = territories[fromId];
+  const startForce = from.force;
+  const { allOpenSea, reachedFloor } = computeWaterTailDecay(startForce, waterHexKeys);
+  from.force = 1; // fresh garrison, same convention attack() already uses
+  const isRitual = pureDirectDive && waterHexKeys.length > 0 && allOpenSea && startForce === FORCE_CAP && reachedFloor;
+  triggerWaterSacrificeFX(fromId, waterHexKeys, isRitual);
+  sfxAttack(false, -1); // reuse the existing "échec" sting — something was genuinely lost, no win chime makes sense here
+  if (isRitual) showOceanTapEasterEgg();
+  else showForcedSwimToast();
+  logMsg(`${ROYAUMES[from.owner].name} perd des soldats en mer.`);
+  render();
 }
 function attack(fromId, toId, chainIndex = -1) {
   const from = territories[fromId], to = territories[toId];
@@ -3787,6 +3899,7 @@ function playReplay(seed, difficulty, replayHumanRoyId, log, onFinish, replayMap
     const action = log[i++];
     if (action.end) endTurn();
     else if (action.gueux !== undefined) reinforceTerritory(action.gueux); // no gueuxCount touched — replay only reproduces the force change, never spends the viewer's own stock
+    else if (action.sac !== undefined) executeWaterSacrifice(action.sac, action.path, action.pure);
     else if (action.continue) { /* stray continue entry with no matching pause active — nothing to undo, just skip it rather than misreading it as attack(undefined, undefined) */ }
     else attack(action.a, action.b);
     scheduleStep(REPLAY_STEP_MS);
@@ -4374,6 +4487,42 @@ function drawHighlightOutlines() {
   }
 }
 
+// The combat sword itself, factored out of the render loop so the water-
+// sacrifice FX (see triggerWaterSacrificeFX()) can draw the exact same
+// blade at an arbitrary point/angle instead of always the midpoint between
+// two territories — a sacrifice has no defender to point at, just the
+// final water hex where the force actually ran out.
+function drawSwordAt(x, y, angle, alpha) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(angle);
+  const bladeLen = 20, bladeW = 3.4; // was 14, 2.4 — +40%
+  // blade, tip pointing toward +x after rotation — tapers gradually from
+  // its widest point down to a single sharp vertex instead of jumping
+  // straight to full width a few px from the tip, which read as a blunt/
+  // chisel end rather than a pointed blade
+  ctx.beginPath();
+  ctx.moveTo(bladeLen / 2 + 4, 0); // tip — a single point
+  ctx.lineTo(bladeLen / 2 - 6, -bladeW * 0.3);
+  ctx.lineTo(bladeLen / 4, -bladeW);
+  ctx.lineTo(-bladeLen / 2, -bladeW * 0.6);
+  ctx.lineTo(-bladeLen / 2, bladeW * 0.6);
+  ctx.lineTo(bladeLen / 4, bladeW);
+  ctx.lineTo(bladeLen / 2 - 6, bladeW * 0.3);
+  ctx.closePath();
+  ctx.fillStyle = `rgba(224,228,235,${alpha * 0.95})`;
+  ctx.fill();
+  // crossguard + grip, in the chief/gold accent
+  ctx.strokeStyle = `rgba(198,161,91,${alpha * 0.95})`;
+  ctx.lineWidth = 2.5; // was 1.8 — +40%
+  ctx.beginPath();
+  ctx.moveTo(-bladeLen / 2, -5.6);
+  ctx.lineTo(-bladeLen / 2, 5.6);
+  ctx.moveTo(-bladeLen / 2, 0);
+  ctx.lineTo(-bladeLen / 2 - 5.6, 0);
+  ctx.stroke();
+  ctx.restore();
+}
 function render() {
   const w = canvas.clientWidth, h = canvas.clientHeight;
   ctx.clearRect(0, 0, w, h);
@@ -4486,6 +4635,49 @@ function render() {
     ctx.setLineDash([]);
   }
 
+  // live preview of a water-only "sacrifice" tail past a drag's last real
+  // village (see extendDragPath()'s own note) — same trace style as the
+  // chain line above, plus a live decaying force count at the tip so the
+  // player can actually see how close to the floor they are before
+  // releasing (same math executeWaterSacrifice() applies on release, via
+  // computeWaterTailDecay() — what's shown here is exactly what would
+  // happen if the finger lifted right now). Swaps to a small boat once the
+  // count bottoms out at the floor, per request: "il faudrait remplacer
+  // [le chiffre] à ce moment-là par un petit bateau".
+  for (const drag of activeDrags.values()) {
+    if (!drag.waterTail || !drag.waterTail.length || !drag.path.length) continue;
+    const fromT = territories[drag.path[drag.path.length - 1]];
+    if (!fromT) continue;
+    ctx.beginPath();
+    ctx.moveTo(fromT.cx, fromT.cy);
+    let lastPt = { x: fromT.cx, y: fromT.cy };
+    for (const hk of drag.waterTail) {
+      const [q, r] = hk.split(",").map(Number);
+      const wh = hexAt(q, r);
+      ctx.lineTo(wh.x, wh.y);
+      lastPt = wh;
+    }
+    ctx.strokeStyle = "rgba(244,246,249,0.85)";
+    ctx.lineWidth = 2;
+    ctx.setLineDash([5, 4]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    const { remaining, reachedFloor } = computeWaterTailDecay(fromT.force, drag.waterTail);
+    ctx.textAlign = "center";
+    if (reachedFloor) {
+      ctx.font = "22px -apple-system, sans-serif";
+      ctx.fillText("🛶", lastPt.x, lastPt.y + 7);
+    } else {
+      ctx.font = "bold 17px -apple-system, sans-serif";
+      ctx.lineWidth = 2.5;
+      ctx.strokeStyle = "rgba(20,16,12,0.8)";
+      ctx.fillStyle = "rgba(242,237,226,1)";
+      ctx.strokeText(String(remaining), lastPt.x, lastPt.y + 6);
+      ctx.fillText(String(remaining), lastPt.x, lastPt.y + 6);
+    }
+  }
+
   // force icons
   for (const t of territories) {
     drawForceIcon(t);
@@ -4557,9 +4749,50 @@ function render() {
     // version kept the ring/label tied to fadeAlpha too. Only the sword
     // itself persists to end of turn (see swordAlpha's own note below).
     const numberAlpha = Math.max(0, 1 - (pulseNow - fx.start) / NUMBER_FADE_MS);
+    const floatY = -20 - introProgress * 14; // was -14 - progress*10 — +40%
+
+    // A water-sacrifice hit (see triggerWaterSacrificeFX()) has no defender
+    // to draw a ring/dice for — the "impact" is the sea itself, at the
+    // final hex the traveled force actually ran out on. Same fade/persist
+    // lifecycle as a real combat hit, just a different shape entirely, so
+    // it's handled as its own branch rather than shoehorned into the
+    // fromT/toT rendering below.
+    if (fx.isSacrifice) {
+      const fromT = territories[fx.fromId];
+      if (!fromT || !fx.waterPath || !fx.waterPath.length) continue;
+      const lastKey = fx.waterPath[fx.waterPath.length - 1];
+      const [lq, lr] = lastKey.split(",").map(Number);
+      const lastHex = hexAt(lq, lr);
+      if (!replaying) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(fromT.cx, fromT.cy);
+        for (const hk of fx.waterPath) {
+          const [q, r] = hk.split(",").map(Number);
+          const wh = hexAt(q, r);
+          ctx.lineTo(wh.x, wh.y);
+        }
+        ctx.strokeStyle = `rgba(244,246,249,${numberAlpha * 0.75})`;
+        ctx.lineWidth = 2;
+        ctx.setLineDash([5, 4]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.restore();
+      }
+      const angle = Math.atan2(lastHex.y - fromT.cy, lastHex.x - fromT.cx);
+      drawSwordAt(lastHex.x, lastHex.y, angle, fadeAlpha);
+      if (!replaying && numberAlpha > 0) {
+        ctx.font = "bold 14px -apple-system, sans-serif";
+        ctx.textAlign = "center";
+        ctx.lineWidth = 2.5;
+        ctx.strokeStyle = `rgba(20,16,12,${numberAlpha * 0.8})`;
+        ctx.fillStyle = fx.isRitual ? `rgba(255,214,92,${numberAlpha})` : `rgba(200,70,60,${numberAlpha})`;
+        drawMapNumber(fx.isRitual ? "offrande" : "baignade forcée", lastHex.x, lastHex.y + floatY - 17);
+      }
+      continue;
+    }
     const fromT = territories[fx.fromId];
     const toT = territories[fx.toId];
-    const floatY = -20 - introProgress * 14; // was -14 - progress*10 — +40%
 
     // a small drawn sword, midway between attacker and defender and pointed
     // toward the defender (was a plain line+arrowhead). Used to draw only
@@ -4573,42 +4806,9 @@ function render() {
     // it appears and then simply stays, exactly as long as everything else
     // in this combat's own result does.
     if (fromT && toT) {
-      const swordAlpha = fadeAlpha;
-      const dx = toT.cx - fromT.cx, dy = toT.cy - fromT.cy;
-      const dist = Math.hypot(dx, dy);
-      const ux = dx / dist, uy = dy / dist;
-      const angle = Math.atan2(uy, ux);
       const midX = (fromT.cx + toT.cx) / 2, midY = (fromT.cy + toT.cy) / 2;
-
-      ctx.save();
-      ctx.translate(midX, midY);
-      ctx.rotate(angle);
-      const bladeLen = 20, bladeW = 3.4; // was 14, 2.4 — +40%
-      // blade, tip pointing toward the defender (+x after rotation) — tapers
-      // gradually from its widest point down to a single sharp vertex
-      // instead of jumping straight to full width a few px from the tip,
-      // which read as a blunt/chisel end rather than a pointed blade
-      ctx.beginPath();
-      ctx.moveTo(bladeLen / 2 + 4, 0); // tip — a single point
-      ctx.lineTo(bladeLen / 2 - 6, -bladeW * 0.3);
-      ctx.lineTo(bladeLen / 4, -bladeW);
-      ctx.lineTo(-bladeLen / 2, -bladeW * 0.6);
-      ctx.lineTo(-bladeLen / 2, bladeW * 0.6);
-      ctx.lineTo(bladeLen / 4, bladeW);
-      ctx.lineTo(bladeLen / 2 - 6, bladeW * 0.3);
-      ctx.closePath();
-      ctx.fillStyle = `rgba(224,228,235,${swordAlpha * 0.95})`;
-      ctx.fill();
-      // crossguard + grip, in the chief/gold accent
-      ctx.strokeStyle = `rgba(198,161,91,${swordAlpha * 0.95})`;
-      ctx.lineWidth = 2.5; // was 1.8 — +40%
-      ctx.beginPath();
-      ctx.moveTo(-bladeLen / 2, -5.6);
-      ctx.lineTo(-bladeLen / 2, 5.6);
-      ctx.moveTo(-bladeLen / 2, 0);
-      ctx.lineTo(-bladeLen / 2 - 5.6, 0);
-      ctx.stroke();
-      ctx.restore();
+      const angle = Math.atan2(toT.cy - fromT.cy, toT.cx - fromT.cx);
+      drawSwordAt(midX, midY, angle, fadeAlpha);
     }
 
     // Water-crossing attacks aren't a straight shot — see waterPathBetween()
@@ -4996,12 +5196,26 @@ function handlePointer(clientX, clientY) {
       // forwards them — exactly what tapping #endturn itself does in
       // either state (see handleEndTurnTap(), now shared by both).
       if (wrapRotationDeg !== 0) { handleEndTurnTap(); return; }
-      // portrait only, and only on an actual water hex (not the
-      // background void) during the player's own live turn: the running
-      // Easter egg gag (see showOceanTapEasterEgg()) — unrelated to the
-      // landscape end-turn takeover above, left exactly as it was.
+      // portrait, own live turn, a province already selected, and the tap
+      // actually lands on reachable water: the tap-select-then-tap-target
+      // half of the ocean-sacrifice ritual (see executeWaterSacrifice()) —
+      // the free-drag half lives in extendDragPath()/pointerup below. A
+      // bare water tap with nothing selected is just a no-op now — the
+      // Easter egg used to fire right here on ANY water tap at no real
+      // cost; it's reserved for a genuine sacrifice now (see
+      // showOceanTapEasterEgg()'s own note).
       const h = hexAtClientPoint(clientX, clientY);
-      if (h && h.isWater && !aiRunning && currentPlayer === humanRoyId) showOceanTapEasterEgg();
+      if (h && h.isWater && selected !== -1 && !aiRunning && currentPlayer === humanRoyId) {
+        const selTerr = territories[selected];
+        const destKey = `${h.q},${h.r}`;
+        const waterPath = waterPathToHex(selTerr, destKey);
+        if (waterPath) {
+          const fromId = selected;
+          selected = -1;
+          logMove({ sac: fromId, path: waterPath, pure: true }); // tap-select-then-tap-target is always a direct dive, no prior chain possible
+          executeWaterSacrifice(fromId, waterPath);
+        }
+      }
     }
     return;
   }
@@ -5078,7 +5292,7 @@ const DRAG_THRESHOLD = 18; // px in screen space, below this it's treated as a p
 let activeDrags = new Map(); // pointerId -> drag state
 canvas.addEventListener("pointerdown", (e) => {
   if (replaying || gameOver || aiRunning) return;
-  const drag = { startPos: { x: e.clientX, y: e.clientY }, active: false, path: [] };
+  const drag = { startPos: { x: e.clientX, y: e.clientY }, active: false, path: [], waterTail: [] };
   const t = dragToAttackEnabled && currentPlayer === humanRoyId ? territoryAtClientPoint(e.clientX, e.clientY) : null;
   if (t && t.owner === currentPlayer && t.force > 1) {
     drag.path = [t.id];
@@ -5105,29 +5319,64 @@ canvas.addEventListener("pointerdown", (e) => {
 // position itself (see the handler's own note on why that matters).
 function extendDragPath(drag, clientX, clientY) {
   const hoverT = territoryAtClientPoint(clientX, clientY);
-  if (!hoverT) return;
-  const lastId = drag.path[drag.path.length - 1];
-  if (hoverT.id === lastId) return;
-  if (drag.path.length >= 2 && hoverT.id === drag.path[drag.path.length - 2]) {
-    drag.path.pop(); // dragged back onto the previous node — undo that hop
+  if (hoverT) {
+    // stepping back onto ANY real territory abandons whatever water-only
+    // "sacrifice" tail was in progress — that preview only exists in the
+    // gap past the chain's last real village (see the water-handling branch
+    // below and executeWaterSacrifice()'s own note on what it resolves into).
+    if (drag.waterTail.length) { drag.waterTail = []; render(); }
+    const lastId = drag.path[drag.path.length - 1];
+    if (hoverT.id === lastId) return;
+    if (drag.path.length >= 2 && hoverT.id === drag.path[drag.path.length - 2]) {
+      drag.path.pop(); // dragged back onto the previous node — undo that hop
+      render();
+      return;
+    }
+    if (drag.path.includes(hoverT.id)) return; // no cycles within this one gesture
+    if (hoverT.owner === currentPlayer) return; // can't attack your own territory
+    // one adjacent hop at a time — either a direct land border, or (see
+    // computeWaterRoutes()) a boat crossing; the finger simply glides over the
+    // water hexes in between with no effect (territoryAtClientPoint() returns
+    // null for those, same as any empty gap — see the early `if (!hoverT)` above)
+    const lastT = territories[lastId];
+    if (!(lastT.neighbors.has(hoverT.id) || lastT.waterRoutes.has(hoverT.id))) return;
+    drag.path.push(hoverT.id);
+    // chainIndex matches what executeAttackChain() will actually use for
+    // this exact hop once released (path.length-2: the hop from the
+    // second-to-last to the last node just added) — see sfxAttack()'s own
+    // chain-climb math.
+    vibrateDragExtend();
+    sfxDragExtend(drag.path.length - 2);
     render();
     return;
   }
-  if (drag.path.includes(hoverT.id)) return; // no cycles within this one gesture
-  if (hoverT.owner === currentPlayer) return; // can't attack your own territory
-  // one adjacent hop at a time — either a direct land border, or (see
-  // computeWaterRoutes()) a boat crossing; the finger simply glides over the
-  // water hexes in between with no effect (territoryAtClientPoint() returns
-  // null for those, same as any empty gap — see the early `if (!hoverT)` above)
-  const lastT = territories[lastId];
-  if (!(lastT.neighbors.has(hoverT.id) || lastT.waterRoutes.has(hoverT.id))) return;
-  drag.path.push(hoverT.id);
-  // chainIndex matches what executeAttackChain() will actually use for
-  // this exact hop once released (path.length-2: the hop from the
-  // second-to-last to the last node just added) — see sfxAttack()'s own
-  // chain-climb math.
+  // Hovering water/void instead of a real territory: extend or shrink a
+  // pure-water "sacrifice" tail past the chain's last real village — this
+  // can't reuse the territory-to-territory waterRoutes lookup above (there
+  // is no destination territory at all here), so it just walks hex by hex,
+  // live, off the finger's actual position. Resolved into either
+  // executeWaterSacrifice() (released here) or discarded (finger comes back
+  // onto a real territory, see above) at pointerup/the branch above.
+  if (!drag.path.length) return; // no chain in progress at all
+  const h = hexAtClientPoint(clientX, clientY);
+  if (!h || !h.isWater) return;
+  const hKey = `${h.q},${h.r}`;
+  const tail = drag.waterTail;
+  const tailLen = tail.length;
+  if (tailLen && tail[tailLen - 1] === hKey) return; // same hex, no-op
+  if (tailLen >= 2 && tail[tailLen - 2] === hKey) {
+    tail.pop(); // dragged back onto the previous water hex — undo that hop
+    render();
+    return;
+  }
+  if (tail.includes(hKey)) return; // no cycles within this one gesture
+  const lastT = territories[drag.path[drag.path.length - 1]];
+  const adjacent = tailLen
+    ? neighborsOf(h.q, h.r).includes(tail[tailLen - 1])
+    : isHexAdjacentToTerritory(hKey, lastT);
+  if (!adjacent) return;
+  tail.push(hKey);
   vibrateDragExtend();
-  sfxDragExtend(drag.path.length - 2);
   render();
 }
 canvas.addEventListener("pointermove", (e) => {
@@ -5161,7 +5410,7 @@ canvas.addEventListener("pointerup", (e) => {
   const drag = activeDrags.get(e.pointerId);
   if (!drag) return;
   activeDrags.delete(e.pointerId);
-  const path = drag.path, wasActive = drag.active;
+  const path = drag.path, wasActive = drag.active, waterTail = drag.waterTail;
   if (wasActive && path.length >= 2) {
     // a real attack-chain drag — executeAttackChain() re-validates every hop
     // against the live board as it plays out, so it's harmless if another
@@ -5175,6 +5424,20 @@ canvas.addEventListener("pointerup", (e) => {
     }
     selected = -1;
     executeAttackChain(path);
+    return;
+  }
+  if (wasActive && path.length >= 1 && waterTail.length) {
+    // released with a water-only tail past the chain's last real village —
+    // the free-drag half of the ocean-sacrifice ritual (see
+    // executeWaterSacrifice()'s own note; handlePointer() has the
+    // tap-select-then-tap-target half). A chain that already conquered
+    // other villages before diving in (path.length > 1) still spends the
+    // force for real — it just can never earn the rare "offrande" outcome.
+    selected = -1;
+    const fromId = path[path.length - 1];
+    const pureDirectDive = path.length === 1;
+    logMove({ sac: fromId, path: [...waterTail], pure: pureDirectDive });
+    executeWaterSacrifice(fromId, waterTail, pureDirectDive);
     return;
   }
   if (drag.cancelled) {
@@ -6104,12 +6367,16 @@ function showForceAdaptToast() {
   }, 1000);
 }
 
-// A little running joke for a tap or drag-release that lands on open water
-// instead of a real target (see handlePointer()) — used to be a silent
-// no-op. Escalates over the course of one match, one line further each
-// time, and stays on the third line for any further attempt rather than
-// cycling back — resets with a fresh startGame(). Held onscreen a beat
-// longer than showForceAdaptToast() above since the later lines run long.
+// A little running joke for the deliberate ocean-sacrifice ritual (see
+// executeWaterSacrifice()) — a maxed-out village sent straight into open
+// sea, far enough that it actually bottoms out at the force floor. Used to
+// fire on any bare tap/drag-release landing on open water at all, with no
+// real cost — moved here specifically per request: "c'est vraiment si on
+// fait une offrande, en fait c'est vraiment un easter egg". Escalates over
+// the course of one match, one line further each time, and stays on the
+// last line for any further ritual rather than cycling back — resets with
+// a fresh startGame(). Held onscreen a beat longer than
+// showForceAdaptToast() above since the later lines run long.
 const OCEAN_TAP_LINES = [
   "Et plouf !",
   "Les hommes racontent des histoires de monstres marins à faire froid dans le dos. Il devient difficile d'engager des marins pour vos expéditions, mon général.",
@@ -6128,6 +6395,22 @@ function showOceanTapEasterEgg() {
   oceanTapToastTimer = setTimeout(() => {
     el.style.opacity = "0";
     oceanTapToastTimer = setTimeout(() => { el.style.display = "none"; }, 650); // matches the CSS opacity transition duration
+  }, 2200);
+}
+// The plain, non-escalating line for any OTHER force lost to the sea
+// (fewer soldiers than the full ritual needs, a lake anywhere on the path,
+// released before reaching the floor, or tacked onto the end of a chain
+// that already conquered elsewhere first) — see executeWaterSacrifice()'s
+// own note on why this stays separate from the rare "offrande" messages.
+function showForcedSwimToast() {
+  const el = document.getElementById("oceanTapToast");
+  clearTimeout(oceanTapToastTimer);
+  el.textContent = "Baignade forcée, sire. Ils ne reviendront pas, je le crains.";
+  el.style.display = "block";
+  requestAnimationFrame(() => { el.style.opacity = "1"; });
+  oceanTapToastTimer = setTimeout(() => {
+    el.style.opacity = "0";
+    oceanTapToastTimer = setTimeout(() => { el.style.display = "none"; }, 650);
   }, 2200);
 }
 
@@ -6444,6 +6727,7 @@ function resumeSavedGame(saved) {
     const action = log[i++];
     if (action.end) endTurn();
     else if (action.gueux !== undefined) reinforceTerritory(action.gueux);
+    else if (action.sac !== undefined) executeWaterSacrifice(action.sac, action.path, action.pure);
     else if (action.continue) { /* stray entry with no matching pause active — nothing to undo, just skip it */ }
     else attack(action.a, action.b);
     // queueMicrotask, not setTimeout(fn, 0) — browsers throttle a *chain* of
