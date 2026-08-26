@@ -3027,7 +3027,7 @@ function advanceTurn() {
     // moves; the delay argument here is simply ignored during a replay,
     // which paces itself uniformly via REPLAY_STEP_MS instead (see
     // scheduleTurn()'s own note).
-    scheduleTurn(runAI, 560); // live-play combat pacing sped up 20% per request (was 700)
+    scheduleTurn(runAI, 140); // hand-off pause to the next player, cut 75% per request (was 560, itself already -20% from 700) — "il y a un petit temps mort entre chaque joueur, c'est trop long"
   }
 }
 
@@ -4150,7 +4150,7 @@ function runAI() {
     scheduleTurn(runAI, 504); // live-play combat pacing sped up 20% per request (was 630) — ignored during replay, see scheduleTurn()'s own note
   } else {
     aiRunning = false;
-    scheduleTurn(endTurn, 336); // live-play combat pacing sped up 20% per request (was 420) — ignored during replay, see scheduleTurn()'s own note
+    scheduleTurn(endTurn, 84); // wrapping up this player's own turn before handing off, cut 75% per request (was 336, itself already -20% from 420) — ignored during replay, see scheduleTurn()'s own note
   }
 }
 
@@ -5209,8 +5209,14 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.29";
+const GAME_VERSION = "1.30";
 const CHANGELOG = [
+  {
+    version: "1.30",
+    notes: [
+      "Réduit de 75% le temps mort entre le tour d'un royaume et celui du suivant — signalé comme trop long",
+    ],
+  },
   {
     version: "1.29",
     notes: [
