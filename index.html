@@ -191,18 +191,13 @@
   }
   .chip.activeTurn { transform: scale(1.5); margin: 4px 0; }
   .chip .swatch { width: 11px; height: 11px; border-radius: 50%; flex: none; box-shadow: 0 0 0 1px rgba(0,0,0,.5); }
-  /* the two numbers each get their own fixed-width, left-aligned column
-     (like the swatch already is) instead of one run-on text node — so
-     every row's second number starts at the same X regardless of how many
-     digits the first one happens to have, even if that leaves a little
-     empty space after a short value. .n is the primary number right next
-     to the color — total force (soldiers) — with the connected-territory
-     count now secondary in .f, swapped from the original force/territory
-     order (see updateGroups()'s own note): "un seul chiffre affiché à
-     côté de la couleur désormais : le total de soldats". */
-  .chip .n, .chip .f { display: inline-block; text-align: left; }
-  .chip .n { font-weight: 700; min-width: 2.3em; }
-  .chip .f { min-width: 1.7em; }
+  /* fixed-width, left-aligned column (like the swatch already is) instead
+     of a run-on text node — so every row's number starts at the same X
+     regardless of digit count. Just the total force (soldiers) now — the
+     connected-territory count used to show here too (.f, removed), but see
+     updateGroups()'s own note on why an absolute number wasn't pulling its
+     weight next to the sort order already conveying the same thing. */
+  .chip .n { display: inline-block; text-align: left; font-weight: 700; min-width: 2.3em; }
   #settingsPanel {
     position: absolute; inset: 0; display: none;
     align-items: center; justify-content: center;
@@ -683,6 +678,7 @@
         <p><strong>La force est plafonnée à 12</strong> par province — impossible d'empiler plus haut, quelle que soit la taille de votre royaume.</p>
         <p><strong>Le combat est sans hasard</strong> : la plus grande force gagne toujours. Seule exception — attaquant ET défenseur tous les deux au plafond (12 contre 12) : là, et seulement là, les dés tranchent, sinon une frontière bloquée au plafond des deux côtés ne pourrait jamais bouger.</p>
         <p><strong>Le renfort de fin de tour</strong> dépend de votre part du territoire par rapport à une part égale entre les royaumes encore debout — au-dessus de la moyenne, vous gagnez plus ; en dessous, moins (jamais 0). Un vaste royaume touche en plus un bonus qui grandit avec sa taille réelle, pas seulement sa part relative : un empire qui domine vraiment continue de gagner en puissance de feu à mesure qu'il s'étend, au lieu de plafonner.</p>
+        <p><strong>Le classement en haut à gauche</strong> trie les royaumes par territoire (le plus vaste bloc de terre d'un seul tenant en premier — réglable dans les réglages) mais n'affiche plus ce chiffre lui-même : un total de cases ne veut rien dire tout seul, ça dépend entièrement de la taille de la carte et du nombre de rivaux encore debout. Ce qui compte, c'est votre position dans le classement, pas le chiffre en lui-même — d'où le tri, sans le nombre brut.</p>
         <p><strong>La trêve</strong> se déclenche quand toutes les frontières sont bloquées au plafond et que rien ne bouge depuis plusieurs tours d'affilée — signe qu'aucune attaque n'a de chance d'aboutir. Vous pouvez l'accepter (match nul) ou continuer le siège en espérant un 12 contre 12 favorable.</p>
         <p><strong>La difficulté</strong> règle le comportement des royaumes adverses, pas juste un chiffre abstrait : à Page, ils hésitent beaucoup et n'attaquent que sur un avantage écrasant ; à Seigneur, ils attaquent à la moindre ouverture et se trompent presque jamais. Elle change aussi la part de terres neutres au départ (bien plus nombreuses à Page, presque absentes à Seigneur) et votre avance de force initiale. C'est aussi pour ça que la force de vos adversaires change d'un coup au moment où vous choisissez votre camp : leur avantage lié à la difficulté ne peut s'appliquer qu'une fois qu'on sait qui joue qui — un petit message l'annonce sur le moment.</p>
         <p><strong>Les gueux</strong> sont une réserve d'un tour à l'autre (activable dans les réglages) : vous en gagnez un à chaque victoire, et pouvez en dépenser un en touchant le badge puis une de vos provinces, pour lui donner +1 de force sur-le-champ, avant même la bataille suivante.</p>
@@ -4756,20 +4752,24 @@ function updateGroups() {
     if (!aliveIds.has(Number(idStr))) { groupRowEls[idStr].remove(); delete groupRowEls[idStr]; }
   }
   // dot only, no name — the color itself is the identifier now that the
-  // legend line is gone too. .n (force) is the one number right next to
-  // the swatch now, .f (connected territories) secondary — see the CSS
-  // note on why these swapped places.
+  // legend line is gone too. Just the one force number next to the swatch —
+  // the connected-territory count used to show here too (".f"), but it's an
+  // absolute figure that means nothing on its own ("15 cases, c'est bien ou
+  // pas ?" depends entirely on the map size and how many rivals are still
+  // standing) — what actually matters is being relatively stronger than the
+  // others, which the SORT ORDER already conveys at a glance (default: most
+  // territory first) without needing to print the raw number. See "🎓
+  // Conseils" for the explanation of what the ranking itself means.
   for (const r of rows) {
     let rowEl = groupRowEls[r.roy.id];
     if (!rowEl) {
       rowEl = document.createElement("span");
       rowEl.className = "chip";
-      rowEl.innerHTML = `<span class="swatch"></span><span class="n"></span><span class="f"></span>`;
+      rowEl.innerHTML = `<span class="swatch"></span><span class="n"></span>`;
       groupRowEls[r.roy.id] = rowEl;
     }
     rowEl.querySelector(".swatch").style.background = r.roy.color;
     rowEl.querySelector(".n").textContent = r.force;
-    rowEl.querySelector(".f").textContent = `·${r.connected}`;
     // exactly one row emphasized at a time, including our own when it's
     // our turn — see the CSS's own note on the transition itself
     rowEl.classList.toggle("activeTurn", r.roy.id === currentPlayer);
@@ -5439,8 +5439,14 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.39";
+const GAME_VERSION = "1.40";
 const CHANGELOG = [
+  {
+    version: "1.40",
+    notes: [
+      "Statistiques en haut à gauche : retiré le chiffre de territoire connecté à côté du nombre de soldats — un total de cases ne veut rien dire seul (ça dépend de la taille de carte et du nombre de rivaux restants), seule la position dans le classement compte, déjà visible via le tri. Expliqué dans les Conseils.",
+    ],
+  },
   {
     version: "1.39",
     notes: [
