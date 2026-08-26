@@ -178,16 +178,31 @@
     color: rgba(242,237,226,.7); font-size: 10.5px; font-family: Georgia, "Iowan Old Style", Palatino, serif;
     text-decoration: underline; text-underline-offset: 2px; cursor: pointer;
   }
-  .chip { display: flex; align-items: center; gap: 5px; font-size: 12px; white-space: nowrap; flex: none; }
+  .chip {
+    display: flex; align-items: center; gap: 5px; font-size: 12px; white-space: nowrap; flex: none;
+    transform-origin: left center;
+    /* grows ~1.5x, smoothly, while it's this royaume's own turn (see
+       updateGroups()'s own note on why the row elements have to persist
+       across updates for this transition to actually animate instead of
+       jumping) — margin grows alongside the scale so the enlarged row
+       gets a little breathing room instead of crowding its neighbors,
+       which #groups' own fixed 4px gap can't provide on its own. */
+    transition: transform .3s ease, margin .3s ease;
+  }
+  .chip.activeTurn { transform: scale(1.5); margin: 4px 0; }
   .chip .swatch { width: 11px; height: 11px; border-radius: 50%; flex: none; box-shadow: 0 0 0 1px rgba(0,0,0,.5); }
-  /* villages/troops each get their own fixed-width, left-aligned column
+  /* the two numbers each get their own fixed-width, left-aligned column
      (like the swatch already is) instead of one run-on text node — so
-     every row's troops number starts at the same X regardless of how many
-     digits the villages count next to it happens to have, even if that
-     leaves a little empty space after a short value */
+     every row's second number starts at the same X regardless of how many
+     digits the first one happens to have, even if that leaves a little
+     empty space after a short value. .n is the primary number right next
+     to the color — total force (soldiers) — with the connected-territory
+     count now secondary in .f, swapped from the original force/territory
+     order (see updateGroups()'s own note): "un seul chiffre affiché à
+     côté de la couleur désormais : le total de soldats". */
   .chip .n, .chip .f { display: inline-block; text-align: left; }
-  .chip .n { font-weight: 700; min-width: 1.7em; }
-  .chip .f { min-width: 2.3em; }
+  .chip .n { font-weight: 700; min-width: 2.3em; }
+  .chip .f { min-width: 1.7em; }
   #settingsPanel {
     position: absolute; inset: 0; display: none;
     align-items: center; justify-content: center;
@@ -4605,6 +4620,17 @@ try {
   if (savedSort === "force" || savedSort === "territories" || savedSort === "turnOrder") sortGroupsBy = savedSort;
 } catch (e) { /* ignore */ }
 
+// Persistent .chip element per royaume, reused across every updateGroups()
+// call instead of rebuilt via innerHTML each time — a full rebuild would
+// destroy and recreate every row's own DOM node on every single call, which
+// is exactly the node a CSS transition needs to still exist (with its OLD
+// class/style) to animate away FROM: "grossit avec une transition souple"
+// would otherwise render as an instant jump, since a brand-new element has
+// no prior state to transition from. Reordering is still done here (via
+// appendChild, which MOVES an already-attached node instead of recreating
+// it) whenever the sort order changes underneath — that doesn't disturb
+// the scale transition on whichever row is mid-animation.
+const groupRowEls = {};
 function updateGroups() {
   const el = document.getElementById("groups");
   const rows = [];
@@ -4622,12 +4648,30 @@ function updateGroups() {
   } else {
     rows.sort((a, b) => sortGroupsBy === "force" ? b.force - a.force : b.connected - a.connected);
   }
+  const aliveIds = new Set(rows.map((r) => r.roy.id));
+  for (const idStr of Object.keys(groupRowEls)) {
+    if (!aliveIds.has(Number(idStr))) { groupRowEls[idStr].remove(); delete groupRowEls[idStr]; }
+  }
   // dot only, no name — the color itself is the identifier now that the
-  // legend line is gone too
-  el.innerHTML = rows.map(r =>
-    `<span class="chip"><span class="swatch" style="background:${r.roy.color}"></span>` +
-    `<span class="n">${r.connected}</span><span class="f">·${r.force}</span></span>`
-  ).join("");
+  // legend line is gone too. .n (force) is the one number right next to
+  // the swatch now, .f (connected territories) secondary — see the CSS
+  // note on why these swapped places.
+  for (const r of rows) {
+    let rowEl = groupRowEls[r.roy.id];
+    if (!rowEl) {
+      rowEl = document.createElement("span");
+      rowEl.className = "chip";
+      rowEl.innerHTML = `<span class="swatch"></span><span class="n"></span><span class="f"></span>`;
+      groupRowEls[r.roy.id] = rowEl;
+    }
+    rowEl.querySelector(".swatch").style.background = r.roy.color;
+    rowEl.querySelector(".n").textContent = r.force;
+    rowEl.querySelector(".f").textContent = `·${r.connected}`;
+    // exactly one row emphasized at a time, including our own when it's
+    // our turn — see the CSS's own note on the transition itself
+    rowEl.classList.toggle("activeTurn", r.roy.id === currentPlayer);
+    el.appendChild(rowEl); // moves the existing node into its new sorted position
+  }
   updateEnemySurrenderOffer();
 }
 
@@ -5251,8 +5295,14 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.31";
+const GAME_VERSION = "1.32";
 const CHANGELOG = [
+  {
+    version: "1.32",
+    notes: [
+      "Refonte des statistiques en haut à gauche : la ligne du royaume dont c'est le tour grossit (~1,5×) avec une transition souple, une seule ligne mise en avant à la fois ; le chiffre juste à côté de la couleur est maintenant le total de soldats (force), avec le nombre de territoires connectés affiché séparément",
+    ],
+  },
   {
     version: "1.31",
     notes: [
