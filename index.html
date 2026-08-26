@@ -5412,8 +5412,14 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.37";
+const GAME_VERSION = "1.38";
 const CHANGELOG = [
+  {
+    version: "1.38",
+    notes: [
+      "Corrigé un écran noir puis blanc au lancement de l'application installée (PWA) : le service worker attendait le réseau sans jamais abandonner (un lancement à froid, radio encore en train de se réveiller, pouvait bloquer indéfiniment) — il se rabat maintenant sur la dernière version mise en cache au bout de 3 secondes, tout en continuant à charger la version fraîche en arrière-plan. Corrigé aussi un risque de boucle de rechargement si jamais la vérification de mise à jour ne retrouve jamais un en-tête stable.",
+    ],
+  },
   {
     version: "1.37",
     notes: [
@@ -6131,7 +6137,23 @@ async function checkForUpdate() {
 // their own normal fresh-game logic in that case, the reload replaces it
 function reloadIfUpdateAvailable() {
   if (!updateAvailable) return false;
+  // Loop guard: reported live as a PWA opening to a black-then-white blank
+  // screen and never actually reaching the game — one plausible mechanism
+  // is an ETag/Last-Modified that never settles to a stable match (a CDN
+  // quirk, or two tabs racing this same check), which without this guard
+  // would reload every single boot, forever, each time landing right back
+  // on the exact same "update available, still pre-pick" corner that
+  // triggers the very next reload — the player would never even see the
+  // faction-pick screen, let alone the map. sessionStorage survives a
+  // location.reload() within the same continuous launch but resets on a
+  // genuinely fresh app open, so this only ever suppresses a *repeat*
+  // reload within one session, never the first legitimate one.
+  const now = Date.now();
+  let lastReload = 0;
+  try { lastReload = Number(sessionStorage.getItem("kw_lastUpdateReload")) || 0; } catch (e) { /* ignore */ }
+  if (now - lastReload < 10000) return false;
   if (pendingVersionTag) { try { localStorage.setItem("kw_pageVersion", pendingVersionTag); } catch (e) { /* ignore */ } }
+  try { sessionStorage.setItem("kw_lastUpdateReload", String(now)); } catch (e) { /* ignore */ }
   location.reload();
   return true;
 }
