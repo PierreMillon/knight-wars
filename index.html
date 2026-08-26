@@ -53,7 +53,7 @@
   body.landscapeHud #settingsBtn, body.landscapeHud #bottomHudRow,
   body.landscapeHud #rerollBtn, body.landscapeHud #replayPauseBtn,
   body.landscapeHud #replayResumeHereBtn, body.landscapeHud #onboardingHint,
-  body.landscapeHud #oceanTapToast { display: none !important; }
+  body.landscapeHud #oceanTapToast, body.landscapeHud #forceAdaptToast { display: none !important; }
   #status, #log { display: none; } /* kept for internal state only, no longer shown */
   /* every persistent in-game HUD button (settings, end-turn, reroll, gueux
      badge, surrender, replay controls) shares one visual language — a
@@ -1164,6 +1164,7 @@ function lockPortraitStage(rawW, rawH) {
     wrapEl.style.height = "100%";
     wrapEl.style.transform = "";
     wrapRotationDeg = 0;
+    mapNumberRotationRad = 0;
     return { w: rawW, h: rawH };
   }
   // landscape: freeze at the last known portrait size, then rotate the
@@ -1177,6 +1178,9 @@ function lockPortraitStage(rawW, rawH) {
   wrapEl.style.height = h + "px";
   const type = (window.screen && screen.orientation && screen.orientation.type) || "";
   wrapRotationDeg = type === "landscape-secondary" ? 90 : -90;
+  // exact opposite angle — see mapNumberRotationRad's own note on why this
+  // cancels the CSS rotation out net-zero for every on-map numeric label
+  mapNumberRotationRad = -wrapRotationDeg * Math.PI / 180;
   // rotate() alone isn't enough: it turns the box in place around its own
   // center, but since w !== h (portrait is always taller than wide) that
   // center isn't where the rotated box needs to sit to fill a viewport
@@ -1324,17 +1328,41 @@ function resize() {
   // the whole size increase now; see HEX_SIZE/Y_STRETCH above for the rest.)
   render();
 }
-// Turning the phone sideways no longer changes anything about the game at
-// all — see lockPortraitStage()'s own note. Used to also rotate the force
-// digits in place to compensate (mapNumberRotationRad, fed from
-// screen.orientation.type) — removed along with everything else on a
-// direct request to go back to "nothing happens when I rotate the phone,
-// as if orientation were locked". Kept as an inert constant (always 0)
-// rather than deleting every read of it in drawForceIcon()/render(), so
-// reintroducing digit rotation later (if ever asked for again) is a single
-// isolated change again instead of re-threading it through those call
-// sites from scratch.
-const mapNumberRotationRad = 0;
+// The whole map is CSS-rotated ±90° in landscape now (see
+// lockPortraitStage()) so nothing is ever cropped — but read live, on
+// request: hexagons/colors/borders can stay tilted with the screen, while
+// every numeric label drawn ON them (force counts, combat rolls, water
+// costs, the outcome ring's "+N villages") stays upright, independent of
+// which way the phone was actually turned ("est-ce que tu peux savoir si
+// j'ai tourné à droite [ou] à gauche [...] je veux que les chiffres soient
+// verticaux par rapport à la gravité"). Set from lockPortraitStage()
+// alongside wrapRotationDeg (0 in portrait); the exact opposite angle, in
+// radians, so the two rotations — this one applied to the glyph in the
+// canvas's own coordinate space, the other applied by CSS to the whole
+// rendered canvas — cancel out to net zero on screen regardless of which
+// way wrapRotationDeg went. See drawMapNumber() for how it's actually used.
+let mapNumberRotationRad = 0;
+// Shared by every numeric label render() draws directly on the map (force
+// counts, combat atk/def rolls, water-crossing cost, reinforcement "+N",
+// the outcome ring's label) — draws upright to the viewer via
+// mapNumberRotationRad regardless of the map's own CSS rotation, instead of
+// every call site hand-rolling its own save/translate/rotate/restore.
+// Caller must already have set font/textAlign/textBaseline and BOTH
+// strokeStyle and fillStyle (in either order — canvas style properties are
+// independent of when stroke/fill actually paint) before calling this.
+function drawMapNumber(text, x, y) {
+  if (mapNumberRotationRad) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(mapNumberRotationRad);
+    ctx.strokeText(text, 0, 0);
+    ctx.fillText(text, 0, 0);
+    ctx.restore();
+  } else {
+    ctx.strokeText(text, x, y);
+    ctx.fillText(text, x, y);
+  }
+}
 // try/catch, not just the truthy guard above: this runs at the top level
 // during initial script execution, so ANY uncaught exception here (e.g. iOS
 // Safari exposing `screen.orientation` as an object that doesn't actually
@@ -4379,9 +4407,8 @@ function render() {
       ctx.textAlign = "center";
       ctx.strokeStyle = `rgba(20,16,12,${pulseFadeAlpha * 0.8})`;
       ctx.lineWidth = 2.5;
-      ctx.strokeText(`+${p.amount}`, t.cx, ringCy - 22 - (1 - introProgress) * 14);
       ctx.fillStyle = `rgba(255, 214, 92, ${pulseFadeAlpha})`;
-      ctx.fillText(`+${p.amount}`, t.cx, ringCy - 22 - (1 - introProgress) * 14);
+      drawMapNumber(`+${p.amount}`, t.cx, ringCy - 22 - (1 - introProgress) * 14);
     }
   }
 
@@ -4480,9 +4507,8 @@ function render() {
         if (!wh) continue;
         const label = `-${wh.waterCost}`;
         ctx.strokeStyle = `rgba(20,16,12,${alpha * 0.8})`;
-        ctx.strokeText(label, wh.x, wh.y + floatY);
         ctx.fillStyle = `rgba(255,150,120,${alpha})`;
-        ctx.fillText(label, wh.x, wh.y + floatY);
+        drawMapNumber(label, wh.x, wh.y + floatY);
       }
     }
 
@@ -4503,15 +4529,13 @@ function render() {
       ctx.lineWidth = 2.5;
       if (fromT) {
         ctx.strokeStyle = `rgba(20,16,12,${numberAlpha * 0.8})`;
-        ctx.strokeText(String(fx.atk), fromT.cx, fromT.cy + floatY);
         ctx.fillStyle = `rgba(242,237,226,${numberAlpha})`;
-        ctx.fillText(String(fx.atk), fromT.cx, fromT.cy + floatY);
+        drawMapNumber(String(fx.atk), fromT.cx, fromT.cy + floatY);
       }
       if (toT) {
         ctx.strokeStyle = `rgba(20,16,12,${numberAlpha * 0.8})`;
-        ctx.strokeText(String(fx.def), toT.cx, toT.cy + floatY);
         ctx.fillStyle = `rgba(242,237,226,${numberAlpha})`;
-        ctx.fillText(String(fx.def), toT.cx, toT.cy + floatY);
+        drawMapNumber(String(fx.def), toT.cx, toT.cy + floatY);
       }
     }
 
@@ -4545,9 +4569,8 @@ function render() {
       ctx.font = "bold 15px -apple-system, sans-serif"; // was 11px — +40%
       ctx.strokeStyle = `rgba(20,16,12,${alpha * 0.8})`;
       ctx.lineWidth = 2.5;
-      ctx.strokeText(label, ringT.cx, ringT.cy + floatY - 17);
       ctx.fillStyle = outcomeColor;
-      ctx.fillText(label, ringT.cx, ringT.cy + floatY - 17);
+      drawMapNumber(label, ringT.cx, ringT.cy + floatY - 17);
     }
   }
 
@@ -4634,20 +4657,10 @@ function drawForceIcon(t) {
     // glyph's true vertical center, so the number always read as sitting
     // low/off-center in its hexagon rather than pinned to the actual middle
     ctx.textBaseline = "middle";
-    // rotated in place around its own hex center when the phone is turned
-    // sideways (mapNumberRotationRad, 0 in portrait) — see updateMapNumberRotation();
-    // everything else about the map/HUD stays exactly as it is
-    if (mapNumberRotationRad) {
-      ctx.save();
-      ctx.translate(t.cx, t.cy);
-      ctx.rotate(mapNumberRotationRad);
-      ctx.strokeText(String(t.force), 0, 0);
-      ctx.fillText(String(t.force), 0, 0);
-      ctx.restore();
-    } else {
-      ctx.strokeText(String(t.force), t.cx, t.cy);
-      ctx.fillText(String(t.force), t.cx, t.cy);
-    }
+    // stays upright in place around its own hex center regardless of the
+    // map's own CSS rotation in landscape — see drawMapNumber()/
+    // mapNumberRotationRad's own notes.
+    drawMapNumber(String(t.force), t.cx, t.cy);
     ctx.textBaseline = "alphabetic"; // restore the default for every other text draw in render()
     return;
   }
@@ -5194,8 +5207,14 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.27";
+const GAME_VERSION = "1.28";
 const CHANGELOG = [
+  {
+    version: "1.28",
+    notes: [
+      "Mode paysage : les hexagones/couleurs continuent de tourner avec l'écran, mais tous les chiffres affichés sur la carte (force, dés de combat, coût des traversées d'eau...) restent désormais droits, lisibles sans pencher la tête, quel que soit le sens dans lequel le téléphone est tourné",
+    ],
+  },
   {
     version: "1.27",
     notes: [
