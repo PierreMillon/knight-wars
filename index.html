@@ -3272,7 +3272,16 @@ function checkElimination() {
 // at FORCE_CAP) whose ownership hasn't budged for several rounds running as
 // a de-facto stalemate, backstopping the case where nobody's actually
 // landing a winning roll even though one remains possible.
-const STALEMATE_TRUCE_ROUNDS = 4;
+// "Round" means every royaume STILL ALIVE playing once — with 4 royaumes up
+// this was 4×4=16 individual turns, but reported live as feeling way too
+// fast ("tous les 10 tours c'est rapide ça") once the match narrows down to
+// its last two survivors: the same 4 rounds is then only 4×2=8 individual
+// turns, since each round is over twice as fast with half as many players
+// left. Doubled to 8 so the worst case (down to the final 1v1) lands back
+// around 16 individual turns too, matching how the original 4-round value
+// actually played out for most of a typical match rather than only at its
+// very start.
+const STALEMATE_TRUCE_ROUNDS = 8;
 function checkStalemate() {
   if (gameOver) { allCappedStreak = 0; return; }
   let allBordersCapped = true;
@@ -5702,8 +5711,14 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.41";
+const GAME_VERSION = "1.42";
 const CHANGELOG = [
+  {
+    version: "1.42",
+    notes: [
+      "Doublé le nombre de tours complets requis avant la trêve de statu-quo (4 → 8) : signalé comme se déclenchant trop vite en toute fin de partie — un « tour complet » compte chaque royaume encore vivant, donc les 4 tours d'avant ne représentaient plus que 8 tours individuels une fois réduit aux deux derniers survivants, contre 16 en début de partie à 4 royaumes.",
+    ],
+  },
   {
     version: "1.41",
     notes: [
