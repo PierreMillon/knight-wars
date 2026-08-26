@@ -2706,12 +2706,28 @@ function playTone(freq, duration, opts = {}) {
 // through a major chord (root, third, fifth, octave, ...), starting a
 // couple of semitones below the normal pitch so a long chain still has
 // headroom to rise into instead of immediately maxing out.
-const CHAIN_MAJOR_INTERVALS = [0, 4, 7, 12, 16, 19, 24, 28]; // semitones above the chain's start pitch
+// root/third/fifth of one octave — chainIntervalFor() below climbs an extra
+// octave every 3 steps instead of ever wrapping/clamping back down, same
+// "lap" technique as REINFORCE_CHORD_RATIOS/processReinforceSoundQueue()
+// (there in ratio form, here in semitone form). Used to be a flat 8-entry
+// table ([0,4,7,12,16,19,24,28]) clamped at its last value once chainIndex
+// ran past it — harmless for a short chain, but a genuinely long one
+// (reported live) plateaus on that same top note instead of continuing to
+// rise, which reads as the chime getting "stuck" high instead of climbing.
+// This produces the exact same 8 values for indices 0-7 (verified: lap =
+// floor(i/3), interval = CHORD_INTERVALS[i%3] + 12*lap gives 0,4,7,12,16,
+// 19,24,28 — identical to the old table) and simply keeps going forever
+// past that, octave after octave, with no ceiling.
+const CHORD_INTERVALS = [0, 4, 7];
+function chainIntervalFor(chainIndex) {
+  const lap = Math.floor(chainIndex / CHORD_INTERVALS.length);
+  return CHORD_INTERVALS[chainIndex % CHORD_INTERVALS.length] + 12 * lap;
+}
 function sfxAttack(win, chainIndex = -1) {
   const baseFreq = win ? 220 : 140, baseSlide = win ? 160 : 90;
   let mul = 1;
   if (chainIndex >= 0) {
-    const interval = CHAIN_MAJOR_INTERVALS[Math.min(chainIndex, CHAIN_MAJOR_INTERVALS.length - 1)];
+    const interval = chainIntervalFor(chainIndex);
     mul = Math.pow(2, (interval - 2) / 12); // -2 semitones: "un ou deux tons plus grave" for the chain's first hop
   }
   playTone(baseFreq * mul, 0.16, { type: "triangle", cutoff: 700, volume: 0.09, slideTo: baseSlide * mul });
@@ -2720,12 +2736,12 @@ function sfxEndTurn() { playTone(120, 0.14, { type: "sine", cutoff: 480, volume:
 // Discreet cue for each extra village joining a drag-to-attack chain,
 // BEFORE release — not the attack itself, just anticipation that this hop
 // is now part of the planned chain. Same melody shape as sfxAttack()'s own
-// chain climb (CHAIN_MAJOR_INTERVALS), transposed down a full fifth and
+// chain climb (chainIntervalFor()), transposed down a full fifth and
 // quieter/shorter, so it reads as organic background texture rather than
 // the attack sound repeating early: "quelque chose de discret et
 // organique, plus la même mélodie que l'attaque mais une quinte plus bas."
 function sfxDragExtend(chainIndex) {
-  const interval = CHAIN_MAJOR_INTERVALS[Math.min(Math.max(0, chainIndex), CHAIN_MAJOR_INTERVALS.length - 1)];
+  const interval = chainIntervalFor(Math.max(0, chainIndex));
   const mul = Math.pow(2, (interval - 2) / 12) * Math.pow(2, -7 / 12); // -7 semitones = a fifth lower
   playTone(220 * mul, 0.1, { type: "triangle", cutoff: 700, volume: 0.05, slideTo: 160 * mul });
 }
@@ -2834,24 +2850,28 @@ function processReinforceSoundQueue() {
 // Win/loss/truce stingers reuse the same two building blocks the rest of the
 // combat sounds already established: each royaume's own root note
 // (reinforceRootHzFor(), same one its reinforcement chime uses) and the
-// chain-attack's chord shape (CHAIN_MAJOR_INTERVALS, the same 8-step climb a
+// chain-attack's chord shape (chainIntervalFor(), the same 8-step climb a
 // long drag-to-attack chain plays through) — so a win feels like "your own
 // royaume's sound, run all the way out", not an unrelated jingle.
 function sfxVictory(royId = humanRoyId) {
   const root = reinforceRootHzFor(royId);
-  CHAIN_MAJOR_INTERVALS.forEach((interval, i) => {
-    const freq = root * Math.pow(2, interval / 12);
+  // fixed 8-note flourish — same 8 values chainIntervalFor(0..7) always
+  // produced back when this table was a flat, hard-coded array
+  for (let i = 0; i < 8; i++) {
+    const freq = root * Math.pow(2, chainIntervalFor(i) / 12);
     scheduleSound(() => playTone(freq, 0.22, { type: "triangle", cutoff: 1400, volume: 0.09 }), i * 130);
-  });
+  }
 }
 // same chord shape and the human's own root, run in reverse — the fall
 // mirrors the climb instead of being some unrelated "sad trombone" sound
 function sfxDefeat(royId = humanRoyId) {
   const root = reinforceRootHzFor(royId);
-  [...CHAIN_MAJOR_INTERVALS].reverse().forEach((interval, i) => {
-    const freq = root * Math.pow(2, interval / 12);
-    scheduleSound(() => playTone(freq, 0.22, { type: "triangle", cutoff: 1000, volume: 0.08 }), i * 130);
-  });
+  // same fixed 8-note shape sfxVictory() plays, run in reverse (falling
+  // rather than climbing) — see chainIntervalFor()'s own note
+  for (let i = 7; i >= 0; i--) {
+    const freq = root * Math.pow(2, chainIntervalFor(i) / 12);
+    scheduleSound(() => playTone(freq, 0.22, { type: "triangle", cutoff: 1000, volume: 0.08 }), (7 - i) * 130);
+  }
 }
 // a truce is neither a win nor a loss — a little indecisive wobble instead
 // of either stinger, not rooted on any one royaume since nobody actually won
@@ -3388,6 +3408,13 @@ function showWin(royId) {
       `Toutes les terres sont vôtres, seigneur, ${ROYAUMES[royId].name}. Un royaume de plus sous votre étendard, et déjà l'horizon en réclame un autre. Vos hommes terminent de compter les morts et vous souriez, que c'est beau un champ de bataille. *croque son sandwich vegan, la larme à l'œil*`,
       `Victoire, seigneur, ${ROYAUMES[royId].name} ! Les hurlements vous manquent déjà.`,
       `${ROYAUMES[royId].name} règne sans partage, mais l'odeur de la paix n'égalera jamais celle de la chair brûlée. *soupir*`,
+      // The arc explaining why a hired général de guerre (see startGame()'s
+      // own onboarding-hint note — you were only ever engaged BY this
+      // house, not born to it) ends up addressed as "seigneur": once every
+      // rival branch is dust, the house that hired you has no rival army
+      // left of its own to enforce its claim over yours either — you don't
+      // conquer them so much as simply stop asking permission.
+      `On vous avait engagé comme général, seigneur — un mercenaire au service de ${ROYAUMES[royId].name}, rien de plus. Mais un général qui a écrasé toutes les branches rivales n'a plus besoin qu'on lui rappelle qui commande : la maison qui vous payait n'a plus d'armée pour faire valoir son sang contre le vôtre. Engagé au matin, seigneur au soir.`,
     ];
     text = VICTORY_LINES[Math.abs(currentSeed + royId) % VICTORY_LINES.length];
   }
@@ -5412,8 +5439,15 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.38";
+const GAME_VERSION = "1.39";
 const CHANGELOG = [
+  {
+    version: "1.39",
+    notes: [
+      "Corrigé la mélodie d'une attaque en chaîne très longue : les notes plafonnaient et restaient bloquées très aiguës passé un certain nombre de villages — elles continuent maintenant de monter indéfiniment, octave après octave",
+      "Nouvelle ligne de victoire dans le lore : explique pourquoi un général mercenaire engagé par l'une des branches Millon finit appelé « seigneur » — une fois toutes les branches rivales éliminées, celle qui vous employait n'a plus d'armée pour faire valoir son rang sur le vôtre non plus",
+    ],
+  },
   {
     version: "1.38",
     notes: [
