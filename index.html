@@ -4854,16 +4854,18 @@ function hexAt(q, r) {
   const { x, y } = axialToPixel(q, r);
   return { q, r, x, y, isWater: true, territoryId: -1, synthetic: true };
 }
-function hexAtClientPoint(clientX, clientY) {
+function clientPointToLocal(clientX, clientY) {
   const rect = canvas.getBoundingClientRect();
   // rect is POST-transform physical pixels (see lockPortraitStage()) while
   // centerX/centerY/viewScale are all logical — invert the rotation via
   // physicalToWrapLocal() first, or every tap/drag hit-tests against the
   // wrong spot whenever the phone is turned sideways.
   const local = physicalToWrapLocal(clientX, clientY, rect);
-  const localX = (local.x - centerX) / viewScale;
-  const localY = (local.y - centerY) / viewScale;
-  const { q, r } = pixelToAxial(localX, localY);
+  return { x: (local.x - centerX) / viewScale, y: (local.y - centerY) / viewScale };
+}
+function hexAtClientPoint(clientX, clientY) {
+  const { x, y } = clientPointToLocal(clientX, clientY);
+  const { q, r } = pixelToAxial(x, y);
   return hexAt(q, r);
 }
 function territoryAtClientPoint(clientX, clientY) {
@@ -4873,6 +4875,39 @@ function territoryAtClientPoint(clientX, clientY) {
   // gliding over water mid-drag doesn't cancel the gesture (see the
   // pointermove handler below) and a tap directly on water is a no-op
   return h2.isWater ? null : territories[h2.territoryId];
+}
+// Fat-finger forgiveness, used only for the final tap/release resolution in
+// handlePointer() — the plain hover/drag hit-test above stays exact, so a
+// drag chain still tracks the finger precisely. A tap landing one pixel
+// into a water hex right at a coastal village's own edge does nothing in
+// portrait, but ends the whole turn in landscape (see wrapRotationDeg's
+// branch in handlePointer()) — a silent trap for anyone tapping close to a
+// hex's true border, worse the tighter that border sits against real land.
+// Reported live: "j'ai appuyé sur un village, il a cru que c'était l'eau,
+// ça a fini le tour" — exhaustive rotation/hit-test math checks found no
+// bug in the coordinate conversion itself (verified again after this fix),
+// so the real issue is that hex borders are hard edges with zero
+// forgiveness, and landscape in particular punishes any miss severely. If
+// the exact hex under the tap is water, check its 6 immediate neighbors
+// and snap to whichever LAND hex's own center is genuinely closest to the
+// tap point — but only within TAP_SNAP_RADIUS (comfortably less than the
+// ~45px gap between two hex centers at this HEX_SIZE), so this only
+// rescues a near-miss right at a shared edge, never reaches across open
+// water toward some distant shore.
+const TAP_SNAP_RADIUS = HEX_SIZE * 1.15;
+function territoryAtClientPointTolerant(clientX, clientY) {
+  const { x, y } = clientPointToLocal(clientX, clientY);
+  const { q, r } = pixelToAxial(x, y);
+  const hit = hexAt(q, r);
+  if (!hit.isWater) return territories[hit.territoryId];
+  let best = null, bestDist = TAP_SNAP_RADIUS;
+  for (const [dq, dr] of NEI) {
+    const nh = hexAt(q + dq, r + dr);
+    if (nh.isWater) continue;
+    const d = Math.hypot(nh.x - x, nh.y - y);
+    if (d < bestDist) { bestDist = d; best = nh; }
+  }
+  return best ? territories[best.territoryId] : null;
 }
 
 // tapping any of a real royaume's territories while awaiting a pick claims
@@ -4915,7 +4950,7 @@ function pickFaction(royId) {
 
 function handlePointer(clientX, clientY) {
   if (replaying || gameOver) return;
-  const t = territoryAtClientPoint(clientX, clientY);
+  const t = territoryAtClientPointTolerant(clientX, clientY);
   if (!t) {
     // a tap or drag-release landing on open water instead of a real target.
     // awaitingFactionPick and placingGueux each already have their own
@@ -5377,8 +5412,14 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.36";
+const GAME_VERSION = "1.37";
 const CHANGELOG = [
+  {
+    version: "1.37",
+    notes: [
+      "Corrigé le décalage tactile signalé en mode paysage : un doigt qui touche à peine à côté d'un village, juste sur la case d'eau voisine, se rattrape maintenant sur le village visé au lieu d'être lu comme un océan (ce qui finissait le tour d'un coup en paysage, où toucher l'eau tient lieu de bouton « Fin de bataille »)",
+    ],
+  },
   {
     version: "1.36",
     notes: [
