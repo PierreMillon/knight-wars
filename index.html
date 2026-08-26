@@ -1061,17 +1061,31 @@ const AI_PERSONALITIES = [
     lore: "jouent la longue partie, ne laissent jamais un flanc découvert et ne se pressent jamais — patients, mais rarement pris en défaut." }, // Beaumanoir — calculating, plays the long game
 ];
 
-// Difficulty: still a continuous 0-1 value under the hood (driving AI traits
+// Difficulty: still a continuous value under the hood (driving AI traits
 // and the share of neutral territories), but exposed to the player as 4
-// named levels rather than a raw slider.
+// named levels rather than a raw slider. Used to be hard-clamped to [0,1]
+// — Chevalier and Seigneur now deliberately push past 1 (see
+// DIFFICULTY_LEVELS below), so every lerp() here just keeps extrapolating
+// linearly past its old "hardest" endpoint instead of capping out there,
+// per an explicit request to make the top two levels ~30% harder still,
+// Seigneur in particular "on doit très difficilement arriver à gagner...
+// il faut faire zéro faute tactique".
 let DIFFICULTY = 0.4;
 let NEUTRAL_FRACTION = 0.2;
 let AI_AGGRESSION_THRESHOLD = 0;
 let AI_MISTAKE_RATE = 0.15;
 function lerp(a, b, t) { return a + (b - a) * t; }
 function applyDifficulty(d) {
-  DIFFICULTY = Math.max(0, Math.min(1, d));
-  NEUTRAL_FRACTION = lerp(0.36, 0.06, DIFFICULTY);
+  DIFFICULTY = Math.max(0, d); // no upper clamp any more — see this section's own note
+  // Floored, not just lerp()'d straight through: past DIFFICULTY≈1.2 the
+  // raw lerp goes negative, which read as "more neutral land than the
+  // easiest difficulty" (a negative fraction) once Seigneur's own value
+  // started exceeding that point — nonsensical, so this alone still stops
+  // at "almost none left; everything must be fought for" rather than
+  // extrapolating into an invalid state the way the other three fields
+  // (which stay meaningful however far past their old endpoint they go)
+  // safely can.
+  NEUTRAL_FRACTION = Math.max(0.02, lerp(0.36, 0.06, DIFFICULTY));
   // Page (easiest) is meant to be "almost no resistance" — a new player
   // should win easily, not have to actually fight for it. Pushed further
   // than the values that once worried about AI-vs-AI gridlock/hundred-round
@@ -1081,7 +1095,7 @@ function applyDifficulty(d) {
   // real risk of a match that technically never ends — only of Page taking
   // a while on the rare game where the player doesn't press an early edge.
   AI_AGGRESSION_THRESHOLD = lerp(1.5, -2.2, DIFFICULTY);
-  AI_MISTAKE_RATE = lerp(0.85, 0, DIFFICULTY);
+  AI_MISTAKE_RATE = lerp(0.85, 0, DIFFICULTY); // goes negative past DIFFICULTY=1 — harmless, already clamped to >=0 at every point-of-use (see runAI())
 }
 
 // Safety valve: at the easy end, 3 very passive AIs can coexist without
@@ -1103,11 +1117,18 @@ function escalated(baseValue, hardValue) {
   // than these hard values, and must stay that tough for the whole match).
   return baseValue <= hardValue ? Math.min(baseValue, interp) : interp;
 }
+// Chevalier and Seigneur bumped +30% per explicit request ("augmente de
+// 30% la difficulté globale de tous les niveaux à partir du niveau trois
+// et niveau quatre") — Page and Écuyer untouched. Seigneur's value now
+// exceeds the old [0,1] ceiling on purpose; applyDifficulty() no longer
+// clamps it away (see its own note) — winning at Seigneur is meant to be
+// rare now, needing zero tactical mistakes ("il faut vraiment que le
+// niveau quatre... on arrive très difficilement à gagner").
 const DIFFICULTY_LEVELS = [
   { name: "Page",      value: 0 },
   { name: "Écuyer",    value: 0.35 },
-  { name: "Chevalier", value: 0.7 },
-  { name: "Seigneur",  value: 1 },
+  { name: "Chevalier", value: 0.91 }, // was 0.7 (×1.3)
+  { name: "Seigneur",  value: 1.3 },  // was 1 (×1.3)
 ];
 let difficultyLevel = 1; // Écuyer — matches the previous flat default
 try {
@@ -5315,8 +5336,14 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.33";
+const GAME_VERSION = "1.34";
 const CHANGELOG = [
+  {
+    version: "1.34",
+    notes: [
+      "Difficulté augmentée de 30% pour Chevalier et Seigneur (Page et Écuyer inchangés) — Seigneur en particulier doit désormais se gagner très difficilement, presque sans aucune erreur tactique",
+    ],
+  },
   {
     version: "1.33",
     notes: [
