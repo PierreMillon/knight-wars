@@ -2401,7 +2401,7 @@ let replaying = false;
 // visibly different pacing (dead time on AI-heavy stretches) — reported
 // live: "le replay doit y avoir aucun temps mort [...] chaque action a la
 // même durée [...] assez rapide".
-const REPLAY_STEP_MS = 50;
+const REPLAY_STEP_MS = 65; // was 50 — slowed another 30% per live feedback
 // Starts true — the replay opens paused/frozen, an explicit tap on
 // replayPauseBtn ("▶ Lire") is what actually starts it playing, rather
 // than auto-playing the instant the screen appears.
@@ -3055,7 +3055,7 @@ function executeWaterSacrifice(fromId, waterHexKeys, pureDirectDive = true) {
   from.force = 1; // fresh garrison, same convention attack() already uses
   const isRitual = pureDirectDive && waterHexKeys.length > 0 && allOpenSea && startForce === FORCE_CAP && reachedFloor;
   triggerWaterSacrificeFX(fromId, waterHexKeys, isRitual);
-  sfxAttack(false, -1); // reuse the existing "échec" sting — something was genuinely lost, no win chime makes sense here
+  if (!replaying) sfxAttack(false, -1); // reuse the existing "échec" sting — something was genuinely lost, no win chime makes sense here
   if (isRitual) showOceanTapEasterEgg();
   else showForcedSwimToast();
   logMsg(`${ROYAUMES[from.owner].name} perd des soldats en mer.`);
@@ -3065,6 +3065,23 @@ function attack(fromId, toId, chainIndex = -1) {
   const from = territories[fromId], to = territories[toId];
   const waterCost = waterCostBetween(from, toId);
   const waterPath = from.neighbors.has(toId) ? null : waterPathBetween(from, toId);
+  // If the crossing itself costs at least as much force as the garrison
+  // had, nobody actually makes it to the fight — this used to be silently
+  // floored to a guaranteed minimum of 1 attacker below, which let 2
+  // soldiers "win" a 3-hex crossing that should have drowned them outright
+  // (reported live, twice, as a confirmed bug). Now that's an automatic
+  // failure instead: the garrison is lost to the water, the target is
+  // never touched, no dice are even rolled.
+  if (from.force - waterCost <= 0) {
+    logMsg(`${ROYAUMES[from.owner].name} attaque ${ROYAUMES[to.owner].name} — noyés en chemin, aucune troupe n'arrive — échec`);
+    triggerCombatFX(fromId, toId, 0, to.force, false, from.owner, to.owner, to.hexKeys.length, waterPath);
+    if (!replaying) sfxAttack(false, chainIndex);
+    from.force = 1;
+    checkElimination();
+    checkWinner();
+    render();
+    return false;
+  }
   // the force that actually arrives to fight, after paying for the crossing
   // — everything below reads this instead of from.force wherever it's the
   // attacking side, exactly as if a smaller army had marched up to attack.
@@ -3076,7 +3093,11 @@ function attack(fromId, toId, chainIndex = -1) {
   const win = atk > def;
   logMsg(`${ROYAUMES[from.owner].name} attaque ${ROYAUMES[to.owner].name} — ${atk} vs ${def} — ${win ? "victoire" : "échec"}`);
   triggerCombatFX(fromId, toId, atk, def, win, from.owner, to.owner, to.hexKeys.length, waterPath);
-  sfxAttack(win, chainIndex);
+  // Both this and sfxReinforce() below (see endTurn()) used to also play
+  // during replay playback, reported multiple times as unwanted — the
+  // visuals (swords, rings) are the point during a replay, the sounds
+  // aren't.
+  if (!replaying) sfxAttack(win, chainIndex);
   if (win) {
     to.owner = from.owner;
     to.force = Math.max(1, attackingForce - 1);
@@ -3182,7 +3203,7 @@ function endTurn() {
   logMsg(`${ROYAUMES[royId].name} reçoit ${reinforcement} renfort(s).`);
   selected = -1;
   triggerPulse(reinforcedCounts);
-  if (royId === humanRoyId) sfxEndTurn();
+  if (royId === humanRoyId && !replaying) sfxEndTurn();
   // Every royaume's reinforcement plays its own chime now — queued (see
   // processReinforceSoundQueue()) so back-to-back turns don't overlap, and
   // pitched an octave lower than our own for every rival (reinforceRootHzFor())
@@ -3192,7 +3213,7 @@ function endTurn() {
   // reinforcedCounts (each labeled with its own point total), so the chime
   // needs to match that 1:1, not the total point count: reinforcing 2
   // villages with 2 points each should sound like two notes, not four.
-  sfxReinforce(Object.keys(reinforcedCounts).length, royId);
+  if (!replaying) sfxReinforce(Object.keys(reinforcedCounts).length, royId);
   if (replaying || forceInstantSkip) {
     // playReplay()'s own pacing (step()'s 30ms poll) relies on currentPlayer
     // having already moved on by the time it runs again — never delay this
@@ -5598,6 +5619,13 @@ function closeSettingsPanel() {
   sfxMenuClose();
 }
 document.getElementById("closeSettings").addEventListener("click", closeSettingsPanel);
+// Tapping the dimmed backdrop itself (outside the parchment box, e.g. the
+// map area visible above/around it) closes the menu too — e.target check
+// keeps this from firing on clicks that bubble up from the box or its
+// buttons, only the bare backdrop counts.
+settingsPanel.addEventListener("click", (e) => {
+  if (e.target === settingsPanel) closeSettingsPanel();
+});
 // Drag-to-dismiss: swipe the whole panel straight down to close it, like an
 // iOS sheet — an alternative to tapping the ✕ for anyone who'd rather just
 // pull the panel away and reveal the map dimmed underneath. Only ever starts
@@ -5727,8 +5755,17 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.43";
+const GAME_VERSION = "1.44";
 const CHANGELOG = [
+  {
+    version: "1.44",
+    notes: [
+      "Corrigé un bug confirmé : une attaque par l'eau dont le coût de traversée égale ou dépasse la force du village attaquant réussissait quand même (forcée à un minimum de 1 attaquant) — elle échoue maintenant automatiquement (« noyés en chemin »), sans toucher à la cible.",
+      "Le replay ne joue plus les sons de combat/renfort (juste les visuels — épées, anneaux) — ils gênaient plus qu'autre chose pendant le visionnage.",
+      "Vitesse du replay encore ralentie de 30%.",
+      "Le menu se ferme maintenant aussi en touchant le fond assombri autour de l'encadré, pas seulement le ✕.",
+    ],
+  },
   {
     version: "1.43",
     notes: [
