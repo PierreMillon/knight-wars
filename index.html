@@ -735,9 +735,9 @@
       <div class="fieldGroup">
         <div class="fieldLabel">Taille de la carte — s'applique à la prochaine guerre</div>
         <div id="mapSizeLevels" class="levelRow">
-          <button data-mapsize="small" class="levelBtn">Escarmouche</button>
-          <button data-mapsize="medium" class="levelBtn">Campagne</button>
-          <button data-mapsize="large" class="levelBtn">Grande Campagne</button>
+          <button data-mapsize="small" class="levelBtn">Bras de fer</button>
+          <button data-mapsize="medium" class="levelBtn">Raid</button>
+          <button data-mapsize="large" class="levelBtn">Massacre</button>
           <button data-mapsize="huge" class="levelBtn">Croisade</button>
         </div>
       </div>
@@ -754,7 +754,6 @@
         </div>
       </div>
       <label><input type="checkbox" id="soundToggle"> Sons</label>
-      <label><input type="checkbox" id="metaProgressToggle"> Progression du gueux — gagnez un gueux à chaque victoire</label>
 
       <!-- Tier 2: reference/display info, not something you "change" so
            much as glance at — separated from the toggles above it.
@@ -958,9 +957,9 @@ try {
 // own slice of the map stays roughly the same size regardless of how many
 // are sharing it.
 const MAP_SIZES = {
-  small: { label: "Escarmouche", territoryCount: 6, radius: 95, baseFactions: 2 },
-  medium: { label: "Campagne", territoryCount: 26, radius: 230, baseFactions: 4 },
-  large: { label: "Grande Campagne", territoryCount: 36, radius: 255, baseFactions: 4 },
+  small: { label: "Bras de fer", territoryCount: 6, radius: 95, baseFactions: 2 },
+  medium: { label: "Raid", territoryCount: 26, radius: 230, baseFactions: 4 },
+  large: { label: "Massacre", territoryCount: 36, radius: 255, baseFactions: 4 },
   // biggest tier — genuinely fills ~95% of the available screen space
   // (resize()'s viewScale already fits whatever's generated tightly to the
   // viewport; this is just a bigger island/higher hex count than "Grande
@@ -2179,6 +2178,11 @@ function surrenderGame() {
   }
   gameOver = true;
   humanSurrendered = true;
+  if (gueuxCount > 0) {
+    gueuxCount--;
+    try { localStorage.setItem("kw_gueuxCount", String(gueuxCount)); } catch (e) { /* ignore */ }
+    refreshGueuxBadge();
+  }
   showWin(winnerId);
 }
 
@@ -2311,13 +2315,12 @@ function scheduleTurn(fn, delay) {
 // moment is the one instant-battles shouldn't fully zero out.
 const REINFORCE_PAUSE_MS = 160;
 
-// opt-in meta-progression: one persistent "gueux" earned per victory — off by
-// default, the count itself is kept even while the setting is off so
-// re-enabling doesn't lose it. Spendable in any later match: tap the badge to
-// arm it, then tap one of your own territories (below the force cap) to
-// spend one gueux as an instant +1 reinforcement there.
-let metaProgressEnabled = false;
-try { metaProgressEnabled = localStorage.getItem("kw_metaProgress") === "1"; } catch (e) { /* ignore */ }
+// meta-progression: one persistent "gueux" earned per victory, always on
+// (used to be an opt-in setting — removed per request, the toggle wasn't
+// pulling its weight). Spendable in any later match: tap the badge to arm
+// it, then tap one of your own territories (below the force cap) to spend
+// one gueux as an instant +1 reinforcement there. Surrendering costs one.
+const metaProgressEnabled = true;
 let gueuxCount = 0;
 try { gueuxCount = Number(localStorage.getItem("kw_gueuxCount")) || 0; } catch (e) { /* ignore */ }
 let placingGueux = false; // armed by tapping the badge; consumed by the next own-territory tap
@@ -5724,8 +5727,17 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.42";
+const GAME_VERSION = "1.43";
 const CHANGELOG = [
+  {
+    version: "1.43",
+    notes: [
+      "Tailles de carte renommées pour mieux évoquer leur ambiance : « Escarmouche » → « Bras de fer », « Campagne » → « Raid », « Grande Campagne » → « Massacre » (« Croisade » inchangée).",
+      "Le message d'offrande à la mer (plongée volontaire jusqu'au bout depuis un village au maximum de troupes) reste affiché deux fois plus longtemps, le temps de le lire en entier.",
+      "Les gueux (progression méta) sont désormais toujours actifs, l'option de réglage a été retirée. Abandonner une partie coûte maintenant un gueux, comme une défaite.",
+      "Le bouton d'abandon (crâne) est masqué pendant le visionnage d'un replay — il n'a aucun effet là où il n'y a plus de partie en cours à abandonner.",
+    ],
+  },
   {
     version: "1.42",
     notes: [
@@ -6165,14 +6177,6 @@ document.getElementById("royaumesList").innerHTML = ROYAUMES.slice(0, ROYAUME_CO
   </div>
 `).join("");
 
-const metaProgressToggle = document.getElementById("metaProgressToggle");
-metaProgressToggle.checked = metaProgressEnabled;
-metaProgressToggle.addEventListener("change", () => {
-  metaProgressEnabled = metaProgressToggle.checked;
-  try { localStorage.setItem("kw_metaProgress", metaProgressEnabled ? "1" : "0"); } catch (e) { /* ignore */ }
-  refreshGueuxBadge();
-  sfxToggle();
-});
 
 function refreshLevelButtons() {
   document.querySelectorAll("#difficultyLevels .levelBtn").forEach((btn, i) => {
@@ -6314,10 +6318,11 @@ function updateEndTurnButton() {
   btn.style.visibility = endturnVisible() ? "" : "hidden";
   btn.style.pointerEvents = endturnVisible() ? "" : "none";
   // always visible, even before a camp is picked (surrenderGame() itself
-  // handles that case with its own flavor line) — only actually hidden
-  // once the match is over: nothing left to surrender, and tapping it
-  // post-gameOver would just call showWin() a second time for no reason
-  document.getElementById("surrenderBtn").style.display = gameOver ? "none" : "";
+  // handles that case with its own flavor line) — hidden once the match is
+  // over (nothing left to surrender, tapping it post-gameOver would just
+  // call showWin() a second time for no reason) or during replay (not
+  // useful there — reported live as a stray button on the replay screen)
+  document.getElementById("surrenderBtn").style.display = (gameOver || replaying) ? "none" : "";
   if (awaitingFactionPick) {
     btn.textContent = "Choisissez un camp";
     btn.classList.remove("aiTurn");
@@ -6423,7 +6428,7 @@ function showOceanTapEasterEgg() {
   oceanTapToastTimer = setTimeout(() => {
     el.style.opacity = "0";
     oceanTapToastTimer = setTimeout(() => { el.style.display = "none"; }, 650); // matches the CSS opacity transition duration
-  }, 2200);
+  }, 4400); // doubled per request — the ritual message specifically, not showForcedSwimToast()'s plain line below
 }
 // The plain, non-escalating line for any OTHER force lost to the sea
 // (fewer soldiers than the full ritual needs, a lake anywhere on the path,
@@ -6444,7 +6449,7 @@ function showForcedSwimToast() {
 
 function refreshGueuxBadge() {
   const el = document.getElementById("gueuxBadge");
-  el.classList.toggle("gueuxHidden", !(metaProgressEnabled && !replaying));
+  el.classList.toggle("gueuxHidden", replaying);
   el.textContent = `🧑‍🌾 ${gueuxCount}`;
   el.classList.toggle("gueuxArmed", placingGueux);
   el.style.opacity = gueuxCount > 0 ? "1" : ".5";
