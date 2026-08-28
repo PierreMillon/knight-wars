@@ -847,13 +847,26 @@
         "white-space:pre-wrap;line-height:1.5;";
       el.textContent = "Knight Wars n'a pas pu se charger.\n\n" +
         "Détail technique (utile pour signaler le bug) :\n" + detail +
-        "\n\nEssaie de recharger la page. Si ça persiste, essaie de vider les données du site " +
-        "(Réglages > Safari > Avancé > Données de sites web) puis recharge à nouveau.";
+        "\n\nRecharger ci-dessous efface aussi les données mises en cache et repart de zéro " +
+        "(même effet que vider manuellement les données du site).";
       const btn = document.createElement("button");
       btn.textContent = "Recharger";
       btn.style.cssText = "margin-top:16px;padding:10px 20px;font-size:14px;border-radius:8px;border:none;" +
         "background:#e8c468;color:#2b1d10;font-weight:700;";
-      btn.onclick = () => location.reload();
+      // Getting this far at all means whatever's already installed (cached
+      // shell, service worker) is suspect — a plain reload just replays the
+      // same broken state. Purge everything this origin owns first (same
+      // end result as the manual "vider les données du site" instruction
+      // this used to send players off to do by hand) so the reload actually
+      // starts clean, then force past the browser's own HTTP cache too.
+      btn.onclick = () => {
+        Promise.all([
+          "caches" in window ? caches.keys().then((keys) => Promise.all(keys.map((k) => caches.delete(k)))) : null,
+          "serviceWorker" in navigator
+            ? navigator.serviceWorker.getRegistrations().then((regs) => Promise.all(regs.map((r) => r.unregister())))
+            : null,
+        ]).catch(() => {}).then(() => location.reload());
+      };
       el.appendChild(document.createElement("br"));
       el.appendChild(btn);
       document.body.appendChild(el);
