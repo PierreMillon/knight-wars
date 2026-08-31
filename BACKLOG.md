@@ -138,7 +138,7 @@ On ajoute une musique que je te fournirai et un curseur de volume aussi.
 
 [x] Taille police difficulté et taille de carte doivent s'adapter à leurs cadres. Les cadres peuvent s'étirer en largeur pour s'accommoder mais tout reste sur une seule ligne. L'escarmouche devient bras de fer. Le 2 et 3 deviennent « Raid » et « Massacre »
 
-Réduction de moitié de l'espace sur les bords du contenue des menus et de la page de fin de partie
+[x] Réduction de moitié de l'espace sur les bords du contenue des menus et de la page de fin de partie (.box padding 22px 24px → 11px 12px, partagé par tous les menus/overlays)
 
 Essayer une version avec du brouillard comme aoe I
 
