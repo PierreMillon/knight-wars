@@ -4071,7 +4071,11 @@ function drawStatChart() {
   const royIds = chartRoyaumeOrder(royIdSet, neutralId);
 
   const panelX = STAT_CHART_PANEL_X, panelW = STAT_CHART_PANEL_W;
-  const top = 18, bottom = H - 24, plotH = bottom - top; // room left at the bottom for the scrub readout
+  // room left at the top for the territory scrub readout (moved up from
+  // below the chart), and at the bottom for the new force readout row —
+  // "graphique de fin déplace en haut les chiffres de territoire... ajout
+  // en dessous du graphique même chose pour les nombres de soldat"
+  const top = 34, bottom = H - 24, plotH = bottom - top;
   const xForIndex = (i) => panelX + (i / (chartHistory.length - 1)) * panelW;
   const totalTerritories = territories.length;
 
@@ -4158,20 +4162,12 @@ function drawStatChart() {
   c.fillText("Territoire (%)", panelX, 10);
 
   // interactive scrub: drag a finger across the chart to see each royaume's
-  // exact (unsmoothed) share at that round, following the touch live
-  if (statChartScrubIndex >= 0 && statChartScrubIndex < chartHistory.length) {
-    const idx = statChartScrubIndex;
-    const x = statChartScrubX; // continuous position — see its own note above
-    c.save();
-    c.strokeStyle = "#ffffff";
-    c.lineWidth = 2;
-    c.beginPath(); c.moveTo(x, top); c.lineTo(x, bottom); c.stroke();
-    c.restore();
-
-    const parts = royIds
-      .map((royId, bandIdx) => ({ royId, pct: Math.round(rawFractions[bandIdx][idx] * 100) }))
-      .filter(p => p.pct > 0);
-    const ty = bottom + 15;
+  // exact (unsmoothed) territory share ABOVE the chart, and its raw force
+  // total BELOW it, following the touch live. Force was dropped from the
+  // chart entirely once before (see task #37 — a whole stacked band of raw
+  // force wasn't legible next to the territory bands) but comes back here
+  // as a plain number row, not a re-added band.
+  const drawScrubRow = (parts, ty) => {
     const n = Math.max(1, parts.length);
     parts.forEach((p, i) => {
       const cx = panelX + (i + 0.5) * (panelW / n);
@@ -4185,8 +4181,29 @@ function drawStatChart() {
       c.font = "bold 10px -apple-system, sans-serif";
       c.textAlign = "left";
       c.fillStyle = "rgba(43,29,16,.9)";
-      c.fillText(p.pct + "%", cx - 4, ty);
+      c.fillText(p.label, cx - 4, ty);
     });
+  };
+  if (statChartScrubIndex >= 0 && statChartScrubIndex < chartHistory.length) {
+    const idx = statChartScrubIndex;
+    const x = statChartScrubX; // continuous position — see its own note above
+    c.save();
+    c.strokeStyle = "#ffffff";
+    c.lineWidth = 2;
+    c.beginPath(); c.moveTo(x, top); c.lineTo(x, bottom); c.stroke();
+    c.restore();
+
+    const territoryParts = royIds
+      .map((royId, bandIdx) => ({ royId, pct: Math.round(rawFractions[bandIdx][idx] * 100) }))
+      .filter(p => p.pct > 0)
+      .map(p => ({ royId: p.royId, label: p.pct + "%" }));
+    drawScrubRow(territoryParts, 26);
+
+    const forceParts = royIds
+      .map(royId => ({ royId, force: chartHistory[idx].stats[royId] ? chartHistory[idx].stats[royId].force : 0 }))
+      .filter(p => p.force > 0)
+      .map(p => ({ royId: p.royId, label: String(p.force) }));
+    drawScrubRow(forceParts, bottom + 15);
   }
 
   // full family-branch name per royaume that appeared on the chart — the
@@ -6421,8 +6438,15 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.60";
+const GAME_VERSION = "1.61";
 const CHANGELOG = [
+  {
+    version: "1.61",
+    notes: [
+      "Graphique de fin : chiffres de territoire remontés en haut, nombres de soldats ajoutés en dessous.",
+      "Écran de fin : boutons « Nouvelle partie aléatoire » et « Partager ma victoire » inversés.",
+    ],
+  },
   {
     version: "1.60",
     notes: [

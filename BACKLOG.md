@@ -9,11 +9,11 @@ Copié tel quel pour suivi. Statut ajouté en préfixe au fur et à mesure :
 
 [x] Ajoute un bouton carte précédente quand on génère aléatoirement trop vite.
 
-Préciser au piano les accord de chaque animation pour éviter les notes trop aiguës
+[x] Préciser au piano les accord de chaque animation pour éviter les notes trop aiguës (superseded par la refonte gamme-par-royaume : racines en registre médium D4/C#4/C4, chime de renfort déjà baissé d'une octave après un retour "shrill/piercing" — plus de notes aiguës en pratique)
 
-Supprime les options du menu pour régler les stats par …
+[x] Supprime les options du menu pour régler les stats par … (déjà fait plus tôt — voir changelog v1.4x "Retiré « Nouvelle guerre » et le tri des stats des réglages", vérifié : plus aucune option de tri dans le menu)
 
-Graphique de fin déplace en haut les chiffre de territoire. Ajout en dessous du graphique même chose pour les nombre de soldat
+[x] Graphique de fin déplace en haut les chiffre de territoire. Ajout en dessous du graphique même chose pour les nombre de soldat
 
 Sur safari la page charge mais après plusieurs dizaines de secondes
 Firefox focus direct chargement
@@ -21,9 +21,9 @@ Firefox focus direct chargement
 On prévois de regarder une pub de 30 scd pour débloquer pendant 24h le mode très difficile et/ou les grandes maps. Explication dans les astuces.
 Ou bien acheter 2€ pour les retirer à vie.
 
-Au replay, on entoure tout le territoire en dorée o arrête d'entourer les province. Une seule limite pour tout le territoire.
+[x] Au replay, on entoure tout le territoire en dorée o arrête d'entourer les province. Une seule limite pour tout le territoire. (drawRoyaumeOutline, fait plus tôt)
 
-[~] Au replay on laisse mon territoire visible seul tant que je pas clique sur play (fait : dim de tout sauf notre territoire au début, mais limité à 1.5s, pas "tant qu'on n'a pas cliqué play" à la lettre). On retire les bruitages d'ajout de soldats durant replay (fait). On retire les épées du replay (NON — décision explicite plus tard contraire : l'épée reste volontairement visible en replay, seul le texte est retiré).
+[x] Au replay on laisse mon territoire visible seul tant que je pas clique sur play (fait pour de vrai maintenant : tenu par replayPaused, plus une limite fixe de 1.5s). On retire les bruitages d'ajout de soldats durant replay (fait). On retire les épées du replay (fait — décision inversée une dernière fois, "enlève les épées et bateaux" du replay, plus récente que le "NON" explicite d'avant).
 
 Quand replay fini, on reste sur l'image de fin. Pas de retour au écran de fin.
 
@@ -51,7 +51,7 @@ Les boutons du replay doivent entrer sur une seul ligne en bas. Part belle a la 
 
 On rajoute option tour immédiat pour aller encore plus vite dans les options. Éventuellement avec un pub plus tard Retien le
 
-Je suis passé par la mer et l'IA a calculé une chemin absurde trop long au lieu du plus court et j'ai tout perdu !
+[x] Je suis passé par la mer et l'IA a calculé une chemin absurde trop long au lieu du plus court et j'ai tout perdu ! (corrigé — computeWaterRoutes() priorise maintenant le nombre de cases avant le coût en force)
 
 [x] J'ai appuyé par erreur sur le bouton abandonner. On me déplace dans le menu.
 
@@ -63,7 +63,7 @@ Un double clic rapide sur prochaine bataille affiche direct le tour suivant y'a 
 
 Quand on tue le dernier village pour gagner, on va ajoute une seconde d'animation en plus, tout le territoire gagné est entouré de la limite dorée avec un son que je fournis.
 
-Replay on enlève les bruits de bataille et d'épées.
+[~] Replay on enlève les bruits de bataille et d'épées. (épées visuelles retirées ; les sons de réussite/échec de combat ont finalement été redemandés et remis en direct plus tard, décision plus récente — voir "Fait en direct")
 
 Firefox replay j'ai repris depuis un moment et ça fait rien quand je clique sur prochaine bataille ça reste figé à la guerre fait rage
 
@@ -200,3 +200,5 @@ Sound (gamme par royaume), épée/bateau taille + alignement, portée d'attaque 
 - [x] Replay : retrait épées/bateaux, contour doré tenu tant que non lancé (replayPaused), sons de combat réussite/échec ajoutés, pieuvre visible si apparue dans la partie originale.
 - [x] Retrait des mentions "s'applique à la prochaine guerre" dans le menu réglages (taille de carte, nombre d'adversaires).
 - [ ] "J'ai gagné beaucoup trop facilement en niveau 4" — tuning en cours, la correction du chaînage IA devrait aider ; pas de rééquilibrage dédié fait cette fois (le système de paliers de probabilité exacts reste un chantier séparé, plus large).
+- [x] Inversé la position des boutons "Nouvelle partie aléatoire" et "Partager ma victoire" sur l'écran de fin.
+- [x] Graphique de fin : chiffres de territoire déplacés en haut du graphique, nombres de soldat (force) ajoutés en dessous — le panneau Force retiré du graphique (tâche #37) revient sous cette forme simple, pas comme bande empilée.
