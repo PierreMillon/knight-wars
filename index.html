@@ -3529,6 +3529,14 @@ function attack(fromId, toId, chainIndex = -1) {
     from.force = 1;
   } else {
     from.force = 1;
+    // A failed attack sent with everything the crossing left it (arriving
+    // with just 1 force — only reachable via a water crossing that ate
+    // most of the garrison) costs more than the men lost in the fight: the
+    // whole territory collapses and defects to the barbarians. "Sinon
+    // attaque avec 1 et qu'on perd, le territoire perdu devient aux
+    // barbares." Land attacks can't reach this (a territory needs >1 force
+    // to even start one), so this only ever fires on a water gambit.
+    if (attackingForce === 1) from.owner = ROYAUME_COUNT - 1;
   }
   checkElimination();
   // detect a match-ending attack immediately, whoever made it — previously
@@ -6556,8 +6564,14 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.65";
+const GAME_VERSION = "1.66";
 const CHANGELOG = [
+  {
+    version: "1.66",
+    notes: [
+      "Attaque par mer désespérée (n'arrive qu'avec 1 force) et perdue : le territoire d'origine défecte vers les barbares au lieu de rester à vous.",
+    ],
+  },
   {
     version: "1.65",
     notes: [
