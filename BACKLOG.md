@@ -69,7 +69,7 @@ Firefox replay j'ai repris depuis un moment et ça fait rien quand je clique sur
 
 Quand les batailles sont trop longues faut ajouter une option de proposer le status quo. Je propose que si on clique sur la tête de morte on ai le choix entre offrir la trêve/paix et se rendre. Si on fait la paix on gagne un gueux par pays restant.
 
-Chaque pays a un son différent pour les attaques réussis composé d'un accord de deux notes que je préciserai.
+[x] Chaque pays a un son différent pour les attaques réussis composé d'un accord de deux notes que je préciserai. (superseded : gamme par royaume au lieu d'un accord fixe, décision explicite plus tard)
 
 Le nombres de villages gagné affiche float reste deux fois plus longtemps
 
@@ -105,9 +105,9 @@ Si on laisse une Provence avec un soldat seulement à côté d'une province de b
 
 [x] Le chemin d'attaque doit passer par les villages d'une province les plus proche. Il suffit de passer par un village collé à un adversaire pour attaquer. On n'attaque pas de capital en capitale, la capitale étant l'endroit où les chiffres des troupes est écrit. Les troupes peuvent être stationnées n'importe où sur une province dans le lore indépendamment de la position du chiffre des troupes.
 
-Le bouton de tête de mort pour abandonner doit disparaître de l'écran de replay. Pas utile
+[x] Le bouton de tête de mort pour abandonner doit disparaître de l'écran de replay. Pas utile
 
-Replay, on enlève le texte et remplace par un symbole approprié le pause/play et le stop/retour a écran de fin de partie précédent. Le bouton reprendre depuis ici est sans icône maintenant. Tous les boutons doivent entrer sur la même ligne en bas alignés.
+[x] Replay, on enlève le texte et remplace par un symbole approprié le pause/play et le stop/retour a écran de fin de partie précédent. Le bouton reprendre depuis ici est sans icône maintenant. Tous les boutons doivent entrer sur la même ligne en bas alignés.
 
 [x] En mode difficile, par d'exemple les plus forts n'attaquant trop loin au risque de se mettre en faiblesse pour le tour suivant tu vois ?
 
@@ -123,7 +123,7 @@ L'écran blanc PWA est revenu… après que j'ai fermé la fenêtre.
 
 [x] Sur ordi Mac Firefox écran 1680x1050 Catalina version 10.15.8 (Retien ça écris le en privé) mon adversaire a ses troupe qui apparaissent au même village 5 fois de suite c'est pas random assez
 
-[x] Le bouton accéléré bataille a juste ça maintenant. On supprime « la bataille fait rage ».
+[x] [x] Le bouton accéléré bataille a juste ça maintenant. On supprime « la bataille fait rage ».
 
 [x] Le texte d'offrande cans l'eau doit durer deux fois plus longtemps
 

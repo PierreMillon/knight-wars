@@ -643,7 +643,7 @@
   <!-- shown whenever replayPaused (including the initial frozen state) —
        forks a new live, playable match from exactly this point instead of
        just watching (see forkFromReplay()) -->
-  <button id="replayResumeHereBtn" style="display:none;">▶ Reprendre depuis ici</button>
+  <button id="replayResumeHereBtn" style="display:none;" aria-label="Reprendre la partie depuis ici">🎮</button>
   <div id="winbanner">
     <div class="box" id="winbannerBox">
       <!-- Reordered per request: just the opening sentence up top (the
@@ -1406,16 +1406,18 @@ function resize() {
   // in this state (pause/resume-here are never shown outside a replay, and
   // a replay never starts while awaitingFactionPick).
   const rerollTakesEndturnSlot = !replaying && awaitingFactionPick && campPromptCount >= CAMP_PROMPT_MAX;
-  // rerollBtn stacks directly above endturn, replayPauseBtn above that, and
-  // replayResumeHereBtn (shown whenever actually paused, including the
-  // replay's initial frozen state) above that in turn — not separate
-  // full-width bars, stacked bottom-right buttons only.
+  // rerollBtn (stop), replayPauseBtn and replayResumeHereBtn (shown
+  // whenever actually paused, including the replay's initial frozen state)
+  // now sit side by side on one row above endturn instead of stacked —
+  // "tous les boutons doivent entrer sur la même ligne en bas alignés".
+  const replayRowHeight = Math.max(
+    rerollVisible ? rerollEl.offsetHeight : 0,
+    pauseVisible ? pauseEl.offsetHeight : 0,
+    resumeHereVisible ? resumeHereEl.offsetHeight : 0
+  );
   const rightStackHeight = rerollTakesEndturnSlot
     ? (rerollVisible ? rerollEl.offsetHeight : 0)
-    : endturnEl.offsetHeight
-      + (rerollVisible ? rerollEl.offsetHeight + 8 : 0)
-      + (pauseVisible ? pauseEl.offsetHeight + 8 : 0)
-      + (resumeHereVisible ? resumeHereEl.offsetHeight + 8 : 0);
+    : endturnEl.offsetHeight + (replayRowHeight ? replayRowHeight + 8 : 0);
   const bottomInset = Math.max(
     document.getElementById("settingsBtn").offsetHeight,
     rightStackHeight
@@ -1433,18 +1435,17 @@ function resize() {
       const wrapRect = canvas.getBoundingClientRect();
       const endturnRect = endturnEl.getBoundingClientRect();
       const endturnLocal = physicalToWrapLocal(endturnRect.left, endturnRect.top, wrapRect);
-      rerollEl.style.bottom = (h - endturnLocal.y + 8) + "px";
-      let topOfStack = rerollEl;
+      const rowBottom = (h - endturnLocal.y + 8) + "px";
+      rerollEl.style.bottom = rowBottom;
+      let rightEdge = 14 + rerollEl.offsetWidth; // 14px matches the shared base right: offset
       if (pauseVisible) {
-        const rerollRect = rerollEl.getBoundingClientRect();
-        const rerollLocal = physicalToWrapLocal(rerollRect.left, rerollRect.top, wrapRect);
-        pauseEl.style.bottom = (h - rerollLocal.y + 8) + "px";
-        topOfStack = pauseEl;
+        pauseEl.style.bottom = rowBottom;
+        pauseEl.style.right = (rightEdge + 8) + "px";
+        rightEdge += 8 + pauseEl.offsetWidth;
       }
       if (resumeHereVisible) {
-        const belowRect = topOfStack.getBoundingClientRect();
-        const belowLocal = physicalToWrapLocal(belowRect.left, belowRect.top, wrapRect);
-        resumeHereEl.style.bottom = (h - belowLocal.y + 8) + "px";
+        resumeHereEl.style.bottom = rowBottom;
+        resumeHereEl.style.right = (rightEdge + 8) + "px";
       }
     }
   }
@@ -4081,7 +4082,8 @@ function playReplay(seed, difficulty, replayHumanRoyId, log, onFinish, replayMap
   replayPaused = true;
   const pauseBtnEl = document.getElementById("replayPauseBtn");
   pauseBtnEl.style.display = "";
-  pauseBtnEl.textContent = "▶ Lire";
+  pauseBtnEl.textContent = "▶";
+  pauseBtnEl.setAttribute("aria-label", "Lire");
   // shown from the start too — paused (including this initial frozen
   // state) always offers "reprendre depuis ici" (forkFromReplay()), not
   // just after a manual pause partway through
@@ -4158,7 +4160,8 @@ function playReplay(seed, difficulty, replayHumanRoyId, log, onFinish, replayMap
   function togglePause() {
     if (!replaying) return;
     replayPaused = !replayPaused;
-    pauseBtnEl.textContent = replayPaused ? "▶ Lire" : "⏸ Pause";
+    pauseBtnEl.textContent = replayPaused ? "▶" : "⏸";
+    pauseBtnEl.setAttribute("aria-label", replayPaused ? "Lire" : "Pause");
     if (!replayPaused) step();
   }
   // Forks a brand new, actually playable match starting from exactly this
@@ -6083,8 +6086,14 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.54";
+const GAME_VERSION = "1.55";
 const CHANGELOG = [
+  {
+    version: "1.55",
+    notes: [
+      "Boutons du replay (stop, lire/pause, reprendre) : icônes seules, alignés sur une seule ligne en bas.",
+    ],
+  },
   {
     version: "1.54",
     notes: [
@@ -7120,7 +7129,11 @@ function startGame(seed) {
   // about its "Changer la carte" text hinting at that.
   const rerollBtnEl = document.getElementById("rerollBtn");
   rerollBtnEl.style.display = (awaitingFactionPick || replaying) ? "" : "none";
-  rerollBtnEl.textContent = replaying ? "⏹ Arrêter le replay" : "🔀 Changer la carte";
+  // Icon-only while replaying — "on enlève le texte et remplace par un
+  // symbole approprié le pause/play et le stop" — full label otherwise
+  // (this same button doubles as "Changer la carte" outside a replay).
+  rerollBtnEl.textContent = replaying ? "⏹" : "🔀 Changer la carte";
+  rerollBtnEl.setAttribute("aria-label", replaying ? "Arrêter le replay" : "Changer la carte");
   refreshPrevMapBtn();
   // the rest of the interface is inert during a replay (taps are ignored —
   // see handlePointer()/endturn's click handler) — hide it instead of
