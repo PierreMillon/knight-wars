@@ -4463,9 +4463,14 @@ function playReplay(seed, difficulty, replayHumanRoyId, log, onFinish, replayMap
 
 function startReplay() {
   if (!lastMatchArchive) return;
+  // Land on the final board itself when the replay ends, not back on the
+  // win banner overlay — "quand replay fini, on reste sur l'image de fin,
+  // pas de retour à écran de fin". Reuses the exact same revealed state the
+  // win banner's own swipe-to-dismiss gesture already shows (🔙 Retour gets
+  // back to the win banner from here, same as it always did).
   playReplay(
     lastMatchArchive.seed, lastMatchArchive.difficulty, lastMatchArchive.humanRoyId, lastMatchArchive.moveLog.slice(),
-    () => { document.getElementById("winbanner").style.display = "flex"; },
+    revealFinalBoard,
     lastMatchArchive.mapSize, lastMatchArchive.opponentCount
   );
 }
@@ -6438,8 +6443,14 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.61";
+const GAME_VERSION = "1.62";
 const CHANGELOG = [
+  {
+    version: "1.62",
+    notes: [
+      "Quand le replay se termine (naturellement ou en l'arrêtant), on reste sur l'image finale du plateau au lieu de revenir automatiquement à l'écran de fin.",
+    ],
+  },
   {
     version: "1.61",
     notes: [
