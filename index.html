@@ -311,8 +311,13 @@
      chevalier à cheval (Seigneur) — a glance at the row alone should read
      as "getting harder" before even reading the labels. */
   #difficultyLevels.levelRow .levelBtn { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  /* wraps to a 2nd row once #cthulhuLevelBtn (hidden until unlocked) joins
+     the other 4 — .levelRow's own nowrap default is fine everywhere else,
+     which never has more than 4 items to fit. */
+  #difficultyLevels.levelRow { flex-wrap: wrap; }
   .diffIcons { display: flex; align-items: center; justify-content: center; gap: 2px; height: 14px; }
   .diffIcons img { height: 14px; width: auto; display: block; }
+  #cthulhuLevelBtn .diffIcons img { filter: invert(1) hue-rotate(180deg) brightness(.7); }
   #conseilsBtn, #loreBtn { margin-bottom: 10px; display: block; }
   #mapCodeRow, #mapCodeLoadRow { position: relative; }
   #mapCodeDisplay, #mapCodeInput {
@@ -355,9 +360,10 @@
      chart. Hidden entirely (rather than left as a stray empty flex gap) on
      the handful of one-sentence lines that had nothing left to split off —
      same treatment #winSubtext already needed, most endings leave it empty too. */
-  #wintextRest, #winSubtext, #gueuxNote { margin: 0; }
-  #wintextRest:empty, #winSubtext:empty, #gueuxNote:empty { display: none; }
+  #wintextRest, #winSubtext, #gueuxNote, #cthulhuHintNote { margin: 0; }
+  #wintextRest:empty, #winSubtext:empty, #gueuxNote:empty, #cthulhuHintNote:empty { display: none; }
   #gueuxNote { margin-top: -6px; font-size: 13px; font-style: italic; opacity: .8; }
+  #cthulhuHintNote { margin-top: -6px; font-size: 13px; font-style: italic; opacity: .8; max-width: 260px; color: #6a8fae; }
   #wintextRest { font-size: 14px; line-height: 1.5; max-width: 290px; opacity: .92; }
   #winSubtext { margin-top: -6px; font-size: 13px; font-style: italic; opacity: .8; max-width: 260px; }
   #statChart { background: rgba(0,0,0,.05); border-radius: 8px; touch-action: none; } /* otherwise a scrub drag gets read as a page gesture */
@@ -420,6 +426,9 @@
   #loreOverlay h2 { margin: 0 0 14px; font-size: 20px; text-align: center; }
   #loreOverlay p { font-size: 14px; line-height: 1.6; margin: 0 0 14px; }
   #loreOverlay img { display: block; width: 64px; height: auto; margin: 0 auto 14px; image-rendering: pixelated; }
+  /* same octopus sprite, no separate art drawn for Cthulhu — inverted +
+     darkened so it reads as something else answering, not a repeat */
+  #loreCthulhuImg { filter: invert(1) hue-rotate(180deg) brightness(.7); width: 76px !important; }
   #loreOverlay button { display: block; margin: 0 auto; }
   /* two player-drawn soldier sketches, side by side — override the generic
      #loreOverlay img rule (single centered block, 14px bottom margin) which
@@ -703,6 +712,12 @@
            least one to lose), per request: it wasn't obvious from the badge
            alone changing in the background what had just happened and why. -->
       <p id="gueuxNote"></p>
+      <!-- the "parchemin crypté" hint — a subtle, one-time nudge toward the
+           hidden Cthulhu tier, rolled to appear on a random win somewhere
+           between the player's 5th and 10th win ever (see showWin()'s own
+           rollCthulhuHintThreshold() note) — never explains what it means,
+           only that a secret exists. -->
+      <p id="cthulhuHintNote"></p>
       <!-- only shown for surrenderBeforePick() — tapping the skull before
            ever picking a camp. There's no real match to report on (no
            chart, no replay, no share), just the joke line + gueux penalty
@@ -770,6 +785,16 @@
       <div id="lorePieuvre" style="display:none;">
         <img id="loreOctopusImg" alt="">
         <p>Ceux qui ont livré à la mer trois navires entiers, à trois reprises, ont vu autre chose répondre — quelque chose qui n'a jamais porté le nom des Millon. Les pêcheurs racontent qu'elle regarde les sièges les plus désespérés depuis les profondeurs, et qu'elle n'oublie aucun de ceux qui la nourrissent.</p>
+      </div>
+      <!-- unlocked after a 4th full ritual (one past the octopus' own 3rd)
+           in a match where the "parchemin crypté" hint had already
+           appeared on some earlier victory — see recordCthulhuUnlock(). No
+           dedicated art for this one — reuses OCTOPUS_IMG_SRC, tinted
+           darker/inverted via CSS so it reads as something else answering
+           from deeper down, not the same creature. -->
+      <div id="loreCthulhu" style="display:none;">
+        <img id="loreCthulhuImg" alt="">
+        <p>Le parchemin ne mentait pas. Ce que la pieuvre annonçait depuis les profondeurs n'était qu'un serviteur — au-delà d'elle dort quelque chose de bien plus vieux que la querelle des Millon, quelque chose que même les prêtres refusent de nommer. Ceux qui l'ont réveillé racontent qu'on peut désormais traverser n'importe quelle mer sans y perdre un seul homme — l'onde elle-même s'écarte devant vous, comme si elle craignait davantage ce qui vous suit que vous.</p>
       </div>
       <button id="closeLore">Fermer</button>
     </div>
@@ -844,6 +869,15 @@
           <button data-level="1" class="levelBtn"><span class="diffIcons"><img alt=""><img alt=""></span>Écuyer</button>
           <button data-level="2" class="levelBtn"><span class="diffIcons"><img alt=""></span>Chevalier</button>
           <button data-level="3" class="levelBtn"><span class="diffIcons"><img alt=""></span>Seigneur</button>
+          <!-- Hidden 5th tier — only shown once unlocked (4 full ocean
+               rituals in one match at Seigneur, after the "parchemin
+               crypté" hint has appeared — see recordCthulhuUnlock() and
+               showWin()'s own hint-roll note). Deliberately kept OUT of
+               #difficultyLevels' own data-level indexing/DIFFICULTY_LEVELS
+               array (see CTHULHU_LEVEL's own note) — its own dedicated
+               click handler below sets DIFFICULTY straight to
+               CTHULHU_LEVEL.value instead. -->
+          <button id="cthulhuLevelBtn" class="levelBtn" style="display:none;"><span class="diffIcons"><img alt=""></span>Cthulhu</button>
         </div>
       </div>
       <div class="fieldGroup">
@@ -1301,7 +1335,33 @@ try {
   const saved = localStorage.getItem("kw_difficultyLevel");
   if (saved !== null) difficultyLevel = Math.max(0, Math.min(DIFFICULTY_LEVELS.length - 1, Number(saved)));
 } catch (e) { /* ignore */ }
-applyDifficulty(DIFFICULTY_LEVELS[difficultyLevel].value);
+// Cthulhu — hidden 5th tier, harder than Seigneur, for "les hard tryers qui
+// complètent tout" ("un jeu beaucoup plus technique et exigeant que les
+// noobs pourraient pas réussir du tout"). Deliberately kept OUT of the
+// DIFFICULTY_LEVELS array above: that array's own length/index already
+// drives several tuning formulas (NEUTRAL_FRACTION's lerp denominator in
+// applyDifficulty(), the "last tier" check gating the octopus reveal) whose
+// balance for the 4 VISIBLE tiers must stay exactly as tuned regardless of
+// whether Cthulhu is unlocked — appending a 5th array entry would quietly
+// reshuffle all of that the instant it unlocked, even before ever selecting
+// it. Selecting Cthulhu instead calls applyDifficulty(CTHULHU_LEVEL.value)
+// directly; that value has no match in DIFFICULTY_LEVELS, so applyDifficulty()
+// already falls back to its own continuous formula for a value past Seigneur
+// — no changes needed there at all. Its own gameplay effect (free, lossless
+// water crossings at any distance — "Chtulhu active les attaques longue
+// distance sans perte") lives in waterCostBetween()/canAffordWaterRoute()
+// below, gated on cthulhuActive().
+const CTHULHU_LEVEL = { name: "Cthulhu", value: 1.6 };
+function cthulhuActive() { return DIFFICULTY === CTHULHU_LEVEL.value; }
+// Whether the hidden tier has ever been unlocked on this device, and
+// whether it's the one currently selected (kept separate from
+// difficultyLevel, which only ever indexes the 4 visible tiers) — see
+// recordCthulhuUnlock() and #cthulhuLevelBtn's own click handler.
+let cthulhuUnlocked = false;
+try { cthulhuUnlocked = localStorage.getItem("kw_cthulhuUnlocked") === "1"; } catch (e) { /* ignore */ }
+let cthulhuSelected = false;
+try { cthulhuSelected = cthulhuUnlocked && localStorage.getItem("kw_cthulhuSelected") === "1"; } catch (e) { /* ignore */ }
+applyDifficulty(cthulhuSelected ? CTHULHU_LEVEL.value : DIFFICULTY_LEVELS[difficultyLevel].value);
 applyMapSize(mapSize);
 
 const GUEUX_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAWgAAAQLCAYAAACmvTOGAAAZNElEQVR4nO3dMYhlVZ7A4arFYBDZhqERF6ToUIpmIqMKDIbFoLPZyLhxoRFtEGSSTgqWToYBl1JEWGk2NJvMoBcMOqjIaJDCsCk6kKYZ6AlkgsHaYNkdZLXuGevWrd997/viy3vnvfvqVye4f87uDhkH+3tnU9ecPn2+xFJ2dnZ2dvZevjZ5zch6lnyd45PT3cmL4JI9/K8vJ/+WR/zDHC8CwPwEGiBKoAGiBBogSqABogQaIEqgAaIEGiDKQ/0haxxU2VQGXrhsd27dnPx7t4MGiBJogCiBBogSaIAogQaIEmiAKIEGiBJogKgXrnoB26I2hLKkNX6ukfs1wsALF2EHDRAl0ABRAg0QJdAAUQINECXQAFECDRAl0ABRBlUmzDVgUhvWGDktpbbmuSx5Usyr169N/n6ePHtumIUfZQcNECXQAFECDRAl0ABRAg0QJdAAUQINECXQAFFbPaiy5Ckn2zwYsqncLy6bHTRAlEADRAk0QJRAA0QJNECUQANECTRAlEADRG31oMqIuQZMakMNtfUsecrJiNr3w3aygwaIEmiAKIEGiBJogCiBBogSaIAogQaIEmiAqK0eVDk+Od2d43VqJ7OMqK3n9VdenLzmnffenuW9bt87muV14LLZQQNECTRAlEADRAk0QJRAA0QJNECUQANECTRA1FYPqsxlZODl1evXJodZRoY+Hty/O7iq8/3zv/7b5DX/8qt/mrxmruGRTTVyT588c3oLP84OGiBKoAGiBBogSqABogQaIEqgAaIEGiBKoAGiDKosZK6TR+Yysh5DKHC17KABogQaIEqgAaIEGiBKoAGiBBogSqABogQaIMqgykJGTl052N+bPHWFixs5lWbkxJkRI/cdfoodNECUQANECTRAlEADRAk0QJRAA0QJNECUQANEGVRZyMgQyuuvvLjEUhZ/r9v3jmZ5nZE1z3UKzMiJM6dPn09eM9fwkYGX7WQHDRAl0ABRAg0QJdAAUQINECXQAFECDRAl0ABRBlVCRoYsRoY+RgYoRgYxRnzy0WezvM6Ir779bvKauYZiRsz1HcJPsYMGiBJogCiBBogSaIAogQaIEmiAKIEGiBJogCiDKhtoyQGKuYZrlvTg/t1ZXmeuzzWyntd+88Es78W62EEDRAk0QJRAA0QJNECUQANECTRAlEADRAk0QJRBlZWZa8hiSWtc81y2+bNzcXbQAFECDRAl0ABRAg0QJdAAUQINECXQAFECDRC1e9UL4G8O9vfOpq4x+LB5Pv/w48lrDh899re6Ye7cujn5924HDRAl0ABRAg0QJdAAUQINECXQAFECDRAl0ABRTlSBH3H73tHkNSNDQ5989NnkNUeGUPgJdtAAUQINECXQAFECDRAl0ABRAg0QJdAAUQINEOUB+ZU5fOPG5CkMb73/7hJLSRoZMJnL8cmpvx9+NieqAKyYQANECTRAlEADRAk0QJRAA0QJNECUQANEOVFlZQ4HTt946/2dyQfgR8w19DFy8gjw/9lBA0QJNECUQANECTRAlEADRAk0QJRAA0QJNECUEyE20MH+3iyDKtvMaSlcNieqAKyYQANECTRAlEADRAk0QJRAA0QJNECUQANEOVFlS73+yotXvYS/21fffrfYex2+cWNyiGDkdBu4CDtogCiBBogSaIAogQaIEmiAKIEGiBJogCiBBogyqLKBRk4Def2V1yYHMd557+15FjST2/eOZnmdB/fvTl7zyUefzfJecBF20ABRAg0QJdAAUQINECXQAFECDRAl0ABRAg0QZVBlA9399fQQyoi5BkPWaOT0FqeucNnsoAGiBBogSqABogQaIEqgAaIEGiBKoAGiBBogyqDKBvrlX/9y1Uu4MiOnpSz5Og+fHU0Os4ycgMN2soMGiBJogCiBBogSaIAogQaIEmiAKIEGiBJogCgPyK/MyCkeIx4++37ymrmGNUZOZhl5r+N7v5tjOTsH9387y+vM5fMPP568ZuR+GXhZlzu3bk7+LdtBA0QJNECUQANECTRAlEADRAk0QJRAA0QJNECUE1UWcvfXr00+lP7Oe2/P8l4jgw9LmmvgZVO99f6709eMvdTkb2zkt3H46LGBlwg7aIAogQaIEmiAKIEGiBJogCiBBogSaIAogQaIMqgy4WB/b/Lh/zUOYrz+yotXvQSuwNBQzPvzDLw4Bebi7KABogQaIEqgAaIEGiBKoAGiBBogSqABogQaIGqrHxI/fOPG5AP5Iw/2L2mu01L+9MIvJq+Z64SXuRzf+90sr3N6fXpIp3bft9kaT4G5c+vmZFs+/eLryTXbQQNECTRAlEADRAk0QJRAA0QJNECUQANECTRA1CpPVNnUU07mMnKSxYP7rSGUJY18P28tsA7GjAwNHT76YIGVLM8OGiBKoAGiBBogSqABogQaIEqgAaIEGiBKoAGiVjmo8ub1zfy/MnJyxMhD+w/vHS32XpvK97MuI6cj1U5dGbGZpQPYAAINECXQAFECDRAl0ABRAg0QJdAAUQINELXKQZVNteTgw8ipIjsLDmvcHhiumesMmLkGnQyzcNnsoAGiBBogSqABogQaIEqgAaIEGiBKoAGiBBogyqDKBhoZxBgZVBm55q2B9Xzy0WcDVy3H8MjmGbmnh48+WGAl87KDBogSaIAogQaIEmiAKIEGiBJogCiBBogSaIAogyobaOSh/YcDJ5iMGDkJBQoO9vfOpq45PjndXWIto+ygAaIEGiBKoAGiBBogSqABogQaIEqgAaIEGiBqlYMqTsQAtoEdNECUQANECTRAlEADRAk0QJRAA0QJNECUQANErXJQZUmff/jx5DVrHJx58/r0/+aHz75fYCUsaeT3PGJTf/PHC6zj72EHDRAl0ABRAg0QJdAAUQINECXQAFECDRAl0ABRBlVmsKnDLEsaGSLYeXb56/hfcw101IwMHw3dCxbhTgBECTRAlEADRAk0QJRAA0QJNECUQANECTRAVG5Q5WB/7+yq18DyRgZ5ju/9boGVMMJw1jLsoAGiBBogSqABogQaIEqgAaIEGiBKoAGiBBogKjeo4jQHfsrB/d/O8jqbeloK5xsZnDl89MECKxmnhgBRAg0QJdAAUQINECXQAFECDRAl0ABRAg0QlRtU2VROoOCyPXz2/VUv4Qf85i/ODhogSqABogQaIEqgAaIEGiBKoAGiBBogSqABogyqwM9UGwzh4g7fuHE2ec2jx7tLrGVnxw4aIEugAaIEGiBKoAGiBBogSqABogQaIEqgAaK2elBl5MSHJTmBYl3evD69v5lrmGXkvUaMDFm8OTCsMRe/+fPZQQNECTRAlEADRAk0QJRAA0QJNECUQANECTRAVG5QZZsfSmfzzDVgwnby6wGIEmiAKIEGiBJogCiBBogSaIAogQaIEmiAqNygylxqp6XUzHXSB1yEwbTz2UEDRAk0QJRAA0QJNECUQANECTRAlEADRAk0QFRuUGWbB0w8tE/B4aPHu5PXvHHjbI732ua/9xF20ABRAg0QJdAAUQINECXQAFECDRAl0ABRAg0QlRtUgbVYcrDIQMd2soMGiBJogCiBBogSaIAogQaIEmiAKIEGiBJogKhFB1VGTmEYefh/jQ/tOy3lfEve09q9WPKzj/wNjpyosqnGfhsfT36H386wlp0dO2iALIEGiBJogCiBBogSaIAogQaIEmiAKIEGiJptUOVgf2/y4e0RaxxCqfEdsm1qw0dzsYMGiBJogCiBBogSaIAogQaIEmiAKIEGiBJogKjZBlWOT04nT2F4c+A0By5u5KH9h/eOFljJ8jZ1YIHzbepwlh00QJRAA0QJNECUQANECTRAlEADRAk0QJRAA0TNNqgCl80QCtvGDhogSqABogQaIEqgAaIEGiBKoAGiBBogSqABomYbVDnY35s8LWXJQYNNPWFhxBo/+xqHUNb4PW+q2u/n3//jP2d5HTtogCiBBogSaIAogQaIEmiAKIEGiBJogCiBBoiabVDl9VdenLzGg/3AZci15aWXZnkZO2iAKIEGiBJogCiBBogSaIAogQaIEmiAKIEGiNpd8s0O37gxeerKXB4++36pt9p58/r6/s8t+f2MWON3ONcpHrUhi8NHj2fpwlx/7yO/1drv59uBQZVPv/h68ntufSoA/o9AA0QJNECUQANECTRAlEADRAk0QJRAA0TlBlXmevh/xO17R7O8Tu0h+doQyojad7hGcw2YLOlgf2+yCSOnNS3p6MtvJr/nO7duTn4ugyoAKybQAFECDRAl0ABRAg0QJdAAUQINECXQAFEvLPlmf3rhF0u+3aQH9+9OXjMyzDLXYMjp0+ezvM6IvZevLfZeI5/r4c5y66mZ676PDH0cn5yubpjlnffevuol/MDRlx8s9l520ABRAg0QJdAAUQINECXQAFECDRAl0ABRAg0QteigSu2B8xEjJ32s8QSTkeGIkWGWuYYslhzSoWNkWKxmrtNSRthBA0QJNECUQANECTRAlEADRAk0QJRAA0QJNEDUooMqa1QbQllyeGRT+Q47Rk4sWuMwy1zsoAGiBBogSqABogQaIEqgAaIEGiBKoAGiBBogaqsHVUYekl/SyADFXK8z1yBG7b3mYpiFAjtogCiBBogSaIAogQaIEmiAKIEGiBJogCiBBoja6kGVbbbk0MemMszCZbODBogSaIAogQaIEmiAKIEGiBJogCiBBogSaIAogyoAf4dPv/h6d6n3soMGiBJogCiBBogSaIAogQaIEmiAKIEGiBJo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";
@@ -1346,6 +1406,23 @@ const CREATURE_IMG = loadSprite(CREATURE_IMG_SRC);
 let pieuvreUnlocked = false;
 try { pieuvreUnlocked = localStorage.getItem("kw_pieuvreUnlocked") === "1"; } catch (e) { /* ignore */ }
 const CHEVALIER_IMG = loadSprite(CHEVALIER_IMG_SRC);
+// Cross-match win count feeding the "parchemin crypté" Cthulhu hint (see
+// rollCthulhuHintWinCount() in showWin()) — persisted alongside the other
+// unlock-progress state just above, same reasoning.
+let totalWins = 0;
+try { totalWins = Number(localStorage.getItem("kw_totalWins")) || 0; } catch (e) { /* ignore */ }
+// Rolled once ever (5..10 inclusive), then fixed for this installation —
+// "gagner une partie... aléatoirement entre 5 et 10 victoires". Not part of
+// any match's own seeded RNG stream: this is cross-match bookkeeping shown
+// only in the win banner, real-play-only, so Math.random() here (unlike
+// anywhere gameplay-affecting) never risks replay determinism.
+let cthulhuHintThreshold = null;
+try {
+  const saved = localStorage.getItem("kw_cthulhuHintThreshold");
+  if (saved !== null) cthulhuHintThreshold = Number(saved);
+} catch (e) { /* ignore */ }
+let cthulhuHintShown = false;
+try { cthulhuHintShown = localStorage.getItem("kw_cthulhuHintShown") === "1"; } catch (e) { /* ignore */ }
 
 // Pins #wrap (and therefore everything inside it — canvas, HUD, all of it)
 // to whatever fixed pixel size it last had in portrait, instead of letting
@@ -3348,7 +3425,13 @@ let lastAttackWasGrind = false; // both sides near the force cap — used for th
 function waterCostBetween(fromT, toId) {
   if (fromT.neighbors.has(toId)) return 0;
   const route = fromT.waterRoutes.get(toId);
-  return route ? route.cost : 0;
+  if (!route) return 0;
+  // "Chtulhu active les attaques longue distance sans perte" — a real
+  // route still has to exist (see canAffordWaterRoute() just below, which
+  // gates whether a target is even offered), but once it does, Cthulhu
+  // waives its cost entirely: the crossing itself no longer eats into the
+  // attacking force, at any distance.
+  return cthulhuActive() ? 0 : route.cost;
 }
 // the actual water hexes crossed by the cheapest route between the two, in
 // order — null for a land-adjacent pair (even one that also happens to
@@ -3373,7 +3456,8 @@ function waterPathBetween(fromT, toId) {
 function canAffordWaterRoute(fromT, toId) {
   if (fromT.neighbors.has(toId)) return true;
   const route = fromT.waterRoutes.get(toId);
-  return !!route && fromT.force - route.cost > 0;
+  if (!route) return false;
+  return cthulhuActive() ? true : fromT.force - route.cost > 0;
 }
 // Dijkstra from a territory's own bordering water hexes out to one SPECIFIC
 // water hex (not another territory — see computeWaterRoutes(), which only
@@ -3498,6 +3582,17 @@ function executeWaterSacrifice(fromId, waterHexKeys, pureDirectDive = true) {
         octopusRevealedThisMatch = true;
         triggerOctopusReveal(fromId, waterHexKeys);
         if (!replaying) recordOctopusRevealAndCheckUnlock();
+      }
+      // Cthulhu — one full ritual past the octopus' own 3rd, and only once
+      // the "parchemin crypté" hint has already appeared on some earlier
+      // victory (see showWin()'s own rollCthulhuHint() note): a 4th complete
+      // sacrifice in the SAME match, after being told the secret exists,
+      // finally draws it up. Same replay-safety split as the octopus just
+      // above — the reveal itself replays deterministically, only the
+      // permanent unlock stays real-play-only.
+      if (ritualCountThisMatch >= 4 && !cthulhuUnlocked && cthulhuHintShown) {
+        triggerCthulhuReveal(fromId, waterHexKeys);
+        if (!replaying) recordCthulhuUnlock();
       }
     }
   } else {
@@ -4031,6 +4126,12 @@ function showWin(royId) {
   // below (not just the text one further down) since it also picks between
   // the win/loss/truce stingers.
   const humanLost = !truceEnded && royId !== humanRoyId;
+  // "Le Seigneur xxx vous remet un parchemin crypté..." — a one-time,
+  // real-play-only nudge toward the hidden Cthulhu tier (see
+  // rollCthulhuHintWinCount()'s own note), rolled on THIS win only if it
+  // was a real, outright victory — never a truce/mercy, and never during a
+  // shared replay someone else's win banner.
+  const cthulhuHintFired = royId === humanRoyId && !replaying && rollCthulhuHintWinCount();
   if (royId === humanRoyId) {
     sfxVictory(royId);
     if (metaProgressEnabled) {
@@ -4154,6 +4255,14 @@ function showWin(royId) {
       : "Vous gagnez un gueux.";
   }
   document.getElementById("gueuxNote").textContent = gueuxNoteText;
+  // The hint itself — deliberately vague, names a rival seigneur (picked
+  // deterministically off the seed, same convention as every other flavor
+  // line here) rather than explaining what it means.
+  const CTHULHU_HINT_LINES = [
+    `Le Seigneur ${ROYAUMES[(currentSeed + royId) % (ROYAUME_COUNT - 1)].name.replace("Millon de ", "")} vous remet un parchemin crypté, persuadé de vous donner un secret crucial sur les mystères de l'océan…`,
+  ];
+  document.getElementById("cthulhuHintNote").textContent =
+    cthulhuHintFired ? CTHULHU_HINT_LINES[Math.abs(currentSeed) % CTHULHU_HINT_LINES.length] : "";
   document.getElementById("endturn").disabled = true;
   drawStatChart();
   document.getElementById("watchReplay").disabled = !lastMatchArchive;
@@ -4446,6 +4555,7 @@ function statChartXAtClientX(clientX, clientY) {
 // both "revoir ma partie" (own match) and a shared match opened from a link.
 function playReplay(seed, difficulty, replayHumanRoyId, log, onFinish, replayMapSize, replayOpponentCount) {
   const levelToRestore = difficultyLevel;
+  const cthulhuSelectedToRestore = cthulhuSelected; // see this function's own restore call below
   const humanToRestore = humanRoyId;
   const mapSizeToRestore = mapSize;
   const opponentCountToRestore = opponentCount;
@@ -4613,7 +4723,14 @@ function playReplay(seed, difficulty, replayHumanRoyId, log, onFinish, replayMap
     // reaching the end of the log on its own)
     clearPendingSounds();
     humanRoyId = humanToRestore;
-    applyDifficulty(DIFFICULTY_LEVELS[levelToRestore].value);
+    // Restores whichever the viewer actually had selected before watching —
+    // Cthulhu included: applyDifficulty(difficulty) above (using whatever
+    // the REPLAYED match was played at) would otherwise silently drop a
+    // viewer who had Cthulhu selected back to their last visible tier the
+    // moment any replay (someone else's, even) finished.
+    cthulhuSelected = cthulhuSelectedToRestore;
+    applyDifficulty(cthulhuSelectedToRestore ? CTHULHU_LEVEL.value : DIFFICULTY_LEVELS[levelToRestore].value);
+    refreshLevelButtons();
     opponentCount = opponentCountToRestore; // must come before applyMapSize() — see its own opponentCount note above
     applyMapSize(mapSizeToRestore); // back to the viewer's own setting, not the replayed match's
     // Reset explicitly rather than leaving it to startGame()/pickFaction():
@@ -5746,6 +5863,24 @@ function render() {
     ctx.restore();
   }
 
+  // The Cthulhu reveal — same shape as the octopus one just above, but
+  // bigger, inverted/darkened (see #loreCthulhuImg's own CSS note) and a
+  // touch longer-lingering, to read as something larger and older
+  // answering, not a repeat of the same creature.
+  if (cthulhuRevealFX && OCTOPUS_IMG.complete && OCTOPUS_IMG.naturalWidth) {
+    const elapsed = performance.now() - cthulhuRevealFX.start;
+    const fadeMs = 350;
+    const alpha = elapsed < fadeMs ? elapsed / fadeMs
+      : elapsed > OCTOPUS_REVEAL_MS - fadeMs ? Math.max(0, (OCTOPUS_REVEAL_MS - elapsed) / fadeMs)
+      : 1;
+    const size = 130;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.filter = "invert(1) hue-rotate(180deg) brightness(.7)";
+    ctx.drawImage(OCTOPUS_IMG, cthulhuRevealFX.x - size / 2, cthulhuRevealFX.y - size / 2, size, size);
+    ctx.restore();
+  }
+
   ctx.restore();
   updateGroups();
 }
@@ -6577,6 +6712,7 @@ document.getElementById("loreBlazon").src = BLAZON_IMG_SRC;
 document.getElementById("loreSoldier1").src = FIGURE1_IMG_SRC;
 document.getElementById("loreSoldier2").src = FIGURE2_IMG_SRC;
 document.getElementById("loreOctopusImg").src = OCTOPUS_IMG_SRC;
+document.getElementById("loreCthulhuImg").src = OCTOPUS_IMG_SRC;
 refreshLorePieuvre();
 document.getElementById("lorePersonalities").innerHTML = ROYAUMES.slice(0, ROYAUME_COUNT - 1).map(roy => `
   <div class="personalityRow">
@@ -6638,8 +6774,14 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.71";
+const GAME_VERSION = "1.72";
 const CHANGELOG = [
+  {
+    version: "1.72",
+    notes: [
+      "Ajouté un secret : un 5e niveau de difficulté caché, plus dur que Seigneur, à débloquer en jeu.",
+    ],
+  },
   {
     version: "1.71",
     notes: [
@@ -7399,24 +7541,42 @@ document.getElementById("royaumesList").innerHTML = ROYAUMES.slice(0, ROYAUME_CO
 // illustrant la difficulté doivent être ceux que je t'ai fournis en pixel
 // art en dernier... on oublie les premiers jets du début du développement."
 const DIFF_ICON_SRCS = [[FIGURE1_IMG_SRC], [FIGURE1_IMG_SRC, FIGURE1_IMG_SRC], [FIGURE2_IMG_SRC], [CREATURE_IMG_SRC]];
-document.querySelectorAll("#difficultyLevels .levelBtn").forEach((btn, i) => {
+// Scoped to [data-level] specifically — #cthulhuLevelBtn shares the same
+// #difficultyLevels/.levelBtn container (so it inherits the same button
+// styling) but isn't one of the 4 named/indexed tiers DIFF_ICON_SRCS or
+// difficultyLevel cover; it gets its own icon/handler/active-state below.
+document.querySelectorAll("#difficultyLevels .levelBtn[data-level]").forEach((btn, i) => {
   const imgs = btn.querySelectorAll(".diffIcons img");
   DIFF_ICON_SRCS[i].forEach((src, j) => { if (imgs[j]) imgs[j].src = src; });
 });
+const cthulhuLevelBtnEl = document.getElementById("cthulhuLevelBtn");
+cthulhuLevelBtnEl.querySelector(".diffIcons img").src = OCTOPUS_IMG_SRC;
 function refreshLevelButtons() {
-  document.querySelectorAll("#difficultyLevels .levelBtn").forEach((btn, i) => {
-    btn.classList.toggle("active", i === difficultyLevel);
+  document.querySelectorAll("#difficultyLevels .levelBtn[data-level]").forEach((btn, i) => {
+    btn.classList.toggle("active", !cthulhuSelected && i === difficultyLevel);
   });
+  cthulhuLevelBtnEl.classList.toggle("active", cthulhuSelected);
 }
 refreshLevelButtons();
-document.querySelectorAll("#difficultyLevels .levelBtn").forEach((btn, i) => {
+refreshCthulhuButton();
+document.querySelectorAll("#difficultyLevels .levelBtn[data-level]").forEach((btn, i) => {
   btn.addEventListener("click", () => {
     difficultyLevel = i;
+    cthulhuSelected = false;
+    try { localStorage.setItem("kw_cthulhuSelected", "0"); } catch (e) { /* ignore */ }
     applyDifficulty(DIFFICULTY_LEVELS[i].value);
     try { localStorage.setItem("kw_difficultyLevel", String(i)); } catch (e) { /* ignore */ }
     refreshLevelButtons();
     sfxToggle();
   });
+});
+cthulhuLevelBtnEl.addEventListener("click", () => {
+  if (!cthulhuUnlocked) return; // defensive — the button stays hidden until then anyway
+  cthulhuSelected = true;
+  try { localStorage.setItem("kw_cthulhuSelected", "1"); } catch (e) { /* ignore */ }
+  applyDifficulty(CTHULHU_LEVEL.value);
+  refreshLevelButtons();
+  sfxToggle();
 });
 
 function refreshMapSizeButtons() {
@@ -7692,6 +7852,60 @@ function refreshLorePieuvre() {
   const el = document.getElementById("lorePieuvre");
   if (el) el.style.display = pieuvreUnlocked ? "" : "none";
 }
+// Cthulhu reveal — same shape as the octopus reveal just above, but for the
+// hidden difficulty tier (see executeWaterSacrifice()'s own note and
+// CTHULHU_LEVEL's). Unlike the octopus (which needs 3 SEPARATE matches with
+// a reveal), this one unlocks permanently the very first time it fires —
+// reaching a 4th full ritual, past the octopus' own 3rd, in a single match,
+// after already having been nudged by the "parchemin crypté" hint on some
+// earlier win, is rare enough on its own not to need repeating.
+let cthulhuRevealFX = null; // { x, y, start } — drawn in render(), see its own note
+function cthulhuRevealLoop() {
+  if (!cthulhuRevealFX) return;
+  render();
+  if (performance.now() - cthulhuRevealFX.start < OCTOPUS_REVEAL_MS) requestAnimationFrame(cthulhuRevealLoop);
+  else { cthulhuRevealFX = null; render(); }
+}
+function triggerCthulhuReveal(fromId, waterHexKeys) {
+  const lastKey = waterHexKeys[waterHexKeys.length - 1];
+  const [q, r] = lastKey.split(",").map(Number);
+  const h = hexAt(q, r);
+  cthulhuRevealFX = { x: h.x, y: h.y, start: performance.now() };
+  requestAnimationFrame(cthulhuRevealLoop);
+}
+function recordCthulhuUnlock() {
+  if (cthulhuUnlocked) return;
+  cthulhuUnlocked = true;
+  try { localStorage.setItem("kw_cthulhuUnlocked", "1"); } catch (e) { /* ignore */ }
+  refreshLoreCthulhu();
+  refreshCthulhuButton();
+}
+function refreshLoreCthulhu() {
+  const el = document.getElementById("loreCthulhu");
+  if (el) el.style.display = cthulhuUnlocked ? "" : "none";
+}
+function refreshCthulhuButton() {
+  const btn = document.getElementById("cthulhuLevelBtn");
+  if (btn) btn.style.display = cthulhuUnlocked ? "" : "none";
+}
+// "Piste subtile" toward Cthulhu — see showWin()'s own call site. Only ever
+// counts a real win (never a truce/mercy/surrender), and only in real play.
+// Returns true the one time the roll actually lands, so showWin() knows to
+// show the hint text on THIS particular win banner.
+function rollCthulhuHintWinCount() {
+  totalWins++;
+  try { localStorage.setItem("kw_totalWins", String(totalWins)); } catch (e) { /* ignore */ }
+  if (cthulhuHintThreshold === null) {
+    cthulhuHintThreshold = 5 + Math.floor(Math.random() * 6); // 5..10 inclusive
+    try { localStorage.setItem("kw_cthulhuHintThreshold", String(cthulhuHintThreshold)); } catch (e) { /* ignore */ }
+  }
+  if (!cthulhuHintShown && totalWins >= cthulhuHintThreshold) {
+    cthulhuHintShown = true;
+    try { localStorage.setItem("kw_cthulhuHintShown", "1"); } catch (e) { /* ignore */ }
+    return true;
+  }
+  return false;
+}
 function showOceanTapEasterEgg() {
   // Neither this nor showForcedSwimToast() below show up during replay
   // playback — reported live as clutter ("baignade forcée" popping up
@@ -7882,7 +8096,7 @@ function startGame(seed) {
   document.getElementById("endturn").disabled = false;
   gameOver = false; selected = -1; aiRunning = false;
   oceanTapCount = 0; // fresh running gag for a fresh match — see showOceanTapEasterEgg()
-  ritualCountThisMatch = 0; octopusRevealedThisMatch = false; octopusRevealFX = null;
+  ritualCountThisMatch = 0; octopusRevealedThisMatch = false; octopusRevealFX = null; cthulhuRevealFX = null;
   lastConqueredId = null; lastConqueredRoyId = -1;
   allCappedStreak = 0; lastStalemateFingerprint = null; truceEnded = false; truceWinnerId = -1; humanSurrendered = false; mercyGranted = false; peaceGueuxGained = 0;
   mercyOfferShownAtRound = null;
