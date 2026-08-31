@@ -101,7 +101,7 @@ Si on laisse une Provence avec un soldat seulement à côté d'une province de b
 
 [x] Si j'attaque une Province et qu'elle est connecté par la terre, entre le choix d'attaquer par l'eau si c'est possible et terre c'est toujours la terre quinest privilégié.
 
-[x] Le chemin d'attaque doit passer par le chemin le plus court.
+[x] Le chemin d'attaque doit passer par le chemin le plus court. (re-signalé en direct : le vrai bug était que computeWaterRoutes() minimisait le coût en force, pas le nombre de cases — corrigé, priorité au nombre de cases d'abord)
 
 [x] Le chemin d'attaque doit passer par les villages d'une province les plus proche. Il suffit de passer par un village collé à un adversaire pour attaquer. On n'attaque pas de capital en capitale, la capitale étant l'endroit où les chiffres des troupes est écrit. Les troupes peuvent être stationnées n'importe où sur une province dans le lore indépendamment de la position du chiffre des troupes.
 
@@ -183,3 +183,13 @@ Quelles phrases manquent actuellement que je les écrivent ?
 ## Fait en direct (hors paste original), pour référence
 
 Sound (gamme par royaume), épée/bateau taille + alignement, portée d'attaque mer, bug bateau décalé, icônes difficulté (avec le bon jeu d'images pixel art), horloge stats (fond blanc + formule corrigée), replay masque stats, confirmation abandon stylée, tuto qui reste bloqué + position haut-gauche + clic pour fermer, règle de hasard combat (1/3, 1/5), IA attaque par bateau, bruitage reload carte, bouton carte précédente, boutons replay icônes seules sur une ligne, pieuvre (mécanique + image corrigée), police du titre (Trattatello + repli MedievalSharp), bouton accélérer bataille = épée seule.
+
+- [x] Chemin d'attaque par mer : vrai plus court chemin (priorité au nombre de cases, coût en force en second) — corrige aussi le "trait mega long sans rapport avec mes forces".
+- [x] Épées de combat : encore -20% (après le -30% précédent).
+- [x] Chiffres de force mal centrés dans leur hexagone (bug de centrage canvas sur les glyphes asymétriques comme "1") — recentrés sur la vraie boîte englobante du texte.
+- [x] "Jouer depuis là" en replay pouvait retomber sur une partie gameOver/trêve déjà terminée, donc injouable — réinitialisé au fork.
+- [x] Bruitage d'attaque par mer : même son qu'une attaque normale, filtré (passe-bas) + léger écho/réverbération sous-marine.
+- [x] Enregistrement du graphique de fin : message de confirmation à l'enregistrement/partage ; retrait du titre du partage iOS (probable cause de l'icône générique dans le menu de partage).
+- [x] Abandon : coûte déjà 1 gueux et c'est déjà écrit dans le texte de fin ("Vous perdez un gueux.") — vérifié, déjà en place, rien à faire.
+- [ ] Bouton abandonner/gueux "pas visibles avant de choisir un camp" — non reproduit en test (portrait, avec et sans historique de reroll) ; probablement lié à un device/orientation précis, à re-signaler avec un screenshot si ça persiste.
+- [ ] "Super pouvoir des 12" — activation précisée en direct (attaque imparable sur autant de cases que de provinces, icône double-épée, déblocage d'un logo permanent + bonus égalité 12v12 après 3 activations/partie) : reste à construire, prochaine étape.
