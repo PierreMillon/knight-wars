@@ -148,7 +148,7 @@ Essayer une version avec du brouillard comme aoe I
 
 Une île isolée de barbare peut être inateignable. Ça reste dans le lore. Sauf du coup par la tribu qui a moins de pénalité dans l'eau. Et peut-être que débloquer la pieuvre donne au joueur une abilite spéciale. Pour les bleus aucun dégâts dans l'eau. Les autre son va y réfléchir.
 
-Le compteur des 12 offrandes n'est pas réinitialisé par des offre bases inférieur « plouf ». Il faut 3 par partie point.
+[x] Le compteur des 12 offrandes n'est pas réinitialisé par des offre bases inférieur « plouf ». Il faut 3 par partie point. (déjà correct — ritualCountThisMatch n'incrémente que dans la branche isRitual, jamais sur un "plouf" partiel)
 J'ai l'impression le 28 août 16:00 que le 2 difficulté est plus dur que le niveau 4
 
 Les adversaires devraient parfois tendance se liguer officieusement contre le plus gros. Ou bien attaquer le plus faible. T'en dis quoi ?
