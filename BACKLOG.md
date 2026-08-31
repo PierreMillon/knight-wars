@@ -170,4 +170,16 @@ Pour le sacrifice aux océans de Chtulhu mettre avant de le débloquer une piste
 
 Quelles phrases manquent actuellement que je les écrivent ?
 
-La pieuvre bonus s'active si on envoie les trois bateaux pleins au niveau difficile seulement.
+[x] La pieuvre bonus s'active si on envoie les trois bateaux pleins au niveau difficile seulement.
+
+---
+
+## Idées données en direct (pas dans le paste original ci-dessus)
+
+- [ ] Chaque royaume peut, via un easter egg, débloquer un dieu spécial avec des capacités spéciales. Actives pour le joueur uniquement, sauf en mode le plus dur — ou quand débloqué pour un seigneur, actif qu'on le joue ou qu'il soit adversaire.
+- [ ] "Bonus de 12" : quand un royaume a 12 dans chaque province, contour doré vibrant autour de tout son territoire + attaque spéciale imparable, longue distance, terre ou mer, tue tout sur le passage — visuel du contour en cours (voir code), l'activation de l'attaque elle-même reste à définir (UX pas encore précisée).
+- [ ] Contour du royaume au début du replay doit entourer toute la zone d'une seule traite (pas province par province), sauf si les provinces sont physiquement séparées.
+
+## Fait en direct (hors paste original), pour référence
+
+Sound (gamme par royaume), épée/bateau taille + alignement, portée d'attaque mer, bug bateau décalé, icônes difficulté (avec le bon jeu d'images pixel art), horloge stats (fond blanc + formule corrigée), replay masque stats, confirmation abandon stylée, tuto qui reste bloqué + position haut-gauche + clic pour fermer, règle de hasard combat (1/3, 1/5), IA attaque par bateau, bruitage reload carte, bouton carte précédente, boutons replay icônes seules sur une ligne, pieuvre (mécanique + image corrigée), police du titre (Trattatello + repli MedievalSharp), bouton accélérer bataille = épée seule.
