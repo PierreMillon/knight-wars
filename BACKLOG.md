@@ -130,7 +130,7 @@ L'écran blanc PWA est revenu… après que j'ai fermé la fenêtre.
 
 Écrire 100 phrases à la main drôle si les joueurs continuent de jeter leurs soldats. On randomisé après la phrase sur le rhum et gta VI. Je te donnerai les phrases.
 
-Curseur pour le volume du son qui devient « bruitage »
+[x] Curseur pour le volume du son qui devient « bruitage » (soundVolumeSlider 0-100, remplace le toggle on/off, persisté)
 
 On ajoute une musique que je te fournirai et un curseur de volume aussi.
 
