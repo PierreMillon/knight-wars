@@ -483,9 +483,16 @@
      is meant for the lone blazon above, not a horizontal pair */
   #loreSoldiers { display: flex; justify-content: center; align-items: flex-end; gap: 28px; margin: 0 0 16px; }
   #loreSoldiers img { width: 54px; height: auto; margin: 0; image-rendering: pixelated; }
-  #loreWarTools { display: flex; justify-content: center; align-items: center; gap: 24px; margin: 0 0 16px; flex-wrap: wrap; }
-  #loreWarTools img { width: 42px; height: auto; margin: 0; }
+  /* 6 icons now (was 3, then 5) — shrunk and de-wrapped so they all still
+     fit on one row instead of spilling to a second ("faire rentrer tous les
+     petits dessins sur une seule ligne"), even on a narrow phone width. */
+  #loreWarTools { display: flex; justify-content: center; align-items: center; gap: 6px; margin: 16px 0 0; flex-wrap: nowrap; }
+  #loreWarTools img { width: 26px; height: auto; margin: 0; flex: none; }
   #loreWarTools img.bw { filter: grayscale(1); }
+  /* SWORD_DIAGONAL_IMG_SRC is already drawn at an angle in the source art
+     itself — no CSS rotate needed (a first version rotated SWORD_IMG
+     instead, corrected live: "c'est pas elle, c'est celle qui est tout
+     noire"). */
   #lorePersonalities { display: flex; flex-direction: column; gap: 10px; margin: 0 0 16px; }
   #lorePersonalities .personalityRow { font-size: 13px; line-height: 1.5; }
   #lorePersonalities .personalityRow .rname { font-weight: 700; }
@@ -631,11 +638,17 @@
     font-size: 14px; font-weight: 600; color: #6b2318;
   }
   /* small first-game-only tutorial banner — same materials as the other HUD
-     buttons, top-left ("l'affichage du tuto se positionne en haut à gauche
-     de l'écran"), pushed down past the stats column (#topBar, up to 4
-     royaume lines tall before a camp is picked) so it never overlaps it. */
+     buttons, top-left. Pinned at the very top of the screen now, same top
+     offset as #topBar/#gameTitleBlock/#settingsBtn — it's MEANT to overlap
+     the stats column and the menu button (no explicit z-index on either of
+     those, so this z-index:5 already wins the stacking fight regardless of
+     DOM order), just never reaching down far enough to cover the actual
+     map underneath. Used to be pushed down past the stats column instead
+     ("so it never overlaps it") — reversed per direct request: "il doit
+     s'afficher tout en haut l'écran et débordé sur les statistiques et sur
+     le menu et ne pas déborder sur la carte". */
   #onboardingHint {
-    position: absolute; top: calc(130px + env(safe-area-inset-top, 0px)); left: 14px;
+    position: absolute; top: calc(8px + env(safe-area-inset-top, 0px)); left: 14px;
     z-index: 5;
     display: none; max-width: 78vw; text-align: left; cursor: pointer;
     background: rgba(20,16,12,.75); color: #f2ede2; font-size: 13px; font-weight: 600;
@@ -888,20 +901,6 @@
       <p>En cet an de grâce 1183, la Bretagne n'a plus de duc, et quatre châtelains se disputent son héritage — Châteauvieux, Villiers, Montherlant, Beaumanoir. Quatre noms de fief, mais un seul sang : tous portent le même blason, celui d'un aïeul commun, les Millon, dont le domaine fut fracturé entre ses héritiers il y a plus d'un siècle.</p>
       <p>Chaque bataille livrée ici n'oppose pas des étrangers, mais des cousins — une querelle de famille qui ne connaît ni trêve ni pardon, jusqu'à ce qu'un seul Millon reste debout pour reformer sous une seule bannière la terre que leurs pères ont laissée en morceaux.</p>
       <p>Un siècle de guerre a forgé le caractère de chaque branche — et à la table de jeu, ce caractère se traduit en habitudes de commandement bien réelles, pas seulement en surnom :</p>
-      <!-- chevalier à cheval / blason / pieuvre / bateau / épées — the same
-           sprites already used elsewhere (Seigneur's own difficulty icon,
-           the settings icon, water-crossing FX, combat FX) shown together
-           here as the family's own tools of war. Blason/pieuvre desaturated
-           (.bw) per request — "le blason en noir et blanc" — the colored
-           blason already appears elsewhere (settings icon), this is a
-           distinct, muted flourish rather than a duplicate. -->
-      <div id="loreWarTools">
-        <img id="loreChevalierImg" alt="">
-        <img id="loreBlazonBWImg" class="bw" alt="">
-        <img id="loreOctopusBWImg" class="bw" alt="">
-        <img id="loreBoatImg" alt="">
-        <img id="loreSwordImg" alt="">
-      </div>
       <!-- two soldier sketches drawn by the user, sitting between the family
            history above and each house's own commanding character below —
            the rank and file that character actually leads into battle. -->
@@ -950,6 +949,26 @@
       </div>
       <div id="loreGodNeptune" style="display:none;">
         <p><strong>Neptune</strong>, dieu de la mer, ne répond qu'à la maison Beaumanoir — et seulement à qui a scellé un siège entier par une dernière charge venue des flots. L'onde s'écarte un peu plus vite pour elle depuis : chaque traversée coûte une force de moins.</p>
+      </div>
+      <!-- chevalier à cheval / blason / pieuvre / bateau / épées (droite +
+           diagonale) — the same sprites already used elsewhere (Seigneur's
+           own difficulty icon, the settings icon, water-crossing FX, combat
+           FX) shown together, moved to the very bottom of the page per
+           request ("les mettre tout en bas de la page") and shrunk so all
+           six fit on one row without wrapping ("faire rentrer tous les
+           petits dessins sur une seule ligne"). Blason/pieuvre desaturated
+           (.bw) — the colored blason already appears elsewhere (settings
+           icon), this is a distinct, muted flourish rather than a
+           duplicate. Second sword is a genuinely distinct sprite
+           (SWORD_DIAGONAL_IMG_SRC — a solid black blade, already drawn at
+           an angle in the source art), not the first one rotated. -->
+      <div id="loreWarTools">
+        <img id="loreChevalierImg" alt="">
+        <img id="loreBlazonBWImg" class="bw" alt="">
+        <img id="loreOctopusBWImg" class="bw" alt="">
+        <img id="loreBoatImg" alt="">
+        <img id="loreSwordImg" alt="">
+        <img id="loreSwordDiagonalImg" alt="">
       </div>
       <button id="closeLore">Fermer</button>
     </div>
@@ -1585,6 +1604,12 @@ const BOAT_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMYAAADGCAYA
 const SWORD_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMAAAADACAYAAABS3GwHAAACT0lEQVR4nO3dwY0CQQwAwfOJ/FM2ISAQyyC6KoCV99Hyx9LM7v5B1f/pAeAkAZAmANIEQJoASBMAaQIgTQCkCYA0AZAmANJupwf4NTPz1HHV7s5Vs/CYDUCaAEgTAGkCIE0ApAmANAGQJgDSBECaAEgTAGlugR544bbn6u+7HXojG4A0AZAmANIEQJoASBMAaQIgTQCkCYA0AZAmANIEQJoASBMAaQIgTQCkCYA0AZAmANIEQJoASBMAaQIgTQCkCYA0AZAmANIEQJoASBMAaQIgTQCkCYA0AZAmANIEQJoASBMAaQIgTQCkCYA0AZAmANIEQJoASBMAaQIgTQCkCYA0AZAmANIEQJoASBMAaQIgTQCkCYA0AZAmANIEQJoASBMAaQIgTQCkCYA0AZAmANIEQJoASBMAaQIgTQCkCYA0AZAmANIEQJoASBMAaQIgTQCkCYA0AZAmANIEQJoASBMAaQIgTQCkCYA0AZAmANIEQJoASBMAaQIgTQCkCYA0AZAmANIEQJoASBMAaQIgTQCkCYA0AZAmANJmd0/P8FEzk/rh3Z3TM3wzG4A0AZAmANIEQJoASBMAaQIgTQCkCYA0AZAmANJyt0BXe/bWyK3OWTYAaQIgTQCkCYA0AZAmANIEQJoASBMAaQIgTQCkCYA0AZAmANIEQJoASBMAaQIgTQCkCYA0AZAmANIEQJoASBMAaQIgTQCkCYA0AZAmANIEQJoASBMAaQIgTQCkeSOMNBuANAGQJgDSBECaAEgTAGkCIE0ApAmANAGQJgDS7mUGIXSdQgiUAAAAAElFTkSuQmCC";
 const BOAT_IMG = loadSprite(BOAT_IMG_SRC);
 const SWORD_IMG = loadSprite(SWORD_IMG_SRC);
+// A distinct sprite from SWORD_IMG — a solid black diagonal blade, not just
+// SWORD_IMG rotated in CSS (tried first, corrected live: "L'épée en
+// diagonale c'est pas elle ! C'est celle qui est tout noire") — used only
+// in Le lore's war-tools row for now.
+const SWORD_DIAGONAL_IMG_SRC = "data:image/png;base64,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";
+const SWORD_DIAGONAL_IMG = loadSprite(SWORD_DIAGONAL_IMG_SRC);
 const FIGURE1_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAOoAAADqCAYAAACslNlOAAADIklEQVR4nO3cwY3DMAwAQeuQ/ltmSjhAD9nrzDRg5bHgh+GamQt4tr+7HwD8T6gQIFQIECoECBUChAoBQoUAoUKAUCFAqBAgVAgQKgQIFQKECgFChQChQoBQIUCoECBUCBAqBAgVAoQKAUKFAKFCgFAhQKgQIFQIECoECBUChAoBQoUAoUKAUCFAqBAgVAgQKgQIFQKECgFChQChQoBQIUCoECBUCBAqBAgVAoQKAUKFAKFCgFAhQKgQIFQIECoECBUChAoBQoUAoUKAUCFAqBAgVAgQKgQIFQKECgFChQChQsDn7gf8krXWnPjOzKwT39n5Pafe9jYmKgQIFQKECgFChQChQoBQIUCoECBUCBAqBAgVAoQKAUKFAKFCgFAhQKgQIFQIECoECBUChAoBQoUAoUKAUCFAqBAgVAgQKgS4lL/p1NX7HS7Yv4+JCgFChQChQoBQIUCoECBUCBAqBAgVAoQKAUKFAKFCgFAhQKgQIFQIECoECBUChAoBQoUAoUKAUCFAqBAgVAgQKgQIFQKECgFr5rEH3x/tyZfy38YVfxMVEoQKAUKFAKFCgFAhQKgQIFQIECoECBUChAoBQoUAoULA5+4H8Fss2O8xUSFAqBAgVAgQKgQIFQKECgFChQChQoBQIUCoECBUCBAqBFjKZ5sF+3NMVAgQKgQIFQKECgFChQChQoBQIUCoECBUCBAqBAgVAoQKAZbyH25n8X2tNSe+wzkmKgQIFQKECgFChQChQoBQIUCoECBUCBAqBAgVAoQKAUKFAKFCgFAhQKgQIFQIECoECBUChAoBQoUAoUKAUCFAqBAgVAgQKgS4lL/p1AV7uC4TFRKECgFChQChQoBQIUCoECBUCBAqBAgVAoQKAUKFAKFCgKX8TW9bsN/5PTt/TGCPiQoBQoUAoUKAUCFAqBAgVAgQKgQIFQKECgFChQChQoBQIcBS/vW+BftTLPKfY6JCgFAhQKgQIFQIECoECBUChAoBQoUAoUKAUCFAqBAgVAhYM/bR4elMVAgQKgQIFQKECgFChQChQoBQIUCoECBUCBAqBAgVAoQKAV/YRzbZg1y34QAAAABJRU5ErkJggg==";
 const FIGURE2_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAOoAAADqCAYAAACslNlOAAADJ0lEQVR4nO3cQW4cMQwAQSnw/79M/yBGhGBHPa66L1aXBi8c7plZwN3+PP0A4GdChQChQoBQIUCoECBUCBAqBAgVAoQKAUKFAKFCgFAhQKgQIFQIECoECBUChAoBQoUAoUKAUCFAqBAgVAgQKgQIFQKECgFChQChQoBQIUCoECBUCBAqBAgVAoQKAUKFAKFCgFAhQKgQIFQIECoECBUChAoBQoUAoUKAUCFAqBAgVAgQKgQIFQKECgFChQChQsDX0w/43/be86+/mZl96//AWiYqJAgVAoQKAUKFAKFCgFAhQKgQIFQIECoECBUChAoBQoWA1y3lv83J8v8JHwzczUSFAKFCgFAhQKgQIFQIECoECBUChAoBQoUAoUKAUCFAqBBgKX99bvEdTpmoECBUCBAqBAgVAoQKAUKFAKFCgFAhQKgQIFQIECoECBUCXreUf3Lx/WQp/+bL8je/jTMmKgQIFQKECgFChQChQoBQIUCoECBUCBAqBAgVAoQKAUKFgNct5d/sUxf53/aRASYqJAgVAoQKAUKFAKFCgFAhQKgQIFQIECoECBUChAoBQoUAS/mHPrVgD2uZqJAgVAgQKgQIFQKECgFChQChQoBQIUCoECBUCBAqBAgVAizlHzq5LG+Rn1MmKgQIFQKECgFChQChQoBQIUCoECBUCBAqBAgVAoQKAUKFAKFCgFAhQKgQIFQIECoECBUChAoBQoUAoUKAUCFAqBAgVAgQKgS4lH85F/lZy0SFBKFCgFAhQKgQIFQIECoECBUChAoBQoUAoUKAUCFAqBAgVAgQKgQIFQKECgFChQChQoBQIUCoECBUCBAqBAgVAoQKAUKFAKFCgFAhQKgQIFQIECoECBUChAoBQoUAoUKAUCFAqBAgVAgQKgR8Pf2AG8zMfvoN8DcmKgQIFQKECgFChQChQoBQIUCoECBUCBAqBAgVAoQKAUKFAEv5h/be8/Qb+D1MVAgQKgQIFQKECgFChQChQoBQIUCoECBUCBAqBAgVAoQKAXvGbjnczkSFAKFCgFAhQKgQIFQIECoECBUChAoBQoUAoUKAUCFAqBDwDaQ0MOOKuX2SAAAAAElFTkSuQmCC";
 // The octopus reveal — "3 pleins bateaux dans une même partie" (see
@@ -3127,8 +3152,11 @@ const NUMBER_FADE_MS = 1400;
 const OUTCOME_FADE_MS = NUMBER_FADE_MS * 2;
 // Same idea as NUMBER_FADE_MS, for the reinforcement pulse ring + its "+N"
 // specifically (kept as its own constant since it's a visually distinct
-// effect, even though the value matches for now).
-const PULSE_FADE_MS = 1400;
+// effect). Doubled per direct request — "les chiffres flottants qui
+// indiquent le nombre de soldats en plus, il faut qu'il soit affiché deux
+// fois plus de temps" — same "twice as long" treatment OUTCOME_FADE_MS
+// already got for the villages-gained number.
+const PULSE_FADE_MS = 2800;
 let pulseTiles = []; // [{id, start}]
 // A list, not a single slot — a fast drag-to-attack chain (or "batailles
 // instantanées" resolving several AI attacks back to back) used to have
@@ -7447,6 +7475,7 @@ document.getElementById("loreBlazonBWImg").src = BLAZON_IMG_SRC;
 document.getElementById("loreOctopusBWImg").src = OCTOPUS_IMG_SRC;
 document.getElementById("loreBoatImg").src = BOAT_IMG_SRC;
 document.getElementById("loreSwordImg").src = SWORD_IMG_SRC;
+document.getElementById("loreSwordDiagonalImg").src = SWORD_DIAGONAL_IMG_SRC;
 refreshLorePieuvre();
 document.getElementById("lorePersonalities").innerHTML = ROYAUMES.slice(0, ROYAUME_COUNT - 1).map(roy => `
   <div class="personalityRow">
@@ -7508,8 +7537,17 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.88";
+const GAME_VERSION = "1.89";
 const CHANGELOG = [
+  {
+    version: "1.89",
+    notes: [
+      "Le bouton « Choisissez un camp » a disparu pour de bon — l'astuce en haut de l'écran suffit.",
+      "Le tuto de tout début de partie s'affiche maintenant tout en haut, par-dessus les stats et le menu.",
+      "Lore : les petits dessins tiennent maintenant tous sur une ligne, en bas de page, avec une deuxième épée.",
+      "Les chiffres flottants de renfort (+N) restent affichés deux fois plus longtemps.",
+    ],
+  },
   {
     version: "1.88",
     notes: [
@@ -9032,13 +9070,19 @@ document.addEventListener("visibilitychange", () => { if (!document.hidden) chec
 let onboarding = false;
 try { onboarding = localStorage.getItem("kw_playedBefore") !== "1"; } catch (e) { /* ignore */ }
 // "Choisissez un camp" (the endturn button's own label while awaitingFactionPick)
-// only shown the first CAMP_PROMPT_MAX times someone actually picks a camp —
-// by then tapping a province to pick a side is assumed to be understood, and
-// the button just sits there doing nothing until it is (attacks/end-turn are
-// blocked while awaitingFactionPick), so it's hidden outright afterwards. See
-// endturnVisible()/resize() for what takes over that bottom-right slot once
-// it's gone (rerollBtn — no more stacking a button above an empty label).
-const CAMP_PROMPT_MAX = 2;
+// used to show for the first CAMP_PROMPT_MAX times someone actually picked a
+// camp — now retired outright, at 0, per direct request: "le bouton en bas
+// à droite qui dit qu'il faut choisir un camp doit disparaître totalement
+// tout le temps", since the onboarding hint at the top of the screen
+// already says as much ("le tutoriel dit qu'il faut choisir un camp"), and
+// duplicating that instruction on a button that does nothing until tapped
+// elsewhere (attacks/end-turn are blocked while awaitingFactionPick) was
+// redundant. See endturnVisible()/resize() for what takes over that
+// bottom-right slot once it's hidden (rerollBtn — no more stacking a
+// button above an empty label) — that logic already handled this exact
+// "retired" state, so 0 just makes it the permanent one instead of a
+// temporary one after 2 picks.
+const CAMP_PROMPT_MAX = 0;
 let campPromptCount = 0;
 try { campPromptCount = parseInt(localStorage.getItem("kw_campPromptCount") || "0", 10) || 0; } catch (e) { /* ignore */ }
 // true whenever endturn should actually be shown — false both mid-replay
@@ -9153,7 +9197,7 @@ function startGame(seed) {
   // lines that the banner (no max-height/reflow logic of its own, it just
   // grows with its text) reached down into the map's own top row, reported
   // live with a screenshot circling how much shorter it needed to be.
-  if (awaitingFactionPick) showOnboardingHint("Mon général, la maison Millon se déchire. Touchez une province pour choisir votre camp.");
+  if (awaitingFactionPick) showOnboardingHint("Mon général, la maison Millon se déchire. Touchez une province pour mettre votre épée au service d'une famille.");
   else hideOnboardingHint();
   updateGroups(); // populate before resize() measures the HUD's real height
   resize();
