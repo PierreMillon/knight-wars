@@ -74,7 +74,7 @@
      shared parchment gold every other HUD button gets (see each button's
      own background rule below). */
   #settingsBtn, #endturn, #rerollBtn, #gueuxBadge, #surrenderBtn,
-  #replayPauseBtn, #replayResumeHereBtn {
+  #replayPauseBtn, #replayResumeHereBtn, #prevMapBtn {
     border-radius: 10px;
     border: 1.5px solid #e8c468;
     box-shadow:
@@ -322,6 +322,14 @@
      the other 4 — .levelRow's own nowrap default is fine everywhere else,
      which never has more than 4 items to fit. */
   #difficultyLevels.levelRow { flex-wrap: wrap; }
+  /* Map-size row specifically: no need for every button to claim an equal
+     share of the row width — "Croisade" was ellipsizing at its own forced
+     equal share while "Joute"/"Raid" sat on plenty of unused space right
+     next to it. Sized to its own label instead (flex-shrink still on, so a
+     genuinely too-narrow screen still degrades gracefully rather than
+     overflowing) — "une largeur dynamique... le mot croisade peut
+     largement s'afficher sans mettre des petits points". */
+  #mapSizeLevels.levelRow .levelBtn { flex: 0 1 auto; }
   .diffIcons { display: flex; align-items: center; justify-content: center; gap: 2px; height: 14px; }
   .diffIcons img { height: 14px; width: auto; display: block; }
   #cthulhuLevelBtn .diffIcons img { filter: invert(1) hue-rotate(180deg) brightness(.7); }
@@ -355,6 +363,11 @@
      recomputed in JS (resize()) once rerollBtn's own rendered width is
      known, this is just a same-slot fallback before that first runs. */
   #prevMapBtn { right: 14px; }
+  /* Now just a bare arrow (see prevMap's own translation note) — the wide
+     text-button padding it shared with rerollBtn/replayPauseBtn read as an
+     oddly stretched-out single glyph; tightened to something closer to a
+     square icon button instead, same border/shadow as its neighbors. */
+  #prevMapBtn { padding: 8px 14px; }
   /* was a flat 24px — fine for a short line, but the longer victory/loss
      lines wrap to 6-7 lines at that size and push the chart + buttons far
      enough down that they needed scrolling to reach on some phones. Scales
@@ -766,7 +779,7 @@
        (see updateEnemySurrenderOffer()) — accepting ends the match right
        now as a human win, without actually having to grind them down -->
   <button id="enemySurrenderBtn" style="display:none;"></button>
-  <button id="prevMapBtn" style="display:none;">◀ Précédente</button>
+  <button id="prevMapBtn" style="display:none;">◀</button>
   <button id="rerollBtn">🔀 Changer la carte</button>
   <!-- the one replay control now: starts on screen already paused (frozen)
      — a tap turns it into "⏸ Pause" and starts playback; pausing again
@@ -3179,6 +3192,11 @@ const OUTCOME_FADE_MS = NUMBER_FADE_MS * 2;
 // fois plus de temps" — same "twice as long" treatment OUTCOME_FADE_MS
 // already got for the villages-gained number.
 const PULSE_FADE_MS = 2800;
+// The ring itself fades/shrinks twice as fast as its own "+N" label —
+// "le cercle jaune... il faut qu'il disparaisse deux fois plus vite que
+// les chiffres" — decoupled from PULSE_FADE_MS (the label's own duration,
+// unchanged) rather than sharing one clock.
+const RING_FADE_MS = PULSE_FADE_MS / 2;
 let pulseTiles = []; // [{id, start}]
 // A list, not a single slot — a fast drag-to-attack chain (or "batailles
 // instantanées" resolving several AI attacks back to back) used to have
@@ -3433,7 +3451,10 @@ const UI_STRINGS = {
   rerollChangeMap: { fr: "🔀 Changer la carte", en: "🔀 New map" },
   rerollStopReplayAria: { fr: "Arrêter le replay", en: "Stop replay" },
   rerollChangeMapAria: { fr: "Changer la carte", en: "New map" },
-  prevMap: { fr: "◀ Précédente", en: "◀ Previous" },
+  // Just the arrow now, no label text — "ça doit être une simple flèche
+  // vers la gauche" — aria-label carries the meaning for screen readers instead.
+  prevMap: { fr: "◀", en: "◀" },
+  prevMapAria: { fr: "Carte précédente", en: "Previous map" },
   replayResumeHere: { fr: "Jouer depuis là", en: "Play from here" },
   restart: { fr: "⬅️ Rejouer la même carte", en: "⬅️ Replay same map" },
   watchReplay: { fr: "🎬 Revoir la partie", en: "🎬 Watch replay" },
@@ -3702,7 +3723,12 @@ function vibrateDragExtend() {
 // turn order after the human's own seat — so the human's own "voice" never
 // changes no matter which royaume they picked this match, and the others
 // are still each distinct and always in the same relative order.
-const REINFORCE_ROOT_BASE_HZ = 523.25; // C5 — always the human's own root
+// Lowered 2 whole tones (4 semitones) per request — "abaisse de deux tons
+// toutes les notes... de la musique qui montre le rechargement des
+// forces" — was C5 (523.25Hz); every note in the chime is a ratio off this
+// one root (see REINFORCE_CHORD_RATIOS/reinforceRootHzFor), so shifting it
+// alone moves the whole thing down uniformly.
+const REINFORCE_ROOT_BASE_HZ = 415.30; // Ab4/G#4 — always the human's own root
 function reinforceRootHzFor(royId) {
   const realRoyaumeCount = ROYAUME_COUNT - 1; // exclude the neutral slot from the ladder
   const rank = (royId - humanRoyId + realRoyaumeCount) % realRoyaumeCount; // 0 = the human's own seat
@@ -6375,14 +6401,26 @@ function render() {
       // Start radius now scales with how much force actually landed here —
       // "ils passent proportionnel à l'ajout du nombre de soldat en taille"
       // — capped so a big multi-point reinforcement doesn't balloon past the
-      // hex it's centered on; still shrinks to exactly half by the end,
-      // same ratio the original fixed 28→14 always used.
+      // hex it's centered on.
       const startRadius = 20 + Math.min(p.amount, 8) * 4; // per-point coefficient doubled (was *2) — "double la différence de taille" between a small and a big reinforcement
-      ctx.beginPath();
-      ctx.arc(t.cx, ringCy, startRadius - introProgress * (startRadius / 2), 0, Math.PI * 2);
-      ctx.strokeStyle = `rgba(255, 214, 92, ${pulseFadeAlpha})`;
-      ctx.lineWidth = 2.5;
-      ctx.stroke();
+      // Ring: continuous shrink all the way to a small end size, on its own
+      // clock half as long as the label's (RING_FADE_MS) — "je veux juste
+      // qu'il diminue jusqu'à être très petit... et qu'il disparaisse deux
+      // fois plus vite que les chiffres". Used to freeze at half-size once
+      // PULSE_INTRO_MS ended and just fade transparency from there — "il
+      // diminue, et après il reste la même taille et il devient de plus en
+      // plus transparent" — now it just keeps shrinking, continuously, the
+      // whole time it's visible.
+      const ringProgress = Math.min(1, elapsed / RING_FADE_MS);
+      const ringAlpha = Math.max(0, 1 - ringProgress);
+      if (ringAlpha > 0) {
+        const ringRadius = startRadius - ringProgress * (startRadius - 3); // shrinks to ~3px, "très petit"
+        ctx.beginPath();
+        ctx.arc(t.cx, ringCy, ringRadius, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(255, 214, 92, ${ringAlpha})`;
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+      }
 
       ctx.font = "bold 17px -apple-system, sans-serif"; // was 12px — +40%
       ctx.textAlign = "center";
@@ -7338,7 +7376,7 @@ document.getElementById("restart").addEventListener("click", () => {
   applyMapSize(gameStartMapSize);
   startGame(currentSeed);
 });
-document.getElementById("randomGameBtn").addEventListener("click", () => { if (!reloadIfUpdateAvailable()) startGame(); });
+document.getElementById("randomGameBtn").addEventListener("click", () => { if (!reloadIfUpdateAvailable()) { applyPendingDifficulty(); startGame(); } });
 document.getElementById("watchReplay").addEventListener("click", () => startReplay());
 document.getElementById("rerollBtn").addEventListener("click", () => {
   if (replaying) {
@@ -7359,6 +7397,7 @@ document.getElementById("rerollBtn").addEventListener("click", () => {
     mapHistory.push(currentSeed);
     while (mapHistory.length > 2) mapHistory.shift();
     sfxRerollMap();
+    applyPendingDifficulty(); // pick up any difficulty change made in settings since this match started
     startGame();
     refreshPrevMapBtn();
   }
@@ -7578,8 +7617,19 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.90";
+const GAME_VERSION = "1.91";
 const CHANGELOG = [
+  {
+    version: "1.91",
+    notes: [
+      "Cercle jaune de renfort : diminue en continu jusqu'à devenir tout petit (au lieu de se figer à mi-taille), et disparaît deux fois plus vite que le chiffre à côté.",
+      "Le tuto « choisissez une famille » ne s'affiche plus du tout après la première partie.",
+      "Boutons de taille de carte : largeur adaptée à chaque mot, « Croisade » s'affiche en entier sans points de suspension.",
+      "Bouton « carte précédente » : simple flèche, même style que les autres boutons du bas.",
+      "Musique de rechargement des forces baissée de deux tons.",
+      "Réglages (adversaires, taille de carte, difficulté) : le choix ne s'applique plus à la partie en cours, seulement à la prochaine.",
+    ],
+  },
   {
     version: "1.90",
     notes: [
@@ -8392,6 +8442,7 @@ function applyUiLanguage() {
   document.getElementById("settingsBtn").setAttribute("aria-label", t("settingsAria"));
   document.getElementById("surrenderBtn").setAttribute("aria-label", t("surrenderAria"));
   document.getElementById("prevMapBtn").textContent = t("prevMap");
+  document.getElementById("prevMapBtn").setAttribute("aria-label", t("prevMapAria"));
   document.getElementById("replayResumeHereBtn").textContent = t("replayResumeHere");
   document.getElementById("restart").textContent = t("restart");
   document.getElementById("watchReplay").textContent = t("watchReplay");
@@ -8521,13 +8572,26 @@ function refreshLevelButtons() {
 }
 refreshLevelButtons();
 refreshCthulhuButton();
+// "Quand on clique sur un bouton des réglages... de la difficulté, ça ne
+// mette pas directement sur la carte" — applyDifficulty() itself only sets
+// plain globals (AI_AGGRESSION_THRESHOLD/AI_MISTAKE_RATE read live every AI
+// turn, NEUTRAL_FRACTION read at map generation), but that's still a real,
+// felt effect on the match already in progress, not just an inert setting.
+// The choice is now only persisted here (+ button highlight) — actually
+// applied via applyPendingDifficulty() at the next genuinely NEW game
+// (rerollBtn/randomGameBtn below), never mid-match. Deliberately NOT called
+// from `restart` ("rejouer la même carte") — that one must keep the
+// ORIGINAL match's own difficulty, or the same seed wouldn't reproduce the
+// same map (NEUTRAL_FRACTION differs by difficulty).
+function applyPendingDifficulty() {
+  applyDifficulty(cthulhuSelected ? CTHULHU_LEVEL.value : DIFFICULTY_LEVELS[difficultyLevel].value);
+}
 document.querySelectorAll("#difficultyLevels .levelBtn[data-level]").forEach((btn, i) => {
   btn.addEventListener("click", () => {
     if (i === 3 && !isPremiumUnlocked()) { openPremiumUnlockOverlay(); return; }
     difficultyLevel = i;
     cthulhuSelected = false;
     try { localStorage.setItem("kw_cthulhuSelected", "0"); } catch (e) { /* ignore */ }
-    applyDifficulty(DIFFICULTY_LEVELS[i].value);
     try { localStorage.setItem("kw_difficultyLevel", String(i)); } catch (e) { /* ignore */ }
     refreshLevelButtons();
     sfxToggle();
@@ -8537,7 +8601,6 @@ cthulhuLevelBtnEl.addEventListener("click", () => {
   if (!cthulhuUnlocked) return; // defensive — the button stays hidden until then anyway
   cthulhuSelected = true;
   try { localStorage.setItem("kw_cthulhuSelected", "1"); } catch (e) { /* ignore */ }
-  applyDifficulty(CTHULHU_LEVEL.value);
   refreshLevelButtons();
   sfxToggle();
 });
@@ -8552,16 +8615,17 @@ refreshMapSizeButtons();
 document.querySelectorAll("#mapSizeLevels .levelBtn").forEach((btn) => {
   btn.addEventListener("click", () => {
     if (btn.dataset.mapsize === "huge" && !isPremiumUnlocked()) { openPremiumUnlockOverlay(); return; }
-    // Restarts immediately, like "Nouvelle guerre" — a map size can't apply
-    // to a map that's already generated, so leaving it to "take effect next
-    // time" just read as "nothing happened" until the player separately
-    // started a fresh game.
+    // Used to restart immediately, like "Nouvelle guerre" — reversed per
+    // direct request ("ça ne mette pas directement sur la carte"): only
+    // takes effect the next time a genuinely new game actually starts
+    // (rerollBtn/randomGameBtn), not the match already in progress.
+    // applyMapSize() itself is harmless to call right away regardless — it
+    // only sets constants a future startGame() reads, never touches the
+    // live board.
     applyMapSize(btn.dataset.mapsize);
     try { localStorage.setItem("kw_mapSize", mapSize); } catch (e) { /* ignore */ }
     refreshMapSizeButtons();
     sfxToggle();
-    settingsPanel.style.display = "none";
-    if (!reloadIfUpdateAvailable()) startGame();
   });
 });
 
@@ -8610,15 +8674,14 @@ function refreshOpponentCountButtons() {
 refreshOpponentCountButtons();
 document.querySelectorAll("#opponentCountLevels .levelBtn").forEach((btn) => {
   btn.addEventListener("click", () => {
-    // same immediate-restart treatment as map size, for the same reason —
-    // a running match's territories are already generated for the old count
+    // Used to restart immediately, same as map size — reversed for the same
+    // reason (see its own note above): only takes effect at the next
+    // genuinely new game, not the match already in progress.
     opponentCount = Number(btn.dataset.opponents);
     try { localStorage.setItem("kw_opponentCount", String(opponentCount)); } catch (e) { /* ignore */ }
     refreshOpponentCountButtons();
-    applyMapSize(mapSize); // re-derive TERRITORY_COUNT/MAP_PIXEL_RADIUS for the new count
+    applyMapSize(mapSize); // re-derive TERRITORY_COUNT/MAP_PIXEL_RADIUS for the new count — harmless now too, same reason
     sfxToggle();
-    settingsPanel.style.display = "none";
-    if (!reloadIfUpdateAvailable()) startGame();
   });
 });
 
@@ -9245,17 +9308,20 @@ function startGame(seed) {
   // Voiced as an écuyer briefing a hired général de guerre, not a lord who'd
   // already know his own house — the player is a mercenary commander sold
   // to whichever Millon branch they pick this campaign (all four royaumes
-  // share that family name — see ROYAUMES), which is why "choosing a camp"
-  // makes sense in-story at all. Shown every match at this exact moment
-  // (not gated behind `onboarding`, unlike the other tutorial-only hints
-  // below), since it's the one bit of framing a returning player still
-  // needs to see fresh each time — it always gets cleared the instant a
+  // share that family name — see ROYAUMES). Used to show every match at
+  // this exact moment regardless of `onboarding`, as the one bit of framing
+  // a returning player was thought to still need fresh each time — reversed
+  // per direct request: "je ne veux plus que tous les trucs de tuto...
+  // n'apparaissent après la deuxième partie. Si on a fait la première
+  // partie, on a compris, ça suffit" — now gated behind `onboarding` like
+  // every other first-game-only hint, so it retires for good the same way
+  // the rest of the tutorial does. It always gets cleared the instant a
   // camp is actually picked, in pickFaction()'s own non-onboarding branch.
   // Kept short on purpose — the original longer phrasing wrapped to enough
   // lines that the banner (no max-height/reflow logic of its own, it just
   // grows with its text) reached down into the map's own top row, reported
   // live with a screenshot circling how much shorter it needed to be.
-  if (awaitingFactionPick) showOnboardingHint("Mon général, la maison Millon se déchire. <b>Touchez une province</b> pour mettre votre épée au service d'une famille.");
+  if (awaitingFactionPick && onboarding) showOnboardingHint("Mon général, la maison Millon se déchire. <b>Touchez une province</b> pour mettre votre épée au service d'une famille.");
   else hideOnboardingHint();
   updateGroups(); // populate before resize() measures the HUD's real height
   resize();
