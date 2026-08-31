@@ -204,7 +204,20 @@
     transition: transform .3s ease, margin .3s ease;
   }
   .chip.activeTurn { transform: scale(1.5); margin: 4px 0; }
-  .chip .swatch { width: 11px; height: 11px; border-radius: 50%; flex: none; box-shadow: 0 0 0 1px rgba(0,0,0,.5); }
+  /* no more plain black outline ring (see .hand below for what replaces it
+     as the wedge's own edges — "on retire le contour noir") */
+  .chip .swatch { width: 11px; height: 11px; border-radius: 50%; flex: none; position: relative; }
+  /* Two clock hands bracketing the conic-gradient wedge (see updateGroups())
+     — one fixed straight up (the "0%" mark), the other rotated live to the
+     wedge's own leading edge, so the boundary reads as a pair of watch
+     hands sweeping around the dial instead of a plain outline ring. At 0%
+     both sit at the same angle (one thin line "pointing at zero"); at 100%
+     JS hides both entirely so the circle shows as cleanly, fully colored. */
+  .chip .swatch .hand {
+    position: absolute; left: 50%; top: 50%; width: 1px; height: 50%;
+    background: rgba(20,16,12,0.85); transform-origin: top center;
+  }
+  .chip .swatch .handStart { transform: translateX(-50%) rotate(0deg); }
   /* fixed-width, left-aligned column (like the swatch already is) instead
      of a run-on text node — so every row's number starts at the same X
      regardless of digit count. Just the total force (soldiers) now — the
@@ -672,8 +685,8 @@
       <div id="winActionsGrid">
         <button id="restart">⬅️ Rejouer la même carte</button>
         <button id="watchReplay">🎬 Revoir la partie</button>
-        <button id="randomGameBtn">🔀 Nouvelle partie aléatoire</button>
         <button id="shareReplay">📤 Partager ma victoire</button>
+        <button id="randomGameBtn">🔀 Nouvelle partie aléatoire</button>
       </div>
       <button id="saveChartImage">💾 Enregistrer le graphique</button>
       <canvas id="statChart" width="280" height="150"></canvas>
@@ -822,7 +835,7 @@
         </div>
       </div>
       <div class="fieldGroup">
-        <div class="fieldLabel">Taille de la carte — s'applique à la prochaine guerre</div>
+        <div class="fieldLabel">Taille de la carte</div>
         <div id="mapSizeLevels" class="levelRow">
           <button data-mapsize="small" class="levelBtn">Bras de fer</button>
           <button data-mapsize="medium" class="levelBtn">Raid</button>
@@ -835,7 +848,7 @@
            territory count scales to fit whichever is picked (see
            applyMapSize()). -->
       <div class="fieldGroup">
-        <div class="fieldLabel">Nombre d'adversaires — s'applique à la prochaine guerre</div>
+        <div class="fieldLabel">Nombre d'adversaires</div>
         <div id="opponentCountLevels" class="levelRow">
           <button data-opponents="1" class="levelBtn">1</button>
           <button data-opponents="2" class="levelBtn">2</button>
@@ -1034,12 +1047,15 @@ try {
 // that the on-screen hex size barely changes, while still generating
 // meaningfully more hexes/provinces (island area scales roughly with
 // radius², so even this modest bump is a real step up in content).
-// territoryCount/radius below are each size's baseline at baseFactions total
-// royaumes (2 for small — it was always meant as a tight 1v1 skirmish, 4 for
-// medium/large, matching what activeRoyaumes used to hard-code) — applyMapSize()
-// scales both to whatever opponentCount actually is now, so each faction's
-// own slice of the map stays roughly the same size regardless of how many
-// are sharing it.
+// territoryCount/radius below are each size's fixed, final total now —
+// applyMapSize() no longer scales either by opponentCount (a map used to
+// shrink with fewer opponents, so each faction's own slice stayed roughly
+// the same size — reported live as wrong: "la taille 4 avec 1 adversaire
+// doit être aussi grand qu'avec 3 adversaires"). Fewer opponents now just
+// means more of this same fixed-size map ends up in barbarian hands (see
+// mergeDownToActiveRoyaumes()). baseFactions is unused dead weight now, kept
+// only so a small map's still-meaningful 2-royaume identity (a tight 1v1
+// skirmish) reads at a glance in this table.
 const MAP_SIZES = {
   small: { label: "Bras de fer", territoryCount: 6, radius: 95, baseFactions: 2 },
   medium: { label: "Raid", territoryCount: 26, radius: 230, baseFactions: 4 },
@@ -1063,19 +1079,27 @@ try {
 function applyMapSize(size) {
   const cfg = MAP_SIZES[size] || MAP_SIZES.medium;
   mapSize = MAP_SIZES[size] ? size : "medium";
-  const totalFactions = opponentCount + 1; // + the human's own seat
-  const scale = totalFactions / cfg.baseFactions;
-  TERRITORY_COUNT = Math.max(totalFactions * 2, Math.round(cfg.territoryCount * scale));
-  // area (and so hex/territory count) scales roughly with radius², not
-  // radius itself — sqrt(scale) keeps hex density (and on-screen hex size)
-  // similar across opponent counts instead of the island just getting
-  // proportionally emptier or more cramped
-  MAP_PIXEL_RADIUS = Math.round(cfg.radius * Math.sqrt(scale));
+  // A given map size is now always the same total size regardless of
+  // "Nombre d'adversaires" — it used to shrink proportionally to fewer
+  // opponents (each faction kept roughly the same slice), reported live as
+  // "la taille 4 avec 1 adversaire doit être aussi grand qu'avec 3
+  // adversaires". Any royaume slot opponentCount leaves unused now becomes
+  // barbarian land instead (see mergeDownToActiveRoyaumes()), so the map
+  // itself stays full-size and the difference just shows up as more
+  // neutral territory.
+  TERRITORY_COUNT = cfg.territoryCount;
+  MAP_PIXEL_RADIUS = cfg.radius;
 }
+// Territory is always generated across all ROYAUME_COUNT-1 real royaumes
+// (see startGame()'s own assignRoyaumes() call) regardless of opponentCount
+// — any royaume beyond the active count folds into the BARBARIANS (neutral)
+// now, not into one of the remaining active royaumes: "ajoute juste des
+// barbares" — the map itself never shrinks or gets redistributed onto fewer,
+// bigger rivals just because opponentCount is lower.
 function mergeDownToActiveRoyaumes(activeCount) {
-  for (let royId = activeCount; royId < ROYAUME_COUNT - 1; royId++) {
-    const target = royId % activeCount;
-    for (const t of territories) if (t.owner === royId) t.owner = target;
+  const neutralId = ROYAUME_COUNT - 1;
+  for (let royId = activeCount; royId < neutralId; royId++) {
+    for (const t of territories) if (t.owner === royId) t.owner = neutralId;
   }
 }
 
@@ -2610,7 +2634,6 @@ const REPLAY_STEP_MS = 65; // was 50 — slowed another 30% per live feedback
 // replayPauseBtn ("▶ Lire") is what actually starts it playing, rather
 // than auto-playing the instant the screen appears.
 let replayPaused = false;
-let replayIntroHighlightUntil = 0; // performance.now() timestamp — while current, render() flashes the human's starting territories gold
 // set to playReplay()'s local finish() for the whole duration of a replay,
 // null otherwise — lets rerollBtn's click handler stop a replay the *right*
 // way (restore state, run the context-correct onFinish) instead of just
@@ -3340,15 +3363,22 @@ function executeWaterSacrifice(fromId, waterHexKeys, pureDirectDive = true) {
     // full ritual counts here — a lesser "plouf" sacrifice never resets or
     // advances this ("le compteur des offrandes n'est pas réinitialisé par
     // des offres basses").
-    if (!replaying) {
-      const levelIdx = DIFFICULTY_LEVELS.findIndex((l) => l.value === DIFFICULTY);
-      if (levelIdx === DIFFICULTY_LEVELS.length - 1) {
-        ritualCountThisMatch++;
-        if (ritualCountThisMatch >= 3 && !octopusRevealedThisMatch) {
-          octopusRevealedThisMatch = true;
-          triggerOctopusReveal(fromId, waterHexKeys);
-          recordOctopusRevealAndCheckUnlock();
-        }
+    //
+    // The reveal itself (triggerOctopusReveal) now plays during replay too
+    // — replaying the exact same logged ritual sequence deterministically
+    // reproduces the same 3rd-ritual moment the original live match had, so
+    // this shows the octopus if and only if it actually appeared in that
+    // game ("affiche que la pieuvre si elle apparaît en jeu"). Only the
+    // PERSISTENT cross-match unlock stays real-play-only — watching a
+    // shared replay of someone else's match must never unlock anything on
+    // this device.
+    const levelIdx = DIFFICULTY_LEVELS.findIndex((l) => l.value === DIFFICULTY);
+    if (levelIdx === DIFFICULTY_LEVELS.length - 1) {
+      ritualCountThisMatch++;
+      if (ritualCountThisMatch >= 3 && !octopusRevealedThisMatch) {
+        octopusRevealedThisMatch = true;
+        triggerOctopusReveal(fromId, waterHexKeys);
+        if (!replaying) recordOctopusRevealAndCheckUnlock();
       }
     }
   } else {
@@ -3371,7 +3401,10 @@ function attack(fromId, toId, chainIndex = -1) {
   if (from.force - waterCost <= 0) {
     logMsg(`${ROYAUMES[from.owner].name} attaque ${ROYAUMES[to.owner].name} — noyés en chemin, aucune troupe n'arrive — échec`);
     triggerCombatFX(fromId, toId, 0, to.force, false, from.owner, to.owner, to.hexKeys.length, waterPath);
-    if (!replaying) sfxAttack(false, chainIndex, from.owner, !!waterPath);
+    // combat win/fail sounds now play during replay too, per request
+    // ("ajoute les sons de réussite de combat et d'échec") — reversing the
+    // earlier "no sound in replay" decision specifically for these two.
+    sfxAttack(false, chainIndex, from.owner, !!waterPath);
     from.force = 1;
     checkElimination();
     checkWinner();
@@ -3391,11 +3424,11 @@ function attack(fromId, toId, chainIndex = -1) {
   const win = resolveCombat(atk, def);
   logMsg(`${ROYAUMES[from.owner].name} attaque ${ROYAUMES[to.owner].name} — ${atk} vs ${def} — ${win ? "victoire" : "échec"}`);
   triggerCombatFX(fromId, toId, atk, def, win, from.owner, to.owner, to.hexKeys.length, waterPath);
-  // Both this and sfxReinforce() below (see endTurn()) used to also play
-  // during replay playback, reported multiple times as unwanted — the
-  // visuals (swords, rings) are the point during a replay, the sounds
-  // aren't.
-  if (!replaying) sfxAttack(win, chainIndex, from.owner, !!waterPath);
+  // sfxReinforce() (see endTurn()) stays replay-silent — reported multiple
+  // times as unwanted clutter — but the attack win/fail sound itself is
+  // back now, per a later explicit request ("ajoute les sons de réussite de
+  // combat et d'échec" during replay).
+  sfxAttack(win, chainIndex, from.owner, !!waterPath);
   if (win) {
     to.owner = from.owner;
     to.force = Math.max(1, attackingForce - 1);
@@ -3550,16 +3583,15 @@ function advanceTurn() {
     // constantly instead of meaning anything.
     if (!replaying) { vibrateOwnTurn(); sfxYourTurn(); }
   } else if (!isAlive(humanRoyId)) {
-    // The human has already been eliminated (2+ AI royaumes still standing —
-    // checkWinner() below only ends the match once exactly one remains) —
-    // checkStalemate() would otherwise never run again, since it was only
-    // ever gated on "it's the human's own turn", a turn that will now never
-    // come back around. A genuine deadlock among the surviving AIs (every
-    // contested border already at FORCE_CAP) would then have no truce
-    // mechanism left at all, and could in principle continue turn after
-    // turn indefinitely with the human able to do nothing but watch. Check
-    // every turn instead of once per round in this case — firing sooner
-    // than usual is harmless; an unresolvable AI-only war is not.
+    // Dead branch in practice now: checkWinner() (called right after every
+    // attack) ends the match the instant the human is eliminated, even with
+    // 2+ AI royaumes still standing — a defeated, spectating player used to
+    // be able to get handed a truce prompt from a war that's no longer
+    // theirs. gameOver is already true by the time advanceTurn() itself
+    // could run again, so this whole function returns at its very first
+    // line above before ever reaching here. Left in place purely as a
+    // backstop for any future ownership change that doesn't route through
+    // checkWinner().
     checkStalemate();
     if (gameOver) return;
   }
@@ -3729,11 +3761,31 @@ function checkWinner() {
   if (gameOver) return true; // guard against a redundant showWin()/gueux-count now that attack() also calls this directly
   const ownersLeft = new Set(territories.map(t => t.owner));
   const nonNeutral = [...ownersLeft].filter(id => !ROYAUMES[id].neutral);
-  if (nonNeutral.length <= 1 && ownersLeft.size <= 2) {
+  // The human being eliminated ends the match immediately too, even with
+  // 2+ AI royaumes still standing — letting them keep fighting it out
+  // afterward meant a defeated, spectating player could still get handed a
+  // truce prompt from a war that's no longer theirs: "j'ai perdu, la partie
+  // a continué et en plus les adversaires ont proposé une trêve et j'ai dû
+  // choisir... quand je perds, écran de fin direct et arrêt du jeu."
+  const humanEliminated = !isAlive(humanRoyId);
+  if ((nonNeutral.length <= 1 && ownersLeft.size <= 2) || humanEliminated) {
     // set immediately regardless of the delay below — stops any further
     // attacks (mid drag-chain, the AI's own loop) right away
     gameOver = true;
-    const winnerId = nonNeutral[0];
+    let winnerId;
+    if (nonNeutral.length <= 1 && ownersLeft.size <= 2) {
+      winnerId = nonNeutral[0];
+    } else {
+      // several AIs still standing — credit whichever currently holds the
+      // most territory, same rule surrenderGame() already uses
+      winnerId = -1;
+      let maxTerr = -1;
+      for (let r = 0; r < ROYAUME_COUNT - 1; r++) {
+        if (r === humanRoyId) continue;
+        const c = territories.filter(t => t.owner === r).length;
+        if (c > maxTerr) { maxTerr = c; winnerId = r; }
+      }
+    }
     if (replaying) {
       // replay is already paced deliberately slowly (see playReplay()) —
       // no need for the extra beat live play gets below
@@ -4246,14 +4298,13 @@ function playReplay(seed, difficulty, replayHumanRoyId, log, onFinish, replayMap
   // desync from what the original match actually had
   balanceStartingForces();
   // spotlight: everything except the human's own starting territories dims,
-  // so a viewer immediately knows which color to actually follow. Held
-  // perfectly still for this whole window before a single action plays (see
-  // the delayed step() call below) — showing the dimmed map while pieces are
-  // already moving isn't the same thing as a still beat to actually look at it.
+  // so a viewer immediately knows which color to actually follow — now tied
+  // directly to replayPaused (see render()'s own spotlightActive), which
+  // starts true and stays true for this whole window before a single action
+  // plays (see the delayed step() call below), instead of a fixed timer that
+  // used to clear it after 1.5s regardless of whether Play was ever tapped.
   const REPLAY_INTRO_MS = 1500; // doubled from 750 — a longer still beat on the human's starting territories before anything starts moving
-  replayIntroHighlightUntil = performance.now() + REPLAY_INTRO_MS;
   render();
-  setTimeout(() => { replayIntroHighlightUntil = 0; render(); }, REPLAY_INTRO_MS);
 
   let i = 0;
   // this closure's own pending setTimeout id (paused-poll or inter-action
@@ -4739,18 +4790,30 @@ document.getElementById("playInstead").addEventListener("click", () => {
 });
 
 /* ---------- AI ---------- */
+// Tracks the AI's own in-progress attack chain across consecutive runAI()
+// calls within one royaume's turn — see runAI()'s own note.
+let lastConqueredId = null, lastConqueredRoyId = -1;
 function runAI() {
   const royId = currentPlayer;
   if (gameOver || royId === humanRoyId) { aiRunning = false; return; }
   const pers = AI_PERSONALITIES[royId];
+  // "Quand les ennemis peuvent faire des attaques chaînées, ils le font" —
+  // once this royaume's own turn conquers a territory, its next move should
+  // press on from THAT territory when it can, the same instinct a human's
+  // drag-to-attack chain already expresses, rather than treating every
+  // attack as an independent pick across the whole kingdom. Reset whenever
+  // a different royaume's turn starts (see below); a lost attack (or one
+  // with no further target) just falls through to the normal global pick.
+  if (royId !== lastConqueredRoyId) { lastConqueredId = null; lastConqueredRoyId = royId; }
 
-  function bestMove() {
+  function bestMove(restrictFromId) {
     const territoryCount = {};
     for (const t of territories) territoryCount[t.owner] = (territoryCount[t.owner] || 0) + 1;
 
     let best = null, bestScore = -Infinity;
     for (const t of territories) {
       if (t.owner !== royId || t.force <= 1) continue;
+      if (restrictFromId !== undefined && t.id !== restrictFromId) continue;
       for (const nId of t.neighbors) {
         const n = territories[nId];
         if (n.owner === royId) continue;
@@ -4816,12 +4879,15 @@ function runAI() {
     }
     return candidates.length ? candidates[rand(candidates.length)] : null;
   }
-  let mv = bestMove();
+  // press on from the just-conquered territory first; only consider the
+  // rest of the kingdom if it has no further move worth taking
+  let mv = (lastConqueredId !== null ? bestMove(lastConqueredId) : null) || bestMove();
   const isPage = DIFFICULTY_LEVELS.findIndex((l) => l.value === DIFFICULTY) === 0;
   if (!mv && isPage && rngFloat() < 0.3) mv = riskyMove();
   const mistakeRate = Math.max(0, Math.min(1, escalated(AI_MISTAKE_RATE, 0.05) + pers.mistakeDelta));
   if (mv && rngFloat() >= mistakeRate) {
-    attack(mv.from, mv.to);
+    const win = attack(mv.from, mv.to);
+    lastConqueredId = win ? mv.to : null;
     scheduleTurn(runAI, 504); // 3rd speedup pass tried and reverted per request — back to the 2nd pass's value (was 630, then 504, briefly 403) — ignored during replay, see scheduleTurn()'s own note
   } else {
     aiRunning = false;
@@ -5050,8 +5116,13 @@ function render() {
   // Replay intro: dim every hex that ISN'T the human's starting territory
   // (instead of just outlining the human's own, on top of the full-color
   // map) — a much harder-to-miss "spotlight" than a thin gold outline
-  // competing with a busy, already-colorful board.
-  const spotlightActive = replaying && performance.now() < replayIntroHighlightUntil;
+  // competing with a busy, already-colorful board. Tied to replayPaused
+  // itself now, not a fixed timer — "laisse le territoire entourée de doré
+  // apparaître tant que j'appuie pas sur play" — so it holds for as long as
+  // playback hasn't actually started (or is paused again later), instead of
+  // always auto-clearing after a fixed 1.5s regardless of whether Play was
+  // ever tapped.
+  const spotlightActive = replaying && replayPaused;
   for (const key in hexes) {
     const h2 = hexes[key];
     const pts = hexCorners(h2.x, h2.y, HEX_SIZE + 0.6);
@@ -5121,7 +5192,7 @@ function render() {
   // brief gold flash on every territory the human started the replayed
   // match with — see playReplay() — so a viewer knows which color to
   // actually follow before the action starts moving
-  if (replaying && performance.now() < replayIntroHighlightUntil) {
+  if (spotlightActive) {
     drawRoyaumeOutline(humanRoyId, "gold");
   }
   // "Bonus de 12" — every province a royaume owns at the force cap gets a
@@ -5309,8 +5380,11 @@ function render() {
         ctx.restore();
       }
       // always water by definition (a sacrifice/forced swim) — the boat
-      // replaces the sword here, per request.
-      drawBoatsAlongPath({ x: fromT.cx, y: fromT.cy }, fx.waterPath, null, fadeAlpha);
+      // replaces the sword here, per request. Skipped during replay too now
+      // (see the regular-attack branch's own note on "enlève les épées et
+      // bateaux") — the octopus reveal (see render()'s own octopusRevealFX
+      // block) is the one water-ritual visual that still shows in replay.
+      if (!replaying) drawBoatsAlongPath({ x: fromT.cx, y: fromT.cy }, fx.waterPath, null, fadeAlpha);
       if (!replaying && numberAlpha > 0) {
         ctx.font = "bold 14px -apple-system, sans-serif";
         ctx.textAlign = "center";
@@ -5335,7 +5409,12 @@ function render() {
     // sword now shares the exact same fadeAlpha as the ring/label below —
     // it appears and then simply stays, exactly as long as everything else
     // in this combat's own result does.
-    if (fromT && toT) {
+    // Swords and boats are both retired from replay now too (an earlier,
+    // explicit decision had kept the sword deliberately visible there — since
+    // reversed per a later request: "enlève les épées et bateaux"). Only the
+    // territory's own color change and the gold "just conquered" outline
+    // (see spotlightActive above) carry the story during replay now.
+    if (!replaying && fromT && toT) {
       const midX = (fromT.cx + toT.cx) / 2, midY = (fromT.cy + toT.cy) / 2;
       // The boat replaces the sword specifically for a water-crossing
       // attack (fx.waterPath set — see waterPathBetween()/attack()'s own
@@ -5524,7 +5603,7 @@ function updateGroups() {
     if (!rowEl) {
       rowEl = document.createElement("span");
       rowEl.className = "chip";
-      rowEl.innerHTML = `<span class="swatch"></span><span class="n"></span>`;
+      rowEl.innerHTML = `<span class="swatch"><span class="hand handStart"></span><span class="hand handEnd"></span></span><span class="n"></span>`;
       groupRowEls[r.roy.id] = rowEl;
     }
     // "un cercle de couleurs... la coloration à l'intérieur fonctionne
@@ -5539,6 +5618,17 @@ function updateGroups() {
     const pct = Math.max(0, Math.min(100, (r.force / theoreticalMax) * 100));
     rowEl.querySelector(".swatch").style.background =
       `conic-gradient(${r.roy.color} ${pct}%, #f2ede2 ${pct}%)`;
+    // "deux aiguilles de montre entourant le quartier de couleur en noir,
+    // une reste verticale et l'autre tourne en suivant le bord de la
+    // progression... jusqu'à ce que les deux se touchent à 100%, et là
+    // seulement elles disparaissent" — handStart never moves, handEnd
+    // rotates with the wedge's own leading edge; both hidden once the
+    // circle is fully colored (nothing left to mark).
+    const handEndEl = rowEl.querySelector(".handEnd");
+    const full = pct >= 100;
+    handEndEl.style.transform = `translateX(-50%) rotate(${(pct / 100) * 360}deg)`;
+    rowEl.querySelector(".handStart").style.display = full ? "none" : "";
+    handEndEl.style.display = full ? "none" : "";
     // "(nous)" marks our own row — same during a live game and while
     // watching a replay, since humanRoyId stays set to whichever seat was
     // actually played either way; requested so it's obvious at a glance
@@ -6331,8 +6421,19 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.59";
+const GAME_VERSION = "1.60";
 const CHANGELOG = [
+  {
+    version: "1.60",
+    notes: [
+      "Quand vous perdez, écran de fin immédiat — la partie ne continue plus en coulisses entre les IA avec une trêve qui vous tombe dessus après coup.",
+      "Les IA enchaînent leurs attaques depuis le territoire qu'elles viennent de conquérir, au lieu de repartir d'ailleurs à chaque tour.",
+      "Horloges des stats : plus de contour noir, remplacé par deux aiguilles de montre qui encadrent le quartier de couleur et se rejoignent (puis disparaissent) à 100%.",
+      "Une carte de taille donnée fait maintenant toujours la même taille quel que soit le nombre d'adversaires — les places libres deviennent des terres barbares au lieu de rétrécir la carte.",
+      "Replay : plus d'épées ni de bateaux ; le contour doré du début reste tant que vous n'appuyez pas sur play ; sons de réussite/échec de combat ajoutés ; la pieuvre s'affiche si elle est apparue pendant la partie originale.",
+      "Menu : retrait des mentions « s'applique à la prochaine guerre » (taille de carte / nombre d'adversaires).",
+    ],
+  },
   {
     version: "1.59",
     notes: [
@@ -7425,6 +7526,7 @@ function startGame(seed) {
   gameOver = false; selected = -1; aiRunning = false;
   oceanTapCount = 0; // fresh running gag for a fresh match — see showOceanTapEasterEgg()
   ritualCountThisMatch = 0; octopusRevealedThisMatch = false; octopusRevealFX = null;
+  lastConqueredId = null; lastConqueredRoyId = -1;
   allCappedStreak = 0; lastStalemateFingerprint = null; truceEnded = false; truceWinnerId = -1; humanSurrendered = false; mercyGranted = false;
   mercyOfferShownAtRound = null;
   document.getElementById("enemySurrenderBtn").style.display = "none";

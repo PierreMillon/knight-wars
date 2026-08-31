@@ -152,7 +152,7 @@ J'ai l'impression le 28 août 16:00 que le 2 difficulté est plus dur que le niv
 
 Les adversaires devraient parfois tendance se liguer officieusement contre le plus gros. Ou bien attaquer le plus faible. T'en dis quoi ?
 
-En niveau j'ai un adversaire à 12 qui n'attaque pas une suite de 7 province adversité c'est absurde
+[~] En niveau j'ai un adversaire à 12 qui n'attaque pas une suite de 7 province adversité c'est absurde (l'IA enchaîne maintenant ses attaques depuis le territoire juste conquis au lieu de repartir d'ailleurs à chaque tour — "quand les ennemis peuvent faire des attaques chaînées, ils le font" ; devrait largement corriger le symptôme, à confirmer en jeu réel)
 
 Quand on a 12 dans chaque province on affiche le contour de tout le royaume de sa couleur en doré qui vibre lentement comme s'ils étaient chaud pour le combat. Et ça active une attaque spéciale qui donne une seule attaque non arrêtable peu importe la longueur et l'eau ou pas. Ça tue tout sur le passage
 
@@ -193,3 +193,10 @@ Sound (gamme par royaume), épée/bateau taille + alignement, portée d'attaque 
 - [x] Abandon : coûte déjà 1 gueux et c'est déjà écrit dans le texte de fin ("Vous perdez un gueux.") — vérifié, déjà en place, rien à faire.
 - [ ] Bouton abandonner/gueux "pas visibles avant de choisir un camp" — non reproduit en test (portrait, avec et sans historique de reroll) ; probablement lié à un device/orientation précis, à re-signaler avec un screenshot si ça persiste.
 - [ ] "Super pouvoir des 12" — activation précisée en direct (attaque imparable sur autant de cases que de provinces, icône double-épée, déblocage d'un logo permanent + bonus égalité 12v12 après 3 activations/partie) : reste à construire, prochaine étape.
+- [x] Quand le joueur perd (éliminé), écran de fin immédiat — la partie ne continuait pas jusque-là entre les IA survivantes, avec une trêve qui pouvait tomber sur un spectateur déjà éliminé.
+- [x] IA : enchaîne les attaques depuis le territoire juste conquis avant d'envisager un autre front ("quand les ennemis peuvent faire des attaques chaînées, ils le font").
+- [x] Horloges des stats : retrait du contour noir, remplacé par deux aiguilles de montre (une fixe, une qui suit la progression) qui se rejoignent et disparaissent à 100%.
+- [x] Taille de carte découplée du nombre d'adversaires — une taille donnée fait toujours la même taille totale, les places libres deviennent barbares.
+- [x] Replay : retrait épées/bateaux, contour doré tenu tant que non lancé (replayPaused), sons de combat réussite/échec ajoutés, pieuvre visible si apparue dans la partie originale.
+- [x] Retrait des mentions "s'applique à la prochaine guerre" dans le menu réglages (taille de carte, nombre d'adversaires).
+- [ ] "J'ai gagné beaucoup trop facilement en niveau 4" — tuning en cours, la correction du chaînage IA devrait aider ; pas de rééquilibrage dédié fait cette fois (le système de paliers de probabilité exacts reste un chantier séparé, plus large).
