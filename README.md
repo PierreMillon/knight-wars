@@ -30,70 +30,67 @@ Suggestions notées ici pour ne pas les perdre, pas encore implémentées :
 
 Rien d'urgent — à reprendre quand il y aura du temps.
 
-## Notes brutes non triées (27-29 août) — à trier/discuter avant implémentation
+## Notes brutes (27-31 août) — triées et priorisées, facile → lent
 
-- Menu : cliquer la zone en haut de la carte depuis le menu doit fermer le menu et revenir à la carte.
-- Bouton "carte précédente" pour annuler une régénération aléatoire trop rapide.
-- Sons de chaque royaume/animation : accords précis à venir de l'utilisateur, pour éviter les notes trop aiguës.
-- Retirer l'option de menu qui règle le tri des stats (garder juste le tri par défaut ? à préciser).
-- Graphique de fin : chiffres de territoire remontés en haut du graphique ; ajouter en dessous la même chose pour le nombre de soldats.
-- Bug Safari : la page finit par charger mais après plusieurs dizaines de secondes. Firefox Focus charge directement. (lié au chantier PWA/écran blanc en cours)
-- Système de déblocage : pub de 30s pour débloquer 24h le mode très difficile et/ou les grandes cartes ; ou achat unique 2€ pour les retirer à vie. Expliquer dans les Conseils.
-- Replay : un seul contour doré autour de tout le territoire d'un royaume, pas un contour par province.
-- Replay : garder seulement mon territoire visible tant que je n'ai pas appuyé sur Play. Retirer les bruitages d'ajout de soldats et les épées pendant le replay (répété plusieurs fois dans la liste).
-- Replay : à la fin, rester sur l'image finale au lieu de revenir à l'écran de fin.
-- Formule de renfort : diviser par 1,5 au lieu de la formule actuelle liée à la taille du royaume (à revoir précisément avec le code réel).
-- Vitesse du replay : ralentir de 30%.
-- Bouton "batailles accélérées" : ajouter un son de cloche/glas (fourni par l'utilisateur) à chaque activation.
-- Double-clic rapide sur "Prochaine bataille" doit afficher le tour suivant immédiatement (latence actuelle à corriger).
-- Animation de victoire finale : +1s, contour doré sur tout le territoire gagné + son fourni par l'utilisateur.
-- Replay Firefox : bug — repris un replay après un moment, "Prochaine bataille" ne fait plus rien, reste bloqué sur "la guerre fait rage".
-- Bataille trop longue → proposer le statu quo à la demande : cliquer sur la tête de mort propose le choix "offrir la trêve/paix" ou "se rendre". La paix rapporte un gueux par royaume restant.
-- Chaque royaume : son distinct pour une attaque réussie, accord de deux notes (précisées plus tard par l'utilisateur).
-- L'affichage flottant "+N villages" doit rester deux fois plus longtemps à l'écran.
-- Nouvelle ligne de victoire proposée (remplace une existante) : "Plus aucun ennemi ne conteste Millon de Châteauvieux. De joie vous plantez votre épée dans la pierre. Impossible de la retirer, vous en prenez une sur un cadavre défiguré en riant."
-- Vitesse d'attaque augmentée de 20%.
-- Combat à égalité de force (pas seulement 12v12) : 1/3 de chance de gagner en étant à -1 face à l'adversaire (au lieu du système actuel, à préciser/discuter).
-- Affichage du tutoriel repositionné en haut à gauche de l'écran ; disparaît si on appuie dessus.
-- Nouveau message d'abandon à ajouter à la liste : "L'échec. Vous êtes à peine reconnaissable avec votre barbe mitée et vos lambeaux sales. Vous me faites honte. Je préfère travailler pour un winner qui parie sur des cryptomonnaies. À Dieu l'bouseux."
-- Nouvelle phrase noyade (suite escalade) : "Du rhum, des femmes ! Et du cidre nom de Zeus !" puis "glouglouglou…"
-- Bug : attaquer un village barbare à travers l'eau avec 2 soldats (donc 0 après le coût) réussit alors que ça ne devrait pas — devrait afficher "plouf !" et échouer, perdre les 2 soldats sans conquérir.
-- Si on attaque avec 1 soldat et qu'on perd, le territoire perdu doit devenir barbare (pas rester au perdant ?).
-- Réflexion : que faire du surplus de force au-delà de 12 par province ? Idée : redistribuer automatiquement vers les provinces limitrophes ennemies, ou pour certains royaumes, "suicide" volontaire dans l'eau.
-- Donner aux IA la capacité d'attaquer par l'eau (déjà en tâche #82).
-- Difficulté max : les IA ne devraient jamais attaquer quand elles vont perdre la bataille.
-- Nouveau message de refus de trêve à ajouter : "Foutreboule ! Mais que nenni grand lâche de tes morts ! Retourne chez ta mère et laisse les adultes se charcuter en paix, vilain !"
-- Nouvelle règle : une province à 1 soldat seule à côté d'une province barbare peut faire défection et devenir barbare après 3 à 5 tours aléatoires.
-- Si une province cible est accessible à la fois par terre et par eau, toujours privilégier la terre.
-- Le chemin d'attaque (terrestre) doit toujours emprunter le chemin le plus court.
-- Le chemin d'attaque doit pouvoir passer par n'importe quel village d'une province adjacente à l'ennemi (pas capitale à capitale) — les troupes ne sont pas forcément stationnées là où le chiffre est affiché, dans le lore.
-- Retirer le bouton tête de mort (abandon) de l'écran de replay — inutile là.
-- Replay : remplacer le texte des boutons play/pause et stop/retour par des icônes ; "Reprendre depuis ici" sans icône ; tous les boutons alignés sur une seule ligne en bas.
-- Difficulté : les IA fortes ne devraient pas attaquer trop loin si ça les affaiblit pour le tour suivant.
-- Reformulation des niveaux de difficulté par taux de décision "parfaite" de l'IA (attaque/mouvement/tout choix de tour) : Niv1 gagnable tout le temps même avec erreurs ; Niv2 IA parfaite 1/3 du temps ; Niv3 IA parfaite 4/5 du temps (1/5 neutre) ; Niv4 IA parfaite 15/16 du temps (1/16 neutre), sans pitié, peut viser un sacrifice volontaire dans l'eau pour créer une brèche. Au niveau 4 joué parfaitement des deux côtés : ~50% nul, ~30% victoire joueur, ~20% défaite même en jouant parfait.
-- Phrases noyade : en dessous du max de soldats, "Quitte à sacrifier des hommes, autant en envoyer un plein bateau sire ! Un sacrifice humain comme les barbares, pourquoi pas ?" ; après 3 bateaux pleins dans une même partie, afficher un poulpe (image à fournir) ; débloquer le poulpe sur 3 parties différentes déclenche une nouvelle icône PWA avec le même poulpe.
-- Gueux : toujours actif, retirer l'option de menu correspondante. Sur le badge, afficher seulement le chiffre (0 au départ, incrémenté selon les règles — à rappeler). Abandonner fait perdre un gueux.
-- Capacités spéciales par royaume (à l'étude) : bleus -2x force perdue dans l'eau mais perdent tout combat à force égale sur terre (et aucun dégât dans l'eau, mentionné une 2e fois plus loin — à clarifier lequel des deux) ; jaunes +20%/-20% de chance aux combats à hasard selon soleil/nuit réel (zone du joueur) ; verts affinité forêt (cases à 1+ case de l'eau), spawn de troupes priorisé en forêt ; rouges à définir ; barbares ont une chance (~1/100) d'avoir 1 soldat isolé quelque part sur la carte.
-- Écran blanc PWA revenu après fermeture de la fenêtre (lié à la tâche #84 en cours).
-- Bug aléa : sur Mac Firefox (écran 1680x1050, Catalina 10.15.8 — détail technique, ne pas partager publiquement), les troupes adverses apparaissent 5 fois de suite au même village, pas assez random.
-- Bouton batailles accélérées : retirer le texte "la guerre fait rage", ne garder que l'icône/état correspondant.
-- Le texte de l'offrande dans l'eau doit rester affiché deux fois plus longtemps.
-- Écrire (l'utilisateur fournira) 100 phrases drôles supplémentaires pour les sacrifices répétés dans l'eau, randomisées après les 3 phrases actuelles.
-- Ajouter un curseur de volume pour les bruitages (renommer "son" en "bruitage").
-- Ajouter une musique (fournie par l'utilisateur) + curseur de volume dédié.
-- Retirer le bouton "abandonner/nouvelle guerre" du menu.
-- Taille de police des boutons difficulté/taille de carte adaptative à leur cadre (cadres extensibles en largeur, tout sur une seule ligne). Renommer "Escarmouche" en "Bras de fer" ; niveaux 2 et 3 renommés "Raid" et "Massacre".
-- Réduire de moitié les marges/paddings des menus et de l'écran de fin de partie.
-- Essayer une version avec brouillard de guerre façon Age of Empires I.
-- Bug confirmé : traversée de 3 cases d'eau avec 2 soldats (donc -6 en tout) pour attaquer une île barbare, victoire obtenue malgré tout — à corriger (même famille que le bug "0 soldat" ci-dessus).
-- Option de réglage pour activer des cercles d'animation qui grandissent proportionnellement au nombre de soldats ajoutés.
-- Une île barbare isolée peut être injoignable dans le lore, sauf par le royaume ayant le moins de pénalité dans l'eau ; débloquer le poulpe pourrait donner une capacité spéciale (ex: bleus aucun dégât dans l'eau).
-- Le compteur des offrandes (rituel des 12) ne doit pas se réinitialiser sur un "plouf" (offrande ratée) — il faut 3 vraies offrandes réussies par partie, point.
-- Ressenti utilisateur (28 août 16h) : le niveau de difficulté 2 semblait plus dur que le niveau 4 — à vérifier/équilibrer.
-- Idée : les IA pourraient parfois s'allier officieusement contre le plus fort, ou au contraire cibler le plus faible.
-- Bug/absurdité IA : un adversaire à 12 de force n'a pas attaqué une suite de 7 provinces adverses accessibles.
-- Idée "attaque ultime" : quand tout un royaume est à 12/12 partout, afficher un contour doré vibrant lentement autour de tout le royaume, qui active une attaque spéciale imparable (peu importe distance/eau) détruisant tout sur son passage.
-- Réflexion IA : faut-il favoriser les attaques longues, le plus grand territoire gagné, ou détruire un max de force ennemie ? Peut-être un "caractère" par seigneur, qui converge vers la meilleure stratégie possible au niveau de difficulté max.
-- Animation de conquête (replay et peut-être en jeu) : changement de couleur village par village, rapidement mais pas simultané, en partant du point d'attaque — pour un effet de conquête organique plutôt qu'un flash uniforme.
-- L'app PWA fonctionne de nouveau (28 août, "improbable"), puis re-cassée le 29 août — cette fois seulement sur Firefox Focus (pas Safari).
-- Vision produit à long terme : garder le jeu de base ultra simple/accessible, et ajouter des niveaux de difficulté cachés genre "Cthulhu" (attaques longue distance sans perte de force) et "Le Pouvoir des 12"/"Merlin" (s'active quand toutes les provinces sont pleines) — un jeu à deux visages : accessible pour la majorité, très technique/exigeant pour les hardcore qui débloquent tout. Stats optionnelles supplémentaires (% de carte conquise, % de force max atteint par royaume). Brouillard de découverte + mode exploration avec seigneur choisi et brouillard de combat (on perd la vue des forces sur une province perdue mais on garde sa position géographique) — complexité progressive façon idle game.
+### Fait (lots récents)
+
+~~Menu : clic sur le fond hors du cadre ferme le menu~~ · ~~tri des stats retiré (toujours par territoire)~~ · ~~bouton "Nouvelle guerre" retiré des réglages~~ · ~~replay muet (sons combat/renfort) + toasts "baignade forcée"/offrande masqués~~ · ~~vitesse replay -30% de plus~~ · ~~ligne de victoire "épée dans la pierre" remplacée~~ · ~~message d'abandon + phrases de noyade + refus de trêve : nouvelles variantes ajoutées~~ · ~~bug confirmé (2 soldats à travers l'eau, force à 0 ou négative) corrigé~~ · ~~gueux toujours actif, option retirée, abandon coûte un gueux~~ · ~~bouton batailles accélérées : juste l'icône ⏩ maintenant~~ · ~~"(nous)" ajouté dans le classement, jeu + replay~~ · ~~"Sons" renommé "Bruitages"~~ · ~~confirmation avant abandon (mis-tap accidentel)~~ · ~~noms de taille de carte (Bras de fer/Raid/Massacre)~~ · ~~texte d'offrande 2× plus long~~ · ~~nouveau blason en couleur : logo PWA/favicon/écrans partout~~ · ~~images de référence (épée/bouclier/poulpe/persos) stockées dans `assets/ideas/`~~.
+
+### Facile — prochain lot candidat
+
+- Graphique de fin : remonter les chiffres de territoire en haut, ajouter la même chose pour le nombre de soldats en dessous.
+- Retirer le bouton tête de mort de l'écran de replay — **déjà fait** en réalité (masqué pendant `replaying`), à vérifier une fois de plus en conditions réelles si le rapport persiste.
+- Réduire de moitié les marges/paddings des menus et de l'écran de fin — CSS localisé, mais à vérifier visuellement (capture d'écran) avant/après pour ne rien casser.
+- Double-clic rapide sur "Prochaine bataille" : latence à corriger — à investiguer (piste : `FASTFORWARD_MIN_DELAY_MS` / debounce du handler).
+- Le compteur des offrandes (rituel) ne se réinitialise pas sur un "plouf" — **déjà correct**, vérifié dans le code (`oceanTapCount` n'incrémente que sur une vraie offrande réussie, jamais réinitialisé en cours de partie).
+- Si une cible est accessible à la fois par terre et par eau, la terre est privilégiée — **déjà correct** (`waterCostBetween()` renvoie 0/priorité terre dès qu'un voisinage terrestre existe, même si une route d'eau existe aussi).
+
+### Moyen — nécessite un peu de conception/tests visuels
+
+- Replay : un seul contour doré par royaume (pas un contour par province).
+- Replay : rester sur l'image finale à la fin au lieu de revenir à l'écran de fin.
+- Replay : remplacer texte des boutons par des icônes, tout sur une seule ligne en bas.
+- Déplacer le badge gueux à côté des stats en direct ; bouton "Fin de bataille" pleine largeur.
+- Sur ordi, agrandir dynamiquement les cases de jeu selon l'espace écran disponible.
+- Repositionner l'affichage du tutoriel en haut à gauche, disparaît au tap.
+- Défection : une province à 1 soldat seule à côté d'un village barbare peut basculer barbare après 3-5 tours.
+- Animation de conquête village par village (pas un flash uniforme), replay et peut-être en jeu.
+- Curseur de volume + renommage (déjà fait pour "Bruitages" — reste le curseur lui-même).
+
+### Bugs signalés à investiguer (priorité, complexité variable)
+
+- **"Replay a inventé une partie"** — rapport critique, à prendre au sérieux en priorité dès qu'un seed/repro est disponible ; même famille que les bugs de déterminisme déjà corrigés par le passé (tâche #44).
+- Chemin d'attaque par eau signalé comme pas le plus court (2 rapports séparés, dont un avec capture d'écran) — à investiguer sur `computeWaterRoutes()`/Dijkstra.
+- "Impossible de rejoindre par la mer des provinces côtières proches" — possible bug de routage, à investiguer avec le même chantier que ci-dessus.
+- Chemin d'attaque terrestre pas toujours le plus court — même famille, à vérifier.
+- Le chemin d'attaque devrait pouvoir passer par n'importe quel village d'une province adjacente à l'ennemi, pas capitale à capitale.
+- Incohérence de renfort observée entre royaumes de "même taille" (parfois 3, parfois 4) — probablement pas un bug (la formule dépend du nombre exact de cases, pas d'une "taille" arrondie), à confirmer par une explication plutôt qu'un correctif.
+- Bug Safari : la page finit par charger après plusieurs dizaines de secondes (Firefox Focus charge directement) — lié au chantier écran blanc/rose en cours (tâche #84).
+- Safari privée OK, Safari normal gros bug d'affichage — nouveau signal pour la tâche #84, pas encore assez d'info pour agir.
+- Replay Firefox : repris après un moment, "Prochaine bataille" reste bloqué sur l'état accéléré.
+- Un adversaire à 12 de force n'a pas attaqué une suite de 7 provinces accessibles — bug/absurdité IA, lié aux gros chantiers IA ci-dessous.
+- Ressenti (28 août) : la difficulté 2 semblait plus dure que la 4 — vérifiable froidement via `simulate.js` (déjà l'outil utilisé pour l'étude sur la formule de renfort) plutôt qu'en devinant.
+
+### Gros chantiers — pas pour un lot rapide
+
+- IA : capacité d'attaque par l'eau (tâche #82), ne jamais attaquer une bataille perdue au plus haut niveau, éviter le surengagement, réflexion cible (plus faible/plus fort/collusion), refonte complète des niveaux de difficulté par taux de décision "parfaite" (détaillée, chiffrée par l'utilisateur — conservée telle quelle pour plus tard).
+- Capacités spéciales par royaume (bleu/jaune/vert/rouge/barbares) — voir note privée ci-dessous sur le bleu, à construire royaume par royaume au fur et à mesure des specs.
+- Attaque ultime à 12/12 partout sur tout le royaume (contour doré vibrant, coup imparable).
+- Système de déblocage payant (pub 30s / achat 2€) pour le mode difficile et les grandes cartes — implique une vraie intégration pub/paiement, hors scope d'un simple lot de code.
+- Brouillard de guerre façon AoE1, mode exploration, niveaux cachés "Cthulhu"/"Merlin", stats optionnelles supplémentaires, progression type idle game, messages mystère type chasse au trésor — vision produit long terme déjà bien détaillée par l'utilisateur, à reprendre telle quelle le jour où ce chantier démarre.
+- Redistribution du surplus de force au-delà de 12 (auto vers provinces limitrophes, ou suicide volontaire dans l'eau pour certains royaumes).
+- i18n (anglais/chinois/espagnol/allemand, détection de langue, sélecteur drapeau) — gros chantier de structure (extraction de toutes les chaînes du fichier), pas engagé sans détails supplémentaires sur l'approche voulue (fichiers de traduction ? juste l'anglais d'abord ?).
+- Option "tour immédiat" pour accélérer encore plus (au-delà des batailles accélérées actuelles), éventuellement avec pub plus tard — noté, pas engagé.
+
+### Bloqué — attend un asset ou une précision de l'utilisateur
+
+- Sons/accords précis par royaume pour les attaques réussies : **le bleu a sa gamme** (« Vietnamese scale starting on C : Eb F G Ab Bb etc », transmise le 31 août) — en attente des 3 autres royaumes avant d'implémenter le système en une fois plutôt que par bouts.
+- Son de cloche/glas pour le bouton batailles accélérées (fourni par l'utilisateur).
+- Son + animation dorée +1s pour la victoire finale (son fourni par l'utilisateur).
+- Musique de fond + curseur de volume dédié (piste fournie par l'utilisateur).
+- 100 phrases drôles supplémentaires pour les sacrifices répétés (l'utilisateur les écrira).
+- Image du poulpe pour le déblocage (image reçue — `assets/ideas/octopus-icon.png` et une 2e variante `octopus-icon-2.png`) mais la mécanique de déblocage (3 bateaux pleins → poulpe → icône PWA après 3 parties) reste à construire.
+
+### Confidentiel — ne pas partager publiquement
+
+- Détail technique (Mac Firefox, écran 1680×1050, Catalina 10.15.8) associé à un rapport de troupes adverses trop peu aléatoires sur ce poste précis — conservé en privé, pas encore d'action possible sans accès à cette machine.
