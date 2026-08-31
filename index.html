@@ -5812,36 +5812,46 @@ function updateFogKnowledge() {
   }
 }
 
-// Colorblind mode (see colorblindMode's own note) — one small offscreen
-// canvas per hatch direction, tiled via ctx.createPattern(). Built once,
-// lazily, on first actual use rather than at load: a canvas pattern needs a
-// live 2D context, and quicksmoke.js's own minimal Image/canvas stubs (see
-// its own notes elsewhere) only need to support the game's actual sandbox
-// runs, which never turn this setting on — building it eagerly at load
-// would be needless work in every headless/AI-only run for a purely visual,
-// opt-in accessibility feature.
-let hatchPatterns = null;
-function buildHatchPatterns() {
-  // one direction per playable royaume (ROYAUMES 0-3) — horizontal,
-  // vertical, diagonal "/" (bottom-left to top-right), diagonal "\"
-  // (top-left to bottom-right), in that order, matching the settings
-  // label's own listed order.
-  const SIZE = 10;
-  function makePattern(draw) {
-    const c = document.createElement("canvas");
-    c.width = SIZE; c.height = SIZE;
-    const pctx = c.getContext("2d");
-    pctx.strokeStyle = "rgba(20,16,12,.65)";
-    pctx.lineWidth = 1.6;
-    draw(pctx);
-    return ctx.createPattern(c, "repeat");
+// Colorblind mode (see colorblindMode's own note) — one hatch angle per
+// playable royaume (ROYAUMES 0-3): horizontal, vertical, diagonal droite,
+// diagonal gauche, in that order, matching the settings label's own listed
+// order. The two diagonals are 30°/150° (this hex's own edge angles — see
+// hexCorners()'s vertex angles: -30/30/90/150/210/270° gives edges at
+// 90° (the flat left/right sides) and 30°/150° (the four slanted edges),
+// never 45°) rather than a generic 45°/135° — a first version used 45°
+// and was reported live as both wrong-looking ("les hachures diagonales
+// doivent suivre les angles des hexagones") AND making the underlying
+// royaume color hard to see, which is why this is drawn as real per-hex
+// lines (see drawHexHatch()) rather than a canvas-wide repeating pattern
+// tile: a 30°/150° line doesn't repeat cleanly in a small square tile
+// (only a 45° line naturally does), so tiling it was producing dense,
+// overlapping, non-hex-aligned clusters of lines instead of a clean hatch.
+const HATCH_ANGLES = [0, 90, 30, 150];
+// Draws a set of parallel lines spanning (cx,cy) at the given angle,
+// clipped to whatever hex path is CURRENTLY set on ctx (the caller must
+// call this right after building that hex's own path, before starting a
+// new one — see render()'s own call site). Computed directly per hex
+// instead of via a repeating ctx.createPattern() tile so the angle is
+// always relative to THIS hex, not to the canvas' absolute coordinates.
+function drawHexHatch(cx, cy, size, angleDeg) {
+  const rad = (angleDeg * Math.PI) / 180;
+  const dx = Math.cos(rad), dy = Math.sin(rad);
+  const px = -dy, py = dx; // perpendicular — steps from one hatch line to the next
+  const spacing = 4.5;
+  const halfLen = size * 1.2; // a bit past the hex's own radius, clipped anyway
+  const steps = Math.ceil(halfLen / spacing);
+  ctx.save();
+  ctx.clip();
+  ctx.strokeStyle = "rgba(20,16,12,.5)";
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  for (let i = -steps; i <= steps; i++) {
+    const ox = cx + px * i * spacing, oy = cy + py * i * spacing;
+    ctx.moveTo(ox - dx * halfLen, oy - dy * halfLen);
+    ctx.lineTo(ox + dx * halfLen, oy + dy * halfLen);
   }
-  hatchPatterns = [
-    makePattern((p) => { p.beginPath(); p.moveTo(0, SIZE / 2); p.lineTo(SIZE, SIZE / 2); p.stroke(); }),
-    makePattern((p) => { p.beginPath(); p.moveTo(SIZE / 2, 0); p.lineTo(SIZE / 2, SIZE); p.stroke(); }),
-    makePattern((p) => { p.beginPath(); p.moveTo(0, SIZE); p.lineTo(SIZE, 0); p.stroke(); }),
-    makePattern((p) => { p.beginPath(); p.moveTo(0, 0); p.lineTo(SIZE, SIZE); p.stroke(); }),
-  ];
+  ctx.stroke();
+  ctx.restore();
 }
 function render() {
   updateFogKnowledge();
@@ -5899,16 +5909,21 @@ function render() {
     ctx.lineWidth = 0.5;
     ctx.stroke();
     ctx.globalAlpha = 1;
-    // Colorblind-accessible mode: an overlay hatch pattern per playable
-    // royaume ON TOP of its usual color fill (not instead of it — partial
-    // colorblindness still benefits from the color, this is for the cases
-    // where hue alone doesn't distinguish two royaumes). Barbarians/neutral
-    // (roy.neutral) get no pattern — greyish and never adjacent in a way
-    // that needs disambiguating from a playable royaume's own color.
+    // Colorblind-accessible mode: an overlay hatch ON TOP of the usual color
+    // fill (not instead of it — partial colorblindness still benefits from
+    // the color, this is for the cases where hue alone doesn't distinguish
+    // two royaumes). Barbarians/neutral (roy.neutral) get no pattern —
+    // greyish and never adjacent in a way that needs disambiguating from a
+    // playable royaume's own color. Drawn as real lines clipped to THIS
+    // hex's own path (not a canvas-wide repeating pattern) — see
+    // drawHexHatch()'s own note on why: the diagonal angles need to match
+    // this hex's actual edge angles, which only makes sense computed
+    // per-hex, not as a fixed tile repeated at arbitrary map coordinates.
     if (colorblindMode && !roy.neutral) {
-      if (!hatchPatterns) buildHatchPatterns();
-      ctx.fillStyle = hatchPatterns[roy.id % hatchPatterns.length];
-      ctx.fill();
+      drawHexHatch(h2.x, h2.y, HEX_SIZE, HATCH_ANGLES[roy.id % HATCH_ANGLES.length]);
+      ctx.beginPath(); // drawHexHatch()'s ctx.clip() consumed the hex path as its clip region but left it as the current path too — rebuild it so the fog-of-war fill just below (same hex, same path) isn't accidentally drawing against a stale/cleared path.
+      pts.forEach(([x, y], i) => i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y));
+      ctx.closePath();
     }
     // Fog of war — a real visual haze over an out-of-sight hex, not just a
     // missing number, so it reads as "hidden by fog" rather than "broken"
@@ -7274,8 +7289,14 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.84";
+const GAME_VERSION = "1.85";
 const CHANGELOG = [
+  {
+    version: "1.85",
+    notes: [
+      "Mode daltonien : les hachures diagonales suivent maintenant les vrais angles des hexagones, et la couleur du royaume reste bien visible en dessous.",
+    ],
+  },
   {
     version: "1.84",
     notes: [
