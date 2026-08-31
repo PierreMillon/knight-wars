@@ -867,7 +867,13 @@
           <button data-opponents="3" class="levelBtn">3</button>
         </div>
       </div>
-      <label><input type="checkbox" id="soundToggle"> Bruitages</label>
+      <!-- was a plain on/off toggle — "curseur pour le volume du son qui
+           devient bruitage" — a real slider now, 0 doubling as "off" so
+           soundEnabled (checked all over playTone()'s call sites) stays
+           the same simple boolean everything else already relies on. -->
+      <label class="fieldLabel" style="margin-bottom:2px;">Bruitages</label>
+      <input type="range" id="soundVolumeSlider" min="0" max="100" step="5" style="width:100%;">
+      <div style="height:8px;"></div>
       <!-- English support kicked off small on purpose ("fais l'anglais en
            premier maintenant juste pour les boutons de jeu utiles au
            minimum") — just the core in-game action buttons (Fin de
@@ -2896,6 +2902,17 @@ try {
   const savedSound = localStorage.getItem("kw_soundEnabled");
   if (savedSound !== null) soundEnabled = savedSound !== "0";
 } catch (e) { /* ignore */ }
+// A real slider, not just an on/off toggle — "curseur pour le volume du
+// son qui devient bruitage". 0-100, multiplies every playTone() call's own
+// volume; soundEnabled stays the master on/off other code already checks
+// (see playTone()), derived from this slider (0 = off) so nothing else
+// needs to change.
+let soundVolume = 100;
+try {
+  const savedVolume = localStorage.getItem("kw_soundVolume");
+  if (savedVolume !== null) soundVolume = Math.max(0, Math.min(100, parseInt(savedVolume, 10) || 0));
+} catch (e) { /* ignore */ }
+if (soundVolume === 0) soundEnabled = false;
 
 // English support kicked off small on purpose — "fais l'anglais en premier
 // maintenant juste pour les boutons de jeu utiles au minimum": just the
@@ -3020,7 +3037,7 @@ function playTone(freq, duration, opts = {}) {
     // avec un léger effet sous-marin (filtre sonore adapté et reverb légère)"
     filter.frequency.value = opts.underwater ? Math.min(opts.cutoff || 900, 500) : (opts.cutoff || 900);
     const gain = ac.createGain();
-    const vol = opts.volume || 0.08;
+    const vol = (opts.volume || 0.08) * (soundVolume / 100);
     gain.gain.setValueAtTime(0, t0);
     gain.gain.linearRampToValueAtTime(vol, t0 + 0.012);
     gain.gain.exponentialRampToValueAtTime(0.0001, t0 + duration);
@@ -6606,8 +6623,14 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.68";
+const GAME_VERSION = "1.69";
 const CHANGELOG = [
+  {
+    version: "1.69",
+    notes: [
+      "Le réglage « Bruitages » est maintenant un vrai curseur de volume (0-100%), plus un simple on/off.",
+    ],
+  },
   {
     version: "1.68",
     notes: [
@@ -7298,13 +7321,19 @@ document.getElementById("langToggle").addEventListener("click", () => {
   updateEndTurnButton();
 });
 
-const soundToggle = document.getElementById("soundToggle");
-soundToggle.checked = soundEnabled;
-soundToggle.addEventListener("change", () => {
-  soundEnabled = soundToggle.checked;
-  try { localStorage.setItem("kw_soundEnabled", soundEnabled ? "1" : "0"); } catch (e) { /* ignore */ }
-  sfxToggle(); // no-ops silently if this just turned sound off — that's the point
+const soundVolumeSlider = document.getElementById("soundVolumeSlider");
+soundVolumeSlider.value = soundVolume;
+soundVolumeSlider.addEventListener("input", () => {
+  soundVolume = Number(soundVolumeSlider.value);
+  soundEnabled = soundVolume > 0;
+  try {
+    localStorage.setItem("kw_soundVolume", String(soundVolume));
+    localStorage.setItem("kw_soundEnabled", soundEnabled ? "1" : "0");
+  } catch (e) { /* ignore */ }
 });
+// only on release (not every drag tick) — a quick audible taste of the new
+// level, same click cue the old checkbox gave on every toggle
+soundVolumeSlider.addEventListener("change", () => { sfxToggle(); });
 
 document.getElementById("gueuxBadge").addEventListener("click", () => {
   if (replaying || gameOver || awaitingFactionPick || currentPlayer !== humanRoyId || aiRunning || gueuxCount <= 0) return;
