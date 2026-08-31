@@ -96,9 +96,9 @@ Réflexion à avoir, quand une Provence a atteint le maximum c'est-à-dire 12 so
 
 [x] Au niveau difficile les ennemis n'attaquent jamais quand il vont perdre la bataille.
 
-Message additionnel à faire tourner pour refuser la trêve « Foutreboule ! Mais que nenni grand lâche de tes morts ! Retourne chez ta mère et laisse les adulte se charcuter en paix, vilain !
+[x] Message additionnel à faire tourner pour refuser la trêve « Foutreboule ! Mais que nenni grand lâche de tes morts ! Retourne chez ta mère et laisse les adulte se charcuter en paix, vilain ! (déjà présent dans CONTINUE_SIEGE_QUOTES, rotation par seed)
 
-Si on laisse une Provence avec un soldat seulement à côté d'une province de barbare, au bout de trois ou bien cinq tours entre les deux au hasard, la province, avec un seul soldat se sent délaissé et ses défection et devient barbare
+[x] Si on laisse une Provence avec un soldat seulement à côté d'une province de barbare, au bout de trois ou bien cinq tours entre les deux au hasard, la province, avec un seul soldat se sent délaissé et ses défection et devient barbare (checkLoneDefections(), une fois par tour, seuil aléatoire 3-5 via rngFloat — déterministe pour le replay)
 
 [x] Si j'attaque une Province et qu'elle est connecté par la terre, entre le choix d'attaquer par l'eau si c'est possible et terre c'est toujours la terre quinest privilégié.
 
