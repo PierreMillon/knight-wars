@@ -3527,6 +3527,37 @@ function advanceTurn() {
 function isAlive(royId) {
   return territories.some(t => t.owner === royId);
 }
+// "Bonus de 12" trigger — every single province this royaume owns is at
+// FORCE_CAP, not just some of them. See drawRoyaumeOutline()'s own call
+// site for what this unlocks visually.
+function allProvincesCapped(royId) {
+  let any = false;
+  for (const t of territories) {
+    if (t.owner !== royId) continue;
+    any = true;
+    if (t.force < FORCE_CAP) return false;
+  }
+  return any;
+}
+// Keeps the pulsing gold outline animating even when nothing else would
+// otherwise trigger a fresh render() (the board can sit there fully
+// capped, idle, for a while) — self-perpetuating while at least one
+// royaume still qualifies, stops rescheduling itself the moment none do.
+let capBonusPulseLoopRunning = false;
+function ensureCapBonusPulseLoop() {
+  if (capBonusPulseLoopRunning) return;
+  capBonusPulseLoopRunning = true;
+  function step() {
+    let stillActive = false;
+    for (let royId = 0; royId < ROYAUME_COUNT - 1; royId++) {
+      if (isAlive(royId) && allProvincesCapped(royId)) { stillActive = true; break; }
+    }
+    if (!stillActive || gameOver) { capBonusPulseLoopRunning = false; return; }
+    render();
+    requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
 
 function checkElimination() {
   // purely informational; advanceTurn's isAlive() already skips empty royaumes
@@ -4742,6 +4773,51 @@ const OUTLINE_GRADIENTS = {
   silver: ["#f4f6f9", "#aab2bf", "#7c848f"],
   gold: ["#fff3c4", "#e8c468", "#a97e2a"],
 };
+// Same edge-tracing idea as drawOutline() below, but for every hex a whole
+// royaume owns at once, comparing OWNER instead of territoryId at each
+// shared edge — adjacent same-owner territories merge into one continuous
+// perimeter instead of each getting their own separate outline. Physically
+// separated blocks (an island elsewhere on the map, say) still end up as
+// their own separate closed loops automatically — nothing stitches them
+// together, there's just no interior line to draw between two territories
+// that already share an edge. Used both for the replay's own starting
+// highlight ("une seule limite pour tout le territoire... pas province par
+// province sauf si elles sont séparées physiquement") and the "bonus de
+// 12" pulsing outline below.
+function drawRoyaumeOutline(royId, style, alpha) {
+  const outline = [];
+  for (const key in hexes) {
+    const h2 = hexes[key];
+    if (h2.territoryId < 0 || territories[h2.territoryId].owner !== royId) continue;
+    for (const [dq, dr] of NEI) {
+      const nh = hexes[`${h2.q + dq},${h2.r + dr}`];
+      const nOwner = nh && nh.territoryId >= 0 ? territories[nh.territoryId].owner : null;
+      if (nOwner !== royId) {
+        const npos = nh || axialToPixel(h2.q + dq, h2.r + dr);
+        const edge = sharedHexEdge(h2, npos);
+        if (edge) outline.push(edge);
+      }
+    }
+  }
+  if (!outline.length) return;
+  ctx.save();
+  if (typeof alpha === "number") ctx.globalAlpha = alpha;
+  ctx.beginPath();
+  for (const [[x1, y1], [x2, y2]] of outline) { ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); }
+  ctx.strokeStyle = "rgba(20,16,12,0.6)";
+  ctx.lineWidth = 3.6;
+  ctx.lineCap = "round";
+  ctx.stroke();
+  const [c0, c1, c2] = OUTLINE_GRADIENTS[style] || OUTLINE_GRADIENTS.gold;
+  const grad = ctx.createLinearGradient(-MAP_PIXEL_RADIUS, -MAP_PIXEL_RADIUS, MAP_PIXEL_RADIUS, MAP_PIXEL_RADIUS);
+  grad.addColorStop(0, c0);
+  grad.addColorStop(0.5, c1);
+  grad.addColorStop(1, c2);
+  ctx.strokeStyle = grad;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.restore();
+}
 function drawOutline(tId, style = "silver") {
   const t = territories[tId];
   const outline = [];
@@ -4980,7 +5056,19 @@ function render() {
   // match with — see playReplay() — so a viewer knows which color to
   // actually follow before the action starts moving
   if (replaying && performance.now() < replayIntroHighlightUntil) {
-    for (const t of territories) if (t.owner === humanRoyId) drawOutline(t.id, "gold");
+    drawRoyaumeOutline(humanRoyId, "gold");
+  }
+  // "Bonus de 12" — every province a royaume owns at the force cap gets a
+  // slowly vibrating gold outline around the whole realm ("comme s'ils
+  // étaient chauds pour le combat"). Visual trigger only for now — the
+  // unstoppable long-range attack it's meant to unlock isn't built yet.
+  if (!replaying) {
+    for (let royId = 0; royId < ROYAUME_COUNT - 1; royId++) {
+      if (!isAlive(royId) || !allProvincesCapped(royId)) continue;
+      const pulse = 0.72 + 0.28 * Math.sin(performance.now() / 260);
+      drawRoyaumeOutline(royId, "gold", pulse);
+      ensureCapBonusPulseLoop();
+    }
   }
   // each active finger draws its own dashed chain line independently — two
   // concurrent drags never share one path array any more (see activeDrags)
@@ -6174,8 +6262,15 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.56";
+const GAME_VERSION = "1.57";
 const CHANGELOG = [
+  {
+    version: "1.57",
+    notes: [
+      "Contour doré au début du replay : une seule limite autour de tout le territoire de départ, pas province par province.",
+      "Ajouté un contour doré vibrant autour de tout un royaume quand chacune de ses provinces est à 12 — l'attaque spéciale que ça débloquera arrive plus tard.",
+    ],
+  },
   {
     version: "1.56",
     notes: [
