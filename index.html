@@ -1127,11 +1127,40 @@
 // belt-and-braces fix: explicitly swallow the second tap of any fast
 // double-tap globally, so the browser never sees two taps close enough
 // together to recognize as its own zoom gesture in the first place.
-let lastTouchEndAt = 0;
+//
+// Must stay >= END_TURN_DOUBLE_TAP_MS (see its own note, further down):
+// that window was later widened to 600ms because a real "Fin de bataille"
+// double-tap kept missing a narrower one, but this swallow window was left
+// at 350ms — so a second tap landing between 350ms and 600ms still counted
+// as a deliberate double-tap for the game's own instant-skip logic, while
+// no longer being defended against here, and iOS's native double-tap-zoom
+// gesture (itself recognized in that same window) could still fire
+// ("le double clic zoom la page, désactive le zoom"). Kept as a plain
+// literal (not a shared constant) since END_TURN_DOUBLE_TAP_MS is declared
+// much later in the file — this only needs to read AT LEAST that value.
+//
+// Widening the time window alone caused its own real bug: two taps on
+// TWO DIFFERENT elements (e.g. closing a settings sub-page, then tapping
+// the onboarding hint bubble to dismiss it) landing within that same
+// window got treated as one "double tap" too, and preventDefault() on the
+// second touchend also suppresses the browser's synthesized click for it —
+// so the second tap's own click handler silently never fired at all
+// ("au changement de page, impossible de supprimer en cliquant le tuto").
+// A real double-tap-to-zoom gesture is always two taps in roughly the same
+// spot, so this now also requires the two touchend positions to be close
+// together, not just close in time — two unrelated taps on different UI
+// elsewhere on screen are never swallowed, only an actual same-spot
+// double-tap is.
+let lastTouchEnd = { at: 0, x: 0, y: 0 };
 document.addEventListener("touchend", (e) => {
   const now = Date.now();
-  if (now - lastTouchEndAt <= 350) e.preventDefault();
-  lastTouchEndAt = now;
+  const t = e.changedTouches && e.changedTouches[0];
+  const x = t ? t.clientX : lastTouchEnd.x;
+  const y = t ? t.clientY : lastTouchEnd.y;
+  const closeInTime = now - lastTouchEnd.at <= 650;
+  const closeInSpace = Math.hypot(x - lastTouchEnd.x, y - lastTouchEnd.y) <= 40;
+  if (closeInTime && closeInSpace) e.preventDefault();
+  lastTouchEnd = { at: now, x, y };
 }, { passive: false });
 
 /* ---------- CONFIG ---------- */
@@ -6858,6 +6887,9 @@ function executeAttackChain(path, i = 0) {
 // branch's own usage.
 let lastEndTurnTapAt = 0;
 const END_TURN_DOUBLE_TAP_MS = 600; // widened from 400 — a real second tap kept missing the window ("augmente le délai d'acceptation d'un double clic pour tout instantané")
+// Keep this <= the anti-zoom touchend swallow window near the top of the
+// file (see its own note) — otherwise a tap counted as a double-tap here
+// can still be recognized as iOS's native double-tap-zoom gesture.
 function handleEndTurnTap() {
   if (replaying || gameOver) return;
   const now = performance.now();
@@ -7137,8 +7169,14 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.80";
+const GAME_VERSION = "1.81";
 const CHANGELOG = [
+  {
+    version: "1.81",
+    notes: [
+      "Corrigé un bug où une case de l'interface tapée juste après une autre (par ex. en fermant un menu puis en touchant l'astuce du tuto) pouvait être ignorée, comme un faux double-clic.",
+    ],
+  },
   {
     version: "1.80",
     notes: [
