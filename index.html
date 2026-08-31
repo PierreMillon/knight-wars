@@ -3678,6 +3678,7 @@ function advanceTurn() {
     // get misread as a plain attack instead.
     checkStalemate();
     if (gameOver) return;
+    checkLoneDefections(); // can eliminate a royaume — the render()/checkWinner() pair just below already covers that
     // a light buzz the moment it's the human's own turn again — meant for
     // stepping away mid-AI-turn (a smoke break, a conversation) without
     // having to keep glancing at the screen. Not during a replay: that
@@ -3712,6 +3713,47 @@ function advanceTurn() {
 
 function isAlive(royId) {
   return territories.some(t => t.owner === royId);
+}
+// A lone, undefended (force===1) territory sitting right next to the
+// barbarians feels abandoned by its own crown after a few rounds like
+// that and defects to join them — "si on laisse une province avec un
+// soldat seulement à côté d'une province de barbare, au bout de trois ou
+// bien cinq tours... la province se sent délaissée et fait défection".
+// Runs once per round (see advanceTurn()), same cadence as
+// checkStalemate(), and for the same reason must fire identically during
+// a replay: the threshold itself is drawn from rngFloat() (seeded), so
+// skipping this during replay would silently desync which territory
+// defects and when. Tracks per-territory transient state directly on the
+// territory object (t.loneIsolatedRounds/t.loneDefectAt) — fresh objects
+// every startGame(), so nothing needs resetting between matches.
+function checkLoneDefections() {
+  if (gameOver) return;
+  const neutralId = ROYAUME_COUNT - 1;
+  for (const t of territories) {
+    if (t.owner === neutralId || t.force !== 1) {
+      t.loneIsolatedRounds = undefined;
+      t.loneDefectAt = undefined;
+      continue;
+    }
+    const bordersBarbarians = [...t.neighbors].some((nId) => territories[nId].owner === neutralId);
+    if (!bordersBarbarians) {
+      t.loneIsolatedRounds = undefined;
+      t.loneDefectAt = undefined;
+      continue;
+    }
+    if (t.loneDefectAt === undefined) {
+      t.loneIsolatedRounds = 0;
+      t.loneDefectAt = 3 + Math.floor(rngFloat() * 3); // 3, 4, or 5 rounds, "trois ou bien cinq tours... au hasard"
+    }
+    t.loneIsolatedRounds++;
+    if (t.loneIsolatedRounds >= t.loneDefectAt) {
+      const formerOwner = t.owner;
+      t.owner = neutralId;
+      t.loneIsolatedRounds = undefined;
+      t.loneDefectAt = undefined;
+      logMsg(`Une province isolée de ${ROYAUMES[formerOwner].name} fait défection vers les barbares.`);
+    }
+  }
 }
 // "Bonus de 12" trigger — every single province this royaume owns is at
 // FORCE_CAP, not just some of them. See drawRoyaumeOutline()'s own call
@@ -6564,8 +6606,14 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.66";
+const GAME_VERSION = "1.67";
 const CHANGELOG = [
+  {
+    version: "1.67",
+    notes: [
+      "Une province réduite à 1 soldat, collée aux barbares, fait défection vers eux après 3 à 5 tours si elle reste dans cet état (n'importe quel royaume, pas que vous).",
+    ],
+  },
   {
     version: "1.66",
     notes: [
