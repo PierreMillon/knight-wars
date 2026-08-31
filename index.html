@@ -195,13 +195,17 @@
   .chip {
     display: flex; align-items: center; gap: 5px; font-size: 12px; white-space: nowrap; flex: none;
     transform-origin: left center;
-    /* grows ~1.5x, smoothly, while it's this royaume's own turn (see
-       updateGroups()'s own note on why the row elements have to persist
-       across updates for this transition to actually animate instead of
-       jumping) — margin grows alongside the scale so the enlarged row
-       gets a little breathing room instead of crowding its neighbors,
-       which #groups' own fixed 4px gap can't provide on its own. */
-    transition: transform .3s ease, margin .3s ease;
+    /* grows ~1.5x while it's this royaume's own turn (see updateGroups()'s
+       own note on why the row elements have to persist across updates for
+       this transition to actually animate instead of jumping) — margin
+       grows alongside the scale so the enlarged row gets a little
+       breathing room instead of crowding its neighbors, which #groups' own
+       fixed 4px gap can't provide on its own. A plain "ease" curve here
+       read as a slow, flat, mechanical resize ("changement lent brutal de
+       taille") — swapped for a light spring/overshoot curve (settles past
+       1.5x then eases back) for a softer, snappier feel instead ("petit
+       effet souple"). */
+    transition: transform .28s cubic-bezier(.34, 1.56, .64, 1), margin .28s cubic-bezier(.34, 1.56, .64, 1);
   }
   .chip.activeTurn { transform: scale(1.5); margin: 4px 0; }
   /* no more plain black outline ring (see .hand below for what replaces it
@@ -549,6 +553,31 @@
     color: #2b1d10; border: 1px solid #8a6d3b; border-radius: 8px;
     padding: 10px 20px; font-size: 15px; font-weight: 700;
   }
+  /* Language toggle: a real sliding switch instead of a button whose whole
+     label used to swap text on tap ("le bouton français/anglais est
+     maintenant un interrupteur qui glisse d'une langue à l'autre") — both
+     language codes stay visible at all times, a gold thumb slides to
+     whichever is active. Requalified with the settingsPanel ID (same
+     specificity trick as the Conseils/Lore back buttons above) to beat the
+     shared button rule's padding/background. */
+  #settingsPanel button#langToggle.langSwitch {
+    position: relative; display: flex; width: 128px; height: 34px; padding: 0;
+    background: rgba(20,16,12,.45); border: 1px solid #8a6d3b; border-radius: 17px;
+    overflow: hidden; box-sizing: border-box;
+  }
+  .langSwitchOption {
+    flex: 1 1 50%; display: flex; align-items: center; justify-content: center;
+    font-size: 12.5px; font-weight: 700; color: rgba(242,237,226,.75);
+    position: relative; z-index: 1; transition: color .28s ease;
+  }
+  .langSwitchThumb {
+    position: absolute; top: 2px; left: 2px; width: calc(50% - 3px); height: calc(100% - 4px);
+    background: linear-gradient(135deg, #fff3c4, #e8c468, #a97e2a);
+    border-radius: 14px; transition: transform .28s cubic-bezier(.34, 1.56, .64, 1);
+  }
+  #langToggle.lang-en .langSwitchThumb { transform: translateX(100%); }
+  #langToggle.lang-en .langSwitchOption[data-lang="en"],
+  #langToggle:not(.lang-en) .langSwitchOption[data-lang="fr"] { color: #2b1d10; }
   /* plain icon button, main HUD, bottom-center between #gueuxBadge (left)
      and #endturn (right) — same circular gold treatment as #settingsBtn now
      (it used to deliberately stay dark/unadorned as a "destructive action"
@@ -979,7 +1008,11 @@
            bataille, Changer la carte, écran de fin, etc.), not the lore or
            flavor text yet. A plain toggle, not a full language picker with
            auto-detect — that's the bigger version still on the backlog. -->
-      <button id="langToggle" style="display:block; margin-top:10px;">🇫🇷 Français</button>
+      <button id="langToggle" class="langSwitch" style="margin-top:10px;">
+        <span class="langSwitchOption" data-lang="fr">🇫🇷 FR</span>
+        <span class="langSwitchOption" data-lang="en">🇬🇧 EN</span>
+        <span class="langSwitchThumb"></span>
+      </button>
       <label style="display:block; margin-top:10px;"><input type="checkbox" id="reinforcePulseToggle"> Cercles d'animation de renfort</label>
       <!-- experimental, off by default — "essayer une version avec du
            brouillard comme aoe I" -->
@@ -7169,8 +7202,15 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.81";
+const GAME_VERSION = "1.82";
 const CHANGELOG = [
+  {
+    version: "1.82",
+    notes: [
+      "Le classement des royaumes grandit avec un petit effet souple (léger rebond) au lieu d'un changement de taille sec.",
+      "Le bouton français/anglais est maintenant un interrupteur qui glisse d'une langue à l'autre.",
+    ],
+  },
   {
     version: "1.81",
     notes: [
@@ -7931,7 +7971,9 @@ function applyUiLanguage() {
   document.getElementById("proposePeaceBtn").textContent = t("proposePeace");
   document.getElementById("confirmSurrender").textContent = t("confirmSurrender");
   document.getElementById("continueSiege").textContent = t("continueSiege");
-  document.getElementById("langToggle").textContent = t("langToggleLabel");
+  const langToggleEl = document.getElementById("langToggle");
+  langToggleEl.classList.toggle("lang-en", uiLang === "en");
+  langToggleEl.setAttribute("aria-label", t("langToggleLabel"));
   const rerollBtnEl = document.getElementById("rerollBtn");
   rerollBtnEl.textContent = replaying ? "⏹" : t("rerollChangeMap");
   rerollBtnEl.setAttribute("aria-label", replaying ? t("rerollStopReplayAria") : t("rerollChangeMapAria"));
