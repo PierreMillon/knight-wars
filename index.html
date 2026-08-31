@@ -3476,7 +3476,7 @@ function executeWaterSacrifice(fromId, waterHexKeys, pureDirectDive = true) {
       }
     }
   } else {
-    showForcedSwimToast();
+    showForcedSwimToast(fromId);
   }
   logMsg(`${ROYAUMES[from.owner].name} perd des soldats en mer.`);
   render();
@@ -6606,8 +6606,14 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.67";
+const GAME_VERSION = "1.68";
 const CHANGELOG = [
+  {
+    version: "1.68",
+    notes: [
+      "Nouvelle phrase de noyade pour un sacrifice partiel (pas le rituel complet).",
+    ],
+  },
   {
     version: "1.67",
     notes: [
@@ -7645,11 +7651,19 @@ function showOceanTapEasterEgg() {
 // released before reaching the floor, or tacked onto the end of a chain
 // that already conquered elsewhere first) — see executeWaterSacrifice()'s
 // own note on why this stays separate from the rare "offrande" messages.
-function showForcedSwimToast() {
+// A lesser (non-ritual) sacrifice — "si on en voit moins que le max" —
+// picks deterministically from the seed + the sending territory, same
+// convention as SURRENDER_LINES/CONTINUE_SIEGE_QUOTES, so a replay always
+// shows the same one.
+const FORCED_SWIM_LINES = [
+  "Baignade forcée, sire. Ils ne reviendront pas, je le crains.",
+  "Quitte à sacrifier des hommes, autant en envoyer un plein bateau sire ! Un sacrifice humain comme les barbares, pourquoi pas ?",
+];
+function showForcedSwimToast(fromId = 0) {
   if (replaying) return; // see showOceanTapEasterEgg()'s own note just above
   const el = document.getElementById("oceanTapToast");
   clearTimeout(oceanTapToastTimer);
-  el.textContent = "Baignade forcée, sire. Ils ne reviendront pas, je le crains.";
+  el.textContent = FORCED_SWIM_LINES[Math.abs(currentSeed + fromId) % FORCED_SWIM_LINES.length];
   el.style.display = "block";
   requestAnimationFrame(() => { el.style.opacity = "1"; });
   oceanTapToastTimer = setTimeout(() => {
