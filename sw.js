@@ -24,7 +24,7 @@
 // fallback. index.html's own update-check (see checkForUpdate()) still
 // decides *when* to actually reload an already-open tab — this only
 // changes what a fresh navigation/launch fetches.
-const CACHE_NAME = "knight-wars-v5"; // bumped again — see the navigate handler's own note on the added timeout fallback
+const CACHE_NAME = "knight-wars-v6"; // bumped again — see STALL_TIMEOUT_MS/STALL_RESPONSE's own note (indefinite hang on a slow, uncached first navigation)
 const APP_SHELL = ["./", "./index.html", "./manifest.json", "./icon-192.png", "./icon-512.png"];
 // A cold PWA launch (home-screen icon) is exactly the moment the OS may
 // still be waking the radio / resolving DNS — reported live as "s'ouvre sur
@@ -37,6 +37,25 @@ const APP_SHELL = ["./", "./index.html", "./manifest.json", "./icon-192.png", ".
 // background regardless, so the cache still gets refreshed for next time
 // even when the timeout wins this one.
 const NAV_TIMEOUT_MS = 3000;
+// Same idea, for when there's no cached shell at all to race against (see
+// the navigate handler's own note) — a much longer ceiling, since here
+// there's nothing better to fall back to than a manual-retry page, so it's
+// worth genuinely waiting out a slow-but-real connection first.
+const STALL_TIMEOUT_MS = 8000;
+// A tiny inline fallback page — no dependency on anything cacheable, so it
+// always exists regardless of what the real fetch is stuck on. Just enough
+// to turn "black/blank tab, seemingly frozen" into "a page that explains
+// what happened and offers to try again".
+const STALL_RESPONSE = () =>
+  new Response(
+    `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Knight Wars</title>
+    <style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#3d5f80;color:#f2ede2;font-family:Georgia,"Iowan Old Style",Palatino,serif;text-align:center;padding:24px;box-sizing:border-box}
+    p{max-width:320px;line-height:1.5}
+    button{margin-top:16px;padding:10px 20px;border-radius:10px;border:1.5px solid #e8c468;background:linear-gradient(135deg,#fff3c4,#e8c468,#a97e2a);color:#2b1d10;font-weight:700;font-size:15px}</style></head>
+    <body><div><p>La connexion est lente et la page n'arrive pas à charger.</p><button onclick="location.reload()">Réessayer</button></div></body></html>`,
+    { headers: { "Content-Type": "text/html; charset=utf-8" } }
+  );
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)));
@@ -96,9 +115,23 @@ self.addEventListener("fetch", (event) => {
         networkPromise.catch(() => {});
         const cached = await caches.match(event.request);
         if (!cached) {
-          // nothing to fall back to yet (first-ever install, still offline)
-          // — network is the only option there is, however long it takes.
-          return networkPromise;
+          // Nothing to fall back to yet (no cache for this exact request —
+          // first-ever visit, or Safari's ITP quietly evicted Cache Storage
+          // after 7 days of no interaction, per its documented behavior).
+          // This used to just `return networkPromise` unconditionally,
+          // "however long it takes" — but a merely SLOW connection (not a
+          // failed one, so fetch() never rejects) then left the navigation
+          // promise unsettled forever: reported live as "écran noir, même
+          // après 20 secondes", on a device showing a weak signal. Race it
+          // against a longer STALL_TIMEOUT_MS too, so a stuck-but-not-dead
+          // network still resolves to SOMETHING the user can act on
+          // (a manual retry) instead of an indefinite blank/black tab.
+          const stall = new Promise((resolve) => setTimeout(() => resolve(STALL_RESPONSE()), STALL_TIMEOUT_MS));
+          try {
+            return await Promise.race([networkPromise, stall]);
+          } catch (e) {
+            return STALL_RESPONSE(); // network rejected outright with nothing cached to fall back to
+          }
         }
         const timeout = new Promise((resolve) => setTimeout(() => resolve(cached), NAV_TIMEOUT_MS));
         try {
