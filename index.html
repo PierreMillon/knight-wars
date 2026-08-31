@@ -908,7 +908,7 @@
       <div class="fieldGroup">
         <div class="fieldLabel">Difficulté</div>
         <div id="difficultyLevels" class="levelRow">
-          <button data-level="0" class="levelBtn"><span class="diffIcons"><img alt=""></span>Page</button>
+          <button data-level="0" class="levelBtn"><span class="diffIcons"><img alt=""></span>Gueux</button>
           <button data-level="1" class="levelBtn"><span class="diffIcons"><img alt=""><img alt=""></span>Écuyer</button>
           <button data-level="2" class="levelBtn"><span class="diffIcons"><img alt=""></span>Chevalier</button>
           <button data-level="3" class="levelBtn"><span class="diffIcons"><img alt=""></span>Seigneur</button>
@@ -926,7 +926,7 @@
       <div class="fieldGroup">
         <div class="fieldLabel">Taille de la carte</div>
         <div id="mapSizeLevels" class="levelRow">
-          <button data-mapsize="small" class="levelBtn">Bras de fer</button>
+          <button data-mapsize="small" class="levelBtn">Joute</button>
           <button data-mapsize="medium" class="levelBtn">Raid</button>
           <button data-mapsize="large" class="levelBtn">Massacre</button>
           <button data-mapsize="huge" class="levelBtn">Croisade</button>
@@ -1163,7 +1163,7 @@ try {
 // only so a small map's still-meaningful 2-royaume identity (a tight 1v1
 // skirmish) reads at a glance in this table.
 const MAP_SIZES = {
-  small: { label: "Bras de fer", territoryCount: 6, radius: 95, baseFactions: 2 },
+  small: { label: "Joute", territoryCount: 6, radius: 95, baseFactions: 2 },
   medium: { label: "Raid", territoryCount: 26, radius: 230, baseFactions: 4 },
   large: { label: "Massacre", territoryCount: 36, radius: 255, baseFactions: 4 },
   // biggest tier — genuinely fills ~95% of the available screen space
@@ -1371,7 +1371,7 @@ function escalated(baseValue, hardValue) {
 // rare now, needing zero tactical mistakes ("il faut vraiment que le
 // niveau quatre... on arrive très difficilement à gagner").
 const DIFFICULTY_LEVELS = [
-  { name: "Page",      value: 0 },
+  { name: "Gueux",      value: 0 },
   { name: "Écuyer",    value: 0.35 },
   { name: "Chevalier", value: 0.91 }, // was 0.7 (×1.3)
   { name: "Seigneur",  value: 1.3 },  // was 1 (×1.3)
@@ -4618,18 +4618,25 @@ function drawStatChart() {
     prevY = curY;
   });
 
-  c.fillStyle = "rgba(43,29,16,.8)";
-  c.font = "10px -apple-system, sans-serif";
-  c.textAlign = "left";
-  c.fillText("Territoire (%)", panelX, 10);
-  // same idea as the label just above, for the force scrub row below the
-  // chart — right-aligned past the panel's own right edge so it never
-  // collides with that row's own per-royaume numbers, which start from
-  // panelX at this exact same y (unlike the territory row, which sits a
-  // clear 16px below its own "Territoire (%)" label).
-  c.textAlign = "right";
-  c.fillText("Force", panelX + panelW, bottom + 15);
-  c.textAlign = "left";
+  // Both labels only show while NOT actively scrubbing — once a finger is
+  // down, the actual per-royaume numbers take over these same rows (see
+  // drawScrubRow() below), and the static label text just cluttered them
+  // ("légende territoire et force apparaissent puis disparaissent quand on
+  // clique... pour laisser voir que les chiffres").
+  if (!(statChartScrubIndex >= 0 && statChartScrubIndex < chartHistory.length)) {
+    c.fillStyle = "rgba(43,29,16,.8)";
+    c.font = "10px -apple-system, sans-serif";
+    c.textAlign = "left";
+    c.fillText("Territoire (%)", panelX, 10);
+    // same idea as the label just above, for the force scrub row below the
+    // chart — right-aligned past the panel's own right edge so it never
+    // collides with that row's own per-royaume numbers, which start from
+    // panelX at this exact same y (unlike the territory row, which sits a
+    // clear 16px below its own "Territoire (%)" label).
+    c.textAlign = "right";
+    c.fillText("Force", panelX + panelW, bottom + 15);
+    c.textAlign = "left";
+  }
 
   // interactive scrub: drag a finger across the chart to see each royaume's
   // exact (unsmoothed) territory share ABOVE the chart, and its raw force
@@ -5338,6 +5345,28 @@ function runAI() {
   function bestMove(restrictFromId) {
     const territoryCount = {};
     for (const t of territories) territoryCount[t.owner] = (territoryCount[t.owner] || 0) + 1;
+    // "Le pouvoir des 12" — while this royaume has a guaranteed-win attack
+    // budget active (see ensureCapBonusActivation()/attack()'s own
+    // capBonusWin), every attack it could make wins outright regardless of
+    // the numbers, so the normal aggression-threshold gate below (which
+    // exists to stop the AI throwing away force on bad trades) doesn't
+    // apply — skipping it here is what actually lets the AI spend a budget
+    // it would otherwise just let expire unused ("l'adversaire a 12
+    // partout et il en profite pas").
+    const capActive = (capBonusBudget[royId] || 0) > 0;
+    // Hard floor, independent of difficulty/personality: resolveCombat()
+    // only ever gives the ATTACKER real odds at adv===0 (1/3) or adv===-1
+    // (1/5) — anything below that is a mathematically GUARANTEED loss (no
+    // roll at all), which never has any value: a lost attack doesn't even
+    // touch the defender's own force, it just drops the attacker's own
+    // territory to 1 for nothing. AI_AGGRESSION_THRESHOLD's own floor
+    // (lerp(1.5,-2.2,DIFFICULTY), pushed lower still by personality deltas)
+    // could fall well past -1 at high difficulty, which meant "aggressive"
+    // AI was actually throwing away force on attacks it was CERTAIN to
+    // lose — reported live as "l'ennemi fait des attaques sûres de
+    // perdre, c'est absurde". This floor applies at every difficulty; it's
+    // not itself the aggression tuning, just a sanity clamp under it.
+    const MIN_VIABLE_ADV = -1;
 
     let best = null, bestScore = -Infinity;
     for (const t of territories) {
@@ -5347,7 +5376,7 @@ function runAI() {
         const n = territories[nId];
         if (n.owner === royId) continue;
         const adv = t.force - n.force;
-        if (adv < escalated(AI_AGGRESSION_THRESHOLD, -1) + pers.aggressionDelta) continue;
+        if (!capActive && (adv < MIN_VIABLE_ADV || adv < escalated(AI_AGGRESSION_THRESHOLD, -1) + pers.aggressionDelta)) continue;
 
         // prefer finishing off a nearly-eliminated royaume over a marginally
         // better trade elsewhere
@@ -5376,7 +5405,7 @@ function runAI() {
         if (n.owner === royId || !canAffordWaterRoute(t, nId)) continue;
         const attackingForce = t.force - route.cost;
         const adv = attackingForce - n.force;
-        if (adv < escalated(AI_AGGRESSION_THRESHOLD, -1) + pers.aggressionDelta) continue;
+        if (!capActive && (adv < MIN_VIABLE_ADV || adv < escalated(AI_AGGRESSION_THRESHOLD, -1) + pers.aggressionDelta)) continue;
         let score = adv + (territoryCount[n.owner] <= 2 ? pers.finishOffBonus : 0);
         let exposure = 0;
         for (const oId of t.neighbors) {
@@ -7072,8 +7101,17 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.77";
+const GAME_VERSION = "1.78";
 const CHANGELOG = [
+  {
+    version: "1.78",
+    notes: [
+      "Renommé le niveau de difficulté « Page » en « Gueux » et la taille de carte « Bras de fer » en « Joute ».",
+      "Corrigé les IA qui pouvaient attaquer avec une force sûre de perdre (aucune chance, juste du gâchis) même au niveau difficile.",
+      "L'IA utilise maintenant vraiment son pouvoir des 12 pour attaquer sans risque au lieu de le laisser inutilisé.",
+      "Le graphique de fin : les légendes « Territoire » et « Force » disparaissent pendant le survol pour laisser voir les chiffres.",
+    ],
+  },
   {
     version: "1.77",
     notes: [
