@@ -5758,9 +5758,12 @@ function render() {
       // cost of a crossing), it just isn't color-coded any more.
       ctx.fillStyle = "#3d5f80";
       ctx.fill();
-      ctx.strokeStyle = "rgba(20,16,12,0.12)";
-      ctx.lineWidth = 0.5;
-      ctx.stroke();
+      // No per-hex outline here any more — used to draw a faint hex grid
+      // over every water tile, reported as still visibly showing "cases"
+      // (individual hexes) near the coast even after other water/void
+      // cleanup: "désactive l'affichage léger des cases dans l'eau
+      // partout, il en reste proche des côtes". Water is one plain fill
+      // now, no seams.
       continue;
     }
     const t = territories[h2.territoryId];
@@ -6719,6 +6722,14 @@ function extendDragPath(drag, clientX, clientY) {
   }
   if (tail.includes(hKey)) return; // no cycles within this one gesture
   const lastT = territories[drag.path[drag.path.length - 1]];
+  // Don't extend the tail past the point where the force has already fully
+  // decayed (see computeWaterTailDecay() — remaining bottoms out at 1 and
+  // stays there) — dragging further hexes past that floor changes nothing
+  // about the outcome, so the drag itself should stop there instead of
+  // letting the finger trace an arbitrarily longer line for a force that
+  // can't actually reach that far ("j'avais 3 et j'aurais dû pouvoir tracer
+  // un trait dans l'eau d'une seule case pas plusieurs").
+  if (tailLen && computeWaterTailDecay(lastT.force, tail).reachedFloor) return;
   const adjacent = tailLen
     ? neighborsOf(h.q, h.r).includes(tail[tailLen - 1])
     : isHexAdjacentToTerritory(hKey, lastT);
@@ -7126,8 +7137,15 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.79";
+const GAME_VERSION = "1.80";
 const CHANGELOG = [
+  {
+    version: "1.80",
+    notes: [
+      "Retiré le quadrillage léger qui restait visible sur les cases d'eau, y compris près des côtes.",
+      "En glissant dans l'eau, le tracé s'arrête maintenant dès que la force n'a plus rien à perdre à aller plus loin, au lieu de pouvoir tracer plusieurs cases pour rien.",
+    ],
+  },
   {
     version: "1.79",
     notes: [

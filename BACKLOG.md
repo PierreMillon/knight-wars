@@ -226,3 +226,5 @@ Sound (gamme par royaume), épée/bateau taille + alignement, portée d'attaque 
 - [x] Les encarts village/province/royaume/pays (page Conseils) occupent maintenant toute la largeur de la page (v1.79) — retrait des marges progressives qui les indentaient en escalier.
 - [x] Conseils simplifiés pour un joueur qui découvre le jeu (v1.79) — retrait du ton "historique/dev", ajout d'un paragraphe expliquant "le pouvoir des 12".
 - [x] Lore : ajout du chevalier à cheval, du bateau et des épées (v1.79) — le blason et la pieuvre étaient déjà présents.
+- [x] Quadrillage léger visible sur les cases d'eau, y compris près des côtes (v1.80) : c'était le contour faible (rgba 0.12) dessiné sur chaque hexagone d'eau — retiré complètement, l'eau est un aplat uni maintenant.
+- [x] Glisser-attaque par mer : le tracé pouvait dépasser d'une case ce que la force pouvait réellement atteindre (v1.80) — avec une force de 3, une seule case d'eau consomme déjà toute la force utile (computeWaterTailDecay() atteint son plancher), donc l'extension du tracé s'arrête maintenant dès que le plancher est atteint au lieu de continuer à suivre le doigt pour rien.
