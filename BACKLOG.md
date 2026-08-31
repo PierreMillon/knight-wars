@@ -177,8 +177,8 @@ Quelles phrases manquent actuellement que je les écrivent ?
 ## Idées données en direct (pas dans le paste original ci-dessus)
 
 - [ ] Chaque royaume peut, via un easter egg, débloquer un dieu spécial avec des capacités spéciales. Actives pour le joueur uniquement, sauf en mode le plus dur — ou quand débloqué pour un seigneur, actif qu'on le joue ou qu'il soit adversaire.
-- [ ] "Bonus de 12" : quand un royaume a 12 dans chaque province, contour doré vibrant autour de tout son territoire + attaque spéciale imparable, longue distance, terre ou mer, tue tout sur le passage — visuel du contour en cours (voir code), l'activation de l'attaque elle-même reste à définir (UX pas encore précisée).
-- [ ] Contour du royaume au début du replay doit entourer toute la zone d'une seule traite (pas province par province), sauf si les provinces sont physiquement séparées.
+- [~] "Bonus de 12" : contour doré vibrant fait (une seule limite pour tout le royaume, physiquement séparé sinon). L'attaque spéciale imparable elle-même reste à construire — UX d'activation pas encore précisée.
+- [x] Contour du royaume au début du replay doit entourer toute la zone d'une seule traite (pas province par province), sauf si les provinces sont physiquement séparées.
 
 ## Fait en direct (hors paste original), pour référence
 
