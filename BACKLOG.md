@@ -68,7 +68,7 @@ Quand on tue le dernier village pour gagner, on va ajoute une seconde d'animatio
 
 Firefox replay j'ai repris depuis un moment et ça fait rien quand je clique sur prochaine bataille ça reste figé à la guerre fait rage
 
-Quand les batailles sont trop longues faut ajouter une option de proposer le status quo. Je propose que si on clique sur la tête de morte on ai le choix entre offrir la trêve/paix et se rendre. Si on fait la paix on gagne un gueux par pays restant.
+[x] Quand les batailles sont trop longues faut ajouter une option de proposer le status quo. Je propose que si on clique sur la tête de morte on ai le choix entre offrir la trêve/paix et se rendre. Si on fait la paix on gagne un gueux par pays restant. (proposePeace() — le clic sur la tête de mort ouvre maintenant Annuler/Proposer la paix/Abandonner)
 
 [x] Chaque pays a un son différent pour les attaques réussis composé d'un accord de deux notes que je préciserai. (superseded : gamme par royaume au lieu d'un accord fixe, décision explicite plus tard)
 
@@ -86,7 +86,7 @@ Quand les batailles sont trop longues faut ajouter une option de proposer le sta
 
 [x] Phrase suivante des noyés « Du rhum, des femmes ! Et du cidre nom de Zeus ! » puis « glouglouglou… »
 
-[x] [x] Si j'ai deux soldats et que je traverse l'eau pour attaquer un barbare. Pour l'instant ça fonctionne. Mais ça devrait pas. Je perd deux forces phrase « plouf ! » et j'arrive avec 0 dont je devrais pas conquérir. (déjà corrigé — attack() : `from.force - waterCost <= 0` = échec automatique, noyade)
+[x] Si j'ai deux soldats et que je traverse l'eau pour attaquer un barbare. Pour l'instant ça fonctionne. Mais ça devrait pas. Je perd deux forces phrase « plouf ! » et j'arrive avec 0 dont je devrais pas conquérir. (déjà corrigé — attack() : `from.force - waterCost <= 0` = échec automatique, noyade)
 
 Sinon attaque avec 1 et qu'on perd. Le territoire perdu devient aux barbares.
 
@@ -124,7 +124,7 @@ L'écran blanc PWA est revenu… après que j'ai fermé la fenêtre.
 
 [x] Sur ordi Mac Firefox écran 1680x1050 Catalina version 10.15.8 (Retien ça écris le en privé) mon adversaire a ses troupe qui apparaissent au même village 5 fois de suite c'est pas random assez
 
-[x] [x] Le bouton accéléré bataille a juste ça maintenant. On supprime « la bataille fait rage ».
+[x] Le bouton accéléré bataille a juste ça maintenant. On supprime « la bataille fait rage ».
 
 [x] Le texte d'offrande cans l'eau doit durer deux fois plus longtemps
 
