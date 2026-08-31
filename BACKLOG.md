@@ -144,7 +144,7 @@ Essayer une version avec du brouillard comme aoe I
 
 [x] J'ai traversé avec deux soldats 3 zones déjà pour attaquer une île barbare et malgré les -2 à chaque case j'ai gagné. Corrigé.
 
-Bouton options pour activer les cercles d'animation. Ils passent proportionnel à l'ajout du nombre de soldat en taille.
+[x] Bouton options pour activer les cercles d'animation. Ils passent proportionnel à l'ajout du nombre de soldat en taille. (toggle showReinforcePulse dans Réglages ; rayon du cercle = 20 + min(N,8)×2)
 
 Une île isolée de barbare peut être inateignable. Ça reste dans le lore. Sauf du coup par la tribu qui a moins de pénalité dans l'eau. Et peut-être que débloquer la pieuvre donne au joueur une abilite spéciale. Pour les bleus aucun dégâts dans l'eau. Les autre son va y réfléchir.
 
