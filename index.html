@@ -1017,6 +1017,11 @@
       <!-- experimental, off by default — "essayer une version avec du
            brouillard comme aoe I" -->
       <label style="display:block; margin-top:10px;"><input type="checkbox" id="fogOfWarToggle"> 🌫️ Brouillard de guerre (expérimental)</label>
+      <!-- "un mode accessible en option dans le menu ou les couleurs sont
+           remplacés par hachure horizontales, verticale, diagonale droite et
+           gauche" — four playable royaumes (ROYAUMES 0-3), four hatch
+           patterns, one each; see buildHatchPatterns()/render()'s own note. -->
+      <label style="display:block; margin-top:10px;"><input type="checkbox" id="colorblindToggle"> ♿ Mode daltonien (hachures)</label>
 
       <!-- Tier 2 used to be here: an "Affichage" section holding only the
            royaume-sort-order control (Villages/Soldats/Ordre de jeu). Removed
@@ -3195,6 +3200,16 @@ try {
 // fog, not a strict line-of-sight — see updateFogKnowledge()'s own note.
 let fogOfWarEnabled = false;
 try { fogOfWarEnabled = localStorage.getItem("kw_fogOfWarEnabled") === "1"; } catch (e) { /* ignore */ }
+
+// Colorblind-accessible mode — "un mode accessible en option dans le menu ou
+// les couleurs sont remplacés par hachure horizontales, verticale, diagonale
+// droite et gauche": one hatch pattern per playable royaume (ROYAUMES 0-3),
+// drawn as an overlay on top of the normal color fill rather than replacing
+// it (color still helps players who aren't fully colorblind, the hatching
+// is what actually distinguishes royaumes for those who can't rely on hue
+// alone). See buildHatchPatterns()/render()'s own note.
+let colorblindMode = false;
+try { colorblindMode = localStorage.getItem("kw_colorblindMode") === "1"; } catch (e) { /* ignore */ }
 
 // English support kicked off small on purpose — "fais l'anglais en premier
 // maintenant juste pour les boutons de jeu utiles au minimum": just the
@@ -5782,6 +5797,38 @@ function updateFogKnowledge() {
     if (t.fogInSight) { t.everExplored = true; t.lastKnownForce = t.force; }
   }
 }
+
+// Colorblind mode (see colorblindMode's own note) — one small offscreen
+// canvas per hatch direction, tiled via ctx.createPattern(). Built once,
+// lazily, on first actual use rather than at load: a canvas pattern needs a
+// live 2D context, and quicksmoke.js's own minimal Image/canvas stubs (see
+// its own notes elsewhere) only need to support the game's actual sandbox
+// runs, which never turn this setting on — building it eagerly at load
+// would be needless work in every headless/AI-only run for a purely visual,
+// opt-in accessibility feature.
+let hatchPatterns = null;
+function buildHatchPatterns() {
+  // one direction per playable royaume (ROYAUMES 0-3) — horizontal,
+  // vertical, diagonal "/" (bottom-left to top-right), diagonal "\"
+  // (top-left to bottom-right), in that order, matching the settings
+  // label's own listed order.
+  const SIZE = 10;
+  function makePattern(draw) {
+    const c = document.createElement("canvas");
+    c.width = SIZE; c.height = SIZE;
+    const pctx = c.getContext("2d");
+    pctx.strokeStyle = "rgba(20,16,12,.65)";
+    pctx.lineWidth = 1.6;
+    draw(pctx);
+    return ctx.createPattern(c, "repeat");
+  }
+  hatchPatterns = [
+    makePattern((p) => { p.beginPath(); p.moveTo(0, SIZE / 2); p.lineTo(SIZE, SIZE / 2); p.stroke(); }),
+    makePattern((p) => { p.beginPath(); p.moveTo(SIZE / 2, 0); p.lineTo(SIZE / 2, SIZE); p.stroke(); }),
+    makePattern((p) => { p.beginPath(); p.moveTo(0, SIZE); p.lineTo(SIZE, 0); p.stroke(); }),
+    makePattern((p) => { p.beginPath(); p.moveTo(0, 0); p.lineTo(SIZE, SIZE); p.stroke(); }),
+  ];
+}
 function render() {
   updateFogKnowledge();
   const w = canvas.clientWidth, h = canvas.clientHeight;
@@ -5838,6 +5885,17 @@ function render() {
     ctx.lineWidth = 0.5;
     ctx.stroke();
     ctx.globalAlpha = 1;
+    // Colorblind-accessible mode: an overlay hatch pattern per playable
+    // royaume ON TOP of its usual color fill (not instead of it — partial
+    // colorblindness still benefits from the color, this is for the cases
+    // where hue alone doesn't distinguish two royaumes). Barbarians/neutral
+    // (roy.neutral) get no pattern — greyish and never adjacent in a way
+    // that needs disambiguating from a playable royaume's own color.
+    if (colorblindMode && !roy.neutral) {
+      if (!hatchPatterns) buildHatchPatterns();
+      ctx.fillStyle = hatchPatterns[roy.id % hatchPatterns.length];
+      ctx.fill();
+    }
     // Fog of war — a real visual haze over an out-of-sight hex, not just a
     // missing number, so it reads as "hidden by fog" rather than "broken"
     // ("faut ajouter un effet brouillard pour qu'on sache que c'est le
@@ -7202,8 +7260,14 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.82";
+const GAME_VERSION = "1.83";
 const CHANGELOG = [
+  {
+    version: "1.83",
+    notes: [
+      "Nouveau mode daltonien (optionnel, dans les réglages) : chaque royaume gagne une hachure propre (horizontale, verticale, diagonale) en plus de sa couleur.",
+    ],
+  },
   {
     version: "1.82",
     notes: [
@@ -8023,6 +8087,15 @@ fogOfWarToggle.checked = fogOfWarEnabled;
 fogOfWarToggle.addEventListener("change", () => {
   fogOfWarEnabled = fogOfWarToggle.checked;
   try { localStorage.setItem("kw_fogOfWarEnabled", fogOfWarEnabled ? "1" : "0"); } catch (e) { /* ignore */ }
+  render();
+  sfxToggle();
+});
+
+const colorblindToggle = document.getElementById("colorblindToggle");
+colorblindToggle.checked = colorblindMode;
+colorblindToggle.addEventListener("change", () => {
+  colorblindMode = colorblindToggle.checked;
+  try { localStorage.setItem("kw_colorblindMode", colorblindMode ? "1" : "0"); } catch (e) { /* ignore */ }
   render();
   sfxToggle();
 });
