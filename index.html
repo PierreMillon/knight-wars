@@ -2727,13 +2727,49 @@ function chainIntervalFor(chainIndex) {
   const lap = Math.floor(chainIndex / CHORD_INTERVALS.length);
   return CHORD_INTERVALS[chainIndex % CHORD_INTERVALS.length] + 12 * lap;
 }
-function sfxAttack(win, chainIndex = -1) {
-  const baseFreq = win ? 220 : 140, baseSlide = win ? 160 : 90;
+// Each of the 4 playable royaumes gets its own two-note "signature" chord
+// for a SUCCESSFUL attack — a loss stays the plain, un-tinted "échec" sting
+// for everyone (below), only a win is ever colored by whose victory it is.
+// Root note + a single characteristic color tone from the scale supplied
+// for that royaume (by seat color, not by whether it's human/AI-controlled
+// — the identity is the royaume's, same as AI_PERSONALITIES):
+//  - Châteauvieux (vert, id 0): "hybrid hexachord" on D — root + major 3rd
+//  - Villiers (rouge, id 1): Neapolitan minor on D# — root + flat 2nd (the
+//    scale's own signature color tone)
+//  - Montherlant (jaune, id 2): Hungarian minor on C# — root + sharp 4th
+//    (the augmented 2nd/#4 is what actually makes a Hungarian minor scale
+//    sound "Hungarian" rather than a plain harmonic minor)
+//  - Beaumanoir (bleu, id 3): the hexatonic scale supplied (C Eb F G Ab Bb)
+//    — root + minor 3rd
+// Root octave picked to sit near, but distinct from, the un-tinted 220Hz
+// win tone above it register-wise. "Hybrid hexachord" (green) wasn't a
+// scale name with one settled definition to look up — interpreted here as
+// major+minor 3rd both available (0,2,3,4,7,9), using the major 3rd for
+// the 2-note chord; flag if that's not the intended shape.
+const ROYAUME_ATTACK_CHORDS = {
+  0: { root: 293.6648, interval: 4 },  // D, major 3rd (F#)
+  1: { root: 311.1270, interval: 1 },  // D#, minor 2nd (E)
+  2: { root: 277.1826, interval: 6 },  // C#, sharp 4th (G)
+  3: { root: 261.6256, interval: 3 },  // C, minor 3rd (Eb)
+};
+function sfxAttack(win, chainIndex = -1, royId = -1) {
   let mul = 1;
   if (chainIndex >= 0) {
     const interval = chainIntervalFor(chainIndex);
     mul = Math.pow(2, (interval - 2) / 12); // -2 semitones: "un ou deux tons plus grave" for the chain's first hop
   }
+  const chord = win ? ROYAUME_ATTACK_CHORDS[royId] : null;
+  if (chord) {
+    // same downward glide shape as the un-tinted tone below (160/220), just
+    // applied to each of the chord's own two notes instead
+    const slideRatio = 160 / 220;
+    const rootFreq = chord.root * mul;
+    const colorFreq = chord.root * Math.pow(2, chord.interval / 12) * mul;
+    playTone(rootFreq, 0.16, { type: "triangle", cutoff: 700, volume: 0.09, slideTo: rootFreq * slideRatio });
+    playTone(colorFreq, 0.16, { type: "triangle", cutoff: 700, volume: 0.07, slideTo: colorFreq * slideRatio });
+    return;
+  }
+  const baseFreq = win ? 220 : 140, baseSlide = win ? 160 : 90;
   playTone(baseFreq * mul, 0.16, { type: "triangle", cutoff: 700, volume: 0.09, slideTo: baseSlide * mul });
 }
 function sfxEndTurn() { playTone(120, 0.14, { type: "sine", cutoff: 480, volume: 0.06 }); }
@@ -3039,7 +3075,7 @@ function executeWaterSacrifice(fromId, waterHexKeys, pureDirectDive = true) {
   from.force = 1; // fresh garrison, same convention attack() already uses
   const isRitual = pureDirectDive && waterHexKeys.length > 0 && allOpenSea && startForce === FORCE_CAP && reachedFloor;
   triggerWaterSacrificeFX(fromId, waterHexKeys, isRitual);
-  if (!replaying) sfxAttack(false, -1); // reuse the existing "échec" sting — something was genuinely lost, no win chime makes sense here
+  if (!replaying) sfxAttack(false, -1, from.owner); // reuse the existing "échec" sting — something was genuinely lost, no win chime makes sense here
   if (isRitual) showOceanTapEasterEgg();
   else showForcedSwimToast();
   logMsg(`${ROYAUMES[from.owner].name} perd des soldats en mer.`);
@@ -3059,7 +3095,7 @@ function attack(fromId, toId, chainIndex = -1) {
   if (from.force - waterCost <= 0) {
     logMsg(`${ROYAUMES[from.owner].name} attaque ${ROYAUMES[to.owner].name} — noyés en chemin, aucune troupe n'arrive — échec`);
     triggerCombatFX(fromId, toId, 0, to.force, false, from.owner, to.owner, to.hexKeys.length, waterPath);
-    if (!replaying) sfxAttack(false, chainIndex);
+    if (!replaying) sfxAttack(false, chainIndex, from.owner);
     from.force = 1;
     checkElimination();
     checkWinner();
@@ -3081,7 +3117,7 @@ function attack(fromId, toId, chainIndex = -1) {
   // during replay playback, reported multiple times as unwanted — the
   // visuals (swords, rings) are the point during a replay, the sounds
   // aren't.
-  if (!replaying) sfxAttack(win, chainIndex);
+  if (!replaying) sfxAttack(win, chainIndex, from.owner);
   if (win) {
     to.owner = from.owner;
     to.force = Math.max(1, attackingForce - 1);
@@ -5719,8 +5755,14 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.46";
+const GAME_VERSION = "1.47";
 const CHANGELOG = [
+  {
+    version: "1.47",
+    notes: [
+      "Chaque royaume a maintenant son propre accord de deux notes pour une attaque réussie (une note racine + une couleur harmonique caractéristique de sa gamme) : Châteauvieux (vert), Villiers (rouge), Montherlant (jaune) et Beaumanoir (bleu) sonnent tous différemment. Une défaite reste le même son neutre pour tout le monde.",
+    ],
+  },
   {
     version: "1.46",
     notes: [
