@@ -3336,6 +3336,20 @@ function resumeIOSAudioSession() {
 document.addEventListener("visibilitychange", () => { if (!document.hidden) resumeIOSAudioSession(); });
 window.addEventListener("pageshow", resumeIOSAudioSession);
 window.addEventListener("focus", resumeIOSAudioSession);
+// The three listeners above still wasn't enough — confirmed live as the
+// exact same symptom recurring ("même situation qu'avant"). None of
+// visibilitychange/pageshow/focus is a genuine user gesture, and iOS's
+// autoplay policy can silently reject a bare .play() call outside of one —
+// exactly the failure mode .catch(() => {}) was quietly swallowing here.
+// unlockIOSAudioSession() itself only ever runs once (its pointerdown
+// listener is { once: true }, correctly — it doesn't need to rebuild the
+// element every tap), so once the loop falls silent there was no path back
+// to a REAL gesture-backed .play() call at all. Piggybacking the exact same
+// resume attempt onto every ordinary tap (this fires constantly during
+// actual play — attacking, ending a turn, any menu button) means the very
+// next tap after returning IS a genuine gesture, so this retry actually
+// succeeds where the passive listeners above could silently fail.
+document.addEventListener("pointerdown", resumeIOSAudioSession);
 function playTone(freq, duration, opts = {}) {
   if (!soundEnabled) return; // sounds now play during replay too, per request
   const ac = ensureAudioCtx();
@@ -7260,8 +7274,14 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.83";
+const GAME_VERSION = "1.84";
 const CHANGELOG = [
+  {
+    version: "1.84",
+    notes: [
+      "Son qui se coupait encore après un changement de fenêtre/app sur Safari : la tentative automatique de reprise pouvait échouer silencieusement (pas un vrai geste utilisateur) — le tout premier toucher après un retour la relance maintenant pour de bon.",
+    ],
+  },
   {
     version: "1.83",
     notes: [
