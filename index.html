@@ -315,6 +315,12 @@
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   #settingsPanel .levelBtn.active { background: #1c3f8f; color: #fff; border-color: #1c3f8f; font-weight: 700; }
+  /* "Contenu avancé" gate (see premiumUnlockOverlay's own note) — dimmed,
+     never fully hidden (still shows what exists, just not selectable yet
+     without unlocking), with a small lock badge instead of its usual icon
+     row/plain label so it reads as locked at a glance, not just greyed. */
+  #settingsPanel .levelBtn.premiumLocked { opacity: .55; }
+  #settingsPanel .levelBtn.premiumLocked::after { content: " 🔒"; }
   /* one small icon per difficulty button, escalating with the level itself:
      1 gueux (Page) -> 2 gueux (Écuyer) -> chevalier à pied (Chevalier) ->
      chevalier à cheval (Seigneur) — a glance at the row alone should read
@@ -412,6 +418,19 @@
     background: rgba(10,8,6,.88); text-align: center; z-index: 10;
   }
   #truceOverlay h2 { margin: 0 0 14px; font-size: 21px; }
+  /* "Contenu avancé" gate on Seigneur/Croisade — see premiumUnlockedForever's
+     own note: a PREVIEW of the ad-watch/one-time-purchase mechanic from the
+     backlog, built entirely locally (no real ad network or payment
+     processor wired in yet, both are outside what a single static HTML file
+     can integrate on its own — confirmed live: "stub visuel seulement"). */
+  #premiumUnlockOverlay {
+    position: absolute; inset: 0; display: none;
+    align-items: center; justify-content: center;
+    background: rgba(10,8,6,.88); text-align: center; z-index: 11; /* above #settingsPanel (10) — this opens from a button inside it, same reasoning as #chartShareOverlay's own z-index */
+  }
+  #premiumUnlockOverlay h2 { margin: 0 0 10px; font-size: 20px; }
+  #premiumUnlockOverlay .winButtons { flex-direction: column; width: 100%; }
+  #premiumUnlockNote { font-size: 11.5px; opacity: .7; margin: 0 0 4px; }
   /* Same illuminated-manuscript card as every other overlay — was a native
      confirm() (see the click handler's own note on why: a real guaranteed
      pause before an irreversible action, standalone PWA included), but that
@@ -548,7 +567,7 @@
      same gradient as the selected-territory outline on the map
      (OUTLINE_GRADIENTS.gold), so the two "this is the important thing"
      treatments actually match instead of one being gold and the other blue. */
-  #settingsPanel button, #winbanner button, #truceOverlay button, #loreOverlay button, #conseilsOverlay button, #surrenderConfirmOverlay button, #chartShareOverlay button {
+  #settingsPanel button, #winbanner button, #truceOverlay button, #loreOverlay button, #conseilsOverlay button, #surrenderConfirmOverlay button, #chartShareOverlay button, #premiumUnlockOverlay button {
     background: linear-gradient(135deg, #fff3c4, #e8c468, #a97e2a);
     color: #2b1d10; border: 1px solid #8a6d3b; border-radius: 8px;
     padding: 10px 20px; font-size: 15px; font-weight: 700;
@@ -819,6 +838,21 @@
       <div class="winButtons">
         <button id="acceptTruce">J'accepte la trêve</button>
         <button id="continueSiege">⚔ Continuer le combat</button>
+      </div>
+    </div>
+  </div>
+  <!-- Stub only — no real ad network or payment processor wired in (see
+       premiumUnlockOverlay's own CSS note). Opens when tapping the
+       Seigneur difficulty or Croisade map-size button while locked. -->
+  <div id="premiumUnlockOverlay">
+    <div class="box">
+      <h2>🔒 Contenu avancé</h2>
+      <p id="premiumUnlockText">Le niveau Seigneur et la carte Croisade sont réservés.</p>
+      <p id="premiumUnlockNote">Aperçu — pas encore relié à une vraie régie publicitaire ni à un vrai paiement.</p>
+      <div class="winButtons">
+        <button id="premiumWatchAdBtn">🎬 Regarder une pub (30s) — 24h débloquées</button>
+        <button id="premiumBuyBtn">💎 Débloquer à vie — 2€</button>
+        <button id="premiumUnlockClose">Fermer</button>
       </div>
     </div>
   </div>
@@ -3210,6 +3244,27 @@ try { fogOfWarEnabled = localStorage.getItem("kw_fogOfWarEnabled") === "1"; } ca
 // alone). See buildHatchPatterns()/render()'s own note.
 let colorblindMode = false;
 try { colorblindMode = localStorage.getItem("kw_colorblindMode") === "1"; } catch (e) { /* ignore */ }
+
+// "Contenu avancé" gate on the hardest difficulty (Seigneur) and the
+// biggest map size (Croisade) — a PREVIEW of the ad-watch/one-time-
+// purchase backlog item, built entirely locally: no real ad network or
+// payment processor is wired in (that needs real vendor accounts and a
+// verification backend, well outside a single static HTML file), stub
+// confirmed live ("stub visuel seulement... à brancher plus tard"). Both
+// stub buttons instantly grant their own unlock so the actual mechanic
+// (a 24h window vs. a permanent one) can be reviewed end-to-end now, with
+// the real ad/payment integration swapped in later without changing this
+// shape. Cthulhu (its own hidden 5th tier) is NOT gated here — it already
+// has its own, much harder, real-play unlock condition.
+let premiumUnlockedUntil = 0; // ms epoch — temp 24h unlock from the "watch an ad" stub
+let premiumUnlockedForever = false;
+try {
+  premiumUnlockedUntil = Number(localStorage.getItem("kw_premiumUnlockedUntil")) || 0;
+  premiumUnlockedForever = localStorage.getItem("kw_premiumUnlockedForever") === "1";
+} catch (e) { /* ignore */ }
+function isPremiumUnlocked() {
+  return premiumUnlockedForever || Date.now() < premiumUnlockedUntil;
+}
 
 // English support kicked off small on purpose — "fais l'anglais en premier
 // maintenant juste pour les boutons de jeu utiles au minimum": just the
@@ -7289,8 +7344,14 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.85";
+const GAME_VERSION = "1.86";
 const CHANGELOG = [
+  {
+    version: "1.86",
+    notes: [
+      "Aperçu : le niveau Seigneur et la carte Croisade sont désormais réservés (déblocage 24h ou à vie) — pas encore relié à une vraie pub ou un vrai paiement.",
+    ],
+  },
   {
     version: "1.85",
     notes: [
@@ -8183,6 +8244,10 @@ cthulhuLevelBtnEl.querySelector(".diffIcons img").src = OCTOPUS_IMG_SRC;
 function refreshLevelButtons() {
   document.querySelectorAll("#difficultyLevels .levelBtn[data-level]").forEach((btn, i) => {
     btn.classList.toggle("active", !cthulhuSelected && i === difficultyLevel);
+    // index 3 == Seigneur, the hardest of the 4 visible tiers — see
+    // isPremiumUnlocked()'s own note. Refreshed here too so unlocking from
+    // the stub overlay immediately clears the lock badge without a reload.
+    btn.classList.toggle("premiumLocked", i === 3 && !isPremiumUnlocked());
   });
   cthulhuLevelBtnEl.classList.toggle("active", cthulhuSelected);
 }
@@ -8190,6 +8255,7 @@ refreshLevelButtons();
 refreshCthulhuButton();
 document.querySelectorAll("#difficultyLevels .levelBtn[data-level]").forEach((btn, i) => {
   btn.addEventListener("click", () => {
+    if (i === 3 && !isPremiumUnlocked()) { openPremiumUnlockOverlay(); return; }
     difficultyLevel = i;
     cthulhuSelected = false;
     try { localStorage.setItem("kw_cthulhuSelected", "0"); } catch (e) { /* ignore */ }
@@ -8211,11 +8277,13 @@ cthulhuLevelBtnEl.addEventListener("click", () => {
 function refreshMapSizeButtons() {
   document.querySelectorAll("#mapSizeLevels .levelBtn").forEach((btn) => {
     btn.classList.toggle("active", btn.dataset.mapsize === mapSize);
+    btn.classList.toggle("premiumLocked", btn.dataset.mapsize === "huge" && !isPremiumUnlocked());
   });
 }
 refreshMapSizeButtons();
 document.querySelectorAll("#mapSizeLevels .levelBtn").forEach((btn) => {
   btn.addEventListener("click", () => {
+    if (btn.dataset.mapsize === "huge" && !isPremiumUnlocked()) { openPremiumUnlockOverlay(); return; }
     // Restarts immediately, like "Nouvelle guerre" — a map size can't apply
     // to a map that's already generated, so leaving it to "take effect next
     // time" just read as "nothing happened" until the player separately
@@ -8227,6 +8295,43 @@ document.querySelectorAll("#mapSizeLevels .levelBtn").forEach((btn) => {
     settingsPanel.style.display = "none";
     if (!reloadIfUpdateAvailable()) startGame();
   });
+});
+
+// "Contenu avancé" stub overlay — see isPremiumUnlocked()'s own note on why
+// both buttons here instantly grant their own unlock (no real ad network or
+// payment processor to actually gate on yet).
+function openPremiumUnlockOverlay() {
+  document.getElementById("premiumUnlockOverlay").style.display = "flex";
+  sfxMenuOpen();
+}
+function closePremiumUnlockOverlay() {
+  document.getElementById("premiumUnlockOverlay").style.display = "none";
+  sfxMenuClose();
+}
+document.getElementById("premiumUnlockClose").addEventListener("click", closePremiumUnlockOverlay);
+document.getElementById("premiumUnlockOverlay").addEventListener("click", (e) => {
+  if (e.target === document.getElementById("premiumUnlockOverlay")) closePremiumUnlockOverlay();
+});
+document.getElementById("premiumWatchAdBtn").addEventListener("click", () => {
+  // Stub: a real integration would only grant this once an actual ad
+  // network reports the 30s view completed — here it's granted immediately,
+  // since there's no ad to actually watch yet.
+  premiumUnlockedUntil = Date.now() + 24 * 60 * 60 * 1000;
+  try { localStorage.setItem("kw_premiumUnlockedUntil", String(premiumUnlockedUntil)); } catch (e) { /* ignore */ }
+  refreshLevelButtons();
+  refreshMapSizeButtons();
+  closePremiumUnlockOverlay();
+  sfxToggle();
+});
+document.getElementById("premiumBuyBtn").addEventListener("click", () => {
+  // Stub: a real integration would only grant this once an actual payment
+  // processor (Apple/Google IAP, Stripe...) confirms the purchase.
+  premiumUnlockedForever = true;
+  try { localStorage.setItem("kw_premiumUnlockedForever", "1"); } catch (e) { /* ignore */ }
+  refreshLevelButtons();
+  refreshMapSizeButtons();
+  closePremiumUnlockOverlay();
+  sfxToggle();
 });
 
 function refreshOpponentCountButtons() {

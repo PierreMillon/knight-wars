@@ -18,8 +18,9 @@ Copié tel quel pour suivi. Statut ajouté en préfixe au fur et à mesure :
 [~] Sur safari la page charge mais après plusieurs dizaines de secondes (probablement déjà amélioré par les correctifs PWA/service-worker faits depuis — pas de Safari réel pour re-tester ici, à confirmer)
 Firefox focus direct chargement
 
-[ ] On prévois de regarder une pub de 30 scd pour débloquer pendant 24h le mode très difficile et/ou les grandes maps. Explication dans les astuces.
-[ ] Ou bien acheter 2€ pour les retirer à vie.
+[~] On prévois de regarder une pub de 30 scd pour débloquer pendant 24h le mode très difficile et/ou les grandes maps. Explication dans les astuces.
+[~] Ou bien acheter 2€ pour les retirer à vie.
+  — Stub visuel construit en v1.86 (confirmé en direct : "Stub visuel seulement"), sans vraie régie pub ni vrai paiement (hors de portée d'un simple fichier HTML — demanderait un compte réseau pub réel + Apple/Google Pay/Stripe + un backend de vérification). Gate posé sur le niveau Seigneur (le plus dur des 4 paliers visibles, PAS Cthulhu qui a son propre déblocage séparé) et la carte Croisade (la plus grande) : bouton grisé + 🔒 tant que non débloqué, tape dessus ouvre un petit écran "Contenu avancé" avec deux boutons STUB clairement étiquetés "aperçu, pas encore relié" — "🎬 Regarder une pub (30s) — 24h débloquées" et "💎 Débloquer à vie — 2€" — les deux accordent leur déblocage INSTANTANÉMENT (aucune vraie pub/paiement à attendre). `isPremiumUnlocked()` / `kw_premiumUnlockedUntil` (ms epoch) / `kw_premiumUnlockedForever` en localStorage. Pas d'explication dans les astuces pour l'instant (fonctionnalité de prévisualisation interne, pas encore un vrai mécanisme joueur).
 (nécessite une vraie décision produit + intégration pub/paiement — à trancher avec Pierre avant implémentation, pas fait cette fois)
 
 [x] Au replay, on entoure tout le territoire en dorée o arrête d'entourer les province. Une seule limite pour tout le territoire. (drawRoyaumeOutline, fait plus tôt)
