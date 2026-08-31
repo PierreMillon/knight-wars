@@ -2482,7 +2482,7 @@ const PULSE_INTRO_MS = 1000; // was PULSE_DURATION 1000 — +100%, per request
 // The sword-swing itself is a quick, fixed-length flourish (see its own
 // intro-only rendering below) — independent from how long the sword ITSELF
 // then stays on screen after landing, which is FX_LINGER_MS below.
-const SWORD_INTRO_MS = 480; // sped up 20% per request (was 600)
+const SWORD_INTRO_MS = 384; // sped up another 20% per request (was 600, then 480)
 // Governs only the sword now (see the big note above this section) — holds
 // at full strength indefinitely (fxStep()'s loop below stops re-rendering
 // once nothing is actually animating rather than ever expiring this on its
@@ -3136,42 +3136,16 @@ function endTurn() {
   // actually happened on.
   startCombatFXFadeOut();
   const royId = currentPlayer;
-  // Every previous version of this line (raw hex count, /2, sqrt(),
-  // sqrt(x/4), a hard-capped log curve) was based on ABSOLUTE size — which
-  // meant the exact same royaume earned a completely different amount just
-  // because the map-size setting changed the total hex count. This version
-  // is relative instead: what matters is your *share* of the map compared
-  // to an equal split among the royaumes still standing. A royaume sitting
-  // right at that equal share earns a middling amount; meaningfully above
-  // it (a real lead) earns more; meaningfully below it (on the back foot)
-  // earns less, down to the floor of 1 — never zero, a beaten-down royaume
-  // still has to be reinforceable. Deliberately NOT hard-capped any more (an
-  // earlier version capped at 3 flat): that made a genuinely dominant
-  // empire late-game feel starved relative to how many fronts it actually
-  // had to hold, even though it was never the actual complaint (early/mid-
-  // game snowballing to FORCE_CAP=12 was). Same self-normalizing formula on
-  // Escarmouche, Campagne or Grande Campagne either way.
-  const totalHexes = Object.keys(hexes).length;
-  let livingRoyaumes = 0;
-  for (let r = 0; r < ROYAUME_COUNT - 1; r++) if (isAlive(r)) livingRoyaumes++;
-  const avgHexShare = livingRoyaumes > 0 ? totalHexes / livingRoyaumes : totalHexes;
+  // Replaces the earlier relative-share formula (your % of an equal split
+  // among royaumes still standing, plus a bonus scaling with absolute size)
+  // — simulated side-by-side with this simpler linear rule first (paused,
+  // then explicitly asked for by name: "diviser par 1,5"), floor of 1 kept
+  // for the same reason as before (a beaten-down royaume still has to be
+  // reinforceable). Simpler to reason about, and scales naturally with map
+  // size on its own since it reads your own hex count directly rather than
+  // a share of the total.
   const ownHexes = largestConnectedGroup(royId);
-  const relativeShare = avgHexShare > 0 ? ownHexes / avgHexShare : 1;
-  // base bumped 0.5 -> 1.0 — reported as too slow to build up meaningful
-  // force turn to turn; this also lifts a royaume sitting below the average
-  // share off the bare floor of 1 more often, not just the leaders
-  // A genuinely huge empire (100+ hexes) getting the same flat few points as
-  // a small one — since relativeShare alone tops out based on the *ratio*,
-  // not the actual scale — read as absurd in practice (waiting many turns
-  // just to mount one attack despite controlling most of the map). This adds
-  // a modest bonus proportional to your own absolute hex count on top of the
-  // existing relative-share term: negligible on a small map (a 6-hex
-  // Escarmouche empire adds ~0.3), meaningful once an empire is genuinely
-  // large (a 100-hex empire adds +5) — the relative term still does the
-  // normalizing work for small/mid empires, this only kicks in hard once
-  // there's real absolute scale to back it up.
-  const absoluteBonus = ownHexes / 20;
-  const reinforcement = Math.max(1, Math.round(1.0 + 1.5 * relativeShare + absoluteBonus));
+  const reinforcement = Math.max(1, Math.round(ownHexes / 1.5));
   let pts = reinforcement;
   let guardCount = 0;
   const reinforcedCounts = {}; // territory id -> how many points landed there
@@ -4424,7 +4398,7 @@ function runAI() {
   const mistakeRate = Math.max(0, Math.min(1, escalated(AI_MISTAKE_RATE, 0.05) + pers.mistakeDelta));
   if (mv && rngFloat() >= mistakeRate) {
     attack(mv.from, mv.to);
-    scheduleTurn(runAI, 504); // live-play combat pacing sped up 20% per request (was 630) — ignored during replay, see scheduleTurn()'s own note
+    scheduleTurn(runAI, 403); // live-play combat pacing sped up another 20% per request (was 630, then 504) — ignored during replay, see scheduleTurn()'s own note
   } else {
     aiRunning = false;
     scheduleTurn(endTurn, 84); // wrapping up this player's own turn before handing off, cut 75% per request (was 336, itself already -20% from 420) — ignored during replay, see scheduleTurn()'s own note
@@ -5522,8 +5496,8 @@ function executeAttackChain(path, i = 0) {
   // final state with no visible "tac tac tac" of each battle along the way.
   // A water hop takes twice as long — rowing across is slower than marching.
   const isWaterHop = !fromT.neighbors.has(toId);
-  // sped up 20% per request (was 440/220)
-  setTimeout(() => executeAttackChain(path, i + 1), isWaterHop ? 352 : 176);
+  // sped up another 20% per request (was 440/220, then 352/176)
+  setTimeout(() => executeAttackChain(path, i + 1), isWaterHop ? 282 : 141);
 }
 
 // Shared by the #endturn button's own click AND (in landscape, where the
@@ -5745,8 +5719,15 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.45";
+const GAME_VERSION = "1.46";
 const CHANGELOG = [
+  {
+    version: "1.46",
+    notes: [
+      "Formule de renfort simplifiée : remplace l'ancienne formule basée sur la part relative de territoire par une règle linéaire directe (nombre de villages connectés ÷ 1,5, arrondi, plancher à 1).",
+      "Combats encore 20% plus rapides (attaques en chaîne, tour des IA, apparition des épées).",
+    ],
+  },
   {
     version: "1.45",
     notes: [
