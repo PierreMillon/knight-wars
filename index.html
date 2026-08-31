@@ -279,6 +279,13 @@
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   #settingsPanel .levelBtn.active { background: #1c3f8f; color: #fff; border-color: #1c3f8f; font-weight: 700; }
+  /* one small icon per difficulty button, escalating with the level itself:
+     1 gueux (Page) -> 2 gueux (Écuyer) -> chevalier à pied (Chevalier) ->
+     chevalier à cheval (Seigneur) — a glance at the row alone should read
+     as "getting harder" before even reading the labels. */
+  #difficultyLevels.levelRow .levelBtn { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  .diffIcons { display: flex; align-items: center; justify-content: center; gap: 2px; height: 14px; }
+  .diffIcons img { height: 14px; width: auto; display: block; }
   #conseilsBtn, #loreBtn { margin-bottom: 10px; display: block; }
   #mapCodeRow, #mapCodeLoadRow { position: relative; }
   #mapCodeDisplay, #mapCodeInput {
@@ -347,12 +354,33 @@
     background: rgba(10,8,6,.88); text-align: center; z-index: 10;
   }
   #truceOverlay h2 { margin: 0 0 14px; font-size: 21px; }
+  /* Same illuminated-manuscript card as every other overlay — was a native
+     confirm() (see the click handler's own note on why: a real guaranteed
+     pause before an irreversible action, standalone PWA included), but that
+     one dialog stood out unstyled against the rest of the game — "le cadre
+     confirmation abandonner la partie doit être dans le style du jeu". This
+     still blocks exactly the same way (nothing else is reachable underneath
+     it until answered), just themed like everything else. */
+  #surrenderConfirmOverlay {
+    position: absolute; inset: 0; display: none;
+    align-items: center; justify-content: center;
+    background: rgba(10,8,6,.88); text-align: center; z-index: 10;
+  }
+  #surrenderConfirmOverlay h2 { margin: 0 0 14px; font-size: 21px; }
+  #surrenderConfirmOverlay p { font-size: 14px; line-height: 1.5; opacity: .9; margin: 0 0 18px; }
+  /* Same back-to-settings corner button as #backConseilsToSettings — Le lore
+     is also only ever opened from within Réglages. */
+  #backLoreToSettings {
+    position: absolute; top: 10px; left: 10px; margin: 0; z-index: 1;
+    width: 30px; height: 30px; padding: 0; border-radius: 50%;
+    font-size: 20px; line-height: 1; display: flex; align-items: center; justify-content: center;
+  }
   #loreOverlay {
     position: absolute; inset: 0; display: none;
     align-items: center; justify-content: center;
     background: rgba(10,8,6,.88); text-align: left; z-index: 10;
   }
-  #loreOverlay .box { max-height: 80vh; overflow-y: auto; }
+  #loreOverlay .box { max-height: 80vh; overflow-y: auto; position: relative; padding-top: 34px; }
   #loreOverlay h2 { margin: 0 0 14px; font-size: 20px; text-align: center; }
   #loreOverlay p { font-size: 14px; line-height: 1.6; margin: 0 0 14px; }
   #loreOverlay img { display: block; width: 64px; height: auto; margin: 0 auto 14px; image-rendering: pixelated; }
@@ -444,7 +472,7 @@
      same gradient as the selected-territory outline on the map
      (OUTLINE_GRADIENTS.gold), so the two "this is the important thing"
      treatments actually match instead of one being gold and the other blue. */
-  #settingsPanel button, #winbanner button, #truceOverlay button, #loreOverlay button, #conseilsOverlay button {
+  #settingsPanel button, #winbanner button, #truceOverlay button, #loreOverlay button, #conseilsOverlay button, #surrenderConfirmOverlay button {
     background: linear-gradient(135deg, #fff3c4, #e8c468, #a97e2a);
     color: #2b1d10; border: 1px solid #8a6d3b; border-radius: 8px;
     padding: 10px 20px; font-size: 15px; font-weight: 700;
@@ -489,7 +517,7 @@
        at once */
     position: absolute; top: calc(50px + env(safe-area-inset-top, 0px)); left: 50%;
     transform: translateX(-50%); z-index: 5;
-    display: none; pointer-events: none; max-width: 78vw; text-align: center;
+    display: none; max-width: 78vw; text-align: center; cursor: pointer;
     background: rgba(20,16,12,.75); color: #f2ede2; font-size: 13px; font-weight: 600;
     padding: 8px 14px; border-radius: 10px; border: 1px solid #8a6d3b;
     box-shadow: 0 0 0 1px rgba(20,16,12,.7), 0 2px 6px rgba(0,0,0,.45);
@@ -668,8 +696,19 @@
       </div>
     </div>
   </div>
+  <div id="surrenderConfirmOverlay">
+    <div class="box">
+      <h2>💀 Abandonner</h2>
+      <p>Abandonner la partie ? Cette action est définitive.</p>
+      <div class="winButtons">
+        <button id="cancelSurrender">Annuler</button>
+        <button id="confirmSurrender">Abandonner</button>
+      </div>
+    </div>
+  </div>
   <div id="loreOverlay">
     <div class="box" id="loreBox">
+      <button id="backLoreToSettings" aria-label="Retour aux réglages">‹</button>
       <img id="loreBlazon" alt="">
       <h2>Les Millon</h2>
       <p>En cet an de grâce 1183, la Bretagne n'a plus de duc, et quatre châtelains se disputent son héritage — Châteauvieux, Villiers, Montherlant, Beaumanoir. Quatre noms de fief, mais un seul sang : tous portent le même blason, celui d'un aïeul commun, les Millon, dont le domaine fut fracturé entre ses héritiers il y a plus d'un siècle.</p>
@@ -711,9 +750,9 @@
         <p><strong>La force est plafonnée à 12</strong> par province — impossible d'empiler plus haut, quelle que soit la taille de votre royaume.</p>
         <p><strong>Le combat est sans hasard</strong> : la plus grande force gagne toujours. Seule exception — attaquant ET défenseur tous les deux au plafond (12 contre 12) : là, et seulement là, les dés tranchent, sinon une frontière bloquée au plafond des deux côtés ne pourrait jamais bouger.</p>
         <p><strong>Le renfort de fin de tour</strong> dépend de votre part du territoire par rapport à une part égale entre les royaumes encore debout — au-dessus de la moyenne, vous gagnez plus ; en dessous, moins (jamais 0). Un vaste royaume touche en plus un bonus qui grandit avec sa taille réelle, pas seulement sa part relative : un empire qui domine vraiment continue de gagner en puissance de feu à mesure qu'il s'étend, au lieu de plafonner.</p>
-        <p><strong>Le classement en haut à gauche</strong> trie les royaumes par territoire (le plus vaste bloc de terre d'un seul tenant en premier) mais n'affiche plus ce chiffre lui-même : un total de cases ne veut rien dire tout seul, ça dépend entièrement de la taille de la carte et du nombre de rivaux encore debout. Ce qui compte, c'est votre position dans le classement, pas le chiffre en lui-même — d'où le tri, sans le nombre brut.</p>
+        <p><strong>Le classement en haut à gauche</strong> trie les royaumes par territoire (le plus vaste bloc de terre d'un seul tenant en premier) mais n'affiche plus ce chiffre lui-même : un total de cases ne veut rien dire tout seul, ça dépend entièrement de la taille de la carte et du nombre de rivaux encore debout. Ce qui compte, c'est votre position dans le classement, pas le chiffre en lui-même — d'où le tri, sans le nombre brut. Le petit rond coloré de chaque ligne se remplit comme une horloge selon la force totale de ce royaume : plein à 100%, il a atteint le plafond de 12 par province.</p>
         <p><strong>La trêve</strong> se déclenche quand toutes les frontières sont bloquées au plafond et que rien ne bouge depuis plusieurs tours d'affilée — signe qu'aucune attaque n'a de chance d'aboutir. Vous pouvez l'accepter (match nul) ou continuer le siège en espérant un 12 contre 12 favorable.</p>
-        <p><strong>La difficulté</strong> règle le comportement des royaumes adverses, pas juste un chiffre abstrait : à Page, ils hésitent beaucoup et n'attaquent que sur un avantage écrasant ; à Seigneur, ils attaquent à la moindre ouverture et se trompent presque jamais. Elle change aussi la part de terres neutres au départ (bien plus nombreuses à Page, presque absentes à Seigneur) et votre avance de force initiale. C'est aussi pour ça que la force de vos adversaires change d'un coup au moment où vous choisissez votre camp : leur avantage lié à la difficulté ne peut s'appliquer qu'une fois qu'on sait qui joue qui — un petit message l'annonce sur le moment.</p>
+        <p><strong>La difficulté</strong> règle le comportement des royaumes adverses, pas juste un chiffre abstrait : à Page, ils restent prudents (jamais un vrai désavantage) mais attaquent dès la force égale, et lancent de temps en temps une attaque risquée même sans aucun avantage ; à Seigneur, ils attaquent à la moindre ouverture et se trompent presque jamais. Elle change aussi la part de terres neutres au départ (bien plus nombreuses à Page, presque absentes à Seigneur) et votre avance de force initiale. C'est aussi pour ça que la force de vos adversaires change d'un coup au moment où vous choisissez votre camp : leur avantage lié à la difficulté ne peut s'appliquer qu'une fois qu'on sait qui joue qui — un petit message l'annonce sur le moment.</p>
         <p><strong>Les gueux</strong> sont une réserve d'un tour à l'autre : vous en gagnez un à chaque victoire, et pouvez en dépenser un en touchant le badge puis une de vos provinces, pour lui donner +1 de force sur-le-champ, avant même la bataille suivante.</p>
       </div>
       <button id="closeConseils">Fermer</button>
@@ -753,10 +792,10 @@
       <div class="fieldGroup">
         <div class="fieldLabel">Difficulté</div>
         <div id="difficultyLevels" class="levelRow">
-          <button data-level="0" class="levelBtn">Page</button>
-          <button data-level="1" class="levelBtn">Écuyer</button>
-          <button data-level="2" class="levelBtn">Chevalier</button>
-          <button data-level="3" class="levelBtn">Seigneur</button>
+          <button data-level="0" class="levelBtn"><span class="diffIcons"><img alt=""></span>Page</button>
+          <button data-level="1" class="levelBtn"><span class="diffIcons"><img alt=""><img alt=""></span>Écuyer</button>
+          <button data-level="2" class="levelBtn"><span class="diffIcons"><img alt=""></span>Chevalier</button>
+          <button data-level="3" class="levelBtn"><span class="diffIcons"><img alt=""></span>Seigneur</button>
         </div>
       </div>
       <div class="fieldGroup">
@@ -988,7 +1027,7 @@ const MAP_SIZES = {
   // Campagne", following the same growth curve).
   huge: { label: "Croisade", territoryCount: 50, radius: 290, baseFactions: 4 },
 };
-let mapSize = "medium";
+let mapSize = "small"; // smallest map by default for a genuinely fresh install (no saved preference yet)
 try {
   const savedMapSize = localStorage.getItem("kw_mapSize");
   if (savedMapSize && MAP_SIZES[savedMapSize]) mapSize = savedMapSize;
@@ -1184,7 +1223,7 @@ const DIFFICULTY_LEVELS = [
   { name: "Chevalier", value: 0.91 }, // was 0.7 (×1.3)
   { name: "Seigneur",  value: 1.3 },  // was 1 (×1.3)
 ];
-let difficultyLevel = 1; // Écuyer — matches the previous flat default
+let difficultyLevel = 0; // Page (le plus facile) par défaut sur une installation neuve/cache vidé
 try {
   const saved = localStorage.getItem("kw_difficultyLevel");
   if (saved !== null) difficultyLevel = Math.max(0, Math.min(DIFFICULTY_LEVELS.length - 1, Number(saved)));
@@ -1964,6 +2003,13 @@ function generateTerritories() {
 // force cost on it, instead of just showing one lump total on the two
 // endpoints (reported live: "trace le chemin aussi sur l'eau en ajoutant
 // à chaque hexagone le nombre de soldat retiré").
+// Runaway guard for the Dijkstra below — real water hexes are finite, but
+// the background void beyond the generated island's own silhouette is not
+// (hexAt() synthesizes it forever outward), so a territory facing open
+// background sea with no destination anywhere near it could otherwise
+// search indefinitely. Same order of magnitude as waterPathToHex()'s own
+// MAX_SACRIFICE_SEARCH_HEXES guard, for the same reason.
+const MAX_ROUTE_SEARCH_HEXES = 6000;
 function computeWaterRoutes() {
   for (const t of territories) t.waterRoutes = new Map(); // targetTerritoryId -> { cost, path }
   const hasWater = Object.keys(hexes).some((k) => hexes[k].isWater);
@@ -1975,26 +2021,37 @@ function computeWaterRoutes() {
     for (const hk of startT.hexKeys) {
       const h = hexes[hk];
       for (const nk of neighborsOf(h.q, h.r)) {
-        const nh = hexes[nk];
-        if (nh && nh.isWater) {
-          const c = nh.waterCost;
+        // hexAt(), not a raw hexes[] lookup — a neighbor position with no
+        // stored hex at all is background void, which IS the open sea, just
+        // never stored (see hexAt()'s own note): treating it as impassable
+        // here meant any territory whose only "water" neighbor was actually
+        // unclassified background never got a single route computed at all,
+        // even to real water one hex away — reported live as a plain, short
+        // water attack refused outright ("j'ai pas pu attaquer 5 contre 2
+        // séparé d'une case océan").
+        const [nq, nr] = nk.split(",").map(Number);
+        const nh = hexAt(nq, nr);
+        if (nh.isWater) {
+          const c = nh.waterCost || 2; // void has no stored waterCost — defaults to open-sea cost, same fallback computeWaterTailDecay() already uses
           if (!dist.has(nk) || dist.get(nk) > c) { dist.set(nk, c); bestPath.set(nk, [nk]); frontier.push([c, nk]); }
         }
       }
     }
     const settled = new Set();
+    let guard = 0;
     while (frontier.length) {
+      if (++guard > MAX_ROUTE_SEARCH_HEXES) break; // open background water with nothing to reach — stop searching this territory rather than loop forever
       frontier.sort((a, b) => a[0] - b[0]);
       const [cost, key] = frontier.shift();
       if (settled.has(key) || dist.get(key) < cost) continue; // already settled, or a stale (superseded) entry
       settled.add(key);
       const path = bestPath.get(key);
-      const h = hexes[key];
-      for (const nk of neighborsOf(h.q, h.r)) {
-        const nh = hexes[nk];
-        if (!nh) continue;
+      const [q, r] = key.split(",").map(Number);
+      for (const nk of neighborsOf(q, r)) {
+        const [nq, nr] = nk.split(",").map(Number);
+        const nh = hexAt(nq, nr); // see the same note above — void counts as open sea here too
         if (nh.isWater) {
-          const nc = cost + nh.waterCost;
+          const nc = cost + (nh.waterCost || 2);
           if (!dist.has(nk) || dist.get(nk) > nc) {
             dist.set(nk, nc);
             bestPath.set(nk, [...path, nk]);
@@ -2804,61 +2861,44 @@ function chainIntervalFor(chainIndex) {
   const lap = Math.floor(chainIndex / CHORD_INTERVALS.length);
   return CHORD_INTERVALS[chainIndex % CHORD_INTERVALS.length] + 12 * lap;
 }
-// Each of the 4 playable royaumes gets its own two-note "signature" chord
-// for a SUCCESSFUL attack — a loss stays the plain, un-tinted "échec" sting
-// for everyone (below), only a win is ever colored by whose victory it is.
-// Root note + a single characteristic color tone from the scale supplied
-// for that royaume (by seat color, not by whether it's human/AI-controlled
-// — the identity is the royaume's, same as AI_PERSONALITIES):
-//  - Châteauvieux (vert, id 0): "hybrid hexachord" on D — root + major 3rd
-//  - Villiers (rouge, id 1): Neapolitan minor on D# — root + flat 2nd (the
-//    scale's own signature color tone)
-//  - Montherlant (jaune, id 2): Hungarian minor on C# — root + sharp 4th
-//    (the augmented 2nd/#4 is what actually makes a Hungarian minor scale
-//    sound "Hungarian" rather than a plain harmonic minor)
-//  - Beaumanoir (bleu, id 3): the hexatonic scale supplied (C Eb F G Ab Bb)
-//    — root + minor 3rd
-// Root octave picked to sit near, but distinct from, the un-tinted 220Hz
-// win tone above it register-wise. "Hybrid hexachord" (green) wasn't a
-// scale name with one settled definition to look up — interpreted here as
-// major+minor 3rd both available (0,2,3,4,7,9), using the major 3rd for
-// the 2-note chord; flag if that's not the intended shape.
-const ROYAUME_ATTACK_CHORDS = {
-  0: { root: 293.6648, interval: 4 },  // D, major 3rd (F#)
-  1: { root: 311.1270, interval: 1 },  // D#, minor 2nd (E)
-  2: { root: 277.1826, interval: 6 },  // C#, sharp 4th (G)
-  3: { root: 261.6256, interval: 3 },  // C, minor 3rd (Eb)
+// Each of the 4 playable royaumes has its own melodic scale (semitones from
+// its own root note, by seat color — same identity as AI_PERSONALITIES).
+// A SUCCESSFUL attack plays exactly ONE note from that scale — never a
+// chord, never two notes at once (reported live: "ça ne doit pas jouer de
+// note [en double] pour une seule attaque"). Which note is the position in
+// the attack CHAIN, not a fixed root: a lone attack is note 0, the 2nd hop
+// of a chain is note 1, and so on — so one attack plays one note, a chain
+// of 3 plays 3 notes in a row, a chain of 100 climbs 100 notes, octave
+// after octave (wrapping the scale, +12 semitones per lap, same technique
+// as chainIntervalFor() above). A loss always stays the plain, un-tinted
+// "échec" sting for everyone — only a win is colored by whose it is.
+//  - Châteauvieux (vert, id 0): "hybrid hexachord" on D — not a scale name
+//    with one settled definition to look up; interpreted here as major+
+//    minor 3rd both present (0,2,3,4,7,9)
+//  - Villiers (rouge, id 1): Neapolitan minor on D# (0,1,3,5,7,8,11)
+//  - Montherlant (jaune, id 2): Hungarian minor on C# (0,2,3,6,7,8,11)
+//  - Beaumanoir (bleu, id 3): Vietnamese scale on C, as given (C Eb F G Ab
+//    Bb — 0,3,5,7,8,10)
+const ROYAUME_SCALES = {
+  0: { root: 293.6648, semitones: [0, 2, 3, 4, 7, 9] },
+  1: { root: 311.1270, semitones: [0, 1, 3, 5, 7, 8, 11] },
+  2: { root: 277.1826, semitones: [0, 2, 3, 6, 7, 8, 11] },
+  3: { root: 261.6256, semitones: [0, 3, 5, 7, 8, 10] },
 };
 function sfxAttack(win, chainIndex = -1, royId = -1) {
+  const scale = win ? ROYAUME_SCALES[royId] : null;
+  if (scale) {
+    const noteIndex = Math.max(0, chainIndex);
+    const lap = Math.floor(noteIndex / scale.semitones.length);
+    const semitone = scale.semitones[noteIndex % scale.semitones.length] + 12 * lap;
+    const freq = scale.root * Math.pow(2, semitone / 12);
+    playTone(freq, 0.14, { type: "triangle", cutoff: 700, volume: 0.09, slideTo: freq * (160 / 220) });
+    return;
+  }
   let mul = 1;
   if (chainIndex >= 0) {
     const interval = chainIntervalFor(chainIndex);
     mul = Math.pow(2, (interval - 2) / 12); // -2 semitones: "un ou deux tons plus grave" for the chain's first hop
-  }
-  const chord = win ? ROYAUME_ATTACK_CHORDS[royId] : null;
-  if (chord) {
-    // The two notes used to play at once — several of these color tones are
-    // a minor 2nd or a tritone away from the root (that's literally what
-    // makes a Neapolitan or Hungarian-minor scale sound the way it does),
-    // and stacked as a simultaneous chord that reads as a genuine clash, not
-    // "exotic" — reported live as "insupportable". Arpeggiated instead, same
-    // fix already used for the reinforcement chime (see its own note): each
-    // note heard on its own, one right after the other, not blended.
-    // The offset used to be a real setTimeout(...,55) — reported live as
-    // dropping the second note entirely on a plain, non-chain attack
-    // (unlike a chain hop, which happened to still work). playTone() itself
-    // already has a known race on a cold/suspended AudioContext (see its
-    // own comment on `ac.resume()`): a genuinely separate call 55ms later,
-    // via a real timer, could independently hit that same race a second
-    // time and lose the note outright. Scheduled via startOffset instead —
-    // both notes now go through the exact same resume/schedule call, just
-    // offset on the AudioContext's own clock, not a second wall-clock timer.
-    const slideRatio = 160 / 220;
-    const rootFreq = chord.root * mul;
-    const colorFreq = chord.root * Math.pow(2, chord.interval / 12) * mul;
-    playTone(rootFreq, 0.14, { type: "triangle", cutoff: 700, volume: 0.09, slideTo: rootFreq * slideRatio });
-    playTone(colorFreq, 0.14, { type: "triangle", cutoff: 700, volume: 0.07, slideTo: colorFreq * slideRatio, startOffset: 0.055 });
-    return;
   }
   const baseFreq = win ? 220 : 140, baseSlide = win ? 160 : 90;
   playTone(baseFreq * mul, 0.16, { type: "triangle", cutoff: 700, volume: 0.09, slideTo: baseSlide * mul });
@@ -3067,6 +3107,20 @@ function waterPathBetween(fromT, toId) {
   if (fromT.neighbors.has(toId)) return null;
   const route = fromT.waterRoutes.get(toId);
   return route ? route.path : null;
+}
+// A water route can exist across any distance (see computeWaterRoutes()'s
+// own note — no hop cap any more), but that doesn't mean it's actually
+// worth offering as a target: with too little force, the crossing itself
+// drowns the whole garrison before any dice are even rolled (see attack()'s
+// own "noyés en chemin" branch). Used to select/drag-hover targets to
+// exactly what attack() would actually accept, instead of letting the
+// player draw/tap a line clear across the map toward a crossing they could
+// never survive — "le trait d'attaque dans l'eau doit être proportionnel...
+// aux forces qu'on a".
+function canAffordWaterRoute(fromT, toId) {
+  if (fromT.neighbors.has(toId)) return true;
+  const route = fromT.waterRoutes.get(toId);
+  return !!route && fromT.force - route.cost > 0;
 }
 // Dijkstra from a territory's own bordering water hexes out to one SPECIFIC
 // water hex (not another territory — see computeWaterRoutes(), which only
@@ -3453,6 +3507,7 @@ function checkStalemate() {
 // so plainly: nobody could force the issue, so the truce is framed as a
 // mildly mocking non-victory rather than a real one.
 function declareStalemateTruce() {
+  if (!replaying) dismissOnboarding();
   gameOver = true;
   truceEnded = true;
   truceWinnerId = -1;
@@ -3551,6 +3606,7 @@ function personalPerformanceLine() {
 }
 
 function showWin(royId) {
+  if (!replaying) dismissOnboarding(); // reaching a game's own end retires the tutorial for good, even if it never got dismissed by an actual attack
   const winbannerEl = document.getElementById("winbanner");
   winbannerEl.style.display = "flex";
   // land at the top of the message every time, not wherever the scrollable
@@ -4544,7 +4600,27 @@ function runAI() {
     return best;
   }
 
-  const mv = bestMove();
+  // Page-only fallback: 3 very passive AIs at the easiest level can end up
+  // just growing off neutral land and never actually attacking each other —
+  // reported live as "il se passe rien... je regarde les adversaires monter
+  // en puissance sans jamais attaquer". When bestMove() finds nothing worth
+  // trying under its own (already lenient, parity-or-better) threshold,
+  // occasionally throw an attack anyway — any adjacent enemy, no advantage
+  // required, explicitly fine if it's a doomed one: the point is that
+  // something visibly happens, not that it's a good decision.
+  function riskyMove() {
+    const candidates = [];
+    for (const t of territories) {
+      if (t.owner !== royId || t.force <= 1) continue;
+      for (const nId of t.neighbors) {
+        if (territories[nId].owner !== royId) candidates.push({ from: t.id, to: nId });
+      }
+    }
+    return candidates.length ? candidates[rand(candidates.length)] : null;
+  }
+  let mv = bestMove();
+  const isPage = DIFFICULTY_LEVELS.findIndex((l) => l.value === DIFFICULTY) === 0;
+  if (!mv && isPage && rngFloat() < 0.3) mv = riskyMove();
   const mistakeRate = Math.max(0, Math.min(1, escalated(AI_MISTAKE_RATE, 0.05) + pers.mistakeDelta));
   if (mv && rngFloat() >= mistakeRate) {
     attack(mv.from, mv.to);
@@ -4670,7 +4746,7 @@ function drawHighlightOutlines() {
 const SWORD_ANGLE_CORRECTION = Math.PI / 2;
 function drawSwordAt(x, y, angle, alpha) {
   if (!SWORD_IMG.complete || !SWORD_IMG.naturalWidth) return; // not decoded yet — skip this frame rather than draw a broken image
-  const size = 34;
+  const size = 68; // doubled — "Double la taille des épées"
   ctx.save();
   ctx.translate(x, y);
   ctx.rotate(angle + SWORD_ANGLE_CORRECTION);
@@ -4678,18 +4754,44 @@ function drawSwordAt(x, y, angle, alpha) {
   ctx.drawImage(SWORD_IMG, -size / 2, -size / 2, size, size);
   ctx.restore();
 }
-// The boat sprite has no obvious "bow" to aim at a defender (unlike the
-// sword's clear tip) — drawn upright regardless of attack direction, only
-// the position varies. Used specifically for water-related combat FX (see
-// this function's two call sites below) in place of the sword.
-function drawBoatAt(x, y, alpha) {
+// Used specifically for water-related combat FX (see the two call sites of
+// drawBoatsAlongPath() below) in place of the sword. `angle` rotates it to
+// follow the crossing's own direction — "aligné avec le trait" — same idea
+// as the sword's angle, just no correction constant (the boat art has no
+// clear reference "bow" the way the sword sprite has a clear tip).
+function drawBoatAt(x, y, alpha, angle) {
   if (!BOAT_IMG.complete || !BOAT_IMG.naturalWidth) return;
   const size = 30;
   ctx.save();
   ctx.translate(x, y);
+  if (typeof angle === "number") ctx.rotate(angle);
   ctx.globalAlpha = alpha;
   ctx.drawImage(BOAT_IMG, -size / 2, -size / 2, size, size);
   ctx.restore();
+}
+// Draws one boat per crossed water hex instead of a single boat at the
+// midpoint — "le bateau doit apparaître à chaque case traversée et alignée
+// avec le trait" — each one angled from the point before it to the point
+// after it, so it reads as following the dashed path line drawn alongside
+// it. `toPt` is the attack's destination (land village); omitted for a
+// water-sacrifice, whose path just ends at sea (the last hex itself).
+function drawBoatsAlongPath(fromPt, waterPath, toPt, alpha) {
+  // hexAt(), not a raw hexes[] lookup — a crossed hex can legitimately be
+  // background void now (see computeWaterRoutes()'s own note on why a route
+  // can pass through it), and hexes[hk] silently returning undefined for
+  // one of those dropped it from the list entirely: every boat after that
+  // point then landed one hex off from its real position along the path
+  // ("le bateau est apparu sur une autre case que son passage").
+  const hexPts = waterPath.map((hk) => { const [q, r] = hk.split(",").map(Number); const wh = hexAt(q, r); return { x: wh.x, y: wh.y }; });
+  if (!hexPts.length) return;
+  const pts = toPt ? [fromPt, ...hexPts, toPt] : [fromPt, ...hexPts];
+  const lastIdx = pts.length - 1;
+  for (let i = 1; i <= hexPts.length; i++) {
+    const prev = pts[i - 1];
+    const next = pts[Math.min(i + 1, lastIdx)];
+    const angle = Math.atan2(next.y - prev.y, next.x - prev.x);
+    drawBoatAt(pts[i].x, pts[i].y, alpha, angle);
+  }
 }
 function render() {
   const w = canvas.clientWidth, h = canvas.clientHeight;
@@ -4949,7 +5051,7 @@ function render() {
       }
       // always water by definition (a sacrifice/forced swim) — the boat
       // replaces the sword here, per request.
-      drawBoatAt(lastHex.x, lastHex.y, fadeAlpha);
+      drawBoatsAlongPath({ x: fromT.cx, y: fromT.cy }, fx.waterPath, null, fadeAlpha);
       if (!replaying && numberAlpha > 0) {
         ctx.font = "bold 14px -apple-system, sans-serif";
         ctx.textAlign = "center";
@@ -4980,7 +5082,7 @@ function render() {
       // attack (fx.waterPath set — see waterPathBetween()/attack()'s own
       // note just below) — a plain land hop still gets the sword.
       if (fx.waterPath && fx.waterPath.length) {
-        drawBoatAt(midX, midY, fadeAlpha);
+        drawBoatsAlongPath({ x: fromT.cx, y: fromT.cy }, fx.waterPath, { x: toT.cx, y: toT.cy }, fadeAlpha);
       } else {
         const angle = Math.atan2(toT.cy - fromT.cy, toT.cx - fromT.cx);
         drawSwordAt(midX, midY, angle, fadeAlpha);
@@ -5003,8 +5105,9 @@ function render() {
       ctx.beginPath();
       ctx.moveTo(fromT.cx, fromT.cy);
       for (const hk of fx.waterPath) {
-        const wh = hexes[hk];
-        if (wh) ctx.lineTo(wh.x, wh.y);
+        const [q, r] = hk.split(",").map(Number);
+        const wh = hexAt(q, r); // see drawBoatsAlongPath()'s own note — a crossed hex can be background void, never skip it
+        ctx.lineTo(wh.x, wh.y);
       }
       ctx.lineTo(toT.cx, toT.cy);
       ctx.strokeStyle = `rgba(244,246,249,${numberAlpha * 0.75})`;
@@ -5018,9 +5121,9 @@ function render() {
       ctx.textAlign = "center";
       ctx.lineWidth = 2;
       for (const hk of fx.waterPath) {
-        const wh = hexes[hk];
-        if (!wh) continue;
-        const label = `-${wh.waterCost}`;
+        const [q, r] = hk.split(",").map(Number);
+        const wh = hexAt(q, r); // see drawBoatsAlongPath()'s own note — void has no stored waterCost, defaults to open-sea below
+        const label = `-${wh.waterCost || 2}`;
         ctx.strokeStyle = `rgba(20,16,12,${numberAlpha * 0.8})`;
         ctx.fillStyle = `rgba(255,150,120,${numberAlpha})`;
         drawMapNumber(label, wh.x, wh.y + floatY);
@@ -5101,6 +5204,14 @@ function render() {
 // the scale transition on whichever row is mid-animation.
 const groupRowEls = {};
 function updateGroups() {
+  // Replay hides every numeric indicator on the map (see drawForceIcon()'s
+  // own note) — the top-left stats and the title/version block are numbers
+  // and text about a match already fully decided, so they're hidden too
+  // during playback: "au replay on supprime les stats en haut à gauche et
+  // le titre du jeu et version". updateGroups() runs on every render(), so
+  // this stays in sync with `replaying` without a dedicated call site.
+  document.getElementById("topBar").style.display = replaying ? "none" : "";
+  document.getElementById("gameTitleBlock").style.display = replaying ? "none" : "";
   const el = document.getElementById("groups");
   const rows = [];
   for (let royId = 0; royId < ROYAUME_COUNT - 1; royId++) { // exclude neutral (last)
@@ -5133,7 +5244,14 @@ function updateGroups() {
       rowEl.innerHTML = `<span class="swatch"></span><span class="n"></span>`;
       groupRowEls[r.roy.id] = rowEl;
     }
-    rowEl.querySelector(".swatch").style.background = r.roy.color;
+    // "un cercle de couleurs... la coloration à l'intérieur fonctionne
+    // comme une horloge qui se remplit de plus en plus avant de faire un
+    // tour complet. Si elle est remplie à 100% = max soldat atteint." —
+    // a conic-gradient fills the dot clockwise by this royaume's own force
+    // as a fraction of FORCE_CAP, the rest staying a dim neutral tone.
+    const pct = Math.max(0, Math.min(100, (r.force / FORCE_CAP) * 100));
+    rowEl.querySelector(".swatch").style.background =
+      `conic-gradient(${r.roy.color} ${pct}%, rgba(20,16,12,.35) ${pct}%)`;
     // "(nous)" marks our own row — same during a live game and while
     // watching a replay, since humanRoyId stays set to whichever seat was
     // actually played either way; requested so it's obvious at a glance
@@ -5416,7 +5534,7 @@ function handlePointer(clientX, clientY) {
     selected = -1;
   } else {
     const selTerr = territories[selected];
-    if (t.owner !== currentPlayer && (selTerr.neighbors.has(tId) || selTerr.waterRoutes.has(tId))) {
+    if (t.owner !== currentPlayer && canAffordWaterRoute(selTerr, tId)) {
       if (onboarding) {
         onboarding = false;
         try { localStorage.setItem("kw_playedBefore", "1"); } catch (e) { /* ignore */ }
@@ -5508,7 +5626,7 @@ function extendDragPath(drag, clientX, clientY) {
     // water hexes in between with no effect (territoryAtClientPoint() returns
     // null for those, same as any empty gap — see the early `if (!hoverT)` above)
     const lastT = territories[lastId];
-    if (!(lastT.neighbors.has(hoverT.id) || lastT.waterRoutes.has(hoverT.id))) return;
+    if (!canAffordWaterRoute(lastT, hoverT.id)) return;
     drag.path.push(hoverT.id);
     // chainIndex matches what executeAttackChain() will actually use for
     // this exact hop once released (path.length-2: the hop from the
@@ -5641,7 +5759,7 @@ function executeAttackChain(path, i = 0) {
   if (i >= path.length - 1 || gameOver) { render(); return; }
   const fromId = path[i], toId = path[i + 1];
   const fromT = territories[fromId];
-  if (fromT.owner !== currentPlayer || fromT.force <= 1 || !(fromT.neighbors.has(toId) || fromT.waterRoutes.has(toId))) { render(); return; }
+  if (fromT.owner !== currentPlayer || fromT.force <= 1 || !canAffordWaterRoute(fromT, toId)) { render(); return; }
   logMove({ a: fromId, b: toId });
   const win = attack(fromId, toId, i);
   if (!win || gameOver) { render(); return; }
@@ -5865,6 +5983,13 @@ function closeLore() {
 }
 document.getElementById("closeLore").addEventListener("click", closeLore);
 enableSwipeToDismiss(document.getElementById("loreBox"), document.getElementById("loreBox"), closeLore);
+// Le lore is also only ever opened from within Réglages — same shortcut
+// back there as backConseilsToSettings, instead of all the way to the map.
+document.getElementById("backLoreToSettings").addEventListener("click", () => {
+  document.getElementById("loreOverlay").style.display = "none";
+  settingsPanel.style.display = "flex";
+  sfxToggle();
+});
 document.getElementById("conseilsBtn").addEventListener("click", () => {
   // same fix as loreBtn just above — see its own comment
   settingsPanel.style.display = "none";
@@ -5896,464 +6021,484 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.50";
+const GAME_VERSION = "1.52";
 const CHANGELOG = [
+  {
+    version: "1.52",
+    notes: [
+      "Corrigé : une attaque par l'eau pouvait être refusée à tort quand la seule eau adjacente n'était pas une vraie case de la carte.",
+      "Corrigé : le bateau pouvait apparaître décalé d'une case par rapport à son vrai trajet.",
+      "Cadre de confirmation d'abandon mis dans le style du jeu (n'utilise plus la boîte native du navigateur).",
+      "Stats en haut à gauche : le petit rond de chaque royaume se remplit comme une horloge selon sa force.",
+      "Le replay masque maintenant les stats en haut à gauche et le titre du jeu.",
+      "Corrigé : le tuto pouvait continuer à s'afficher après la première partie ; toucher le message le ferme aussi.",
+    ],
+  },
+  {
+    version: "1.51",
+    notes: [
+      "Le son d'attaque ne joue plus deux notes en même temps : une note par attaque, qui avance dans la gamme du royaume à chaque enchaînement.",
+      "Doublé la taille des épées affichées en combat.",
+      "Le bateau apparaît maintenant sur chaque case d'eau traversée, aligné avec le trait du trajet.",
+      "Attaque par l'eau limitée à ce que la force peut vraiment payer, au lieu de pouvoir viser n'importe quelle distance.",
+      "Icônes de difficulté ajoutées (gueux, chevalier à pied, chevalier à cheval).",
+      "« Le lore » a aussi un bouton retour direct aux réglages, comme les Conseils.",
+      "Nouvelle partie sans sauvegarde : difficulté Page et carte la plus petite par défaut.",
+      "Page : les IA lancent parfois une attaque risquée même sans avantage, pour qu'il se passe quelque chose.",
+      "Notes de version réécrites : une phrase par changement, au lieu de longs paragraphes.",
+    ],
+  },
   {
     version: "1.50",
     notes: [
-      "Épée courte : c'était la mauvaise des deux esquisses fournies — remplacée par la bonne (la verticale).",
-      "Corrigé un bug signalé en direct : sur une attaque simple (pas en chaîne), seule la première note de l'accord de royaume se jouait. La 2e note était programmée via un minuteur séparé, vulnérable à la même course déjà connue sur un contexte audio tout juste réveillé — les deux notes passent maintenant par le même appel, juste décalées sur l'horloge audio elle-même.",
-      "« Le lore » : les deux soldats dessinés par l'utilisateur ajoutés entre l'histoire de la famille et le caractère de chaque branche.",
+      "Corrigé le mauvais dessin d'épée courte utilisé — remplacé par la bonne esquisse (la verticale).",
+      "Corrigé un bug : la 2e note de l'accord d'attaque ne jouait plus sur une attaque simple.",
+      "Ajouté les deux soldats dessinés par l'utilisateur dans « Le lore ».",
     ],
   },
   {
     version: "1.49",
     notes: [
-      "Conseils : les cases (village/province/royaume/pays) et le texte occupent maintenant toute la largeur disponible, plus limités à 320px. Toucher le fond ferme le menu ; nouveau bouton « ‹ » en haut à gauche pour revenir directement aux réglages.",
-      "Terres neutres au départ : la répartition entre les 4 niveaux de difficulté est maintenant vraiment linéaire (36% à Page, 2% à Seigneur, à pas égaux), au lieu d'être resserrée sur les deux premiers niveaux.",
-      "Niveau Page : les IA acceptent maintenant un combat à force égale (12 contre 12 ou toute autre égalité), au lieu de ne jamais s'y risquer — restent aussi prudentes que jamais sur tout le reste (jamais un vrai désavantage).",
-      "L'épée et le bateau des animations de combat sont maintenant les dessins fournis par l'utilisateur, à la place des versions vectorielles — le bateau remplace l'épée spécifiquement pour toute attaque par l'eau (traversée ou sacrifice).",
-      "Écran de fin de partie : nouvelle ligne en italique en bas indiquant « Vous gagnez un gueux » ou « Vous perdez un gueux » quand la partie qui vient de se terminer en a changé le nombre.",
-      "Écran de fin de partie : toucher le fond (au-dessus de l'encadré) révèle maintenant la carte finale, comme le geste de glisser vers le bas.",
+      "Conseils : texte sur toute la largeur, fermeture au toucher du fond, bouton retour direct aux réglages.",
+      "Terres neutres au départ réparties linéairement entre les 4 niveaux de difficulté.",
+      "Page : les IA acceptent maintenant un combat à force égale.",
+      "Épée et bateau des animations de combat remplacés par les dessins de l'utilisateur.",
+      "Écran de fin de partie : ligne indiquant un gueux gagné ou perdu.",
+      "Écran de fin de partie : toucher le fond révèle la carte finale.",
     ],
   },
   {
     version: "1.48",
     notes: [
-      "Le nouvel accord d'attaque par royaume sonnait vraiment dissonant pour certains (les deux notes jouées ensemble) — elles s'enchaînent maintenant l'une après l'autre au lieu d'être jouées en même temps.",
-      "Formule de renfort : retour à l'ancienne (part relative de territoire), la version ÷1,5 essayée en 1.46 est abandonnée.",
-      "Vitesse des combats ralentie de 20% — retour au rythme d'avant le dernier ajustement (1.46).",
-      "Blason (logo/icônes) recentré — il penchait vers la gauche.",
-      "Corrigé un vrai bug signalé en direct : toucher le bouton Partager natif de Safari plantait le jeu (« Script error » sans aucun détail) et le laissait bloqué même après avoir fermé la fenêtre de partage. C'est un artefact connu de Safari autour de ce geste précis, sans rapport avec le code du jeu lui-même — l'écran d'erreur fatale ne se déclenche plus pour ce cas précis (aucun détail exploitable), n'importe quelle vraie erreur continue d'afficher l'écran normalement.",
+      "Accord d'attaque par royaume : les deux notes s'enchaînent au lieu de jouer ensemble.",
+      "Formule de renfort : retour à l'ancienne version.",
+      "Combats ralentis de 20%.",
+      "Blason recentré.",
+      "Corrigé le plantage du bouton Partager natif de Safari.",
     ],
   },
   {
     version: "1.47",
     notes: [
-      "Chaque royaume a maintenant son propre accord de deux notes pour une attaque réussie (une note racine + une couleur harmonique caractéristique de sa gamme) : Châteauvieux (vert), Villiers (rouge), Montherlant (jaune) et Beaumanoir (bleu) sonnent tous différemment. Une défaite reste le même son neutre pour tout le monde.",
+      "Chaque royaume a son propre accord de deux notes pour une attaque réussie.",
     ],
   },
   {
     version: "1.46",
     notes: [
-      "Formule de renfort simplifiée : remplace l'ancienne formule basée sur la part relative de territoire par une règle linéaire directe (nombre de villages connectés ÷ 1,5, arrondi, plancher à 1).",
-      "Combats encore 20% plus rapides (attaques en chaîne, tour des IA, apparition des épées).",
+      "Formule de renfort simplifiée (villages connectés ÷ 1,5).",
+      "Combats encore 20% plus rapides.",
     ],
   },
   {
     version: "1.45",
     notes: [
-      "Nouveau blason en couleur : logo du jeu, icône PWA/onglet et écran d'accueil « iOS » mis à jour partout.",
-      "Retiré le bouton « Nouvelle guerre » des réglages (redondant avec le bouton d'abandon sur l'écran principal et « Nouveau royaume ») et l'option de tri des stats (toujours par territoire maintenant).",
-      "Abandonner une partie demande maintenant une confirmation — un tap malencontreux sur la tête de mort ne perd plus la partie instantanément.",
-      "Le replay n'affiche plus les messages « baignade forcée »/offrande pendant le visionnage — seul le visuel de l'épée reste.",
-      "Le bouton d'accélération des combats adverses n'affiche plus que son icône (⏩), plus le texte « La guerre fait rage ».",
-      "Ajouté « (nous) » à côté de nos propres troupes dans le classement en haut à gauche, en jeu comme en replay.",
-      "Réglages : « Sons » renommé « Bruitages ».",
-      "Nouvelles phrases : message d'abandon, phrases de noyade, refus de trêve, et une ligne de victoire retravaillée.",
+      "Nouveau blason en couleur partout (logo, PWA, icônes).",
+      "Retiré « Nouvelle guerre » et le tri des stats des réglages.",
+      "Abandonner une partie demande confirmation.",
+      "Le replay n'affiche plus les messages de noyade/offrande.",
+      "Le bouton d'accélération n'affiche plus que son icône.",
+      "Ajouté « (nous) » à côté de nos troupes dans le classement.",
+      "« Sons » renommé « Bruitages ».",
+      "Nouvelles phrases (abandon, noyade, trêve, victoire).",
     ],
   },
   {
     version: "1.44",
     notes: [
-      "Corrigé un bug confirmé : une attaque par l'eau dont le coût de traversée égale ou dépasse la force du village attaquant réussissait quand même (forcée à un minimum de 1 attaquant) — elle échoue maintenant automatiquement (« noyés en chemin »), sans toucher à la cible.",
-      "Le replay ne joue plus les sons de combat/renfort (juste les visuels — épées, anneaux) — ils gênaient plus qu'autre chose pendant le visionnage.",
-      "Vitesse du replay encore ralentie de 30%.",
-      "Le menu se ferme maintenant aussi en touchant le fond assombri autour de l'encadré, pas seulement le ✕.",
+      "Corrigé : une attaque par l'eau trop coûteuse échoue maintenant au lieu de réussir avec 1 troupe.",
     ],
   },
   {
     version: "1.43",
     notes: [
-      "Tailles de carte renommées pour mieux évoquer leur ambiance : « Escarmouche » → « Bras de fer », « Campagne » → « Raid », « Grande Campagne » → « Massacre » (« Croisade » inchangée).",
-      "Le message d'offrande à la mer (plongée volontaire jusqu'au bout depuis un village au maximum de troupes) reste affiché deux fois plus longtemps, le temps de le lire en entier.",
-      "Les gueux (progression méta) sont désormais toujours actifs, l'option de réglage a été retirée. Abandonner une partie coûte maintenant un gueux, comme une défaite.",
-      "Le bouton d'abandon (crâne) est masqué pendant le visionnage d'un replay — il n'a aucun effet là où il n'y a plus de partie en cours à abandonner.",
+      "Tailles de carte renommées (Bras de fer, Raid, Massacre, Croisade).",
+      "Message d'offrande à la mer affiché deux fois plus longtemps.",
+      "Les gueux sont désormais toujours actifs ; abandonner coûte un gueux.",
+      "Bouton d'abandon masqué pendant le replay.",
     ],
   },
   {
     version: "1.42",
     notes: [
-      "Doublé le nombre de tours complets requis avant la trêve de statu-quo (4 → 8) : signalé comme se déclenchant trop vite en toute fin de partie — un « tour complet » compte chaque royaume encore vivant, donc les 4 tours d'avant ne représentaient plus que 8 tours individuels une fois réduit aux deux derniers survivants, contre 16 en début de partie à 4 royaumes.",
+      "Doublé le nombre de tours avant la trêve de statu-quo.",
     ],
   },
   {
     version: "1.41",
     notes: [
-      "Corrigé le vrai fond du problème d'écran blanc en PWA installée : une fois coincée sur une ancienne version, l'appli n'avait jusqu'ici aucun moyen de le remarquer elle-même, seule une réinstallation manuelle en sortait. Elle vérifie maintenant activement une version plus récente à chaque fois qu'elle repasse au premier plan, et se recharge toute seule dès qu'une nouvelle version prend effectivement le relais — plus besoin de supprimer/réinstaller l'icône.",
+      "Corrigé l'écran blanc en PWA : le jeu vérifie et recharge seul une nouvelle version.",
     ],
   },
   {
     version: "1.40",
     notes: [
-      "Statistiques en haut à gauche : retiré le chiffre de territoire connecté à côté du nombre de soldats — un total de cases ne veut rien dire seul (ça dépend de la taille de carte et du nombre de rivaux restants), seule la position dans le classement compte, déjà visible via le tri. Expliqué dans les Conseils.",
+      "Retiré le chiffre de territoire connecté des statistiques.",
     ],
   },
   {
     version: "1.39",
     notes: [
-      "Corrigé la mélodie d'une attaque en chaîne très longue : les notes plafonnaient et restaient bloquées très aiguës passé un certain nombre de villages — elles continuent maintenant de monter indéfiniment, octave après octave",
-      "Nouvelle ligne de victoire dans le lore : explique pourquoi un général mercenaire engagé par l'une des branches Millon finit appelé « seigneur » — une fois toutes les branches rivales éliminées, celle qui vous employait n'a plus d'armée pour faire valoir son rang sur le vôtre non plus",
+      "Corrigé la mélodie plafonnée d'une longue attaque en chaîne.",
+      "Nouvelle ligne de victoire expliquant le titre de « seigneur ».",
     ],
   },
   {
     version: "1.38",
     notes: [
-      "Corrigé un écran noir puis blanc au lancement de l'application installée (PWA) : le service worker attendait le réseau sans jamais abandonner (un lancement à froid, radio encore en train de se réveiller, pouvait bloquer indéfiniment) — il se rabat maintenant sur la dernière version mise en cache au bout de 3 secondes, tout en continuant à charger la version fraîche en arrière-plan. Corrigé aussi un risque de boucle de rechargement si jamais la vérification de mise à jour ne retrouve jamais un en-tête stable.",
+      "Corrigé l'écran noir puis blanc au lancement PWA (repli sur le cache après 3s).",
     ],
   },
   {
     version: "1.37",
     notes: [
-      "Corrigé le décalage tactile signalé en mode paysage : un doigt qui touche à peine à côté d'un village, juste sur la case d'eau voisine, se rattrape maintenant sur le village visé au lieu d'être lu comme un océan (ce qui finissait le tour d'un coup en paysage, où toucher l'eau tient lieu de bouton « Fin de bataille »)",
+      "Corrigé le décalage tactile en mode paysage près de l'eau.",
     ],
   },
   {
     version: "1.36",
     notes: [
-      "Corrigé un second bug de combat, plus profond que le précédent : l'épée pouvait rester affichée pendant TOUT l'enchaînement des tours de l'IA au lieu de disparaître à la fin de chacun de ses propres tours — chaque épée disparaît maintenant sur son propre horodatage plutôt qu'une horloge partagée qu'une attaque d'un tour suivant réinitialisait par erreur",
+      "Corrigé l'épée qui restait affichée pendant tout l'enchaînement des tours IA.",
     ],
   },
   {
     version: "1.35",
     notes: [
-      "Vibration + petite note discrète à chaque village ajouté pendant un glisser d'attaque en chaîne, pas seulement au relâchement — même mélodie que l'attaque mais une quinte plus bas",
+      "Vibration et note discrète à chaque village ajouté en chaîne.",
     ],
   },
   {
     version: "1.34",
     notes: [
-      "Difficulté augmentée de 30% pour Chevalier et Seigneur (Page et Écuyer inchangés) — Seigneur en particulier doit désormais se gagner très difficilement, presque sans aucune erreur tactique",
+      "Difficulté augmentée de 30% pour Chevalier et Seigneur.",
     ],
   },
   {
     version: "1.33",
     notes: [
-      "Corrigé un vrai bug de combat : l'épée avait son propre fondu indépendant qui la faisait disparaître en un quart de seconde, contredisant en silence la consigne « reste affichée jusqu'à la fin du tour » depuis le début — l'épée reste maintenant vraiment jusqu'au bouton « Fin de bataille »",
-      "En contrepartie, le cercle de résultat, son étiquette, les dés bruts et le cercle de renfort disparaissent maintenant assez rapidement tout seuls, indépendamment du tour — seule l'épée reste affichée",
+      "Corrigé l'épée qui disparaissait trop tôt pendant un combat.",
+      "Le cercle de résultat et les dés disparaissent maintenant rapidement, seule l'épée reste.",
     ],
   },
   {
     version: "1.32",
     notes: [
-      "Refonte des statistiques en haut à gauche : la ligne du royaume dont c'est le tour grossit (~1,5×) avec une transition souple, une seule ligne mise en avant à la fois ; le chiffre juste à côté de la couleur est maintenant le total de soldats (force), avec le nombre de territoires connectés affiché séparément",
+      "Stats en haut à gauche : la ligne du royaume actif grossit, force affichée séparément du territoire.",
     ],
   },
   {
     version: "1.31",
     notes: [
-      "Un seul type d'océan désormais partout dans le code (case d'eau ou simple fond, même donnée) ; les attaques en bateau ne sont plus plafonnées à 3 cases d'eau une fois la carte générée — seule la génération de la carte garde cette limite pour décider si un îlot est rattaché",
-      "Corrigé un bug rare : une province pouvait se retrouver composée de deux bouts de terre non adjacents (un village fusionné avec un îlot isolé plus loin) — chaque groupe de cases orphelines forme maintenant sa propre province à part entière",
+      "Un seul concept d'océan dans le code ; les attaques en bateau ne sont plus plafonnées à 3 cases.",
+      "Corrigé une province parfois composée de deux bouts de terre non adjacents.",
     ],
   },
   {
     version: "1.30",
     notes: [
-      "Réduit de 75% le temps mort entre le tour d'un royaume et celui du suivant — signalé comme trop long",
+      "Réduit de 75% le temps mort entre les tours.",
     ],
   },
   {
     version: "1.29",
     notes: [
-      "Correction : en mode paysage, toucher l'océan pour finir le tour ne marchait que sur une vraie case d'eau — désormais toute la zone bleue fait bouton, y compris le fond au-delà de la carte générée",
+      "Corrigé : en paysage, toute la zone bleue finit le tour, pas seulement l'eau.",
     ],
   },
   {
     version: "1.28",
     notes: [
-      "Mode paysage : les hexagones/couleurs continuent de tourner avec l'écran, mais tous les chiffres affichés sur la carte (force, dés de combat, coût des traversées d'eau...) restent désormais droits, lisibles sans pencher la tête, quel que soit le sens dans lequel le téléphone est tourné",
+      "Mode paysage : les chiffres sur la carte restent droits.",
     ],
   },
   {
     version: "1.27",
     notes: [
-      "Mode paysage : version « sans distraction » — toute l'interface (statistiques, réglages, boutons) disparaît, il ne reste que la carte plein écran. Toucher l'océan finit le tour à la place du bouton « Fin de bataille » ; un second appui pendant que les autres royaumes jouent encore accélère leur résolution",
+      "Mode paysage sans distraction : interface masquée, toucher l'océan finit le tour.",
     ],
   },
   {
     version: "1.26",
     notes: [
-      "Correction : sur ordinateur (fenêtre plus large que haute), le jeu se retrouvait tourné à 90° dès l'ouverture — la bascule paysage/portrait du téléphone ne s'applique désormais qu'aux écrans de taille téléphone",
+      "Corrigé la rotation forcée à 90° sur ordinateur.",
     ],
   },
   {
     version: "1.25",
     notes: [
-      "Correctif du mode paysage v1.24 : la carte et les boutons ne se plaçaient pas exactement où ils devaient (décalés par rapport à l'écran) — corrigé, tout reste visuellement à sa place une fois le jeu tourné",
+      "Corrigé le positionnement du mode paysage (v1.24).",
     ],
   },
   {
     version: "1.24",
     notes: [
-      "Mode paysage repensé : un vrai blocage de rotation étant impossible sur iPhone (confirmé), tourner le téléphone tourne maintenant le jeu dans l'autre sens à la place — l'écran se remplit exactement, sans rien couper ni réduire, au prix d'une lecture tête penchée",
+      "Mode paysage repensé : le jeu tourne avec le téléphone au lieu d'être bloqué.",
     ],
   },
   {
     version: "1.23",
     notes: [
-      "Le message d'accroche du début de partie est raccourci — il débordait sur la carte sur certains écrans",
-      "Une seule couleur d'eau désormais partout sur la carte (fond, eau, bordures des provinces compris) — plus de distinction entre le fond et l'eau elle-même",
-      "Combats : les épées et le résultat (« +N villages », « échec »...) restent affichés jusqu'à la fin du tour comme avant, mais les chiffres bruts d'attaque/défense disparaissent maintenant rapidement, indépendamment du tour",
+      "Message d'accroche raccourci.",
+      "Une seule couleur d'eau sur toute la carte.",
+      "Les chiffres d'attaque/défense disparaissent vite, le reste reste jusqu'à la fin du tour.",
     ],
   },
   {
     version: "1.22",
     notes: [
-      "Annulé le correctif de la version 1.21 (écran d'accueil parfois bloqué sur un écran blanc) : il provoquait lui-même un nouvel écran blanc immédiatement après sa mise en ligne. Retour à la version qui fonctionnait juste avant, avec un nouveau cache pour repartir sur une base saine.",
+      "Annulé le correctif 1.21, retour à la version stable.",
     ],
   },
   {
     version: "1.21",
     notes: [
-      "Correction : l'icône ajoutée à l'écran d'accueil pouvait rester bloquée sur un écran blanc après une mise à jour, même après avoir complètement fermé puis rouvert l'app (seul supprimer puis rajouter l'icône réglait le souci) — le service worker forçait déjà une récupération réseau en priorité, mais un cache natif du WebView, sous son contrôle, pouvait quand même renvoyer une réponse périmée ; la requête de navigation force maintenant explicitement ce cache-là à être ignoré aussi",
+      "Corrigé l'icône d'accueil bloquée sur un écran blanc après mise à jour.",
     ],
   },
   {
     version: "1.20",
     notes: [
-      "Mode paysage revu une nouvelle fois, sur retour terrain : tourner le téléphone ne change plus strictement rien à l'affichage (ni rétrécissement, ni chiffres qui tournent) — le jeu reste figé exactement comme il était en portrait, comme si la rotation était bloquée. Ce qui ne tient plus dans la hauteur disponible en paysage (le bas de l'écran, boutons compris) sort simplement de l'écran plutôt que d'être réduit ou réorganisé.",
+      "Mode paysage figé comme en portrait, rien ne tourne ni ne rétrécit.",
     ],
   },
   {
     version: "1.19",
     notes: [
-      "Les traversées d'eau sont désormais limitées à 3 cases d'eau au maximum, aussi bien pour la génération de la carte (plus jamais un royaume séparé du reste par une étendue d'eau trop large pour être vraiment traversée) que pour les routes d'attaque elles-mêmes",
-      "Le chemin d'une attaque à travers l'eau se trace maintenant sur les vraies cases traversées (plus une ligne droite) avec le coût en force de chacune affiché en chiffre flottant",
-      "Une seule couleur d'eau sur la carte, au lieu de deux nuances différentes selon qu'elle touche l'océan extérieur ou non",
-      "Correction : « Rejouer la même carte » pouvait générer une carte différente si le nombre d'adversaires avait changé depuis le début de la partie",
-      "Correction : un glisser rapide pouvait sauter par-dessus une petite île isolée pour attaquer une cible plus lointaine à la place",
-      "Retiré le pourcentage des statistiques en haut de l'écran (ne restent que villages et force)",
-      "Message d'accroche du début de partie revu : un écuyer s'adresse à vous comme à un général de guerre engagé par l'une des quatre branches de la maison Millon, plutôt qu'un simple choix de camp",
-      "Combats environ 20% plus rapides",
-      "Correction : les renforts (« +N » flottant) disparaissaient d'eux-mêmes après une seconde, contrairement aux épées et numéros de combat qui restent jusqu'à la fin du tour — les deux se comportent maintenant pareil",
-      "Revoir la partie : le bouton Stop arrête vraiment tout immédiatement (il continuait parfois en arrière-plan), le bouton Pause fonctionne enfin, le rythme est uniforme et rapide (plus aucun temps mort), et les chiffres disparaissent pendant la lecture — ne restent que les épées et les provinces qui changent de couleur",
-      "Correction : en mode paysage, les chiffres de force tournaient dans le mauvais sens ; le fond visible autour de la carte reprend maintenant la couleur du jeu plutôt qu'un noir qui tranchait",
-      "Correction : un double-tap sur la carte pouvait déclencher la loupe de zoom native d'iOS",
-      "Petit clin d'œil si l'on tente d'envoyer des troupes en pleine mer sans cible",
+      "Traversées d'eau limitées à 3 cases (génération et attaques).",
+      "Le chemin d'une attaque par l'eau se trace sur les vraies cases traversées.",
+      "Une seule couleur d'eau.",
+      "Corrigé « Rejouer la même carte » avec un nombre d'adversaires différent.",
+      "Corrigé un glisser rapide sautant une île isolée.",
+      "Retiré le pourcentage des statistiques.",
+      "Message d'accroche revu (général de guerre engagé).",
+      "Combats environ 20% plus rapides.",
+      "Les renforts restent affichés jusqu'à la fin du tour comme les épées.",
+      "Replay : Stop et Pause réellement fonctionnels, rythme uniforme.",
+      "Corrigé la rotation des chiffres en mode paysage.",
+      "Corrigé le zoom natif iOS au double-tap.",
+      "Clin d'œil en cas d'envoi de troupes en pleine mer.",
     ],
   },
   {
     version: "1.18",
     notes: [
-      "Ordre fixe des couleurs dans le graphique de fin de partie et sa légende (Montherlant, Barbares, Villiers, Beaumanoir, Châteauvieux), choisi pour son rendu visuel",
+      "Ordre fixe des couleurs dans le graphique de fin de partie.",
     ],
   },
   {
     version: "1.17",
     notes: [
-      "Écran de fin de partie réorganisé : la phrase d'ouverture (victoire/défaite/trêve) en tout premier, puis tous les boutons d'action, puis le graphique, et le reste du texte tout en bas",
+      "Écran de fin de partie réorganisé (phrase, boutons, graphique, texte).",
     ],
   },
   {
     version: "1.16",
     notes: [
-      "Correction : les boutons « Le lore » et « 🎓 Conseils » depuis le menu Réglages ne faisaient plus rien à l'usage — l'écran s'ouvrait bien, mais restait caché derrière le menu Réglages resté ouvert par-dessus",
+      "Corrigé « Le lore » et « Conseils » restant cachés derrière les réglages.",
     ],
   },
   {
     version: "1.15",
     notes: [
-      "Nouveau : les étendues d'eau sur la carte (anciennes zones vides) sont maintenant traversables — attaquer un village de l'autre côté depuis un village adjacent à l'eau coûte de la force par case d'eau traversée (plus cher pour une eau reliée à l'océan extérieur), et l'assaut est deux fois plus lent qu'une attaque terrestre",
-      "Correction : une guerre entre intelligences artificielles pouvait continuer indéfiniment une fois le joueur éliminé, faute de détection de trêve après sa propre élimination",
-      "Correction : le service worker pouvait garder l'application bloquée sur une ancienne version après une mise à jour, y compris pour l'app installée sur l'écran d'accueil (PWA) — le document se charge maintenant en priorité depuis le réseau",
+      "Les étendues d'eau sont désormais traversables (coût en force, attaque plus lente).",
+      "Corrigé une guerre IA sans fin après l'élimination du joueur.",
+      "Corrigé le service worker bloqué sur une ancienne version.",
     ],
   },
   {
     version: "1.14",
     notes: [
-      "Correction critique : l'app pouvait ne plus s'ouvrir du tout sur certains iPhone (écran blanc) — une exception non interceptée dans le code de rotation du mode paysage interrompait tout le chargement du jeu ; en plus du correctif, toute erreur imprévue affiche désormais un message lisible plutôt qu'un écran blanc muet",
-      "Mode paysage revu en profondeur : tourner le téléphone ne change plus du tout la mise en page (carte, boutons, texte) — seuls les chiffres de force pivotent, le reste reste identique au portrait, simplement centré et réduit pour tenir dans la largeur disponible",
+      "Corrigé l'écran blanc au lancement sur certains iPhone.",
+      "Mode paysage revu : seuls les chiffres pivotent.",
     ],
   },
   {
     version: "1.13",
     notes: [
-      "Correction : la trêve pour situation bloquée ne se déclenchait jamais tant que les Barbares païens pacifistes tenaient encore un seul village sur la carte (très fréquent, puisqu'ils ne se défendent jamais) — un combat vraiment bloqué entre deux camps qui se battent est maintenant détecté même dans ce cas",
-      "Les épées et le résultat d'une attaque restent maintenant affichés tant que le tour n'est pas terminé (avant, ils disparaissaient au bout de quelques secondes même en pleine réflexion) — ils s'estompent doucement en une demi-seconde une fois « Fin de bataille » pressé",
+      "Corrigé la trêve jamais déclenchée à cause des Barbares.",
+      "Les épées et le résultat restent affichés jusqu'à la fin du tour.",
     ],
   },
   {
     version: "1.12",
     notes: [
-      "Correction : en glissant l'écran de fin de partie vers le bas pour révéler la carte finale, les boutons « Retour »/« Revoir la partie » flottaient trop haut (au lieu du bas de l'écran) et pouvaient se retrouver au-dessus des Réglages ouverts par-dessus ; les boutons de bataille (gueux, reddition, fin de tour), sans effet une fois la partie terminée, ne s'affichent plus par-dessus la carte révélée",
-      "Nouveau : icône de l'app utilisable par le système (partage, écran d'accueil) — l'ancienne n'était pas reconnue partout",
-      "Le lore précise maintenant en quelle année se déroule l'histoire, et décrit la tribu neutre des Barbares païens pacifistes",
+      "Corrigé les boutons flottants mal positionnés à l'écran de fin de partie.",
+      "Nouvelle icône d'app compatible partout.",
+      "Le lore précise l'année et décrit les Barbares.",
     ],
   },
   {
     version: "1.11",
     notes: [
-      "Correction critique : la reprise automatique après fermeture accidentelle pouvait rester bloquée sur l'écran de replay (bouton « stop » sans effet) — corrigé, et une sauvegarde devenue incompatible après une mise à jour du jeu est désormais ignorée proprement plutôt que de provoquer ce blocage",
-      "Le replay s'ouvre maintenant toujours en pause : un bouton Lire/Pause unique, et « Reprendre la partie à partir d'ici » disponible dès le début — le curseur et le bouton de vitesse ont été retirés (trop d'options qui embrouillaient plus qu'autre chose)",
-      "Correction : le carillon de renfort jouait deux fois la même note à la jonction de deux octaves",
-      "Le carillon de renfort des adversaires est maintenant audible (une octave plus bas que le nôtre) au lieu d'être silencieux",
-      "Nouveau son, plus doux, pour annoncer que c'est votre tour",
-      "Nouveau : en mode paysage, les chiffres de force sur la carte pivotent pour rester lisibles ; le reste de l'interface ne bouge pas",
-      "Le bouton « Fin de bataille » garde maintenant une taille fixe — seule l'écriture à l'intérieur rétrécit sur les tours adverses",
-      "Suppression du royaume de Roncevaux (retour à 3 royaumes adverses maximum au lieu de 4)",
+      "Corrigé la reprise automatique bloquée sur le replay.",
+      "Le replay s'ouvre toujours en pause, curseur et vitesse retirés.",
+      "Corrigé le carillon de renfort jouant deux fois la même note.",
+      "Le carillon de renfort adverse est maintenant audible.",
+      "Nouveau son plus doux pour annoncer son tour.",
+      "En paysage, les chiffres de force pivotent pour rester lisibles.",
+      "Le bouton Fin de bataille garde une taille fixe.",
+      "Retiré le royaume de Roncevaux (retour à 3 adversaires max).",
     ],
   },
   {
     version: "1.10",
     notes: [
-      "Nouveau : la partie reprend exactement là où vous l'aviez laissée après une fermeture accidentelle (app quittée, page rechargée) — plus besoin de tout recommencer",
-      "Correction : le replay/l'avance rapide pouvait ramer plusieurs secondes sur une longue partie (limitation du navigateur sur les délais enchaînés à 0ms) — le passage instantané est maintenant vraiment instantané",
-      "Nouveau : glisser l'écran de fin de partie vers le bas révèle la carte finale, avec un bouton pour lancer le replay et un bouton pour revenir à l'écran de fin",
-      "Conseils et Le lore ont maintenant le même geste de glisser-pour-fermer que les Réglages, au lieu d'un texte qui défile séparément à l'intérieur",
-      "Correction : l'écran de fin de partie pouvait s'ouvrir déjà scrollé, coupant le message de victoire/défaite — s'ouvre toujours remonté en haut maintenant",
-      "Correction : le graphique de fin de partie n'atteignait toujours pas un vrai 100%/0% en cas de victoire totale — la toute dernière colonne n'est plus lissée",
-      "Correction : le curseur du graphique de fin de partie ne glissait plus que par à-coups sur une partie très courte — il suit maintenant le doigt en continu même quand les valeurs ne changent pas",
-      "Le carillon de renfort ne joue plus qu'une note par village reçu (au lieu d'une par point de force) ; la note des adversaires est maintenant plus grave que la nôtre (au lieu de plus aiguë)",
-      "Tous les boutons du bas de l'écran (gueux, reddition, fin de tour) ont maintenant la même hauteur, et prennent le fond de couleur de votre camp choisi (au lieu du doré fixe) — le liseré doré 3D reste partout",
-      "Nouvelles icônes sur les boutons de fin de partie (rejouer, revoir la partie, partager)",
-      "Nouvelle couleur pour Montherlant (trop proche de l'orange de Roncevaux auparavant)",
-      "Le graphique de fin de partie affiche maintenant les barbares tout en haut (légende et graphique), au lieu de tout en bas",
-      "Nouvelle réplique pour un abandon volontaire",
+      "La partie reprend exactement où on l'a laissée après fermeture accidentelle.",
+      "Corrigé le replay/avance rapide lent sur une longue partie.",
+      "Glisser l'écran de fin de partie révèle la carte finale.",
+      "Conseils et Le lore ont le même geste de fermeture que les réglages.",
+      "Corrigé l'écran de fin de partie s'ouvrant déjà scrollé.",
+      "Corrigé le graphique n'atteignant jamais 100%/0%.",
+      "Corrigé le curseur du graphique saccadé sur une partie courte.",
+      "Le carillon de renfort ne joue qu'une note par village reçu.",
+      "Tous les boutons du bas ont la même hauteur et la couleur du camp choisi.",
+      "Nouvelles icônes sur l'écran de fin de partie.",
+      "Nouvelle couleur pour Montherlant.",
+      "Le graphique affiche les barbares tout en haut.",
+      "Nouvelle réplique d'abandon.",
     ],
   },
   {
     version: "1.9",
     notes: [
-      "Correction : le replay tournait deux fois plus lentement que prévu depuis le ralentissement des tours adverses en direct — sa propre vitesse (déjà réglée à part) ne devait pas cumuler avec ce ralenti-là",
-      "Correction : le bouton d'abandon (tête de mort) pouvait se retrouver caché derrière « Fin de bataille » sur les écrans étroits — repositionné dynamiquement entre les deux boutons voisins",
-      "Nouveau : deux doigts peuvent désormais préparer deux chaînes d'attaque en même temps, chacune indépendamment ; toucher l'eau/le vide avec un deuxième doigt annule d'un coup la chaîne en cours de l'autre",
-      "Le carillon de renfort continue de monter en gamme au-delà de 4 notes au lieu de reboucler sur la même octave",
-      "L'icône de reddition est maintenant le vrai dessin de tête de mort (au lieu de l'emoji 💀)",
-      "Nouveau : un petit message explique désormais, sur le moment, le réajustement de force des adversaires au choix du camp — et c'est expliqué dans les Conseils",
-      "Combat : suppression du « pour nous » sur « -N villages » — le rouge suffit à dire que c'est nous qui perdons",
-      "Tous les boutons de l'écran de jeu (réglages, gueux, reddition, changer de carte, contrôles du replay) reprennent maintenant le même liseré doré 3D que les menus",
+      "Corrigé le replay deux fois trop lent.",
+      "Corrigé le bouton d'abandon caché sur écrans étroits.",
+      "Deux doigts peuvent préparer deux chaînes d'attaque en même temps.",
+      "Le carillon de renfort continue de monter au-delà de 4 notes.",
+      "Icône de reddition remplacée par un vrai dessin de tête de mort.",
+      "Message expliquant le réajustement de force au choix du camp.",
+      "Retiré « pour nous » sur « -N villages ».",
+      "Tous les boutons de l'écran de jeu ont le même liseré doré.",
     ],
   },
   {
     version: "1.8",
     notes: [
-      "Nouveau : replay — pause, curseur pour avancer/reculer, et bouton pour reprendre une partie jouable à partir de n'importe quel point",
-      "Nouveau : « Croisade », une taille de carte encore plus grande que « Grande Campagne »",
-      "Abandonner devient une simple tête de mort sur l'écran principal (plus dans les réglages) — capitule tout de suite, sans confirmation",
-      "Suppression de « Batailles instantanées » dans les réglages",
-      "Frontières entre provinces simplifiées : un seul trait, dans la couleur de fond de la carte — chaque province se lit comme une île",
-      "Nouvelle couleur pour Châteauvieux (vert) et Roncevaux (orange)",
-      "Le texte de victoire/défaite affiche maintenant le nombre réel de villages gagnés ou perdus (« +4 villages », « -3 villages pour nous » en rouge quand c'est nous qui perdons), au lieu d'un « +1 province » toujours identique",
-      "Correction : le carillon de renfort pouvait être coupé net avant la fin de son animation si un autre renfort arrivait entre-temps",
-      "Cercles de renfort inversés : ils convergent maintenant vers le village au lieu de s'en éloigner",
-      "Graphique de fin de partie : le vainqueur atteint enfin un vrai 100% (et le vaincu un vrai 0%) tout à la fin, au lieu de s'arrêter juste avant",
-      "La demande de clémence adverse ne réapparaît plus qu'une fois tous les 4 tours au lieu de rester affichée en continu",
-      "Un son distinct joue désormais quand c'est de nouveau votre tour, en plus de la vibration déjà en place",
-      "Statistiques du haut de l'écran : troupes et pourcentage alignés à gauche comme le nombre de villages",
-      "Menu réglages : difficulté, taille de carte et nombre d'adversaires tiennent maintenant sur une seule ligne",
-      "Ajout dans le lore : la notion de « pays », et le fait que le chiffre affiché sur un village est celui de sa capitale",
+      "Replay : pause, curseur, reprise jouable à tout moment.",
+      "Nouvelle taille de carte « Croisade ».",
+      "Abandonner devient une tête de mort directe, sans confirmation.",
+      "Retiré « Batailles instantanées » des réglages.",
+      "Frontières entre provinces simplifiées.",
+      "Nouvelle couleur pour Châteauvieux et Roncevaux.",
+      "Le texte de victoire/défaite affiche le nombre réel de villages.",
+      "Corrigé le carillon de renfort coupé net.",
+      "Cercles de renfort inversés (convergent vers le village).",
+      "Le graphique atteint enfin 100%/0% en fin de partie.",
+      "La demande de clémence adverse réapparaît tous les 4 tours.",
+      "Nouveau son pour annoncer son tour.",
+      "Menu réglages : difficulté, taille et adversaires sur une ligne.",
+      "Ajout de « pays » et de la capitale dans le lore.",
     ],
   },
   {
     version: "1.7",
     notes: [
-      "Nouveau : un royaume clairement écrasé peut proposer sa reddition — accepter termine la partie tout de suite, sans avoir à l'achever au combat",
-      "Nouveau : une petite vibration quand c'est de nouveau votre tour (après le tour des adversaires) — pratique pour s'éloigner de l'écran un instant",
-      "Frontières entre provinces refaites : deux traits fins, chacun dans une couleur qui contraste avec son propre côté (au lieu d'une bordure argentée uniforme, parfois peu lisible contre certaines couleurs)",
-      "Le carillon de renfort joue maintenant une note par point de renfort (au lieu d'être limité à deux notes)",
-      "Tours des adversaires ralentis de 50 % pour mieux suivre leurs attaques",
-      "Le bouton « La guerre fait rage » termine maintenant vraiment le tour des adversaires tout de suite (avant : toujours un peu de délai)",
-      "Export du graphique en fond d'écran : suppression d'un trait indésirable entre les couleurs, nom de fichier avec la version et le code de la carte, proportions ajustées à celles de l'écran (évite le zoom/recadrage une fois en fond d'écran)",
-      "Nouvelles répliques de fin de partie",
+      "Un royaume écrasé peut proposer sa reddition.",
+      "Vibration quand c'est de nouveau votre tour.",
+      "Frontières entre provinces refaites en deux traits contrastés.",
+      "Le carillon de renfort joue une note par point de renfort.",
+      "Tours adverses ralentis de 50%.",
+      "« La guerre fait rage » termine vraiment le tour tout de suite.",
+      "Export du graphique amélioré (nom de fichier, proportions).",
+      "Nouvelles répliques de fin de partie.",
     ],
   },
   {
     version: "1.6",
     notes: [
-      "Nouveau : « Nombre d'adversaires » (1 à 4), indépendant de la taille de carte — 5ᵉ royaume (Roncevaux)",
-      "Réglages réorganisés : « Partie en cours » tout en haut, code de carte tout en bas, plus de titre « Réglages »",
-      "Réglages : la croix pour fermer reste flottante, et on peut aussi glisser tout le panneau vers le bas pour le fermer",
-      "La liste des royaumes est maintenant dans les Conseils (plus dans les Réglages, pour ne pas les surcharger)",
-      "« Nous, Monseigneur ! » devient « Nous, Sire ! » ; les territoires neutres s'appellent maintenant « Barbares païens »",
-      "« Rejouer » devient « Rejouer la même carte »",
-      "Correction : arrêter un replay en cours de route ramenait sur une partie aléatoire au lieu de l'écran de fin précédent (et les sons continuaient à jouer)",
-      "Correction : « Nouvelle partie » pouvait donner l'impression que deux royaumes recevaient des renforts instantanément",
-      "Les petits cercles de renfort apparaissent maintenant avec le même décalage que les notes du carillon",
-      "Le carillon de renfort ne joue plus que pour nous, plus pour les adversaires",
-      "Sons de menu (boutons, partage...) baissés d'une octave",
-      "Le texte de capitulation/défaite ne cite plus l'épithète des adversaires (réservée au lore)",
-      "Export du graphique en fond d'écran : le partage s'ouvre maintenant de façon fiable à chaque fois",
-      "« Choisissez un camp » ne s'affiche plus que lors des deux premières parties",
+      "Ajouté « Nombre d'adversaires » (1 à 4), 5e royaume Roncevaux.",
+      "Réglages réorganisés.",
+      "Fermeture des réglages par glissement du panneau.",
+      "La liste des royaumes déplacée dans les Conseils.",
+      "« Nous, Sire ! » et « Barbares païens ».",
+      "« Rejouer » devient « Rejouer la même carte ».",
+      "Corrigé l'arrêt du replay ramenant sur une partie aléatoire.",
+      "Corrigé « Nouvelle partie » donnant l'impression d'un double renfort.",
+      "Cercles de renfort synchronisés avec le carillon.",
+      "Le carillon de renfort ne joue plus que pour nous.",
+      "Sons de menu baissés d'une octave.",
+      "Export du graphique fiabilisé.",
+      "« Choisissez un camp » limité aux deux premières parties.",
     ],
   },
   {
     version: "1.5",
     notes: [
-      "Note de renfort du joueur toujours en « do », les adversaires montent d'un demi-ton chacun dans l'ordre de jeu",
-      "Titre décalé pour ne plus chevaucher les stats des royaumes",
-      "Code de carte : on touche directement le champ pour copier/coller (sans bouton séparé)",
-      "Fermer les réglages : simple croix en haut à droite, comme les notes de version",
-      "La liste des royaumes (couleur + nom) est de retour dans les réglages, pour un coup d'œil rapide en cours de partie",
-      "Notes de version : ajout de la date de création du jeu tout en bas",
+      "Note de renfort du joueur toujours en do, les adversaires montent d'un demi-ton.",
+      "Titre décalé pour ne plus chevaucher les stats.",
+      "Code de carte copié/collé directement dans le champ.",
+      "Fermeture des réglages simplifiée en croix.",
+      "La liste des royaumes de retour dans les réglages.",
+      "Date de création ajoutée aux notes de version.",
     ],
   },
   {
     version: "1.4",
     notes: [
-      "Correction : les carillons de renfort de plusieurs royaumes à la suite se chevauchaient — ils s'enchaînent désormais proprement, chacun son tour",
+      "Corrigé les carillons de renfort qui se chevauchaient.",
     ],
   },
   {
     version: "1.3",
     notes: [
-      "Le nom du jeu est désormais centré tout en haut de l'écran, aligné avec les stats et le menu",
-      "Chaque royaume a son propre carillon de renfort (une note différente par royaume), y compris pour les adversaires",
-      "Musiques de victoire/défaite/trêve reprenant l'air des attaques en chaîne, note par note",
-      "Correction : lors d'une attaque en chaîne (ou en batailles instantanées), seul le dernier coup affichait son épée — chacun s'affiche désormais",
-      "Un court instant de pause avant l'écran de victoire, pour voir le coup décisif",
-      "Renforts encore augmentés, avec un bonus pour les très grands royaumes",
-      "Villiers (les Enragés) et Montherlant (les Marchands) sont nettement plus agressifs",
-      "Réglages : liste des royaumes retirée (déjà dans « Le lore »), tri « par ordre de jeu » ajouté, bouton « Soutenir le jeu » plus visible",
-      "Notes de version : bouton fermer en croix, bouton pour remonter en haut",
-      "Conseils : explication de la difficulté et des gueux ajoutée",
-      "Écran de victoire : les 4 boutons d'action forment un seul bloc bien aligné",
-      "Ajout d'un bouton pour enregistrer/partager le graphique de territoire en image",
-      "Ajout d'un code court pour retrouver une carte précise plus tard, sans partager un lien entier",
-      "« Conseils » et « Le lore », désormais sur la même ligne",
-      "Escarmouche (petite carte) remplit bien mieux l'écran, au lieu de rester minuscule au milieu",
+      "Nom du jeu centré en haut de l'écran.",
+      "Chaque royaume a son propre carillon de renfort.",
+      "Musiques de victoire/défaite/trêve reprenant l'air des attaques en chaîne.",
+      "Corrigé l'épée manquante sur les coups intermédiaires d'une chaîne.",
+      "Pause avant l'écran de victoire.",
+      "Renforts augmentés, bonus pour les grands royaumes.",
+      "Villiers et Montherlant plus agressifs.",
+      "Réglages : tri par ordre de jeu ajouté.",
+      "Notes de version : bouton fermer et bouton remonter.",
+      "Conseils : explication de la difficulté et des gueux.",
+      "Écran de victoire : boutons alignés en un bloc.",
+      "Ajout du partage du graphique en image.",
+      "Ajout d'un code court pour retrouver une carte.",
+      "« Conseils » et « Le lore » sur la même ligne.",
+      "Escarmouche remplit mieux l'écran.",
     ],
   },
   {
     version: "1.2",
     notes: [
-      "Le lien de partage d'une partie est bien plus court",
-      "Ajout d'un lien « Soutenir le jeu » dans les réglages (Ko-fi, pourboire libre)",
+      "Lien de partage d'une partie bien plus court.",
+      "Ajout d'un lien « Soutenir le jeu ».",
     ],
   },
   {
     version: "1.1",
     notes: [
-      "« Rejouer » relance désormais exactement la même carte (un nouveau bouton séparé lance une carte aléatoire)",
-      "Le replay se regarde plus lentement, avec un bouton pour doubler la vitesse à la volée",
-      "Correction : le son ne revenait plus après avoir coupé puis rallumé le silencieux de l'iPhone",
-      "Correction : les contours dorés/argentés de sélection se chevauchaient mal aux frontières de province",
-      "Grande Campagne : hexagones agrandis, la carte n'était plus injouable",
-      "Le niveau Page (facile) est désormais beaucoup plus clément pour bien démarrer",
-      "Ajout de ce menu de version et de son historique",
+      "« Rejouer » relance la même carte, un bouton séparé lance une carte aléatoire.",
+      "Replay plus lent, avec un bouton pour doubler la vitesse.",
+      "Corrigé le son ne revenant pas après le silencieux iPhone.",
+      "Corrigé les contours de sélection mal chevauchés.",
+      "Grande Campagne : hexagones agrandis.",
+      "Page rendu plus clément pour bien démarrer.",
+      "Ajout de ce menu de version.",
     ],
   },
   {
     version: "1.0",
     notes: [
-      "Carte hexagonale générée aléatoirement, en 3 tailles (Escarmouche, Campagne, Grande Campagne)",
-      "4 royaumes rivaux aux personnalités et styles de jeu distincts",
-      "4 niveaux de difficulté ; combat sans hasard, sauf à 12 contre 12",
-      "Deux façons d'attaquer : glisser-déposer pour enchaîner, ou toucher pour sélectionner puis attaquer",
-      "Renforts de fin de tour basés sur votre part du territoire",
-      "Trêve automatique proposée en cas d'impasse générale",
-      "Revoir une partie terminée en accéléré, et la partager par lien",
-      "Graphique d'évolution du territoire sur l'écran de victoire",
-      "Effets sonores et animations de combat",
-      "Progression méta optionnelle (gueux gagnés à chaque victoire)",
-      "Pages « Conseils » (les règles) et « Le lore » (l'histoire et les personnalités)",
-      "Petit tutoriel pour la toute première partie",
-      "Thème visuel « manuscrit enluminé » pour tous les menus",
+      "Carte hexagonale aléatoire, 3 tailles.",
+      "4 royaumes rivaux aux personnalités distinctes.",
+      "4 niveaux de difficulté, combat sans hasard sauf à 12 contre 12.",
+      "Attaque par glisser en chaîne ou par sélection.",
+      "Renforts basés sur la part de territoire.",
+      "Trêve automatique en cas d'impasse.",
+      "Replay accéléré et partage par lien.",
+      "Graphique d'évolution du territoire.",
+      "Effets sonores et animations de combat.",
+      "Progression méta optionnelle (gueux).",
+      "Pages Conseils et Le lore.",
+      "Tutoriel pour la première partie.",
+      "Thème manuscrit enluminé.",
     ],
   },
   {
     version: "0.1 — 20 août 2026",
     notes: [
-      "Naissance du jeu : premiers hexagones, premiers royaumes, première bataille",
+      "Naissance du jeu.",
     ],
   },
 ];
@@ -6376,11 +6521,21 @@ document.getElementById("scrollTopChangelog").addEventListener("click", () => {
 });
 document.getElementById("surrenderBtn").addEventListener("click", () => {
   // Reported live: an accidental tap on the skull ended the match instantly,
-  // no way back. Every other overlay in the game is custom-styled, but a
-  // native confirm() is the one honest way to guarantee this specific
-  // irreversible action always gets a real pause first, standalone PWA
-  // included — no custom markup to keep in sync with it.
-  if (!confirm("Abandonner la partie ? Cette action est définitive.")) return;
+  // no way back. Used to be a native confirm() (the one honest way to
+  // guarantee a real pause first, standalone PWA included) but that stood
+  // out unstyled against the rest of the game — "le cadre confirmation
+  // abandonner la partie doit être dans le style du jeu". Same guarantee
+  // (nothing else reachable underneath until answered), now themed like
+  // every other overlay instead.
+  document.getElementById("surrenderConfirmOverlay").style.display = "flex";
+  sfxMenuOpen();
+});
+document.getElementById("cancelSurrender").addEventListener("click", () => {
+  document.getElementById("surrenderConfirmOverlay").style.display = "none";
+  sfxMenuClose();
+});
+document.getElementById("confirmSurrender").addEventListener("click", () => {
+  document.getElementById("surrenderConfirmOverlay").style.display = "none";
   sfxToggle();
   surrenderGame();
 });
@@ -6417,6 +6572,16 @@ document.getElementById("royaumesList").innerHTML = ROYAUMES.slice(0, ROYAUME_CO
 `).join("");
 
 
+// One escalating icon per difficulty button — 1 gueux (Page), 2 gueux
+// (Écuyer), chevalier à pied (Chevalier, ARCHER_IMG), chevalier à cheval
+// (Seigneur, CHEVALIER_IMG) — same foot/mounted sprite mapping already used
+// by sideKnight above ("Un gueux / deux gueux / chevalier à pied / chevalier
+// à cheval").
+const DIFF_ICON_SRCS = [[GUEUX_IMG_SRC], [GUEUX_IMG_SRC, GUEUX_IMG_SRC], [ARCHER_IMG_SRC], [CHEVALIER_IMG_SRC]];
+document.querySelectorAll("#difficultyLevels .levelBtn").forEach((btn, i) => {
+  const imgs = btn.querySelectorAll(".diffIcons img");
+  DIFF_ICON_SRCS[i].forEach((src, j) => { if (imgs[j]) imgs[j].src = src; });
+});
 function refreshLevelButtons() {
   document.querySelectorAll("#difficultyLevels .levelBtn").forEach((btn, i) => {
     btn.classList.toggle("active", i === difficultyLevel);
@@ -6597,6 +6762,22 @@ function showOnboardingHint(msg) {
 function hideOnboardingHint() {
   document.getElementById("onboardingHint").style.display = "none";
 }
+// Permanently retires the first-game tutorial — both the in-memory flag and
+// the persisted one, so it never comes back on a later game either. Two
+// ways in: tapping the hint itself ("j'avais demandé qu'on clique et ça
+// disparaît aussi"), and reaching the end of the very first game by ANY
+// route (win, loss, truce, surrender) — the existing per-hint dismissals
+// only fired once the player had actually attacked something, so a first
+// game that ended without ever attacking left `onboarding` stuck true
+// forever, re-showing the tutorial on every game after that too ("le tuto
+// s'affiche encore et encore après la première partie").
+function dismissOnboarding() {
+  if (!onboarding) return;
+  onboarding = false;
+  try { localStorage.setItem("kw_playedBefore", "1"); } catch (e) { /* ignore */ }
+  hideOnboardingHint();
+}
+document.getElementById("onboardingHint").addEventListener("click", dismissOnboarding);
 
 // Explains, in the moment, the one-time force jump balanceStartingForces()
 // applies to the AI seats the instant a faction is picked (see its own
