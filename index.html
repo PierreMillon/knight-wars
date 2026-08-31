@@ -657,7 +657,7 @@
   <!-- shown whenever replayPaused (including the initial frozen state) —
        forks a new live, playable match from exactly this point instead of
        just watching (see forkFromReplay()) -->
-  <button id="replayResumeHereBtn" style="display:none;" aria-label="Reprendre la partie depuis ici">🎮</button>
+  <button id="replayResumeHereBtn" style="display:none;">Jouer depuis là</button>
   <div id="winbanner">
     <div class="box" id="winbannerBox">
       <!-- Reordered per request: just the opening sentence up top (the
@@ -6057,7 +6057,10 @@ document.getElementById("rerollBtn").addEventListener("click", () => {
     return;
   }
   if (!reloadIfUpdateAvailable()) {
-    mapHistory.push(currentSeed); // "bouton carte précédente" can step back to this one
+    // "carte précédente" can step back to this one — capped at the last 2
+    // ("reroll je veux limite à 2 !"), oldest dropped once there's a 3rd.
+    mapHistory.push(currentSeed);
+    while (mapHistory.length > 2) mapHistory.shift();
     sfxRerollMap();
     startGame();
     refreshPrevMapBtn();
@@ -6262,8 +6265,15 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.57";
+const GAME_VERSION = "1.58";
 const CHANGELOG = [
+  {
+    version: "1.58",
+    notes: [
+      "Bouton « carte précédente » limité aux 2 derniers rerolls.",
+      "Le bouton « reprendre depuis ici » en replay redevient du texte (« Jouer depuis là »), sans icône.",
+    ],
+  },
   {
     version: "1.57",
     notes: [
