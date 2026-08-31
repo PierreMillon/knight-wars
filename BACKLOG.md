@@ -88,7 +88,7 @@ Firefox replay j'ai repris depuis un moment et ça fait rien quand je clique sur
 
 [x] Si j'ai deux soldats et que je traverse l'eau pour attaquer un barbare. Pour l'instant ça fonctionne. Mais ça devrait pas. Je perd deux forces phrase « plouf ! » et j'arrive avec 0 dont je devrais pas conquérir. (déjà corrigé — attack() : `from.force - waterCost <= 0` = échec automatique, noyade)
 
-Sinon attaque avec 1 et qu'on perd. Le territoire perdu devient aux barbares.
+[x] Sinon attaque avec 1 et qu'on perd. Le territoire perdu devient aux barbares. (attack() : si attackingForce===1 et défaite, le territoire d'origine défecte vers les barbares — seulement atteignable via une traversée maritime qui laisse exactement 1 force à l'arrivée)
 
 Réflexion à avoir, quand une Provence a atteint le maximum c'est-à-dire 12 soldats. Es pas une logique de ces 12 soldats puisqu'en fait c'est dégueu. En fait le surplus bah il a envoyé dans les provinces limitrophes ennemi et peut-être que pour un des royaumes il préfère se suicider et ils vont dans l'eau.
 
