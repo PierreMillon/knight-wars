@@ -317,8 +317,9 @@
      chart. Hidden entirely (rather than left as a stray empty flex gap) on
      the handful of one-sentence lines that had nothing left to split off —
      same treatment #winSubtext already needed, most endings leave it empty too. */
-  #wintextRest, #winSubtext { margin: 0; }
-  #wintextRest:empty, #winSubtext:empty { display: none; }
+  #wintextRest, #winSubtext, #gueuxNote { margin: 0; }
+  #wintextRest:empty, #winSubtext:empty, #gueuxNote:empty { display: none; }
+  #gueuxNote { margin-top: -6px; font-size: 13px; font-style: italic; opacity: .8; }
   #wintextRest { font-size: 14px; line-height: 1.5; max-width: 290px; opacity: .92; }
   #winSubtext { margin-top: -6px; font-size: 13px; font-style: italic; opacity: .8; max-width: 260px; }
   #statChart { background: rgba(0,0,0,.05); border-radius: 8px; touch-action: none; } /* otherwise a scrub drag gets read as a page gesture */
@@ -365,7 +366,21 @@
     align-items: center; justify-content: center;
     background: rgba(10,8,6,.88); text-align: left; z-index: 10;
   }
-  #conseilsOverlay .box { max-height: 80vh; overflow-y: auto; }
+  /* the shared .box rule caps every overlay at a phone-friendly 320px —
+     fine for the others, but reported live as leaving the Conseils rows
+     (village/province/royaume/pays, the mechanics paragraphs) cramped on
+     anything wider than a phone. Conseils alone gets a much wider cap that
+     still respects small screens (94vw) instead of the flat 320px. */
+  #conseilsOverlay .box { max-height: 80vh; overflow-y: auto; max-width: min(94vw, 700px); position: relative; padding-top: 34px; }
+  /* Conseils is only ever opened from within Réglages (conseilsBtn) — this
+     goes straight back there instead of all the way to the map, mirroring
+     #closeSettings's own corner-circle style but top-LEFT and pointing back
+     rather than closing outright (see closeConseils()/"Fermer" for that). */
+  #backConseilsToSettings {
+    position: absolute; top: 10px; left: 10px; margin: 0; z-index: 1;
+    width: 30px; height: 30px; padding: 0; border-radius: 50%;
+    font-size: 20px; line-height: 1; display: flex; align-items: center; justify-content: center;
+  }
   #conseilsOverlay h2 { margin: 0 0 10px; font-size: 20px; text-align: center; }
   #conseilsOverlay .conseilsIntro { font-size: 13px; font-style: italic; opacity: .8; line-height: 1.5; margin: 0 0 16px; text-align: center; }
   #conseilsOverlay button { display: block; margin: 0 auto; }
@@ -615,6 +630,11 @@
       <div id="chartLegend"></div>
       <p id="wintextRest"></p>
       <p id="winSubtext"></p>
+      <!-- "vous gagnez/perdez un gueux" — only shown when this specific
+           ending actually changed the count (a win, or a surrender with at
+           least one to lose), per request: it wasn't obvious from the badge
+           alone changing in the background what had just happened and why. -->
+      <p id="gueuxNote"></p>
       <!-- only shown for surrenderBeforePick() — tapping the skull before
            ever picking a camp. There's no real match to report on (no
            chart, no replay, no share), just the joke line + gueux penalty
@@ -657,6 +677,7 @@
   </div>
   <div id="conseilsOverlay">
     <div class="box" id="conseilsBox">
+      <button id="backConseilsToSettings" aria-label="Retour aux réglages">‹</button>
       <h2>🎓 Conseils</h2>
       <p class="conseilsIntro">Ce que le jeu ne vous dit jamais franchement — les règles qui décident vraiment de chaque bataille.</p>
       <div id="conseilsHierarchy">
@@ -1082,7 +1103,19 @@ function applyDifficulty(d) {
   // extrapolating into an invalid state the way the other three fields
   // (which stay meaningful however far past their old endpoint they go)
   // safely can.
-  NEUTRAL_FRACTION = Math.max(0.02, lerp(0.36, 0.06, DIFFICULTY));
+  // Steps down EVENLY across the 4 named difficulty levels (Page 36% ->
+  // Seigneur 2%) now, instead of lerping the raw DIFFICULTY value straight
+  // through — that looked linear but wasn't: Chevalier/Seigneur's own
+  // DIFFICULTY value was pushed further out (×1.3) purely for AI-aggression
+  // tuning, unrelated to neutral land, which bunched most of the drop into
+  // the first two levels ("linéairement à seigneur" requested live). Falls
+  // back to the old continuous formula only when DIFFICULTY doesn't match
+  // any of the 4 named levels exactly — an old shared map code encoding a
+  // custom value, say.
+  const levelIdx = DIFFICULTY_LEVELS.findIndex((l) => l.value === DIFFICULTY);
+  NEUTRAL_FRACTION = levelIdx >= 0
+    ? lerp(0.36, 0.02, levelIdx / (DIFFICULTY_LEVELS.length - 1))
+    : Math.max(0.02, lerp(0.36, 0.06, DIFFICULTY));
   // Page (easiest) is meant to be "almost no resistance" — a new player
   // should win easily, not have to actually fight for it. Pushed further
   // than the values that once worried about AI-vs-AI gridlock/hundred-round
@@ -1092,6 +1125,18 @@ function applyDifficulty(d) {
   // real risk of a match that technically never ends — only of Page taking
   // a while on the rare game where the player doesn't press an early edge.
   AI_AGGRESSION_THRESHOLD = lerp(1.5, -2.2, DIFFICULTY);
+  // Page-only override: the plain lerp above requires a real advantage
+  // (adv >= 1.5) to attack, which meant a Page AI would never even try an
+  // equal-force (12v12, or any parity) fight — reported live as "les IA
+  // n'attaquent plus du tout à 12vs12" at the easiest level, now that
+  // equal-force combat has its own real (if long) odds instead of never
+  // resolving in the attacker's favor at all. Lowered to 0 for Page
+  // specifically (attack starting from parity, never an outright
+  // disadvantage) — every other level's own curve is untouched, so this
+  // doesn't creep Page anywhere near Écuyer's own aggression, and Page
+  // still never risks force it can't afford to lose ("laisse-moi toujours
+  // de quoi revenir").
+  if (levelIdx === 0) AI_AGGRESSION_THRESHOLD = 0;
   AI_MISTAKE_RATE = lerp(0.85, 0, DIFFICULTY); // goes negative past DIFFICULTY=1 — harmless, already clamped to >=0 at every point-of-use (see runAI())
 }
 
@@ -1156,6 +1201,10 @@ function loadSprite(src) {
 }
 const GUEUX_IMG = loadSprite(GUEUX_IMG_SRC);
 const ARCHER_IMG = loadSprite(ARCHER_IMG_SRC);
+const BOAT_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMYAAADGCAYAAACJm/9dAAACh0lEQVR4nO3dMYoDMRAAQeu4/39ZF9jJQSdaEOsVVQ8w66CZZBiNOecL+O/n7g+AbyQMCMKAIAwIwoAgDAjCgCAMCMKAIAwIv3d/wBONMbbs0cw5x47fZZ2JAUEYEIQBQRgQhAFBGBCEAUEYEIQBQRgQhishb7vWPHaxPrKXiQFBGBCEAUEYEIQBQRgQhAFBGBCEAUEYEI5eCdl4zWPHz77G2LPlYX1knYkBQRgQhAFBGBCEAUEYEIQBQRgQhAFBGBA8HPPxDasxK9+wa32ENxMDgjAgCAOCMCAIA4IwIAgDgjAgCAOCMCA87krI0x54eRoXRd5MDAjCgCAMCMKAIAwIwoAgDAjCgCAMCMKAIAwIwoAgDAjCgCAMCMKAIAwIwoAgDAjCgCAMCEc/HPO0Cyi7eGRmnYkBQRgQhAFBGBCEAUEYEIQBQRgQhAFBGBCEAUEYEIQBQRgQhAFBGBCEAUEYEIQBQRgQhAHh6CshrmNwlYkBQRgQhAFBGBCEAUEYEIQBQRgQhAFBGBCEAUEYEIQBQRgQhAFBGBCEAUEYEIQBQRgQhAHh6Cshc867P+EruJayzsSAIAwIwoAgDAjCgCAMCMKAIAwIwoAgDAjCgCAMCMKAIAwIwoAgDAjCgCAMCMKAIAwIwoBw9JUQ1zG4ysSAIAwIwoAgDAjCgCAMCMKAIAwIwoAgDAjj5MdVxhjn/rkFc067MYtMDAjCgCAMCMKAIAwIwoAgDAjCgCAMCMKAcPRKCFxlYkAQBgRhQBAGBGFAEAYEYUAQBgRhQBAGBGFAEAYEYUAQBgRhQBAGBGFAEAYEYUAQBgRhQBAGBGFAEAYEYUAQBgRhQBAGBGFAEAYEYUAQBoQ/r102hM4RmYEAAAAASUVORK5CYII=";
+const SWORD_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMAAAADACAYAAABS3GwHAAAAAXNSR0IArs4c6QAAAHhlWElmTU0AKgAAAAgABQESAAMAAAABAAEAAAEaAAUAAAABAAAASgEbAAUAAAABAAAAUgEoAAMAAAABAAIAAIdpAAQAAAABAAAAWgAAAAAAAANgAAAAAQAAA2AAAAABAAKgAgAEAAAAAQAAAMCgAwAEAAAAAQAAAMAAAAAAZK+JhgAAAAlwSFlzAACE4AAAhOABODqDdwAAABxpRE9UAAAAAgAAAAAAAABgAAAAKAAAAGAAAABgAAADeY9NjKkAAANFSURBVHgB7N1BagUxDATRf/9LJwfQohGMjW29QDbW4JFKXWQzkN+fHwQGE/gNnt3oCPwRQAhGEyDA6PUbngAyMJoAAUav3/AEkIHRBAgwev2GJ4AMjCZAgNHrNzwBZGA0AQKMXr/h2wL8fr+/lb9WgsBOAgTYSdu7jiNAgONWoqGdBAiwk7Z3HUeAAMetREM7CRBgJ23vOo4AAY5biYZ2EiDATtredRwBAhy3Eg3tJECAnbS96zgCBDhuJRraSYAAO2l713EEjhOg+53RcUQ1dBUBAly1Ls1+TYAAXxN131UECHDVujT7NQECfE3UfVcRIMBV69Ls1wQI8DVR911FgABXrUuzXxMgwNdE3XcVAQJctS7Nfk2AAF8Tdd9VBAhw1bo0+zWBtgDdBrrf9qx+vtu/598mQIC392u6QIAAAZDy2wQI8PZ+TRcIECAAUn6bAAHe3q/pAgECBEDKbxMgwNv7NV0gQIAASPltAgR4e7+mCwQIEAApv02AAG/v13SBwHIBwvtLefW3QN37S4MOniJAgPBP/57atmEKAQIQoIRi0gEBCDAp72VWAhCghGLSAQEIMCnvZVYCEKCEYtIBAQgwKe9lVgIQoIRi0gEBCDAp72VWAhCghGLSAQEIMCnvZdbjBCgdhoPutz2rnw/tKh9GgADhL0BXmMP2q51AgAAECBF5u0wAAryd8DAdAQgQIvJ2mQAEeDvhYToCECBE5O0yAQjwdsLDdAQgQIjI22UCEODthIfpCECAEJG3ywQgwNsJD9NdL0CYr5S7nzasfr406GArAQJ8/BegK8zWbXtZIUAAApRQTDogAAEm5b3MSgAClFBMOiAAASblvcxKAAKUUEw6IAABJuW9zEoAApRQTDogAAEm5b3MSgAClFBMOiAAASblvcw6ToBCIBx0P21Y/XxoV7lJgAAB2OpAd+8P7So3CRAgAOsGdPXzoV3lJgECBGCrA929P7Sr3CRAgACsG9DVz4d2lZsECBCArQ509/7QrnKTAAECsG5AVz8f2lVuEiBAALY60N37Q7vKTQIECMC6AV39fGhXuUmAAAHY6kB37w/tKjcJECAA6wZ09fOhXeUmAQIEYKsD3b0/tKvcJPAPAAD//0Ab8AMAAARiSURBVO2aQW4jMQwE5/+fTpBrBpBVEBui5DKwh7V6OFSRBV/y/PgpJfA8z0+nf6WXu7DYc+Gdtl6p0/L/9eJnTEBCYz74VAEwsq0PKEAxfgUoBhoupwDFgBWgGGi4nAIUA1aAYqDhcgpQDFgBioGGyylAMWAFKAYaLqcAxYAVoBhouJwCFANWgGKg4XIKUAxYAYqBhsspQDFgBSgGGi6nAGHAn8orzCdC2XMFyPL9WF0BPiKKBhQgivdzcQX4zCiZUIAk3YnaCjABKRhRgCDcmdIKMEMpl1GAHNupygowhSkWUoAY2rnCCjDHKZVSgBTZyboKMAkqFFOAENjZsgowSyqTU4AM1+mqCjCNKhJUgAjW+aIKMM8qkVSABFVQUwEArEBUAQJQkyVPF4b2n2T5V1sB0oSL69MFSufp9Wg/tD7NKwAltjlPFyidpzhoP7Q+zSsAJbY5Txconac4aD+0Ps0rACW2OU8XKJ2nOGg/tD7NKwAltjlPFyidpzhoP7Q+zSsAJbY5Txconac4aD+0Ps0rACW2OU8XKJ2nOGg/tD7NKwAltjlPFyidpzhoP7Q+zSsAJbY5Txconac4aD+0Ps0rACW2OU8XKJ2nOGg/tD7NKwAltjlPFyidpzhoP7Q+zSsAJXZYni5cOt8NnwJ0m0hxP+mFpvWLr7dcTgGWEfYuQBc0ne9GSwG6TaS4n/RC0/rF11supwDLCHsXoAuaznejpQDdJlLcT3qhaf3i6y2XU4BlhL0L0AVN57vRUoBuEynuJ73QtH7x9ZbLKcAywt4F6IKm891oKUC3iRT3k15oWr/4esvlFGAZYe8CdEHT+W60FKDbRIr7SS80rV98veVyCrCM8K4CdKFpvhstBeg2kc390IWm+c3Xe71eAV5IvvsLutA0342uAnSbyOZ+6ELT/ObrvV6vAC8k3/0FXWia70ZXAbpNZHM/dKFpfvP1Xq9XgBeS7/6CLjTNd6OrAN0msrkfutA0v/l6r9crwAvJd39BF5rmu9FVgG4T2dwPXWia33y91+sV4IXku7+gC03z3egqQLeJbO6HLjTNb77e6/UK8EJy1xfdFrRdP3eN29v8J9Bu4Z7nh/T0/z7V//cXoJpos3pk2f6y6U+7ftIXtv5eAu0Wzl+AvQvxbW9XgPHE87954/d7GiagAGPACjDmc/ypAoxHqABjPsefKsB4hAow5nP8qQKMR6gAYz7HnyrAeIQKMOZz/KkCjEeoAGM+x58qwHiECjDm4+lmAmmBFWDzgH39mIACjPl4ejkBBbh8wF5vTEABxnw8vZyAAlw+YK83JqAAYz6eXk5AAS4fsNcbE1CAMR9PLyegAJcP2OuNCSjAmI+nlxNQgMsH7PXGBBRgzMdTCSwR8G+BlvD58OkEFOD0Cdr/EgEFWMLnw6cTUIDTJ2j/SwQUYAmfD59OQAFOn6D9LxFQgCV8Pnw6AQU4fYL2v0RAAZbw+fDpBBTg9Ana/xIBBVjC58OnE/gFPlD99Lx3liEAAAAASUVORK5CYII=";
+const BOAT_IMG = loadSprite(BOAT_IMG_SRC);
+const SWORD_IMG = loadSprite(SWORD_IMG_SRC);
 const CHEVALIER_IMG = loadSprite(CHEVALIER_IMG_SRC);
 
 // Pins #wrap (and therefore everything inside it — canvas, HUD, all of it)
@@ -2167,8 +2216,10 @@ function surrenderGame() {
   }
   gameOver = true;
   humanSurrendered = true;
+  surrenderCostAGueux = false;
   if (gueuxCount > 0) {
     gueuxCount--;
+    surrenderCostAGueux = true;
     try { localStorage.setItem("kw_gueuxCount", String(gueuxCount)); } catch (e) { /* ignore */ }
     refreshGueuxBadge();
   }
@@ -2313,6 +2364,13 @@ const metaProgressEnabled = true;
 let gueuxCount = 0;
 try { gueuxCount = Number(localStorage.getItem("kw_gueuxCount")) || 0; } catch (e) { /* ignore */ }
 let placingGueux = false; // armed by tapping the badge; consumed by the next own-territory tap
+// Set by surrenderGame() right before it calls showWin(), true only when
+// the surrender actually had a gueux to take (gueuxCount was > 0) — showWin()
+// itself computes the win side (always knowable there, no ordering issue),
+// but the surrender side needs this since by the time showWin() runs the
+// count's already been decremented, with nothing left in it to tell
+// "cost one" apart from "had none to begin with".
+let surrenderCostAGueux = false;
 
 // same visual pulse as a combat reinforcement — reused here for a gueux spend
 function reinforceTerritory(tId) {
@@ -3624,6 +3682,14 @@ function showWin(royId) {
   // skip the extra performance line on a defeat — the loss message above
   // already carries that beat, no need to pile on a second dig
   document.getElementById("winSubtext").textContent = truceEnded ? personalPerformanceLine() : "";
+  // "vous gagnez/perdez un gueux" — only when THIS ending actually changed
+  // the count: a real win (mercyGranted included — same branch above), or
+  // a surrender that had at least one to spend. A plain elimination loss or
+  // a truce never touches gueuxCount, so this stays empty/hidden then.
+  let gueuxNoteText = "";
+  if (royId === humanRoyId && metaProgressEnabled) gueuxNoteText = "Vous gagnez un gueux.";
+  else if (humanLost && humanSurrendered && surrenderCostAGueux) gueuxNoteText = "Vous perdez un gueux.";
+  document.getElementById("gueuxNote").textContent = gueuxNoteText;
   document.getElementById("endturn").disabled = true;
   drawStatChart();
   document.getElementById("watchReplay").disabled = !lastMatchArchive;
@@ -4572,40 +4638,36 @@ function drawHighlightOutlines() {
   }
 }
 
-// The combat sword itself, factored out of the render loop so the water-
-// sacrifice FX (see triggerWaterSacrificeFX()) can draw the exact same
-// blade at an arbitrary point/angle instead of always the midpoint between
-// two territories — a sacrifice has no defender to point at, just the
-// final water hex where the force actually ran out.
+// The combat sword itself, factored out of the render loop so it can be
+// drawn at an arbitrary point/angle instead of always the midpoint between
+// two territories. Was a hand-drawn vector blade; replaced with the player-drawn short-sword
+// sprite (SWORD_IMG) per request. The artwork's own blade runs diagonally
+// top-left (hilt) to bottom-right (tip), roughly a 45° line — SWORD_ANGLE_
+// CORRECTION rotates that back to point along +x first, so `angle` (as
+// passed in from the callers below, computed the same way as before) still
+// aims the tip at the defender exactly like the old vector version did.
+const SWORD_ANGLE_CORRECTION = -Math.PI / 4;
 function drawSwordAt(x, y, angle, alpha) {
+  if (!SWORD_IMG.complete || !SWORD_IMG.naturalWidth) return; // not decoded yet — skip this frame rather than draw a broken image
+  const size = 34;
   ctx.save();
   ctx.translate(x, y);
-  ctx.rotate(angle);
-  const bladeLen = 20, bladeW = 3.4; // was 14, 2.4 — +40%
-  // blade, tip pointing toward +x after rotation — tapers gradually from
-  // its widest point down to a single sharp vertex instead of jumping
-  // straight to full width a few px from the tip, which read as a blunt/
-  // chisel end rather than a pointed blade
-  ctx.beginPath();
-  ctx.moveTo(bladeLen / 2 + 4, 0); // tip — a single point
-  ctx.lineTo(bladeLen / 2 - 6, -bladeW * 0.3);
-  ctx.lineTo(bladeLen / 4, -bladeW);
-  ctx.lineTo(-bladeLen / 2, -bladeW * 0.6);
-  ctx.lineTo(-bladeLen / 2, bladeW * 0.6);
-  ctx.lineTo(bladeLen / 4, bladeW);
-  ctx.lineTo(bladeLen / 2 - 6, bladeW * 0.3);
-  ctx.closePath();
-  ctx.fillStyle = `rgba(224,228,235,${alpha * 0.95})`;
-  ctx.fill();
-  // crossguard + grip, in the chief/gold accent
-  ctx.strokeStyle = `rgba(198,161,91,${alpha * 0.95})`;
-  ctx.lineWidth = 2.5; // was 1.8 — +40%
-  ctx.beginPath();
-  ctx.moveTo(-bladeLen / 2, -5.6);
-  ctx.lineTo(-bladeLen / 2, 5.6);
-  ctx.moveTo(-bladeLen / 2, 0);
-  ctx.lineTo(-bladeLen / 2 - 5.6, 0);
-  ctx.stroke();
+  ctx.rotate(angle + SWORD_ANGLE_CORRECTION);
+  ctx.globalAlpha = alpha;
+  ctx.drawImage(SWORD_IMG, -size / 2, -size / 2, size, size);
+  ctx.restore();
+}
+// The boat sprite has no obvious "bow" to aim at a defender (unlike the
+// sword's clear tip) — drawn upright regardless of attack direction, only
+// the position varies. Used specifically for water-related combat FX (see
+// this function's two call sites below) in place of the sword.
+function drawBoatAt(x, y, alpha) {
+  if (!BOAT_IMG.complete || !BOAT_IMG.naturalWidth) return;
+  const size = 30;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.globalAlpha = alpha;
+  ctx.drawImage(BOAT_IMG, -size / 2, -size / 2, size, size);
   ctx.restore();
 }
 function render() {
@@ -4864,8 +4926,9 @@ function render() {
         ctx.setLineDash([]);
         ctx.restore();
       }
-      const angle = Math.atan2(lastHex.y - fromT.cy, lastHex.x - fromT.cx);
-      drawSwordAt(lastHex.x, lastHex.y, angle, fadeAlpha);
+      // always water by definition (a sacrifice/forced swim) — the boat
+      // replaces the sword here, per request.
+      drawBoatAt(lastHex.x, lastHex.y, fadeAlpha);
       if (!replaying && numberAlpha > 0) {
         ctx.font = "bold 14px -apple-system, sans-serif";
         ctx.textAlign = "center";
@@ -4892,8 +4955,15 @@ function render() {
     // in this combat's own result does.
     if (fromT && toT) {
       const midX = (fromT.cx + toT.cx) / 2, midY = (fromT.cy + toT.cy) / 2;
-      const angle = Math.atan2(toT.cy - fromT.cy, toT.cx - fromT.cx);
-      drawSwordAt(midX, midY, angle, fadeAlpha);
+      // The boat replaces the sword specifically for a water-crossing
+      // attack (fx.waterPath set — see waterPathBetween()/attack()'s own
+      // note just below) — a plain land hop still gets the sword.
+      if (fx.waterPath && fx.waterPath.length) {
+        drawBoatAt(midX, midY, fadeAlpha);
+      } else {
+        const angle = Math.atan2(toT.cy - fromT.cy, toT.cx - fromT.cx);
+        drawSwordAt(midX, midY, angle, fadeAlpha);
+      }
     }
 
     // Water-crossing attacks aren't a straight shot — see waterPathBetween()
@@ -5742,6 +5812,13 @@ document.getElementById("reviewReplayBtn").addEventListener("click", () => {
   startReplay();
 });
 enableSwipeToDismiss(document.getElementById("winbannerBox"), document.getElementById("winbannerBox"), revealFinalBoard);
+// Tapping the dimmed backdrop above/around the box (the top of the screen,
+// where the map peeks out) reveals the final board too — same action as
+// the swipe-down gesture on the box itself, same pattern as the settings/
+// Conseils backdrop taps.
+document.getElementById("winbanner").addEventListener("click", (e) => {
+  if (e.target === document.getElementById("winbanner")) revealFinalBoard();
+});
 document.getElementById("loreBlazon").src = BLAZON_IMG_SRC;
 document.getElementById("lorePersonalities").innerHTML = ROYAUMES.slice(0, ROYAUME_COUNT - 1).map(roy => `
   <div class="personalityRow">
@@ -5777,14 +5854,38 @@ function closeConseils() {
 }
 document.getElementById("closeConseils").addEventListener("click", closeConseils);
 enableSwipeToDismiss(document.getElementById("conseilsBox"), document.getElementById("conseilsBox"), closeConseils);
+// Tapping the dimmed backdrop (the map behind it) closes Conseils straight
+// to the map, same as the settings panel's own backdrop tap.
+document.getElementById("conseilsOverlay").addEventListener("click", (e) => {
+  if (e.target === document.getElementById("conseilsOverlay")) closeConseils();
+});
+// Conseils is only ever opened from within Réglages — this goes straight
+// back there (reopens the settings panel) instead of all the way to the
+// map, for the common case of just wanting one more look at a setting.
+document.getElementById("backConseilsToSettings").addEventListener("click", () => {
+  document.getElementById("conseilsOverlay").style.display = "none";
+  settingsPanel.style.display = "flex";
+  sfxToggle();
+});
 // opens Ko-fi in a new tab (target="_blank") — the settings panel stays open
 // behind it, nothing to restore here
 document.getElementById("supportLink").addEventListener("click", () => { sfxToggle(); });
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.48";
+const GAME_VERSION = "1.49";
 const CHANGELOG = [
+  {
+    version: "1.49",
+    notes: [
+      "Conseils : les cases (village/province/royaume/pays) et le texte occupent maintenant toute la largeur disponible, plus limités à 320px. Toucher le fond ferme le menu ; nouveau bouton « ‹ » en haut à gauche pour revenir directement aux réglages.",
+      "Terres neutres au départ : la répartition entre les 4 niveaux de difficulté est maintenant vraiment linéaire (36% à Page, 2% à Seigneur, à pas égaux), au lieu d'être resserrée sur les deux premiers niveaux.",
+      "Niveau Page : les IA acceptent maintenant un combat à force égale (12 contre 12 ou toute autre égalité), au lieu de ne jamais s'y risquer — restent aussi prudentes que jamais sur tout le reste (jamais un vrai désavantage).",
+      "L'épée et le bateau des animations de combat sont maintenant les dessins fournis par l'utilisateur, à la place des versions vectorielles — le bateau remplace l'épée spécifiquement pour toute attaque par l'eau (traversée ou sacrifice).",
+      "Écran de fin de partie : nouvelle ligne en italique en bas indiquant « Vous gagnez un gueux » ou « Vous perdez un gueux » quand la partie qui vient de se terminer en a changé le nombre.",
+      "Écran de fin de partie : toucher le fond (au-dessus de l'encadré) révèle maintenant la carte finale, comme le geste de glisser vers le bas.",
+    ],
+  },
   {
     version: "1.48",
     notes: [
