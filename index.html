@@ -3135,6 +3135,7 @@ window.addEventListener("pageshow", () => {
 // mute switch — and, per iOS's single shared audio session, the
 // AudioContext's own oscillators ride along with it.
 let iosAudioSessionUnlocked = false;
+let iosSilentAudioEl = null; // kept around so a lost focus can restart the same loop instead of only ever trying once
 function unlockIOSAudioSession() {
   if (iosAudioSessionUnlocked) return;
   iosAudioSessionUnlocked = true;
@@ -3158,9 +3159,27 @@ function unlockIOSAudioSession() {
     const audioEl = new Audio(URL.createObjectURL(blob));
     audioEl.loop = true;
     audioEl.play().catch(() => {}); // still requires this same first-gesture call to succeed, same as AudioContext
+    iosSilentAudioEl = audioEl;
   } catch (e) { /* not fatal — sound just stays subject to the mute switch on this device */ }
 }
 document.addEventListener("pointerdown", unlockIOSAudioSession, { once: true });
+// Switching away and back (another app, another Safari tab/window) can pause
+// this same silent loop — some form of background/inactive-tab media
+// throttling, not covered by anything above, which only ever handles
+// AudioContext's own suspended/closed state, not this separate <audio>
+// element quietly falling silent under it. Once that happens the page falls
+// back out of the "playback" session category and every tone goes back to
+// obeying the hardware mute switch — reported live as sound that "cuts out"
+// on returning to the tab and never comes back on its own ("impossible de
+// remettre le son qui se coupe"). Re-kicking .play() on the SAME element
+// (not re-running the whole unlock — no new user gesture is required just
+// to resume an element that was already playing) covers it.
+function resumeIOSAudioSession() {
+  if (iosSilentAudioEl && iosSilentAudioEl.paused) iosSilentAudioEl.play().catch(() => {});
+}
+document.addEventListener("visibilitychange", () => { if (!document.hidden) resumeIOSAudioSession(); });
+window.addEventListener("pageshow", resumeIOSAudioSession);
+window.addEventListener("focus", resumeIOSAudioSession);
 function playTone(freq, duration, opts = {}) {
   if (!soundEnabled) return; // sounds now play during replay too, per request
   const ac = ensureAudioCtx();
@@ -5694,7 +5713,7 @@ function render() {
       // — capped so a big multi-point reinforcement doesn't balloon past the
       // hex it's centered on; still shrinks to exactly half by the end,
       // same ratio the original fixed 28→14 always used.
-      const startRadius = 20 + Math.min(p.amount, 8) * 2;
+      const startRadius = 20 + Math.min(p.amount, 8) * 4; // per-point coefficient doubled (was *2) — "double la différence de taille" between a small and a big reinforcement
       ctx.beginPath();
       ctx.arc(t.cx, ringCy, startRadius - introProgress * (startRadius / 2), 0, Math.PI * 2);
       ctx.strokeStyle = `rgba(255, 214, 92, ${pulseFadeAlpha})`;
@@ -6572,7 +6591,7 @@ function executeAttackChain(path, i = 0) {
 // reset back to false the moment play returns to the human, same as that
 // branch's own usage.
 let lastEndTurnTapAt = 0;
-const END_TURN_DOUBLE_TAP_MS = 400;
+const END_TURN_DOUBLE_TAP_MS = 600; // widened from 400 — a real second tap kept missing the window ("augmente le délai d'acceptation d'un double clic pour tout instantané")
 function handleEndTurnTap() {
   if (replaying || gameOver) return;
   const now = performance.now();
@@ -6843,8 +6862,16 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.73";
+const GAME_VERSION = "1.74";
 const CHANGELOG = [
+  {
+    version: "1.74",
+    notes: [
+      "Doublé la différence de taille des cercles de renfort selon le nombre de soldats ajoutés.",
+      "Élargi la fenêtre du double-tap sur « Fin de bataille » pour l'accélération instantanée.",
+      "Corrigé le son qui restait coupé sur Safari après avoir changé de fenêtre puis être revenu.",
+    ],
+  },
   {
     version: "1.73",
     notes: [
