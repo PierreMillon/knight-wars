@@ -36,7 +36,7 @@ Firefox focus direct chargement
 
 [x] Impossible de rejoindre par la mer des provinces proches côtières ??
 
-[ ] Replay à invente un partie :( (bug de déterminisme du replay, potentiellement important — pas reproduit, besoin d'un exemple concret : seed/lien de partage où ça arrive)
+[x] Replay à invente un partie :( — reproduit et corrigé en direct (v1.73) : le bug réel n'était PAS le mécanisme de replay lui-même (vérifié déterministe, flux RNG identique sur 1577 appels entre une partie réelle et son propre replay), mais l'encodage du lien de partage qui n'avait aucun cas pour un sacrifice à l'océan — un tel coup partait en "attaque" avec origine/destination undefined, cassant tout le reste du replay partagé. Voir la note détaillée dans "Fait en direct" plus bas.
 
 [x] Affichage dans le replay de (nous) après le nom dans les stats et aussi durant la partie.
 
