@@ -48,7 +48,7 @@ Sur safari privée tout chargé bien et pas safari normal gros bug d'affichage.
 
 Prépare version anglaise, chinoise et espagnole et allemande avec option dans les menu clair avec un drapeau et la langue pour trouver si on parle pas français. Switcher direct en anglais à la première ouverture sauf si tu sais reconnaître la langue de l'utilisateur.
 
-Les boutons du replay doivent entrer sur une seul ligne en bas. Part belle a la carte !
+[x] Les boutons du replay doivent entrer sur une seul ligne en bas. Part belle a la carte ! (doublon — voir ligne 111 plus bas, déjà fait)
 
 On rajoute option tour immédiat pour aller encore plus vite dans les options. Éventuellement avec un pub plus tard Retien le
 
@@ -72,7 +72,7 @@ Quand les batailles sont trop longues faut ajouter une option de proposer le sta
 
 [x] Chaque pays a un son différent pour les attaques réussis composé d'un accord de deux notes que je préciserai. (superseded : gamme par royaume au lieu d'un accord fixe, décision explicite plus tard)
 
-Le nombres de villages gagné affiche float reste deux fois plus longtemps
+[x] Le nombres de villages gagné affiche float reste deux fois plus longtemps (OUTCOME_FADE_MS séparé de NUMBER_FADE_MS, propre au cercle+label +N/-N villages)
 
 [x] Plus aucun ennemi ne conteste Millon de Châteauvieux. Gravez ce jour dans la pierre, puis reprenez l'épée - la conquête ne s'arrête jamais. Devient « Plus aucun ennemi ne conteste Millon de Châteauvieux. De joie vous plantez votre épée dans la pierre. Impossible de la retirer, vous en prenez une sur un cadavre défiguré en riant. »
 
@@ -82,7 +82,7 @@ Le nombres de villages gagné affiche float reste deux fois plus longtemps
 
 [x] L'affichage du tuto se positionne en haut à gauche de l'écran. Sinon appuie dessus ça part.
 
-Ajout message d'abandon à faire tourner « L'échec. Vous êtes à peine reconnaissable avec votre barbe mitée et vos lambeaux sales. Vous me faites honte. Je préfère travailler pour un winner qui parie sur des cryptomonnaies. À Dieu l'bouseux »
+[x] Ajout message d'abandon à faire tourner « L'échec. Vous êtes à peine reconnaissable avec votre barbe mitée et vos lambeaux sales. Vous me faites honte. Je préfère travailler pour un winner qui parie sur des cryptomonnaies. À Dieu l'bouseux » (déjà présent dans SURRENDER_LINES, rotation par seed sur 2 messages)
 
 [x] Phrase suivante des noyés « Du rhum, des femmes ! Et du cidre nom de Zeus ! » puis « glouglouglou… »
 
