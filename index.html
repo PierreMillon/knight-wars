@@ -856,6 +856,13 @@
         </div>
       </div>
       <label><input type="checkbox" id="soundToggle"> Bruitages</label>
+      <!-- English support kicked off small on purpose ("fais l'anglais en
+           premier maintenant juste pour les boutons de jeu utiles au
+           minimum") — just the core in-game action buttons (Fin de
+           bataille, Changer la carte, écran de fin, etc.), not the lore or
+           flavor text yet. A plain toggle, not a full language picker with
+           auto-detect — that's the bigger version still on the backlog. -->
+      <button id="langToggle" style="display:block; margin-top:10px;">🇫🇷 Français</button>
 
       <!-- Tier 2 used to be here: an "Affichage" section holding only the
            royaume-sort-order control (Villages/Soldats/Ordre de jeu). Removed
@@ -2851,6 +2858,46 @@ try {
   const savedSound = localStorage.getItem("kw_soundEnabled");
   if (savedSound !== null) soundEnabled = savedSound !== "0";
 } catch (e) { /* ignore */ }
+
+// English support kicked off small on purpose — "fais l'anglais en premier
+// maintenant juste pour les boutons de jeu utiles au minimum": just the
+// core in-game action buttons, not the lore/flavor text or a real
+// language-picker-with-flag-and-auto-detect yet (that's the bigger version
+// still on the backlog). A plain FR/EN toggle in Réglages for now.
+let uiLang = "fr";
+try {
+  const savedLang = localStorage.getItem("kw_uiLang");
+  if (savedLang === "en" || savedLang === "fr") uiLang = savedLang;
+} catch (e) { /* ignore */ }
+const UI_STRINGS = {
+  settingsAria: { fr: "Réglages", en: "Settings" },
+  surrenderAria: { fr: "Abandonner", en: "Surrender" },
+  accelerateAria: { fr: "Accélérer les batailles", en: "Speed up battles" },
+  endturnMain: { fr: "Fin de bataille", en: "End battle" },
+  chooseCamp: { fr: "Choisissez un camp", en: "Choose a side" },
+  stalemateHint: { fr: "Statu quo dans", en: "Stalemate in" }, // + "{N} tour(s)" / "{N} turn(s)" appended separately, see updateEndTurnButton()
+  turn: { fr: "tour", en: "turn" },
+  turns: { fr: "tours", en: "turns" },
+  rerollChangeMap: { fr: "🔀 Changer la carte", en: "🔀 New map" },
+  rerollStopReplayAria: { fr: "Arrêter le replay", en: "Stop replay" },
+  rerollChangeMapAria: { fr: "Changer la carte", en: "New map" },
+  prevMap: { fr: "◀ Précédente", en: "◀ Previous" },
+  replayResumeHere: { fr: "Jouer depuis là", en: "Play from here" },
+  restart: { fr: "⬅️ Rejouer la même carte", en: "⬅️ Replay same map" },
+  watchReplay: { fr: "🎬 Revoir la partie", en: "🎬 Watch replay" },
+  shareVictory: { fr: "📤 Partager ma victoire", en: "📤 Share my victory" },
+  shareTruce: { fr: "📜 Partager ce match nul", en: "📜 Share this draw" },
+  randomGame: { fr: "🔀 Nouvelle partie aléatoire", en: "🔀 New random game" },
+  saveChart: { fr: "💾 Enregistrer le graphique", en: "💾 Save the chart" },
+  reviewBack: { fr: "🔙 Retour", en: "🔙 Back" },
+  acceptTruce: { fr: "J'accepte la trêve", en: "I accept the truce" },
+  continueSiege: { fr: "⚔ Continuer le combat", en: "⚔ Continue the fight" },
+  langToggleLabel: { fr: "🇫🇷 Français", en: "🇬🇧 English" },
+};
+function t(key) {
+  const entry = UI_STRINGS[key];
+  return entry ? (entry[uiLang] || entry.fr) : key;
+}
 let audioCtx = null;
 // The only two conditions sound should ever depend on: soundEnabled, and
 // actually being on screen. Everything else — backgrounding, an OS
@@ -3989,7 +4036,7 @@ function showWin(royId) {
   document.getElementById("endturn").disabled = true;
   drawStatChart();
   document.getElementById("watchReplay").disabled = !lastMatchArchive;
-  document.getElementById("shareReplay").textContent = truceEnded ? "📜 Partager ce match nul" : "📜 Partager ma victoire";
+  document.getElementById("shareReplay").textContent = truceEnded ? t("shareTruce") : t("shareVictory");
 }
 
 // --- end-of-match stats chart (AoE2-style: territories + force over rounds) ---
@@ -4455,7 +4502,7 @@ function playReplay(seed, difficulty, replayHumanRoyId, log, onFinish, replayMap
     // already ended.
     const rerollBtnEl = document.getElementById("rerollBtn");
     rerollBtnEl.style.display = awaitingFactionPick ? "" : "none";
-    rerollBtnEl.textContent = "🔀 Changer la carte";
+    rerollBtnEl.textContent = t("rerollChangeMap");
     pauseBtnEl.style.display = "none";
     resumeHereBtnEl.style.display = "none";
     onFinish();
@@ -6185,10 +6232,23 @@ function executeAttackChain(path, i = 0) {
 // whole HUD including this very button is hidden — see applyLandscapeHud())
 // a tap on open water, which takes over its job: see handlePointer()'s own
 // note on why.
+// A fast double-tap on "Fin de bataille" jumps straight into the next turn
+// instead of waiting out the normal reinforcement pause + AI pacing —
+// "double-clic rapide sur prochaine bataille affiche direct le tour
+// suivant, y'a une latence pour l'instant". Reuses the exact same
+// forceInstantSkip fast-forward the AI-turn branch below already has;
+// reset back to false the moment play returns to the human, same as that
+// branch's own usage.
+let lastEndTurnTapAt = 0;
+const END_TURN_DOUBLE_TAP_MS = 400;
 function handleEndTurnTap() {
   if (replaying || gameOver) return;
+  const now = performance.now();
+  const isDoubleTap = now - lastEndTurnTapAt < END_TURN_DOUBLE_TAP_MS;
+  lastEndTurnTapAt = now;
   if (currentPlayer === humanRoyId) {
     if (aiRunning) return;
+    if (isDoubleTap) { fastForward = true; forceInstantSkip = true; }
     logMove({ end: true });
     endTurn();
   } else {
@@ -6450,8 +6510,15 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.63";
+const GAME_VERSION = "1.64";
 const CHANGELOG = [
+  {
+    version: "1.64",
+    notes: [
+      "Début de la version anglaise : bouton FR/EN dans Réglages pour les boutons d'action du jeu (le reste du texte suit plus tard).",
+      "Double-clic rapide sur « Fin de bataille » : saute direct au tour suivant.",
+    ],
+  },
   {
     version: "1.63",
     notes: [
@@ -7062,6 +7129,47 @@ document.getElementById("enemySurrenderBtn").addEventListener("click", () => {
   sfxToggle();
   grantMercy();
 });
+// Re-applies every translated button label to the actual DOM — needed both
+// once at startup and whenever langToggle switches uiLang, since most of
+// these buttons' text otherwise only gets (re)computed at specific game
+// events (a fresh match, a win, a replay starting...), not on every render.
+function applyUiLanguage() {
+  document.getElementById("settingsBtn").setAttribute("aria-label", t("settingsAria"));
+  document.getElementById("surrenderBtn").setAttribute("aria-label", t("surrenderAria"));
+  document.getElementById("prevMapBtn").textContent = t("prevMap");
+  document.getElementById("replayResumeHereBtn").textContent = t("replayResumeHere");
+  document.getElementById("restart").textContent = t("restart");
+  document.getElementById("watchReplay").textContent = t("watchReplay");
+  document.getElementById("shareReplay").textContent = truceEnded ? t("shareTruce") : t("shareVictory");
+  document.getElementById("randomGameBtn").textContent = t("randomGame");
+  document.getElementById("saveChartImage").textContent = t("saveChart");
+  document.getElementById("reviewBackBtn").textContent = t("reviewBack");
+  document.getElementById("reviewReplayBtn").textContent = t("watchReplay");
+  document.getElementById("acceptTruce").textContent = t("acceptTruce");
+  document.getElementById("continueSiege").textContent = t("continueSiege");
+  document.getElementById("langToggle").textContent = t("langToggleLabel");
+  const rerollBtnEl = document.getElementById("rerollBtn");
+  rerollBtnEl.textContent = replaying ? "⏹" : t("rerollChangeMap");
+  rerollBtnEl.setAttribute("aria-label", replaying ? t("rerollStopReplayAria") : t("rerollChangeMapAria"));
+  // NOT calling updateEndTurnButton() here: this same applyUiLanguage() runs
+  // once at boot, this early in the script, before campPromptCount (a `let`
+  // declared later) is initialized — updateEndTurnButton() reads it, so
+  // calling it from here would throw the exact same TDZ crash a `let`
+  // referenced-before-declaration bug caused once before. The normal boot
+  // sequence calls updateEndTurnButton() itself moments later anyway
+  // (uiLang defaults to "fr", matching its own hardcoded default text), so
+  // this only matters for the langToggle click handler below, which is
+  // always well past that point.
+}
+applyUiLanguage();
+document.getElementById("langToggle").addEventListener("click", () => {
+  uiLang = uiLang === "fr" ? "en" : "fr";
+  try { localStorage.setItem("kw_uiLang", uiLang); } catch (e) { /* ignore */ }
+  sfxToggle();
+  applyUiLanguage();
+  updateEndTurnButton();
+});
+
 const soundToggle = document.getElementById("soundToggle");
 soundToggle.checked = soundEnabled;
 soundToggle.addEventListener("change", () => {
@@ -7233,7 +7341,7 @@ function updateEndTurnButton() {
   // useful there — reported live as a stray button on the replay screen)
   document.getElementById("surrenderBtn").style.display = (gameOver || replaying) ? "none" : "";
   if (awaitingFactionPick) {
-    btn.textContent = "Choisissez un camp";
+    btn.textContent = t("chooseCamp");
     btn.classList.remove("aiTurn");
     btn.style.background = "";
     btn.style.color = "";
@@ -7248,9 +7356,10 @@ function updateEndTurnButton() {
     // a few turns later with no warning it was coming
     if (allCappedStreak > 0 && !gameOver) {
       const remaining = STALEMATE_TRUCE_ROUNDS - allCappedStreak;
-      btn.innerHTML = `<span class="btnMain">Fin de bataille</span><span class="btnHint">Statu quo dans ${remaining} tour${remaining > 1 ? "s" : ""}</span>`;
+      const turnWord = remaining > 1 ? t("turns") : t("turn");
+      btn.innerHTML = `<span class="btnMain">${t("endturnMain")}</span><span class="btnHint">${t("stalemateHint")} ${remaining} ${turnWord}</span>`;
     } else {
-      btn.innerHTML = `<span class="btnMain">Fin de bataille</span>`;
+      btn.innerHTML = `<span class="btnMain">${t("endturnMain")}</span>`;
     }
   } else {
     // during the AIs' turn the same button doubles as a fast-forward: one tap
@@ -7259,7 +7368,7 @@ function updateEndTurnButton() {
     // just the ⏩ icon + a short hint — now neither: the second, otherwise
     // unused, sword sprite itself (tipped on its side, pointing right) reads
     // as "touch to push forward" on its own, no text or emoji needed.
-    btn.innerHTML = `<img src="${SWORD_IMG_SRC}" alt="Accélérer les batailles" style="width:24px;height:24px;display:block;transform:rotate(90deg);">`;
+    btn.innerHTML = `<img src="${SWORD_IMG_SRC}" alt="${t("accelerateAria")}" style="width:24px;height:24px;display:block;transform:rotate(90deg);">`;
   }
   btn.classList.toggle("aiTurn", !isHuman);
   const roy = ROYAUMES[humanRoyId];
@@ -7619,8 +7728,8 @@ function startGame(seed) {
   // Icon-only while replaying — "on enlève le texte et remplace par un
   // symbole approprié le pause/play et le stop" — full label otherwise
   // (this same button doubles as "Changer la carte" outside a replay).
-  rerollBtnEl.textContent = replaying ? "⏹" : "🔀 Changer la carte";
-  rerollBtnEl.setAttribute("aria-label", replaying ? "Arrêter le replay" : "Changer la carte");
+  rerollBtnEl.textContent = replaying ? "⏹" : t("rerollChangeMap");
+  rerollBtnEl.setAttribute("aria-label", replaying ? t("rerollStopReplayAria") : t("rerollChangeMapAria"));
   refreshPrevMapBtn();
   // the rest of the interface is inert during a replay (taps are ignored —
   // see handlePointer()/endturn's click handler) — hide it instead of
