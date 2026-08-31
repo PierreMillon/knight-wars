@@ -208,25 +208,17 @@
     transition: transform .28s cubic-bezier(.34, 1.56, .64, 1), margin .28s cubic-bezier(.34, 1.56, .64, 1);
   }
   .chip.activeTurn { transform: scale(1.5); margin: 4px 0; }
-  /* no more plain black outline ring (see .hand below for what replaces it
-     as the wedge's own edges — "on retire le contour noir") */
+  /* no black outline ring around the wedge ("on retire le contour noir") —
+     just the bare conic-gradient dot; see .swatch.full below for the one
+     marking this still gets, once it's actually filled. */
   .chip .swatch { width: 11px; height: 11px; border-radius: 50%; flex: none; position: relative; }
-  /* Two clock hands bracketing the conic-gradient wedge (see updateGroups())
-     — one fixed straight up (the "0%" mark), the other rotated live to the
-     wedge's own leading edge, so the boundary reads as a pair of watch
-     hands sweeping around the dial instead of a plain outline ring. At 0%
-     both sit at the same angle (one thin line "pointing at zero"); at 100%
-     JS hides both entirely so the circle shows as cleanly, fully colored. */
-  .chip .swatch .hand {
-    position: absolute; left: 50%; top: 50%; width: 1px; height: 50%;
-    background: rgba(20,16,12,0.85); transform-origin: top center;
-  }
-  /* rest position (rotate 0) points down at 6 o'clock (the box extends
-     downward from top:50%, its own transform-origin) — the conic-gradient
-     wedge itself starts counting from 12 o'clock, so both hands need a
-     180° offset to actually land where the wedge does (reported live: the
-     two hands were each sitting opposite where they should be). */
-  .chip .swatch .handStart { transform: translateX(-50%) rotate(180deg); }
+  /* "quand le cercle est rempli à 100%... un petit cercle doré s'affiche
+     autour, le même type de doré qu'il y a autour des provinces" — replaces
+     the old pair of clock hands (removed) that used to bracket the wedge
+     the rest of the way around; now the dial is bare while filling and only
+     gains a ring once it's actually full, echoing OUTLINE_GRADIENTS.gold's
+     own bright-to-dark gold tone used for a selected territory's outline. */
+  .chip .swatch.full { box-shadow: 0 0 0 1.5px #e8c468, 0 0 0 3px #a97e2a; }
   /* fixed-width, left-aligned column (like the swatch already is) instead
      of a run-on text node — so every row's number starts at the same X
      regardless of digit count. Just the total force (soldiers) now — the
@@ -649,6 +641,12 @@
      le menu et ne pas déborder sur la carte". */
   #onboardingHint {
     position: absolute; top: calc(8px + env(safe-area-inset-top, 0px)); left: 14px;
+    /* right edge pinned clear of #settingsBtn (34px wide, right:10px) instead
+       of a flat vw-based max-width, which could still reach under the menu
+       button on a narrow phone ("la largeur du cadre du tutoriel ne doit pas
+       déborder sur le bouton du menu") — with both left and right set, the
+       box just wraps its text to whatever room that actually leaves. */
+    right: 54px;
     z-index: 5;
     display: none; max-width: 78vw; text-align: left; cursor: pointer;
     background: rgba(20,16,12,.75); color: #f2ede2; font-size: 13px; font-weight: 600;
@@ -748,7 +746,10 @@
     <!-- plain icon, no confirmation — surrenders immediately (see
          surrenderGame()); landing on the loss screen already offers
          "recommencer" right there, so a confirm dialog would be redundant.
-         Always visible, even before a camp is picked — see surrenderGame(). -->
+         Hidden until a camp is actually picked (see updateEndTurnButton())
+         — "le bouton abandonner ne doit pas apparaître avant qu'on ait
+         choisi une faction", surrenderGame() itself already no-ops during
+         awaitingFactionPick, this just stops offering it visually too. -->
     <button id="surrenderBtn" aria-label="Abandonner"><svg viewBox="0 0 7 8" shape-rendering="crispEdges" fill="currentColor" aria-hidden="true"><rect x="1" y="0" width="1" height="1"/><rect x="2" y="0" width="1" height="1"/><rect x="3" y="0" width="1" height="1"/><rect x="4" y="0" width="1" height="1"/><rect x="5" y="0" width="1" height="1"/><rect x="0" y="1" width="1" height="1"/><rect x="1" y="1" width="1" height="1"/><rect x="2" y="1" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="1"/><rect x="6" y="1" width="1" height="1"/><rect x="0" y="2" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="3" y="2" width="1" height="1"/><rect x="4" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="6" y="2" width="1" height="1"/><rect x="0" y="3" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="2" y="3" width="1" height="1"/><rect x="3" y="3" width="1" height="1"/><rect x="4" y="3" width="1" height="1"/><rect x="5" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="0" y="4" width="1" height="1"/><rect x="3" y="4" width="1" height="1"/><rect x="6" y="4" width="1" height="1"/><rect x="0" y="5" width="1" height="1"/><rect x="3" y="5" width="1" height="1"/><rect x="6" y="5" width="1" height="1"/><rect x="1" y="6" width="1" height="1"/><rect x="2" y="6" width="1" height="1"/><rect x="4" y="6" width="1" height="1"/><rect x="5" y="6" width="1" height="1"/><rect x="2" y="7" width="1" height="1"/><rect x="3" y="7" width="1" height="1"/><rect x="4" y="7" width="1" height="1"/></svg></button>
     <button id="endturn">Fin de bataille</button>
   </div>
@@ -1525,13 +1526,29 @@ const ESCALATION_START_ROUND = 40, ESCALATION_SPAN = 40;
 function escalated(baseValue, hardValue) {
   if (roundNumber <= ESCALATION_START_ROUND) return baseValue;
   const t = Math.min(1, (roundNumber - ESCALATION_START_ROUND) / ESCALATION_SPAN);
-  const interp = lerp(baseValue, hardValue, t);
+  // How far toward `hardValue` a long match is allowed to ratchet, scaled
+  // by difficulty — NOT the fixed 100%-of-the-way-to-hardValue this used to
+  // be regardless of difficulty. That flat target was the actual bug behind
+  // "facile doit toujours se gagner, difficile doit être presque
+  // imbattable": by round ~80 EVERY difficulty (Gueux included) converged
+  // to nearly the same near-Seigneur-level AI_AGGRESSION_THRESHOLD/
+  // AI_MISTAKE_RATE, since both call sites' hardValue is a single constant
+  // shared by all 4 tiers — confirmed by simulation (a weak/greedy human
+  // baseline won only ~10-15% of the time at EVERY difficulty, Gueux
+  // included, once a match ran long enough to reach the ratchet). Gueux
+  // now only ever escalates a small fraction of the way — just enough to
+  // break a true stalemate eventually, never enough to make the easiest
+  // tier's AI actually dangerous late-game — while Seigneur (DIFFICULTY
+  // already >=1) escalates the full 100%, same as before.
+  const escalationStrength = lerp(0.15, 1, Math.min(1, DIFFICULTY));
+  const cappedHardValue = lerp(baseValue, hardValue, escalationStrength);
+  const interp = lerp(baseValue, cappedHardValue, t);
   // For both fields, lower = harder (more aggressive / fewer mistakes). This
   // ratchet exists to keep an EASY game from stalling forever — it's a floor
   // that only ever helps a passive AI catch up, never a ceiling that softens
   // an already-harder-than-that base setting (Seigneur's base can be tougher
   // than these hard values, and must stay that tough for the whole match).
-  return baseValue <= hardValue ? Math.min(baseValue, interp) : interp;
+  return baseValue <= cappedHardValue ? Math.min(baseValue, interp) : interp;
 }
 // Chevalier and Seigneur bumped +30% per explicit request ("augmente de
 // 30% la difficulté globale de tous les niveaux à partir du niveau trois
@@ -1606,9 +1623,14 @@ const BOAT_IMG = loadSprite(BOAT_IMG_SRC);
 const SWORD_IMG = loadSprite(SWORD_IMG_SRC);
 // A distinct sprite from SWORD_IMG — a solid black diagonal blade, not just
 // SWORD_IMG rotated in CSS (tried first, corrected live: "L'épée en
-// diagonale c'est pas elle ! C'est celle qui est tout noire") — used only
-// in Le lore's war-tools row for now.
-const SWORD_DIAGONAL_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMAAAADACAYAAABS3GwHAAAAAXNSR0IArs4c6QAAAHhlWElmTU0AKgAAAAgABQESAAMAAAABAAEAAAEaAAUAAAABAAAASgEbAAUAAAABAAAAUgEoAAMAAAABAAIAAIdpAAQAAAABAAAAWgAAAAAAAANgAAAAAQAAA2AAAAABAAKgAgAEAAAAAQAAAMCgAwAEAAAAAQAAAMAAAAAAZK+JhgAAAAlwSFlzAACE4AAAhOABODqDdwAAABxpRE9UAAAAAgAAAAAAAABgAAAAKAAAAGAAAABgAAADeY9NjKkAAANFSURBVHgB7N1BagUxDATRf/9LJwfQohGMjW29QDbW4JFKXWQzkN+fHwQGE/gNnt3oCPwRQAhGEyDA6PUbngAyMJoAAUav3/AEkIHRBAgwev2GJ4AMjCZAgNHrNzwBZGA0AQKMXr/h2wL8fr+/lb9WgsBOAgTYSdu7jiNAgONWoqGdBAiwk7Z3HUeAAMetREM7CRBgJ23vOo4AAY5biYZ2EiDATtredRwBAhy3Eg3tJECAnbS96zgCBDhuJRraSYAAO2l713EEjhOg+53RcUQ1dBUBAly1Ls1+TYAAXxN131UECHDVujT7NQECfE3UfVcRIMBV69Ls1wQI8DVR911FgABXrUuzXxMgwNdE3XcVAQJctS7Nfk2AAF8Tdd9VBAhw1bo0+zWBtgDdBrrf9qx+vtu/598mQIC392u6QIAAAZDy2wQI8PZ+TRcIECAAUn6bAAHe3q/pAgECBEDKbxMgwNv7NV0gQIAASPltAgR4e7+mCwQIEAApv02AAG/v13SBwHIBwvtLefW3QN37S4MOniJAgPBP/57atmEKAQIQoIRi0gEBCDAp72VWAhCghGLSAQEIMCnvZVYCEKCEYtIBAQgwKe9lVgIQoIRi0gEBCDAp72VWAhCghGLSAQEIMCnvZdbjBCgdhoPutz2rnw/tKh9GgADhL0BXmMP2q51AgAAECBF5u0wAAryd8DAdAQgQIvJ2mQAEeDvhYToCECBE5O0yAQjwdsLDdAQgQIjI22UCEODthIfpCECAEJG3ywQgwNsJD9NdL0CYr5S7nzasfr406GArAQJ8/BegK8zWbXtZIUAAApRQTDogAAEm5b3MSgAClFBMOiAAASblvcxKAAKUUEw6IAABJuW9zEoAApRQTDogAAEm5b3MSgAClFBMOiAAASblvcw6ToBCIBx0P21Y/XxoV7lJgAAB2OpAd+8P7So3CRAgAOsGdPXzoV3lJgECBGCrA929P7Sr3CRAgACsG9DVz4d2lZsECBCArQ509/7QrnKTAAECsG5AVz8f2lVuEiBAALY60N37Q7vKTQIECMC6AV39fGhXuUmAAAHY6kB37w/tKjcJECAA6wZ09fOhXeUmAQIEYKsD3b0/tKvcJPAPAAD//0Ab8AMAAARiSURBVO2aQW4jMQwE5/+fTpBrBpBVEBui5DKwh7V6OFSRBV/y/PgpJfA8z0+nf6WXu7DYc+Gdtl6p0/L/9eJnTEBCYz74VAEwsq0PKEAxfgUoBhoupwDFgBWgGGi4nAIUA1aAYqDhcgpQDFgBioGGyylAMWAFKAYaLqcAxYAVoBhouJwCFANWgGKg4XIKUAxYAYqBhsspQDFgBSgGGi6nAGHAn8orzCdC2XMFyPL9WF0BPiKKBhQgivdzcQX4zCiZUIAk3YnaCjABKRhRgCDcmdIKMEMpl1GAHNupygowhSkWUoAY2rnCCjDHKZVSgBTZyboKMAkqFFOAENjZsgowSyqTU4AM1+mqCjCNKhJUgAjW+aIKMM8qkVSABFVQUwEArEBUAQJQkyVPF4b2n2T5V1sB0oSL69MFSufp9Wg/tD7NKwAltjlPFyidpzhoP7Q+zSsAJbY5Txconac4aD+0Ps0rACW2OU8XKJ2nOGg/tD7NKwAltjlPFyidpzhoP7Q+zSsAJbY5Txconac4aD+0Ps0rACW2OU8XKJ2nOGg/tD7NKwAltjlPFyidpzhoP7Q+zSsAJbY5Txconac4aD+0Ps0rACW2OU8XKJ2nOGg/tD7NKwAltjlPFyidpzhoP7Q+zSsAJXZYni5cOt8NnwJ0m0hxP+mFpvWLr7dcTgGWEfYuQBc0ne9GSwG6TaS4n/RC0/rF11supwDLCHsXoAuaznejpQDdJlLcT3qhaf3i6y2XU4BlhL0L0AVN57vRUoBuEynuJ73QtH7x9ZbLKcAywt4F6IKm891oKUC3iRT3k15oWr/4esvlFGAZYe8CdEHT+W60FKDbRIr7SS80rV98veVyCrCM8K4CdKFpvhstBeg2kc390IWm+c3Xe71eAV5IvvsLutA0342uAnSbyOZ+6ELT/ObrvV6vAC8k3/0FXWia70ZXAbpNZHM/dKFpfvP1Xq9XgBeS7/6CLjTNd6OrAN0msrkfutA0v/l6r9crwAvJd39BF5rmu9FVgG4T2dwPXWia33y91+sV4IXku7+gC03z3egqQLeJbO6HLjTNb77e6/UK8EJy1xfdFrRdP3eN29v8J9Bu4Z7nh/T0/z7V//cXoJpos3pk2f6y6U+7ftIXtv5eAu0Wzl+AvQvxbW9XgPHE87954/d7GiagAGPACjDmc/ypAoxHqABjPsefKsB4hAow5nP8qQKMR6gAYz7HnyrAeIQKMOZz/KkCjEeoAGM+x58qwHiECjDm4+lmAmmBFWDzgH39mIACjPl4ejkBBbh8wF5vTEABxnw8vZyAAlw+YK83JqAAYz6eXk5AAS4fsNcbE1CAMR9PLyegAJcP2OuNCSjAmI+nlxNQgMsH7PXGBBRgzMdTCSwR8G+BlvD58OkEFOD0Cdr/EgEFWMLnw6cTUIDTJ2j/SwQUYAmfD59OQAFOn6D9LxFQgCV8Pnw6AQU4fYL2v0RAAZbw+fDpBBTg9Ana/xIBBVjC58OnE/gFPlD99Lx3liEAAAAASUVORK5CYII=";
+// diagonale c'est pas elle ! C'est celle qui est tout noire"). The original
+// upload had an opaque white background instead of real transparency
+// ("épée diagonale enlève le blanc autour") — the source art is purely
+// two flat colors, no antialiasing, so white→alpha-0 is a clean threshold
+// conversion (verified via PIL: exactly 2 unique colors in the whole PNG),
+// re-encoded here. Used in Le lore's war-tools row and now the "pouvoir des
+// 12" guaranteed-win combat flourish (see drawSwordAt()'s doubleSword branch).
+const SWORD_DIAGONAL_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMAAAADACAYAAABS3GwHAAACDUlEQVR42u3dQY6EMAwAQWeU/3858wYjLBKn6r4SE7ZlDhaMtVbArX6OAAGAAEAAIAAQAAgABAACAAGAAKCPmf2DMUbp8tBaa7gtmAAgABAACAAEAAIAAYAAQAAgABAApM3dLii7a2R3CBMABAACAAGAAEAAIAAQAAgABAACgIiIGNXfCKt+j1CW3SFMABAACAABgABAACAAEAAIAAQAAoCmyneB0hdkdwgTAAQAAgABgABAACAAEAAIAAQAAoAnttsFSv8Au0OYACAAEAAIAAQAAgABgABAACAAEABENNgFSv9gu0OYACAAEAACAAGAAEAAIAAQAAgABAA9XbcLlD4gu0MmAAgABAACAAGAAEAAIAAQAAgABABnsAv09oHaHTIBQAAgABAACAAEAAIAAYAAQAAgAPiGXaCvb4DdIRMABAACAAGAAEAAIAAQAAgABAACgHfYBTrthh2+O5S9/urdJBMAj0AgABAACAAEAAIAAYAAQAAgAGjELlD3G+y9QyYACAAEAAIAAYAAEIAjQAAgABAACABuMR1Bb9Xv7TEBQAAgABAACAAEAAIAAYAAQAAgANiGXaDmdvsml2+EgUcgEAAIAAQAAgABgABAACAAEACU8Y0w9v4HLd4dMgHwCAQCAAGAAEAAIAAQAAgABAACgEbsAmECgABAACAAEAAIAAQAAgABgABAANDDHwrBZVlG2d2SAAAAAElFTkSuQmCC";
 const SWORD_DIAGONAL_IMG = loadSprite(SWORD_DIAGONAL_IMG_SRC);
 const FIGURE1_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAOoAAADqCAYAAACslNlOAAADIklEQVR4nO3cwY3DMAwAQeuQ/ltmSjhAD9nrzDRg5bHgh+GamQt4tr+7HwD8T6gQIFQIECoECBUChAoBQoUAoUKAUCFAqBAgVAgQKgQIFQKECgFChQChQoBQIUCoECBUCBAqBAgVAoQKAUKFAKFCgFAhQKgQIFQIECoECBUChAoBQoUAoUKAUCFAqBAgVAgQKgQIFQKECgFChQChQoBQIUCoECBUCBAqBAgVAoQKAUKFAKFCgFAhQKgQIFQIECoECBUChAoBQoUAoUKAUCFAqBAgVAgQKgQIFQKECgFChQChQsDn7gf8krXWnPjOzKwT39n5Pafe9jYmKgQIFQKECgFChQChQoBQIUCoECBUCBAqBAgVAoQKAUKFAKFCgFAhQKgQIFQIECoECBUChAoBQoUAoUKAUCFAqBAgVAgQKgS4lL/p1NX7HS7Yv4+JCgFChQChQoBQIUCoECBUCBAqBAgVAoQKAUKFAKFCgFAhQKgQIFQIECoECBUChAoBQoUAoUKAUCFAqBAgVAgQKgQIFQKECgFr5rEH3x/tyZfy38YVfxMVEoQKAUKFAKFCgFAhQKgQIFQIECoECBUChAoBQoUAoULA5+4H8Fss2O8xUSFAqBAgVAgQKgQIFQKECgFChQChQoBQIUCoECBUCBAqBFjKZ5sF+3NMVAgQKgQIFQKECgFChQChQoBQIUCoECBUCBAqBAgVAoQKAZbyH25n8X2tNSe+wzkmKgQIFQKECgFChQChQoBQIUCoECBUCBAqBAgVAoQKAUKFAKFCgFAhQKgQIFQIECoECBUChAoBQoUAoUKAUCFAqBAgVAgQKgS4lL/p1AV7uC4TFRKECgFChQChQoBQIUCoECBUCBAqBAgVAoQKAUKFAKFCgKX8TW9bsN/5PTt/TGCPiQoBQoUAoUKAUCFAqBAgVAgQKgQIFQKECgFChQChQoBQIcBS/vW+BftTLPKfY6JCgFAhQKgQIFQIECoECBUChAoBQoUAoUKAUCFAqBAgVAhYM/bR4elMVAgQKgQIFQKECgFChQChQoBQIUCoECBUCBAqBAgVAoQKAV/YRzbZg1y34QAAAABJRU5ErkJggg==";
 const FIGURE2_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAOoAAADqCAYAAACslNlOAAADJ0lEQVR4nO3cQW4cMQwAQSnw/79M/yBGhGBHPa66L1aXBi8c7plZwN3+PP0A4GdChQChQoBQIUCoECBUCBAqBAgVAoQKAUKFAKFCgFAhQKgQIFQIECoECBUChAoBQoUAoUKAUCFAqBAgVAgQKgQIFQKECgFChQChQoBQIUCoECBUCBAqBAgVAoQKAUKFAKFCgFAhQKgQIFQIECoECBUChAoBQoUAoUKAUCFAqBAgVAgQKgQIFQKECgFChQChQsDX0w/43/be86+/mZl96//AWiYqJAgVAoQKAUKFAKFCgFAhQKgQIFQIECoECBUChAoBQoWA1y3lv83J8v8JHwzczUSFAKFCgFAhQKgQIFQIECoECBUChAoBQoUAoUKAUCFAqBBgKX99bvEdTpmoECBUCBAqBAgVAoQKAUKFAKFCgFAhQKgQIFQIECoECBUCXreUf3Lx/WQp/+bL8je/jTMmKgQIFQKECgFChQChQoBQIUCoECBUCBAqBAgVAoQKAUKFgNct5d/sUxf53/aRASYqJAgVAoQKAUKFAKFCgFAhQKgQIFQIECoECBUChAoBQoUAS/mHPrVgD2uZqJAgVAgQKgQIFQKECgFChQChQoBQIUCoECBUCBAqBAgVAizlHzq5LG+Rn1MmKgQIFQKECgFChQChQoBQIUCoECBUCBAqBAgVAoQKAUKFAKFCgFAhQKgQIFQIECoECBUChAoBQoUAoUKAUCFAqBAgVAgQKgS4lH85F/lZy0SFBKFCgFAhQKgQIFQIECoECBUChAoBQoUAoUKAUCFAqBAgVAgQKgQIFQKECgFChQChQoBQIUCoECBUCBAqBAgVAoQKAUKFAKFCgFAhQKgQIFQIECoECBUChAoBQoUAoUKAUCFAqBAgVAgQKgR8Pf2AG8zMfvoN8DcmKgQIFQKECgFChQChQoBQIUCoECBUCBAqBAgVAoQKAUKFAEv5h/be8/Qb+D1MVAgQKgQIFQKECgFChQChQoBQIUCoECBUCBAqBAgVAoQKAXvGbjnczkSFAKFCgFAhQKgQIFQIECoECBUChAoBQoUAoUKAUCFAqBDwDaQ0MOOKuX2SAAAAAElFTkSuQmCC";
@@ -5673,6 +5695,19 @@ function runAI() {
   const royId = currentPlayer;
   if (gameOver || royId === humanRoyId) { aiRunning = false; return; }
   const pers = AI_PERSONALITIES[royId];
+  // Gueux ("facile") only: never let an AI initiate an attack against the
+  // human at all, at any point in the match. Confirmed by mass simulation
+  // (winrate.js) that throttling AI_AGGRESSION_THRESHOLD/AI_MISTAKE_RATE and
+  // taming the escalation ratchet (see escalated()) still left a weak/random
+  // simulated human losing ~90% of the time at Gueux once a match ran long
+  // enough — "facile enfant de 3 ans qui doit gagner toujours" needs a hard
+  // guarantee, not just gentler odds, since even rare AI successes compound
+  // over a long game while a careless human's own bad attacks don't. The 3
+  // AIs still fight each other (and neutrals) exactly as before — that's
+  // what keeps Gueux looking like a real war ("illusion de challenge")
+  // instead of the AIs visibly freezing — they just structurally can never
+  // touch the human's own territory, so the human can never be eliminated.
+  const isPage = DIFFICULTY_LEVELS.findIndex((l) => l.value === DIFFICULTY) === 0;
   // "Quand les ennemis peuvent faire des attaques chaînées, ils le font" —
   // once this royaume's own turn conquers a territory, its next move should
   // press on from THAT territory when it can, the same instinct a human's
@@ -5715,6 +5750,7 @@ function runAI() {
       for (const nId of t.neighbors) {
         const n = territories[nId];
         if (n.owner === royId) continue;
+        if (isPage && n.owner === humanRoyId) continue; // see isPage's own note above
         const adv = t.force - n.force;
         if (!capActive && (adv < MIN_VIABLE_ADV || adv < escalated(AI_AGGRESSION_THRESHOLD, -1) + pers.aggressionDelta)) continue;
 
@@ -5743,6 +5779,7 @@ function runAI() {
       for (const [nId, route] of t.waterRoutes) {
         const n = territories[nId];
         if (n.owner === royId || !canAffordWaterRoute(t, nId)) continue;
+        if (isPage && n.owner === humanRoyId) continue; // see isPage's own note above
         const attackingForce = t.force - route.cost;
         const adv = attackingForce - n.force;
         if (!capActive && (adv < MIN_VIABLE_ADV || adv < escalated(AI_AGGRESSION_THRESHOLD, -1) + pers.aggressionDelta)) continue;
@@ -5772,7 +5809,10 @@ function runAI() {
     for (const t of territories) {
       if (t.owner !== royId || t.force <= 1) continue;
       for (const nId of t.neighbors) {
-        if (territories[nId].owner !== royId) candidates.push({ from: t.id, to: nId });
+        const n = territories[nId];
+        if (n.owner === royId) continue;
+        if (isPage && n.owner === humanRoyId) continue; // see isPage's own note above — never the human, even as a "why not" throwaway attack
+        candidates.push({ from: t.id, to: nId });
       }
     }
     return candidates.length ? candidates[rand(candidates.length)] : null;
@@ -5780,7 +5820,6 @@ function runAI() {
   // press on from the just-conquered territory first; only consider the
   // rest of the kingdom if it has no further move worth taking
   let mv = (lastConqueredId !== null ? bestMove(lastConqueredId) : null) || bestMove();
-  const isPage = DIFFICULTY_LEVELS.findIndex((l) => l.value === DIFFICULTY) === 0;
   if (!mv && isPage && rngFloat() < 0.3) mv = riskyMove();
   const mistakeRate = Math.max(0, Math.min(1, escalated(AI_MISTAKE_RATE, 0.05) + pers.mistakeDelta));
   if (mv && rngFloat() >= mistakeRate) {
@@ -5952,21 +5991,30 @@ function drawHighlightOutlines() {
 // aims the tip at the defender exactly like the old vector version did.
 const SWORD_ANGLE_CORRECTION = Math.PI / 2;
 function drawSwordAt(x, y, angle, alpha, doubleSword = false) {
+  // "on va utiliser la grande épée diagonale noire pour symboliser les
+  // attaques quand on ajustement ce bonus des 12, au lieu des deux épées
+  // côte à côte" — the "pouvoir des 12" guaranteed-win now flourishes with
+  // one bigger SWORD_DIAGONAL_IMG instead of two slightly-splayed SWORD_IMG
+  // copies (its own art is already drawn at an angle — see #loreWarTools's
+  // own note — so no extra rotate needed beyond the usual aim-at-target one).
+  if (doubleSword) {
+    if (!SWORD_DIAGONAL_IMG.complete || !SWORD_DIAGONAL_IMG.naturalWidth) return;
+    const size = 56;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(angle + SWORD_ANGLE_CORRECTION);
+    ctx.globalAlpha = alpha;
+    ctx.drawImage(SWORD_DIAGONAL_IMG, -size / 2, -size / 2, size, size);
+    ctx.restore();
+    return;
+  }
   if (!SWORD_IMG.complete || !SWORD_IMG.naturalWidth) return; // not decoded yet — skip this frame rather than draw a broken image
   const size = 38; // doubled to 68, then -30%, then a further -20% per follow-up requests
   ctx.save();
   ctx.translate(x, y);
   ctx.rotate(angle + SWORD_ANGLE_CORRECTION);
   ctx.globalAlpha = alpha;
-  if (doubleSword) {
-    // "l'icône d'épée passe sur une double épée côte à côte pour comprendre
-    // que c'est puissant" — a bonus-powered guaranteed win draws two
-    // slightly-splayed swords instead of one.
-    ctx.save(); ctx.translate(-7, 0); ctx.rotate(-0.25); ctx.drawImage(SWORD_IMG, -size / 2, -size / 2, size, size); ctx.restore();
-    ctx.save(); ctx.translate(7, 0); ctx.rotate(0.25); ctx.drawImage(SWORD_IMG, -size / 2, -size / 2, size, size); ctx.restore();
-  } else {
-    ctx.drawImage(SWORD_IMG, -size / 2, -size / 2, size, size);
-  }
+  ctx.drawImage(SWORD_IMG, -size / 2, -size / 2, size, size);
   ctx.restore();
 }
 // Used specifically for water-related combat FX (see the two call sites of
@@ -6582,19 +6630,19 @@ function render() {
 
   // The "pouvoir des 12"/Merlin reveal — same 2s fade-in/out shape as the
   // two above, but centered on the map (no single hex to anchor it to,
-  // unlike a water ritual) and a crossed double-sword flourish instead of
-  // a creature sprite.
-  if (capBonusRevealFX && SWORD_IMG.complete && SWORD_IMG.naturalWidth) {
+  // unlike a water ritual) and the big black diagonal sword instead of a
+  // creature sprite (was a crossed double-sword — same swap as
+  // drawSwordAt()'s own doubleSword branch, see its note).
+  if (capBonusRevealFX && SWORD_DIAGONAL_IMG.complete && SWORD_DIAGONAL_IMG.naturalWidth) {
     const elapsed = performance.now() - capBonusRevealFX.start;
     const fadeMs = 350;
     const alpha = elapsed < fadeMs ? elapsed / fadeMs
       : elapsed > CAP_BONUS_REVEAL_MS - fadeMs ? Math.max(0, (CAP_BONUS_REVEAL_MS - elapsed) / fadeMs)
       : 1;
-    const size = 70;
+    const size = 96;
     ctx.save();
     ctx.globalAlpha = alpha;
-    ctx.save(); ctx.translate(-22, 0); ctx.rotate(-0.3); ctx.drawImage(SWORD_IMG, -size / 2, -size / 2, size, size); ctx.restore();
-    ctx.save(); ctx.translate(22, 0); ctx.rotate(0.3); ctx.drawImage(SWORD_IMG, -size / 2, -size / 2, size, size); ctx.restore();
+    ctx.drawImage(SWORD_DIAGONAL_IMG, -size / 2, -size / 2, size, size);
     ctx.restore();
   }
 
@@ -6659,7 +6707,7 @@ function updateGroups() {
     if (!rowEl) {
       rowEl = document.createElement("span");
       rowEl.className = "chip";
-      rowEl.innerHTML = `<span class="swatch"><span class="hand handStart"></span><span class="hand handEnd"></span></span><span class="n"></span>`;
+      rowEl.innerHTML = `<span class="swatch"></span><span class="n"></span>`;
       groupRowEls[r.roy.id] = rowEl;
     }
     // "un cercle de couleurs... la coloration à l'intérieur fonctionne
@@ -6672,19 +6720,12 @@ function updateGroups() {
     // single-province cap (see territoryCount's own note above).
     const theoreticalMax = Math.max(1, r.territoryCount * FORCE_CAP);
     const pct = Math.max(0, Math.min(100, (r.force / theoreticalMax) * 100));
-    rowEl.querySelector(".swatch").style.background =
-      `conic-gradient(${r.roy.color} ${pct}%, #f2ede2 ${pct}%)`;
-    // "deux aiguilles de montre entourant le quartier de couleur en noir,
-    // une reste verticale et l'autre tourne en suivant le bord de la
-    // progression... jusqu'à ce que les deux se touchent à 100%, et là
-    // seulement elles disparaissent" — handStart never moves, handEnd
-    // rotates with the wedge's own leading edge; both hidden once the
-    // circle is fully colored (nothing left to mark).
-    const handEndEl = rowEl.querySelector(".handEnd");
-    const full = pct >= 100;
-    handEndEl.style.transform = `translateX(-50%) rotate(${180 + (pct / 100) * 360}deg)`;
-    rowEl.querySelector(".handStart").style.display = full ? "none" : "";
-    handEndEl.style.display = full ? "none" : "";
+    const swatchEl = rowEl.querySelector(".swatch");
+    swatchEl.style.background = `conic-gradient(${r.roy.color} ${pct}%, #f2ede2 ${pct}%)`;
+    // "on enlève les traits noirs... quand le cercle est rempli à 100%...
+    // un petit cercle doré s'affiche autour" — no more tick marks tracking
+    // the fill live; just a gold ring once the dot is actually maxed out.
+    swatchEl.classList.toggle("full", pct >= 100);
     // "(nous)" marks our own row — same during a live game and while
     // watching a replay, since humanRoyId stays set to whichever seat was
     // actually played either way; requested so it's obvious at a glance
@@ -6983,7 +7024,7 @@ function handlePointer(clientX, clientY) {
   if (selected === -1) {
     if (t.owner === currentPlayer && t.force > 1) {
       selected = tId;
-      if (onboarding) showOnboardingHint("Touchez une province ennemie adjacente (contour doré) pour l'attaquer.");
+      if (onboarding) showOnboardingHint("<b>Touchez une province</b> ennemie adjacente (contour doré) pour l'attaquer.");
     }
   } else if (selected === tId) {
     selected = -1;
@@ -7537,8 +7578,19 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.89";
+const GAME_VERSION = "1.90";
 const CHANGELOG = [
+  {
+    version: "1.90",
+    notes: [
+      "Difficulté Gueux (facile) : l'ennemi ne peut plus jamais vous attaquer, à aucun moment de la partie — vous ne pouvez plus perdre à ce niveau.",
+      "Statistiques du haut : plus de traits noirs autour des camemberts de couleur — un petit cercle doré s'affiche à la place une fois remplis à 100%.",
+      "Le « pouvoir des 12 » se symbolise maintenant par la grande épée diagonale noire, au lieu de deux épées côte à côte.",
+      "Tuto : « Touchez une province » est maintenant en gras, et le cadre ne déborde plus sur le bouton du menu.",
+      "Épée diagonale du lore : fond blanc retiré, elle est maintenant transparente.",
+      "Le bouton « Abandonner » n'apparaît plus tant qu'aucune faction n'a été choisie.",
+    ],
+  },
   {
     version: "1.89",
     notes: [
@@ -8641,7 +8693,10 @@ function updateEndTurnButton() {
   // over (nothing left to surrender, tapping it post-gameOver would just
   // call showWin() a second time for no reason) or during replay (not
   // useful there — reported live as a stray button on the replay screen)
-  document.getElementById("surrenderBtn").style.display = (gameOver || replaying) ? "none" : "";
+  // "Le bouton abandonné ne doit pas apparaître avant qu'on ait choisi une
+  // faction" — surrendering a war you haven't picked a side in yet made no
+  // sense to offer.
+  document.getElementById("surrenderBtn").style.display = (gameOver || replaying || awaitingFactionPick) ? "none" : "";
   if (awaitingFactionPick) {
     btn.textContent = t("chooseCamp");
     btn.classList.remove("aiTurn");
@@ -8689,8 +8744,11 @@ function logMsg(msg) {
 // are internal-only (display:none), so this is the only actually-visible
 // instructional text in the game.
 function showOnboardingHint(msg) {
+  // innerHTML (was textContent) so the "Touchez une province" lead-in can be
+  // bolded — every string passed in here is a static literal below, never
+  // user/external content, so no escaping is needed.
   const el = document.getElementById("onboardingHint");
-  el.textContent = msg;
+  el.innerHTML = msg;
   el.style.display = "block";
 }
 function hideOnboardingHint() {
@@ -9197,7 +9255,7 @@ function startGame(seed) {
   // lines that the banner (no max-height/reflow logic of its own, it just
   // grows with its text) reached down into the map's own top row, reported
   // live with a screenshot circling how much shorter it needed to be.
-  if (awaitingFactionPick) showOnboardingHint("Mon général, la maison Millon se déchire. Touchez une province pour mettre votre épée au service d'une famille.");
+  if (awaitingFactionPick) showOnboardingHint("Mon général, la maison Millon se déchire. <b>Touchez une province</b> pour mettre votre épée au service d'une famille.");
   else hideOnboardingHint();
   updateGroups(); // populate before resize() measures the HUD's real height
   resize();
