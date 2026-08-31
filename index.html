@@ -217,7 +217,12 @@
     position: absolute; left: 50%; top: 50%; width: 1px; height: 50%;
     background: rgba(20,16,12,0.85); transform-origin: top center;
   }
-  .chip .swatch .handStart { transform: translateX(-50%) rotate(0deg); }
+  /* rest position (rotate 0) points down at 6 o'clock (the box extends
+     downward from top:50%, its own transform-origin) — the conic-gradient
+     wedge itself starts counting from 12 o'clock, so both hands need a
+     180° offset to actually land where the wedge does (reported live: the
+     two hands were each sitting opposite where they should be). */
+  .chip .swatch .handStart { transform: translateX(-50%) rotate(180deg); }
   /* fixed-width, left-aligned column (like the swatch already is) instead
      of a run-on text node — so every row's number starts at the same X
      regardless of digit count. Just the total force (soldiers) now — the
@@ -225,6 +230,13 @@
      updateGroups()'s own note on why an absolute number wasn't pulling its
      weight next to the sort order already conveying the same thing. */
   .chip .n { display: inline-block; text-align: left; font-weight: 700; min-width: 2.3em; }
+  /* "pourcentage de la carte conquise, pourcentage de complétion du total
+     max de force par royaume" — optional, off the settings toggle below
+     (#extraStatsToggle); the force one duplicates what the clock-hand fill
+     already shows visually (see updateGroups()'s own pct), just as a
+     number for players who want it spelled out. */
+  .chip .extraStats { display: none; font-weight: 400; font-size: 10px; opacity: .75; }
+  #groups.showExtraStats .chip .extraStats { display: inline-block; }
   #settingsPanel {
     position: absolute; inset: 0; display: none;
     align-items: center; justify-content: center;
@@ -916,6 +928,7 @@
            auto-detect — that's the bigger version still on the backlog. -->
       <button id="langToggle" style="display:block; margin-top:10px;">🇫🇷 Français</button>
       <label style="display:block; margin-top:10px;"><input type="checkbox" id="reinforcePulseToggle"> Cercles d'animation de renfort</label>
+      <label style="display:block; margin-top:10px;"><input type="checkbox" id="extraStatsToggle"> Stats en plus (% carte, % force)</label>
 
       <!-- Tier 2 used to be here: an "Affichage" section holding only the
            royaume-sort-order control (Villages/Soldats/Ordre de jeu). Removed
@@ -2218,6 +2231,31 @@ const MAX_ROUTE_SEARCH_HEXES = 6000;
 function betterRoute(hopA, costA, hopB, costB) {
   return hopA !== hopB ? hopA < hopB : costA < costB;
 }
+// Straightness tiebreak, used ONLY once hop/cost are already tied — a
+// uniform-cost water blob (see computeWaterRoutes()'s own note) routinely
+// has several genuinely-equal-length routes to the same coast, and without
+// this the Dijkstra below just kept whichever one it happened to settle
+// first, which could still read as an arbitrary, non-obvious detour even
+// though it WAS the shortest by hop count ("le chemin plus court est pas
+// respecté... devrait y avoir des lignes [directes] quand c'est possible").
+// Sums each crossed hex's squared perpendicular distance from the straight
+// line between the two territories' own centroids — lower means the path
+// hugs that direct line more closely, so a real straight shot always beats
+// an equally-short zigzag once one exists.
+function pathStraightnessDeviation(path, x0, y0, x1, y1) {
+  const dx = x1 - x0, dy = y1 - y0;
+  const lenSq = dx * dx + dy * dy || 1;
+  let sum = 0;
+  for (const hk of path) {
+    const h = hexes[hk];
+    if (!h) continue;
+    const t = ((h.x - x0) * dx + (h.y - y0) * dy) / lenSq;
+    const px = x0 + t * dx, py = y0 + t * dy;
+    const ddx = h.x - px, ddy = h.y - py;
+    sum += ddx * ddx + ddy * ddy;
+  }
+  return sum;
+}
 function computeWaterRoutes() {
   for (const t of territories) t.waterRoutes = new Map(); // targetTerritoryId -> { cost, path }
   const hasWater = Object.keys(hexes).some((k) => hexes[k].isWater);
@@ -2271,9 +2309,16 @@ function computeWaterRoutes() {
         } else if (nh.territoryId !== startT.id) {
           const destId = nh.territoryId;
           const existing = startT.waterRoutes.get(destId);
-          if (existing === undefined || betterRoute(hop, cost, existing.path.length, existing.cost)) {
-            startT.waterRoutes.set(destId, { cost, path });
+          let better = existing === undefined || betterRoute(hop, cost, existing.path.length, existing.cost);
+          // hop/cost tied exactly — break it by which one hugs the direct
+          // line between the two territories more closely, instead of just
+          // keeping whichever got settled first.
+          if (!better && existing !== undefined && hop === existing.path.length && cost === existing.cost) {
+            const destT = territories[destId];
+            better = pathStraightnessDeviation(path, startT.cx, startT.cy, destT.cx, destT.cy) <
+              pathStraightnessDeviation(existing.path, startT.cx, startT.cy, destT.cx, destT.cy);
           }
+          if (better) startT.waterRoutes.set(destId, { cost, path });
         }
       }
     }
@@ -2997,6 +3042,17 @@ let showReinforcePulse = true;
 try {
   const savedPulse = localStorage.getItem("kw_showReinforcePulse");
   if (savedPulse !== null) showReinforcePulse = savedPulse !== "0";
+} catch (e) { /* ignore */ }
+// "Y'a des stats qui s'affichent en plus sont désactivables en menu comme au
+// début" — % of the map each royaume holds (the old removed top-left stat,
+// see #64) plus % of theoretical max force reached (the same number the
+// clock-hand fill already shows visually, see updateGroups() — spelled out
+// as digits too here). On by default, opt-out, same convention as the
+// reinforcement pulse above.
+let showExtraStats = true;
+try {
+  const savedExtraStats = localStorage.getItem("kw_showExtraStats");
+  if (savedExtraStats !== null) showExtraStats = savedExtraStats !== "0";
 } catch (e) { /* ignore */ }
 
 // English support kicked off small on purpose — "fais l'anglais en premier
@@ -4792,6 +4848,13 @@ function encodeMoveForShare(action) {
   if (action.end) return [1];
   if (action.gueux !== undefined) return [2, action.gueux];
   if (action.continue) return [3];
+  // A water-sacrifice move (see executeWaterSacrifice()'s own logMove() call
+  // sites) has no encoding at all before this — it silently fell through to
+  // the plain-attack case below with action.a/action.b both undefined,
+  // corrupting the whole rest of a shared replay from that move on the
+  // instant it was ever included ("le replay a fait n'importe quoi... rien
+  // à voir avec la vraie partie"). pure packs down to 0/1 (plain boolean).
+  if (action.sac !== undefined) return [4, action.sac, action.path, action.pure ? 1 : 0];
   return [0, action.a, action.b];
 }
 function decodeMoveFromShare(tuple) {
@@ -4799,6 +4862,7 @@ function decodeMoveFromShare(tuple) {
     case 1: return { end: true };
     case 2: return { gueux: tuple[1] };
     case 3: return { continue: true };
+    case 4: return { sac: tuple[1], path: tuple[2], pure: !!tuple[3] };
     default: return { a: tuple[1], b: tuple[2] };
   }
 }
@@ -5906,6 +5970,7 @@ function updateGroups() {
   document.getElementById("topBar").style.display = replaying ? "none" : "";
   document.getElementById("gameTitleBlock").style.display = replaying ? "none" : "";
   const el = document.getElementById("groups");
+  el.classList.toggle("showExtraStats", showExtraStats);
   const rows = [];
   for (let royId = 0; royId < ROYAUME_COUNT - 1; royId++) { // exclude neutral (last)
     if (!isAlive(royId)) continue;
@@ -5942,7 +6007,7 @@ function updateGroups() {
     if (!rowEl) {
       rowEl = document.createElement("span");
       rowEl.className = "chip";
-      rowEl.innerHTML = `<span class="swatch"><span class="hand handStart"></span><span class="hand handEnd"></span></span><span class="n"></span>`;
+      rowEl.innerHTML = `<span class="swatch"><span class="hand handStart"></span><span class="hand handEnd"></span></span><span class="n"></span><span class="extraStats"></span>`;
       groupRowEls[r.roy.id] = rowEl;
     }
     // "un cercle de couleurs... la coloration à l'intérieur fonctionne
@@ -5965,7 +6030,7 @@ function updateGroups() {
     // circle is fully colored (nothing left to mark).
     const handEndEl = rowEl.querySelector(".handEnd");
     const full = pct >= 100;
-    handEndEl.style.transform = `translateX(-50%) rotate(${(pct / 100) * 360}deg)`;
+    handEndEl.style.transform = `translateX(-50%) rotate(${180 + (pct / 100) * 360}deg)`;
     rowEl.querySelector(".handStart").style.display = full ? "none" : "";
     handEndEl.style.display = full ? "none" : "";
     // "(nous)" marks our own row — same during a live game and while
@@ -5973,6 +6038,10 @@ function updateGroups() {
     // actually played either way; requested so it's obvious at a glance
     // which dot is ours without having to remember the color.
     rowEl.querySelector(".n").textContent = r.roy.id === humanRoyId ? `${r.force} (nous)` : r.force;
+    if (showExtraStats) {
+      const mapPct = Math.round((r.territoryCount / territories.length) * 100);
+      rowEl.querySelector(".extraStats").textContent = `${mapPct}% carte · ${Math.round(pct)}% force`;
+    }
     // exactly one row emphasized at a time, including our own when it's
     // our turn — see the CSS's own note on the transition itself
     rowEl.classList.toggle("activeTurn", r.roy.id === currentPlayer);
@@ -6774,8 +6843,17 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.72";
+const GAME_VERSION = "1.73";
 const CHANGELOG = [
+  {
+    version: "1.73",
+    notes: [
+      "Option pour afficher des stats en plus par royaume (% de la carte, % de la force max) dans les réglages.",
+      "Corrigé les deux aiguilles de l'horloge des stats, qui pointaient à l'opposé de leur bonne position.",
+      "Corrigé le tracé d'attaque par mer : quand plusieurs chemins font la même longueur, le plus direct est choisi.",
+      "Corrigé un lien de partage qui pouvait casser tout le replay s'il contenait un sacrifice à l'océan.",
+    ],
+  },
   {
     version: "1.72",
     notes: [
@@ -7509,6 +7587,15 @@ reinforcePulseToggle.checked = showReinforcePulse;
 reinforcePulseToggle.addEventListener("change", () => {
   showReinforcePulse = reinforcePulseToggle.checked;
   try { localStorage.setItem("kw_showReinforcePulse", showReinforcePulse ? "1" : "0"); } catch (e) { /* ignore */ }
+  sfxToggle();
+});
+
+const extraStatsToggle = document.getElementById("extraStatsToggle");
+extraStatsToggle.checked = showExtraStats;
+extraStatsToggle.addEventListener("change", () => {
+  showExtraStats = extraStatsToggle.checked;
+  try { localStorage.setItem("kw_showExtraStats", showExtraStats ? "1" : "0"); } catch (e) { /* ignore */ }
+  updateGroups();
   sfxToggle();
 });
 
