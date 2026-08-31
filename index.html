@@ -367,6 +367,11 @@
   #chartLegend { display: flex; flex-direction: column; gap: 3px; align-self: stretch; margin-top: -6px; }
   #chartLegend .royaumeRow { font-size: 11px; }
   .winButtons { display: flex; gap: 10px; }
+  /* 3 buttons now (Annuler/Proposer la paix/Abandonner) instead of the
+     usual 2 — tighter padding + wrap so "Abandonner" doesn't get clipped
+     off the right edge of the card on a narrow phone. */
+  #surrenderConfirmOverlay .winButtons { flex-wrap: wrap; justify-content: center; }
+  #surrenderConfirmOverlay .winButtons button { flex: 1 1 auto; min-width: 84px; padding: 10px 10px; }
   #winActionsGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-self: stretch; }
   #winActionsGrid button { margin: 0; }
   /* was shrinking to its own content width and centering, unlike every
@@ -726,12 +731,19 @@
       </div>
     </div>
   </div>
+  <!-- Unified per request: tapping the skull now offers a real choice —
+       propose peace (a draw, ends the match right now, +1 gueux per rival
+       still standing) or surrender outright — instead of jumping straight
+       to a surrender confirmation with no other option on the table.
+       "Je propose que si on clique sur la tête de mort on ait le choix
+       entre offrir la trêve/paix et se rendre." -->
   <div id="surrenderConfirmOverlay">
     <div class="box">
-      <h2>💀 Abandonner</h2>
-      <p>Abandonner la partie ? Cette action est définitive.</p>
+      <h2>💀 Abandonner ou proposer la paix</h2>
+      <p>La bataille traîne en longueur ? Proposez la paix (match nul, un gueux gagné par royaume adverse encore debout) ou abandonnez la partie — cette dernière action est définitive.</p>
       <div class="winButtons">
         <button id="cancelSurrender">Annuler</button>
+        <button id="proposePeaceBtn">🕊️ Proposer la paix</button>
         <button id="confirmSurrender">Abandonner</button>
       </div>
     </div>
@@ -2389,6 +2401,7 @@ let truceWinnerId = -1;
 let truceEnded = false; // showWin() uses different flavor text for a truce than an outright win
 let humanSurrendered = false; // showWin() uses a distinct, mocking flavor line for a self-inflicted loss
 let mercyGranted = false; // the human accepted the last rival's surrender instead of finishing them off in combat — showWin() uses its own distinct line
+let peaceGueuxGained = 0; // showWin() mentions this in gueuxNote when > 0 — see proposePeace()
 
 // One click, no confirmation, immediate — ends the match right now as a
 // loss for the human. Whichever AI royaume currently holds the most
@@ -2412,6 +2425,31 @@ function surrenderGame() {
     refreshGueuxBadge();
   }
   showWin(winnerId);
+}
+
+// Voluntary peace, offered by the player at any time (not just once the
+// automatic stalemate detector gives up) — "je propose que si on clique sur
+// la tête de mort on ait le choix entre offrir la trêve/paix et se rendre.
+// Si on fait la paix on gagne un gueux par pays restant." One click, no
+// further confirmation beyond the shared surrenderConfirmOverlay itself —
+// ends the match right now as a draw, crediting one gueux per rival
+// royaume still alive to fight on.
+function proposePeace() {
+  if (gameOver || awaitingFactionPick || replaying) return;
+  let livingRivals = 0;
+  for (let r = 0; r < ROYAUME_COUNT - 1; r++) {
+    if (r !== humanRoyId && isAlive(r)) livingRivals++;
+  }
+  gameOver = true;
+  truceEnded = true;
+  truceWinnerId = -1;
+  peaceGueuxGained = livingRivals;
+  if (livingRivals > 0) {
+    gueuxCount += livingRivals;
+    try { localStorage.setItem("kw_gueuxCount", String(gueuxCount)); } catch (e) { /* ignore */ }
+    refreshGueuxBadge();
+  }
+  showWin(truceWinnerId);
 }
 
 // A lone, hopelessly outmatched last rival can offer to submit instead of
@@ -2891,6 +2929,9 @@ const UI_STRINGS = {
   saveChart: { fr: "💾 Enregistrer le graphique", en: "💾 Save the chart" },
   reviewBack: { fr: "🔙 Retour", en: "🔙 Back" },
   acceptTruce: { fr: "J'accepte la trêve", en: "I accept the truce" },
+  cancelSurrender: { fr: "Annuler", en: "Cancel" },
+  proposePeace: { fr: "🕊️ Proposer la paix", en: "🕊️ Propose peace" },
+  confirmSurrender: { fr: "Abandonner", en: "Surrender" },
   continueSiege: { fr: "⚔ Continuer le combat", en: "⚔ Continue the fight" },
   langToggleLabel: { fr: "🇫🇷 Français", en: "🇬🇧 English" },
 };
@@ -4032,6 +4073,11 @@ function showWin(royId) {
   let gueuxNoteText = "";
   if (royId === humanRoyId && metaProgressEnabled) gueuxNoteText = "Vous gagnez un gueux.";
   else if (humanLost && humanSurrendered && surrenderCostAGueux) gueuxNoteText = "Vous perdez un gueux.";
+  else if (truceEnded && peaceGueuxGained > 0) {
+    gueuxNoteText = peaceGueuxGained > 1
+      ? `Vous gagnez ${peaceGueuxGained} gueux.`
+      : "Vous gagnez un gueux.";
+  }
   document.getElementById("gueuxNote").textContent = gueuxNoteText;
   document.getElementById("endturn").disabled = true;
   drawStatChart();
@@ -6510,8 +6556,14 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.64";
+const GAME_VERSION = "1.65";
 const CHANGELOG = [
+  {
+    version: "1.65",
+    notes: [
+      "Le bouton tête de mort propose maintenant un vrai choix : proposer la paix (match nul, +1 gueux par royaume adverse encore en vie) ou abandonner.",
+    ],
+  },
   {
     version: "1.64",
     notes: [
@@ -7120,6 +7172,11 @@ document.getElementById("cancelSurrender").addEventListener("click", () => {
   document.getElementById("surrenderConfirmOverlay").style.display = "none";
   sfxMenuClose();
 });
+document.getElementById("proposePeaceBtn").addEventListener("click", () => {
+  document.getElementById("surrenderConfirmOverlay").style.display = "none";
+  sfxToggle();
+  proposePeace();
+});
 document.getElementById("confirmSurrender").addEventListener("click", () => {
   document.getElementById("surrenderConfirmOverlay").style.display = "none";
   sfxToggle();
@@ -7146,6 +7203,9 @@ function applyUiLanguage() {
   document.getElementById("reviewBackBtn").textContent = t("reviewBack");
   document.getElementById("reviewReplayBtn").textContent = t("watchReplay");
   document.getElementById("acceptTruce").textContent = t("acceptTruce");
+  document.getElementById("cancelSurrender").textContent = t("cancelSurrender");
+  document.getElementById("proposePeaceBtn").textContent = t("proposePeace");
+  document.getElementById("confirmSurrender").textContent = t("confirmSurrender");
   document.getElementById("continueSiege").textContent = t("continueSiege");
   document.getElementById("langToggle").textContent = t("langToggleLabel");
   const rerollBtnEl = document.getElementById("rerollBtn");
@@ -7684,7 +7744,7 @@ function startGame(seed) {
   oceanTapCount = 0; // fresh running gag for a fresh match — see showOceanTapEasterEgg()
   ritualCountThisMatch = 0; octopusRevealedThisMatch = false; octopusRevealFX = null;
   lastConqueredId = null; lastConqueredRoyId = -1;
-  allCappedStreak = 0; lastStalemateFingerprint = null; truceEnded = false; truceWinnerId = -1; humanSurrendered = false; mercyGranted = false;
+  allCappedStreak = 0; lastStalemateFingerprint = null; truceEnded = false; truceWinnerId = -1; humanSurrendered = false; mercyGranted = false; peaceGueuxGained = 0;
   mercyOfferShownAtRound = null;
   document.getElementById("enemySurrenderBtn").style.display = "none";
   forceInstantSkip = false; // leftover from a manual "La guerre fait rage" tap in a just-abandoned match shouldn't carry over
