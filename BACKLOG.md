@@ -7,7 +7,7 @@ Copié tel quel pour suivi. Statut ajouté en préfixe au fur et à mesure :
 
 [x] Depuis le menu, cliquer sur la zone en haut de map fait retourner à la map.
 
-[~] Ajoute un bouton carte précédente quand on génère aléatoirement trop vite.
+[x] Ajoute un bouton carte précédente quand on génère aléatoirement trop vite.
 
 Préciser au piano les accord de chaque animation pour éviter les notes trop aiguës
 
@@ -79,7 +79,7 @@ Le nombres de villages gagné affiche float reste deux fois plus longtemps
 
 [x] Avant les 12vs12, on va ajouter quand il y a égalité 1/3 de chance de gagner. Et à une force de moins 1/5
 
-L'affichage du tuto se positionne en haut à gauche de l'écran. Sinon appuie dessus ça part.
+[x] L'affichage du tuto se positionne en haut à gauche de l'écran. Sinon appuie dessus ça part.
 
 Ajout message d'abandon à faire tourner « L'échec. Vous êtes à peine reconnaissable avec votre barbe mitée et vos lambeaux sales. Vous me faites honte. Je préfère travailler pour un winner qui parie sur des cryptomonnaies. À Dieu l'bouseux »
 

@@ -307,11 +307,15 @@
     z-index: 10; /* see #settingsPanel's own z-index for why */
   }
   #winbanner .box { display: flex; flex-direction: column; align-items: center; gap: 14px; max-height: 88vh; overflow-y: auto; }
-  #rerollBtn, #replayPauseBtn, #replayResumeHereBtn {
+  #rerollBtn, #replayPauseBtn, #replayResumeHereBtn, #prevMapBtn {
     position: absolute; right: 14px; /* bottom is set in JS, stacked just above #endturn */
     pointer-events: auto; background: linear-gradient(135deg, #fff3c4, #e8c468, #a97e2a); color: #2b1d10;
     padding: 8px 16px; font-size: 13px; white-space: nowrap; font-weight: 700;
   }
+  /* sits directly left of #rerollBtn, same bottom — both right/bottom
+     recomputed in JS (resize()) once rerollBtn's own rendered width is
+     known, this is just a same-slot fallback before that first runs. */
+  #prevMapBtn { right: 14px; }
   /* was a flat 24px — fine for a short line, but the longer victory/loss
      lines wrap to 6-7 lines at that size and push the chart + buttons far
      enough down that they needed scrolling to reach on some phones. Scales
@@ -509,15 +513,13 @@
     font-size: 14px; font-weight: 600; color: #6b2318;
   }
   /* small first-game-only tutorial banner — same materials as the other HUD
-     buttons, just top-center and text-only, out of the way of the map */
+     buttons, top-left ("l'affichage du tuto se positionne en haut à gauche
+     de l'écran"), pushed down past the stats column (#topBar, up to 4
+     royaume lines tall before a camp is picked) so it never overlaps it. */
   #onboardingHint {
-    /* pushed down past #gameTitleBlock (top-left, ~36px tall) — it used to
-       sit at the very top center and overlap the title on a new player's
-       very first screen, which is exactly the one moment they'd both show
-       at once */
-    position: absolute; top: calc(50px + env(safe-area-inset-top, 0px)); left: 50%;
-    transform: translateX(-50%); z-index: 5;
-    display: none; max-width: 78vw; text-align: center; cursor: pointer;
+    position: absolute; top: calc(130px + env(safe-area-inset-top, 0px)); left: 14px;
+    z-index: 5;
+    display: none; max-width: 78vw; text-align: left; cursor: pointer;
     background: rgba(20,16,12,.75); color: #f2ede2; font-size: 13px; font-weight: 600;
     padding: 8px 14px; border-radius: 10px; border: 1px solid #8a6d3b;
     box-shadow: 0 0 0 1px rgba(20,16,12,.7), 0 2px 6px rgba(0,0,0,.45);
@@ -632,6 +634,7 @@
        (see updateEnemySurrenderOffer()) — accepting ends the match right
        now as a human win, without actually having to grind them down -->
   <button id="enemySurrenderBtn" style="display:none;"></button>
+  <button id="prevMapBtn" style="display:none;">◀ Précédente</button>
   <button id="rerollBtn">🔀 Changer la carte</button>
   <!-- the one replay control now: starts on screen already paused (frozen)
      — a tap turns it into "⏸ Pause" and starts playback; pausing again
@@ -1445,6 +1448,14 @@ function resize() {
       }
     }
   }
+  // "◀ Précédente" sits directly left of rerollBtn, same bottom — only
+  // once rerollBtn's own rendered width is known, so it never overlaps it
+  // regardless of the label's length.
+  const prevMapEl = document.getElementById("prevMapBtn");
+  if (prevMapEl.style.display !== "none" && rerollVisible) {
+    prevMapEl.style.bottom = rerollEl.style.bottom;
+    prevMapEl.style.right = (14 + rerollEl.offsetWidth + 8) + "px";
+  }
   // surrenderBtn's horizontal position is no longer computed here at all —
   // it's a plain flex child of #bottomHudRow now (see its CSS), which
   // guarantees it never overlaps gueuxBadge/endturn regardless of how wide
@@ -1598,6 +1609,13 @@ let territories = [];    // {id, hexKeys[], owner, force, cx, cy, neighbors:Set}
 let players = [];        // per-royaume runtime state
 let territoryBorderSegments = []; // [{p1,p2,terrA,terrB,px,py}] edges between two different territories, precomputed once — see generateHexGrid()
 let currentSeed = 0;     // the seed this match was generated from — the whole match is reproducible from this + the human's move list
+// Seeds of every map rerolled past while still picking a camp, oldest
+// first — lets "◀ Précédente" step back through them one at a time
+// instead of only ever rolling forward ("bouton carte précédente quand on
+// génère aléatoirement trop vite"). Only meaningful during that one
+// picking phase: pickFaction() clears it the moment an actual camp is
+// chosen, so it never leaks into the next match's own reroll history.
+let mapHistory = [];
 
 function rand(n) { return Math.floor(rngFloat() * n); }
 function pick(arr) { return arr[rand(arr.length)]; }
@@ -5458,6 +5476,8 @@ function pickFaction(royId) {
   humanRoyId = royId;
   currentPlayer = royId; // whichever royaume is picked always plays first, not whatever seat happened to be numbered 0
   awaitingFactionPick = false;
+  mapHistory = []; // this picking phase is over — its reroll history is no longer relevant to the match that just started
+  refreshPrevMapBtn();
   // "Choisissez un camp" only shows for the first CAMP_PROMPT_MAX times a
   // camp is actually picked — counted here (once per real pick), not per
   // visit to the faction-pick screen, so rerolling the map a few times
@@ -5859,8 +5879,24 @@ document.getElementById("rerollBtn").addEventListener("click", () => {
     if (activeReplayFinish) activeReplayFinish();
     return;
   }
-  if (!reloadIfUpdateAvailable()) { sfxRerollMap(); startGame(); }
+  if (!reloadIfUpdateAvailable()) {
+    mapHistory.push(currentSeed); // "bouton carte précédente" can step back to this one
+    sfxRerollMap();
+    startGame();
+    refreshPrevMapBtn();
+  }
 });
+document.getElementById("prevMapBtn").addEventListener("click", () => {
+  if (!mapHistory.length) return;
+  const prevSeed = mapHistory.pop();
+  sfxRerollMap();
+  startGame(prevSeed);
+  refreshPrevMapBtn();
+});
+function refreshPrevMapBtn() {
+  const el = document.getElementById("prevMapBtn");
+  el.style.display = (!replaying && awaitingFactionPick && mapHistory.length > 0) ? "" : "none";
+}
 document.getElementById("replayPauseBtn").addEventListener("click", () => {
   if (activeReplayTogglePause) activeReplayTogglePause();
   sfxToggle();
@@ -6047,8 +6083,16 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.53";
+const GAME_VERSION = "1.54";
 const CHANGELOG = [
+  {
+    version: "1.54",
+    notes: [
+      "Nouveau bouton « ◀ Précédente » pour revenir à la carte générée juste avant, tant qu'on n'a pas choisi de camp.",
+      "Le tuto s'affiche maintenant en haut à gauche au lieu du centre.",
+      "Police du titre : Trattatello.",
+    ],
+  },
   {
     version: "1.53",
     notes: [
@@ -7077,6 +7121,7 @@ function startGame(seed) {
   const rerollBtnEl = document.getElementById("rerollBtn");
   rerollBtnEl.style.display = (awaitingFactionPick || replaying) ? "" : "none";
   rerollBtnEl.textContent = replaying ? "⏹ Arrêter le replay" : "🔀 Changer la carte";
+  refreshPrevMapBtn();
   // the rest of the interface is inert during a replay (taps are ignored —
   // see handlePointer()/endturn's click handler) — hide it instead of
   // leaving buttons on screen that do nothing when pressed.
