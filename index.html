@@ -230,13 +230,6 @@
      updateGroups()'s own note on why an absolute number wasn't pulling its
      weight next to the sort order already conveying the same thing. */
   .chip .n { display: inline-block; text-align: left; font-weight: 700; min-width: 2.3em; }
-  /* "pourcentage de la carte conquise, pourcentage de complétion du total
-     max de force par royaume" — optional, off the settings toggle below
-     (#extraStatsToggle); the force one duplicates what the clock-hand fill
-     already shows visually (see updateGroups()'s own pct), just as a
-     number for players who want it spelled out. */
-  .chip .extraStats { display: none; font-weight: 400; font-size: 10px; opacity: .75; }
-  #groups.showExtraStats .chip .extraStats { display: inline-block; }
   #settingsPanel {
     position: absolute; inset: 0; display: none;
     align-items: center; justify-content: center;
@@ -402,6 +395,13 @@
   }
   #shareIntro h2 { margin: 0 0 14px; font-size: 21px; }
   #shareIntro p { font-size: 14px; opacity: .85; margin: 0 0 18px; }
+  #chartShareOverlay {
+    position: absolute; inset: 0; display: none;
+    align-items: center; justify-content: center;
+    background: rgba(10,8,6,.88); text-align: center; z-index: 11; /* above #winbanner (10) — this opens from a button inside it */
+  }
+  #chartShareOverlay h2 { margin: 0 0 14px; font-size: 21px; }
+  #chartShareImg { max-width: 100%; max-height: 45vh; border-radius: 6px; margin: 0 0 16px; display: block; }
   #truceOverlay {
     position: absolute; inset: 0; display: none;
     align-items: center; justify-content: center;
@@ -532,7 +532,7 @@
      same gradient as the selected-territory outline on the map
      (OUTLINE_GRADIENTS.gold), so the two "this is the important thing"
      treatments actually match instead of one being gold and the other blue. */
-  #settingsPanel button, #winbanner button, #truceOverlay button, #loreOverlay button, #conseilsOverlay button, #surrenderConfirmOverlay button {
+  #settingsPanel button, #winbanner button, #truceOverlay button, #loreOverlay button, #conseilsOverlay button, #surrenderConfirmOverlay button, #chartShareOverlay button {
     background: linear-gradient(135deg, #fff3c4, #e8c468, #a97e2a);
     color: #2b1d10; border: 1px solid #8a6d3b; border-radius: 8px;
     padding: 10px 20px; font-size: 15px; font-weight: 700;
@@ -750,6 +750,26 @@
       </div>
     </div>
   </div>
+  <!-- iOS Safari's own share sheet often shows a generic file icon instead
+       of a real thumbnail for an in-memory generated image (a WebKit
+       quirk on File objects built fresh in JS, not something the page can
+       fix from here — reported live, repeatedly: "un truc dégueu... on
+       sache ce qu'on enregistre"). Rather than keep fighting an opaque
+       native rendering behavior, this shows OUR OWN preview of the exact
+       image first — the "Partager" button here is itself a direct,
+       synchronous click (not a callback from something async), so it
+       still satisfies iOS's own "must call navigator.share() from inside
+       a real user gesture" requirement. -->
+  <div id="chartShareOverlay">
+    <div class="box">
+      <h2>💾 Graphique</h2>
+      <img id="chartShareImg" alt="Aperçu du graphique de fin">
+      <div class="winButtons">
+        <button id="chartShareSend">📤 Partager</button>
+        <button id="chartShareClose">Fermer</button>
+      </div>
+    </div>
+  </div>
   <div id="truceOverlay">
     <div class="box">
       <h2>🕊️ Trêve</h2>
@@ -939,7 +959,6 @@
            auto-detect — that's the bigger version still on the backlog. -->
       <button id="langToggle" style="display:block; margin-top:10px;">🇫🇷 Français</button>
       <label style="display:block; margin-top:10px;"><input type="checkbox" id="reinforcePulseToggle"> Cercles d'animation de renfort</label>
-      <label style="display:block; margin-top:10px;"><input type="checkbox" id="extraStatsToggle"> Stats en plus (% carte, % force)</label>
       <!-- experimental, off by default — "essayer une version avec du
            brouillard comme aoe I" -->
       <label style="display:block; margin-top:10px;"><input type="checkbox" id="fogOfWarToggle"> 🌫️ Brouillard de guerre (expérimental)</label>
@@ -3085,18 +3104,6 @@ try {
   const savedPulse = localStorage.getItem("kw_showReinforcePulse");
   if (savedPulse !== null) showReinforcePulse = savedPulse !== "0";
 } catch (e) { /* ignore */ }
-// "Y'a des stats qui s'affichent en plus sont désactivables en menu comme au
-// début" — % of the map each royaume holds (the old removed top-left stat,
-// see #64) plus % of theoretical max force reached (the same number the
-// clock-hand fill already shows visually, see updateGroups() — spelled out
-// as digits too here). On by default, opt-out, same convention as the
-// reinforcement pulse above.
-let showExtraStats = true;
-try {
-  const savedExtraStats = localStorage.getItem("kw_showExtraStats");
-  if (savedExtraStats !== null) showExtraStats = savedExtraStats !== "0";
-} catch (e) { /* ignore */ }
-
 // "Essayer une version avec du brouillard comme aoe I" — an opt-in,
 // OFF-by-default experimental mode (confirmed live), display-only: the AI
 // keeps its full internal knowledge and existing behavior exactly as-is,
@@ -5147,31 +5154,32 @@ function dataURLToBlobSync(dataURL) {
   for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
   return new Blob([bytes], { type: mime });
 }
+// Kept around between building the preview and the "Partager" tap that
+// actually shares it — see saveChartImage()'s own note on why this is a
+// two-step flow now.
+let pendingChartShare = null; // { blob, file }
 function saveChartImage() {
   sfxShare();
   const canvas = buildChartWallpaperImage();
   const blob = dataURLToBlobSync(canvas.toDataURL("image/png"));
   // name + version + this exact match's map code, so a saved file (or one
-  // sent to someone else) says on its own what it's from — the thumbnail
-  // preview itself not showing up in the iOS share sheet is a WebKit
-  // limitation with in-memory generated images we can't fix from the page
-  // (nothing changes that from here; a real file already on disk gets a
-  // thumbnail, one built fresh in JS often doesn't)
+  // sent to someone else) says on its own what it's from.
   const file = new File([blob], `knight-wars-v${GAME_VERSION}-${buildMapCode()}.png`, { type: "image/png" });
   if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-    // files-only, no title/text alongside: adding those made iOS Safari's
-    // share sheet render this as a generic document row (plain file icon)
-    // instead of recognizing a lone image share and showing its real
-    // thumbnail — reported live, more than once, as "un truc dégueu" in the
-    // save menu ("faut une icône prévue dans le menu d'enregistrement").
-    navigator.share({ files: [file] }).then(() => {
-      showToast("Graphique enregistré !");
-    }).catch(() => {
-      // cancelled, or share failed after all — fall back to opening the
-      // image in its own tab so it can still be long-pressed/saved manually
-      const url = URL.createObjectURL(blob);
-      window.open(url, "_blank");
-    });
+    // Shows OUR OWN preview of the exact image first, instead of handing
+    // it straight to navigator.share() — iOS Safari's own share sheet
+    // often renders an in-memory generated image as a generic file icon
+    // rather than a real thumbnail (a WebKit quirk on File objects built
+    // fresh in JS, nothing this page can fix about that specific
+    // rendering) — reported live, repeatedly, as "un truc dégueu... on
+    // sache ce qu'on enregistre". The "Partager" button in this preview
+    // (see chartShareSend's own click handler) is itself the direct user
+    // gesture navigator.share() actually fires from, so this still
+    // satisfies iOS's "must be called synchronously from a real user
+    // gesture" requirement — nothing async happens in between.
+    pendingChartShare = { blob, file };
+    document.getElementById("chartShareImg").src = URL.createObjectURL(blob);
+    document.getElementById("chartShareOverlay").style.display = "flex";
     return;
   }
   const url = URL.createObjectURL(blob);
@@ -5179,6 +5187,26 @@ function saveChartImage() {
   showToast("Image ouverte dans un nouvel onglet — appui long pour l'enregistrer.");
 }
 document.getElementById("saveChartImage").addEventListener("click", () => { saveChartImage(); });
+document.getElementById("chartShareSend").addEventListener("click", () => {
+  if (!pendingChartShare) return;
+  const { blob, file } = pendingChartShare;
+  navigator.share({ files: [file] }).then(() => {
+    document.getElementById("chartShareOverlay").style.display = "none";
+    showToast("Graphique enregistré !");
+  }).catch(() => {
+    // cancelled, or share failed after all — leave the preview open (still
+    // showing the exact image) rather than silently closing on a failure;
+    // fall back to opening it in its own tab so it can still be
+    // long-pressed/saved manually.
+    const url = URL.createObjectURL(blob);
+    window.open(url, "_blank");
+  });
+});
+document.getElementById("chartShareClose").addEventListener("click", () => {
+  document.getElementById("chartShareOverlay").style.display = "none";
+  pendingChartShare = null;
+  sfxMenuClose();
+});
 
 const MAP_SIZE_BY_LETTER = { s: "small", m: "medium", l: "large", h: "huge" };
 // A short, portable map code — just enough (seed + map size + difficulty +
@@ -5694,6 +5722,15 @@ function render() {
     ctx.lineWidth = 0.5;
     ctx.stroke();
     ctx.globalAlpha = 1;
+    // Fog of war — a real visual haze over an out-of-sight hex, not just a
+    // missing number, so it reads as "hidden by fog" rather than "broken"
+    // ("faut ajouter un effet brouillard pour qu'on sache que c'est le
+    // brouillard"). A lighter wash for a remembered-but-stale territory,
+    // a heavier one for a never-explored one — see updateFogKnowledge().
+    if (fogOfWarEnabled && !awaitingFactionPick && !t.fogInSight) {
+      ctx.fillStyle = t.everExplored ? "rgba(210,214,222,0.4)" : "rgba(35,32,30,0.6)";
+      ctx.fill();
+    }
   }
 
   // territory borders: the one thing that actually matters for reading the
@@ -6148,7 +6185,6 @@ function updateGroups() {
   document.getElementById("topBar").style.display = replaying ? "none" : "";
   document.getElementById("gameTitleBlock").style.display = replaying ? "none" : "";
   const el = document.getElementById("groups");
-  el.classList.toggle("showExtraStats", showExtraStats);
   const rows = [];
   for (let royId = 0; royId < ROYAUME_COUNT - 1; royId++) { // exclude neutral (last)
     if (!isAlive(royId)) continue;
@@ -6185,7 +6221,7 @@ function updateGroups() {
     if (!rowEl) {
       rowEl = document.createElement("span");
       rowEl.className = "chip";
-      rowEl.innerHTML = `<span class="swatch"><span class="hand handStart"></span><span class="hand handEnd"></span></span><span class="n"></span><span class="extraStats"></span>`;
+      rowEl.innerHTML = `<span class="swatch"><span class="hand handStart"></span><span class="hand handEnd"></span></span><span class="n"></span>`;
       groupRowEls[r.roy.id] = rowEl;
     }
     // "un cercle de couleurs... la coloration à l'intérieur fonctionne
@@ -6216,10 +6252,6 @@ function updateGroups() {
     // actually played either way; requested so it's obvious at a glance
     // which dot is ours without having to remember the color.
     rowEl.querySelector(".n").textContent = r.roy.id === humanRoyId ? `${r.force} (nous)` : r.force;
-    if (showExtraStats) {
-      const mapPct = Math.round((r.territoryCount / territories.length) * 100);
-      rowEl.querySelector(".extraStats").textContent = `${mapPct}% carte · ${Math.round(pct)}% force`;
-    }
     // exactly one row emphasized at a time, including our own when it's
     // our turn — see the CSS's own note on the transition itself
     rowEl.classList.toggle("activeTurn", r.roy.id === currentPlayer);
@@ -7040,8 +7072,16 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.76";
+const GAME_VERSION = "1.77";
 const CHANGELOG = [
+  {
+    version: "1.77",
+    notes: [
+      "Retiré les stats en plus (% carte, % force) — se superposaient au titre du jeu en haut.",
+      "Brouillard de guerre : ajouté un vrai voile visuel sur les cases hors de vue (pas juste un chiffre manquant).",
+      "Enregistrement du graphique : aperçu de l'image affiché avant de choisir où l'envoyer.",
+    ],
+  },
   {
     version: "1.76",
     notes: [
@@ -7805,15 +7845,6 @@ reinforcePulseToggle.checked = showReinforcePulse;
 reinforcePulseToggle.addEventListener("change", () => {
   showReinforcePulse = reinforcePulseToggle.checked;
   try { localStorage.setItem("kw_showReinforcePulse", showReinforcePulse ? "1" : "0"); } catch (e) { /* ignore */ }
-  sfxToggle();
-});
-
-const extraStatsToggle = document.getElementById("extraStatsToggle");
-extraStatsToggle.checked = showExtraStats;
-extraStatsToggle.addEventListener("change", () => {
-  showExtraStats = extraStatsToggle.checked;
-  try { localStorage.setItem("kw_showExtraStats", showExtraStats ? "1" : "0"); } catch (e) { /* ignore */ }
-  updateGroups();
   sfxToggle();
 });
 
