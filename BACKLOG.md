@@ -15,27 +15,28 @@ Copié tel quel pour suivi. Statut ajouté en préfixe au fur et à mesure :
 
 [x] Graphique de fin déplace en haut les chiffre de territoire. Ajout en dessous du graphique même chose pour les nombre de soldat
 
-Sur safari la page charge mais après plusieurs dizaines de secondes
+[~] Sur safari la page charge mais après plusieurs dizaines de secondes (probablement déjà amélioré par les correctifs PWA/service-worker faits depuis — pas de Safari réel pour re-tester ici, à confirmer)
 Firefox focus direct chargement
 
-On prévois de regarder une pub de 30 scd pour débloquer pendant 24h le mode très difficile et/ou les grandes maps. Explication dans les astuces.
-Ou bien acheter 2€ pour les retirer à vie.
+[ ] On prévois de regarder une pub de 30 scd pour débloquer pendant 24h le mode très difficile et/ou les grandes maps. Explication dans les astuces.
+[ ] Ou bien acheter 2€ pour les retirer à vie.
+(nécessite une vraie décision produit + intégration pub/paiement — à trancher avec Pierre avant implémentation, pas fait cette fois)
 
 [x] Au replay, on entoure tout le territoire en dorée o arrête d'entourer les province. Une seule limite pour tout le territoire. (drawRoyaumeOutline, fait plus tôt)
 
 [x] Au replay on laisse mon territoire visible seul tant que je pas clique sur play (fait pour de vrai maintenant : tenu par replayPaused, plus une limite fixe de 1.5s). On retire les bruitages d'ajout de soldats durant replay (fait). On retire les épées du replay (fait — décision inversée une dernière fois, "enlève les épées et bateaux" du replay, plus récente que le "NON" explicite d'avant).
 
-Quand replay fini, on reste sur l'image de fin. Pas de retour au écran de fin.
+[x] Quand replay fini, on reste sur l'image de fin. Pas de retour au écran de fin. (revealFinalBoard() réutilisé — même état que le swipe sur l'écran de fin)
 
-Au lieu de diviser par feu l'ajout de force par rapport à la taille du royaume on divise par 1,5 maintenant.
+[~] Au lieu de diviser par feu l'ajout de force par rapport à la taille du royaume on divise par 1,5 maintenant. (la formule actuelle a été retravaillée depuis : `1.0 + 1.5×part_relative + bonus_absolu`, arrondi — le coefficient 1,5 y est déjà, mais pas comme une simple division ; rejouée plusieurs fois en équilibrage, pas retouchée cette fois)
 
-Vitesse du replay ralentit de 30%
+[x] Vitesse du replay ralentit de 30% (déjà fait — REPLAY_STEP_MS = 65, commenté "slowed another 30% per live feedback")
 
-Inconsistance entre même taille de royaumes et des fois 3 renfort des fois 4 ??
+[~] Inconsistance entre même taille de royaumes et des fois 3 renfort des fois 4 ?? (probablement pas un bug : la formule dépend de `avgHexShare` qui change à chaque élimination adverse, et Math.round() peut faire basculer 3↔4 pour une différence d'une case — deux royaumes de même taille au MÊME tour donnent le même chiffre, vérifié dans le code)
 
 [x] Impossible de rejoindre par la mer des provinces proches côtières ??
 
-Replay à invente un partie :(
+[ ] Replay à invente un partie :( (bug de déterminisme du replay, potentiellement important — pas reproduit, besoin d'un exemple concret : seed/lien de partage où ça arrive)
 
 [x] Affichage dans le replay de (nous) après le nom dans les stats et aussi durant la partie.
 
