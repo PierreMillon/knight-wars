@@ -881,6 +881,7 @@
            flavor text yet. A plain toggle, not a full language picker with
            auto-detect — that's the bigger version still on the backlog. -->
       <button id="langToggle" style="display:block; margin-top:10px;">🇫🇷 Français</button>
+      <label style="display:block; margin-top:10px;"><input type="checkbox" id="reinforcePulseToggle"> Cercles d'animation de renfort</label>
 
       <!-- Tier 2 used to be here: an "Affichage" section holding only the
            royaume-sort-order control (Villages/Soldats/Ordre de jeu). Removed
@@ -2913,6 +2914,13 @@ try {
   if (savedVolume !== null) soundVolume = Math.max(0, Math.min(100, parseInt(savedVolume, 10) || 0));
 } catch (e) { /* ignore */ }
 if (soundVolume === 0) soundEnabled = false;
+// "Bouton options pour activer les cercles d'animation de renfort" —
+// on by default, opt-out.
+let showReinforcePulse = true;
+try {
+  const savedPulse = localStorage.getItem("kw_showReinforcePulse");
+  if (savedPulse !== null) showReinforcePulse = savedPulse !== "0";
+} catch (e) { /* ignore */ }
 
 // English support kicked off small on purpose — "fais l'anglais en premier
 // maintenant juste pour les boutons de jeu utiles au minimum": just the
@@ -5483,8 +5491,9 @@ function render() {
   // as NUMBER_FADE_MS. Only the sword itself persists to end of turn now.
   const pulseNow = performance.now();
   // hidden entirely during replay — see the "no number indications" note
-  // above combatFXList's own numeric draws below
-  if (!replaying) {
+  // above combatFXList's own numeric draws below. Also opt-out-able now —
+  // "bouton options pour activer/désactiver les cercles d'animation".
+  if (!replaying && showReinforcePulse) {
     for (const p of pulseTiles) {
       const t = territories[p.id];
       if (!t) continue;
@@ -5498,9 +5507,15 @@ function render() {
       const ringCy = t.cy;
       // reversed from expanding-outward to converging-inward per request — a
       // ring that starts wide and shrinks toward the village reads as troops
-      // actually arriving there, rather than something radiating away from it
+      // actually arriving there, rather than something radiating away from it.
+      // Start radius now scales with how much force actually landed here —
+      // "ils passent proportionnel à l'ajout du nombre de soldat en taille"
+      // — capped so a big multi-point reinforcement doesn't balloon past the
+      // hex it's centered on; still shrinks to exactly half by the end,
+      // same ratio the original fixed 28→14 always used.
+      const startRadius = 20 + Math.min(p.amount, 8) * 2;
       ctx.beginPath();
-      ctx.arc(t.cx, ringCy, 28 - introProgress * 14, 0, Math.PI * 2);
+      ctx.arc(t.cx, ringCy, startRadius - introProgress * (startRadius / 2), 0, Math.PI * 2);
       ctx.strokeStyle = `rgba(255, 214, 92, ${pulseFadeAlpha})`;
       ctx.lineWidth = 2.5;
       ctx.stroke();
@@ -6623,8 +6638,14 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.70";
+const GAME_VERSION = "1.71";
 const CHANGELOG = [
+  {
+    version: "1.71",
+    notes: [
+      "Option pour activer/désactiver les cercles d'animation de renfort ; leur taille suit maintenant le nombre de soldats ajoutés.",
+    ],
+  },
   {
     version: "1.70",
     notes: [
@@ -7340,6 +7361,14 @@ soundVolumeSlider.addEventListener("input", () => {
 // only on release (not every drag tick) — a quick audible taste of the new
 // level, same click cue the old checkbox gave on every toggle
 soundVolumeSlider.addEventListener("change", () => { sfxToggle(); });
+
+const reinforcePulseToggle = document.getElementById("reinforcePulseToggle");
+reinforcePulseToggle.checked = showReinforcePulse;
+reinforcePulseToggle.addEventListener("change", () => {
+  showReinforcePulse = reinforcePulseToggle.checked;
+  try { localStorage.setItem("kw_showReinforcePulse", showReinforcePulse ? "1" : "0"); } catch (e) { /* ignore */ }
+  sfxToggle();
+});
 
 document.getElementById("gueuxBadge").addEventListener("click", () => {
   if (replaying || gameOver || awaitingFactionPick || currentPlayer !== humanRoyId || aiRunning || gueuxCount <= 0) return;
