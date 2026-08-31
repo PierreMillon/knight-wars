@@ -180,7 +180,7 @@ Quelles phrases manquent actuellement que je les écrivent ?
 ## Idées données en direct (pas dans le paste original ci-dessus)
 
 - [ ] Chaque royaume peut, via un easter egg, débloquer un dieu spécial avec des capacités spéciales. Actives pour le joueur uniquement, sauf en mode le plus dur — ou quand débloqué pour un seigneur, actif qu'on le joue ou qu'il soit adversaire.
-- [~] "Bonus de 12" : contour doré vibrant fait (une seule limite pour tout le royaume, physiquement séparé sinon). L'attaque spéciale imparable elle-même reste à construire — UX d'activation pas encore précisée.
+- [x] "Bonus de 12" / Merlin (v1.75) : le contour doré pulsant refait maintenant le plein d'un budget d'attaques garanties (autant que de provinces possédées) au début du tour, tant que toutes les provinces sont au max — épée simple → double épée pendant qu'il est utilisé. 3 activations dans la même partie déclenche une révélation (double épée croisée) ; 3 parties séparées avec révélation débloquent en permanence l'icône réglages en double épée + la bénédiction de Mars (12 vs 12 toujours gagné, sans consommer le budget). Désavantage volontairement laissé de côté, comme demandé.
 - [x] Contour du royaume au début du replay doit entourer toute la zone d'une seule traite (pas province par province), sauf si les provinces sont physiquement séparées.
 
 ## Fait en direct (hors paste original), pour référence
@@ -195,7 +195,7 @@ Sound (gamme par royaume), épée/bateau taille + alignement, portée d'attaque 
 - [x] Enregistrement du graphique de fin : message de confirmation à l'enregistrement/partage ; retrait du titre du partage iOS (probable cause de l'icône générique dans le menu de partage).
 - [x] Abandon : coûte déjà 1 gueux et c'est déjà écrit dans le texte de fin ("Vous perdez un gueux.") — vérifié, déjà en place, rien à faire.
 - [ ] Bouton abandonner/gueux "pas visibles avant de choisir un camp" — non reproduit en test (portrait, avec et sans historique de reroll) ; probablement lié à un device/orientation précis, à re-signaler avec un screenshot si ça persiste.
-- [ ] "Super pouvoir des 12" — activation précisée en direct (attaque imparable sur autant de cases que de provinces, icône double-épée, déblocage d'un logo permanent + bonus égalité 12v12 après 3 activations/partie) : reste à construire, prochaine étape.
+- [x] "Super pouvoir des 12" — construit (v1.75), voir la note détaillée plus haut sur cette même idée.
 - [x] Quand le joueur perd (éliminé), écran de fin immédiat — la partie ne continuait pas jusque-là entre les IA survivantes, avec une trêve qui pouvait tomber sur un spectateur déjà éliminé.
 - [x] IA : enchaîne les attaques depuis le territoire juste conquis avant d'envisager un autre front ("quand les ennemis peuvent faire des attaques chaînées, ils le font").
 - [x] Horloges des stats : retrait du contour noir, remplacé par deux aiguilles de montre (une fixe, une qui suit la progression) qui se rejoignent et disparaissent à 100%.
@@ -205,3 +205,11 @@ Sound (gamme par royaume), épée/bateau taille + alignement, portée d'attaque 
 - [ ] "J'ai gagné beaucoup trop facilement en niveau 4" — tuning en cours, la correction du chaînage IA devrait aider ; pas de rééquilibrage dédié fait cette fois (le système de paliers de probabilité exacts reste un chantier séparé, plus large).
 - [x] Inversé la position des boutons "Nouvelle partie aléatoire" et "Partager ma victoire" sur l'écran de fin.
 - [x] Graphique de fin : chiffres de territoire déplacés en haut du graphique, nombres de soldat (force) ajoutés en dessous — le panneau Force retiré du graphique (tâche #37) revient sous cette forme simple, pas comme bande empilée.
+- [x] Niveau de difficulté caché Cthulhu (v1.72/1.73) : 5e palier plus dur que Seigneur (IA parfaite, agressivité max), attaques par mer gratuites/illimitées en distance pour tous. Déblocage : indice aléatoire ("parchemin crypté") entre la 5e et 10e victoire, puis un 4e sacrifice océan complet en une partie (Seigneur) après l'indice. Pas de nouvel art dessiné — réutilise le sprite pieuvre inversé. Voir aussi la note plus haut sur ce paragraphe original pour ce qui reste (stats optionnelles ✅ faites séparément ci-dessous, brouillard de guerre/mode exploration toujours pas faits).
+- [x] Chemin plus court par mer : ajouté un critère de départage supplémentaire (rectitude par rapport à la pieuvre — pardon, à la ligne droite entre les deux territoires) quand plusieurs routes font exactement le même nombre de cases ET le même coût — avant, le premier trouvé gagnait arbitrairement, ce qui pouvait lire comme un détour.
+- [x] Horloges des stats : les deux aiguilles pointaient à 180° de leur bonne position (le repos de l'élément est à 6h, le camembert commence à midi) — corrigé.
+- [x] Stats optionnelles par royaume (% carte conquise, % de la force max théorique) — case à cocher dans les réglages, activée par défaut.
+- [x] Bug de partage : un lien de partage contenant un sacrifice à l'océan cassait tout le reste du replay partagé (encodage manquant pour ce type de coup, retombait sur un "attack" avec origine/destination undefined). Corrigé. Vérifié séparément (harnais jetable, pas commité) que le mécanisme replay = seed + liste de coups est lui-même bien déterministe (flux RNG identique entre une partie réelle et son propre replay local, sur 1577 appels) — ce n'était donc pas un problème de fond, juste ce trou précis dans l'encodage de partage.
+- [x] Doublé la différence de taille des cercles d'animation de renfort selon le nombre de soldats ajoutés.
+- [x] Fenêtre du double-tap "Fin de bataille" pour l'accélération instantanée élargie (400ms → 600ms).
+- [x] Son coupé sur Safari après changement de fenêtre/appli et retour — le hack silencieux qui garde la page dans la catégorie audio "playback" (exempte du bouton silencieux physique) ne se relançait qu'une fois ; il se relance maintenant sur visibilitychange/pageshow/focus.

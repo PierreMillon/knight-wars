@@ -441,6 +441,9 @@
   /* same octopus sprite, no separate art drawn for Cthulhu — inverted +
      darkened so it reads as something else answering, not a repeat */
   #loreCthulhuImg { filter: invert(1) hue-rotate(180deg) brightness(.7); width: 76px !important; }
+  #loreMarsSwords { display: flex; justify-content: center; gap: 4px; margin: 0 0 14px; }
+  #loreMarsSwords img { width: 40px; height: auto; margin: 0; transform: rotate(-18deg); }
+  #loreMarsSwords img + img { transform: rotate(18deg); }
   #loreOverlay button { display: block; margin: 0 auto; }
   /* two player-drawn soldier sketches, side by side — override the generic
      #loreOverlay img rule (single centered block, 14px bottom margin) which
@@ -807,6 +810,14 @@
       <div id="loreCthulhu" style="display:none;">
         <img id="loreCthulhuImg" alt="">
         <p>Le parchemin ne mentait pas. Ce que la pieuvre annonçait depuis les profondeurs n'était qu'un serviteur — au-delà d'elle dort quelque chose de bien plus vieux que la querelle des Millon, quelque chose que même les prêtres refusent de nommer. Ceux qui l'ont réveillé racontent qu'on peut désormais traverser n'importe quelle mer sans y perdre un seul homme — l'onde elle-même s'écarte devant vous, comme si elle craignait davantage ce qui vous suit que vous.</p>
+      </div>
+      <!-- "le pouvoir des 12" / Merlin, unlocked after 3 activations across
+           3 separate matches (see recordCapBonusRevealAndCheckUnlock()) —
+           no dedicated art either, a composite of SWORD_IMG built at
+           runtime (see doubleSwordIconSrc's own note). -->
+      <div id="loreMars" style="display:none;">
+        <div id="loreMarsSwords"><img alt=""><img alt=""></div>
+        <p>Un vieil enchanteur errant — Merlin, disent les paysans, sans trop y croire — vient s'incliner devant quiconque tient ses douze provinces à leur plein effectif à la fois. Il ne demande rien, ne promet rien, et repart aussitôt son signe fait. Mais ceux qui l'ont vu passer trois fois racontent qu'un dieu bien plus ancien, romain celui-là, prend ensuite le relais : jamais plus une bataille à douze contre douze ne se perdra sous cette bannière. Un tel don a un prix, chuchotent les vieilles branches — mais lequel, nul ne l'a encore découvert.</p>
       </div>
       <button id="closeLore">Fermer</button>
     </div>
@@ -1418,6 +1429,34 @@ const CREATURE_IMG = loadSprite(CREATURE_IMG_SRC);
 // with the octopus reveal's other, purely runtime, state.
 let pieuvreUnlocked = false;
 try { pieuvreUnlocked = localStorage.getItem("kw_pieuvreUnlocked") === "1"; } catch (e) { /* ignore */ }
+// Cross-match progress toward the permanent "pouvoir des 12"/Merlin unlock
+// — same shape as pieuvreUnlocked just above (3 separate matches where the
+// in-match reveal fired), for "par la bénédiction du dieu de la guerre
+// romain" (a permanent 12-vs-12 auto-win, see attack()'s own marsBonusWin).
+let marsBlessingUnlocked = false;
+try { marsBlessingUnlocked = localStorage.getItem("kw_marsBlessingUnlocked") === "1"; } catch (e) { /* ignore */ }
+// Composite "double sword" icon for that unlock's own settings-menu swap —
+// no separate art drawn for this one either (see recordCapBonusRevealAndCheckUnlock()'s
+// own note): just SWORD_IMG drawn twice onto a small offscreen canvas,
+// built lazily once it's actually decoded.
+let doubleSwordIconSrc = null;
+function buildDoubleSwordIcon() {
+  if (doubleSwordIconSrc || !SWORD_IMG.complete || !SWORD_IMG.naturalWidth) return;
+  const c = document.createElement("canvas");
+  c.width = 64; c.height = 64;
+  const cx2 = c.getContext("2d");
+  cx2.save(); cx2.translate(22, 32); cx2.rotate(-0.32); cx2.drawImage(SWORD_IMG, -20, -20, 40, 40); cx2.restore();
+  cx2.save(); cx2.translate(42, 32); cx2.rotate(0.32); cx2.drawImage(SWORD_IMG, -20, -20, 40, 40); cx2.restore();
+  doubleSwordIconSrc = c.toDataURL("image/png");
+  if (marsBlessingUnlocked) document.getElementById("settingsBtnImg").src = doubleSwordIconSrc;
+}
+// Property assignment, not addEventListener() — loadSprite() already sets
+// its own .onload on every sprite (including this one) to trigger a
+// render(); chaining onto that (rather than a second listener) also keeps
+// this safe in a minimal test harness whose Image stub doesn't implement
+// addEventListener() at all.
+const swordImgOrigOnload = SWORD_IMG.onload;
+SWORD_IMG.onload = () => { if (swordImgOrigOnload) swordImgOrigOnload(); buildDoubleSwordIcon(); };
 const CHEVALIER_IMG = loadSprite(CHEVALIER_IMG_SRC);
 // Cross-match win count feeding the "parchemin crypté" Cthulhu hint (see
 // rollCthulhuHintWinCount() in showWin()) — persisted alongside the other
@@ -2978,10 +3017,10 @@ function triggerPulse(counts) {
   pulseTiles.push(...ids.map((id, i) => ({ id: Number(id), amount: counts[id], start: now + i * 110 })));
   ensureFXLoop();
 }
-function triggerCombatFX(fromId, toId, atk, def, win, attackerRoyId, defenderRoyId, hexCount, waterPath = null) {
+function triggerCombatFX(fromId, toId, atk, def, win, attackerRoyId, defenderRoyId, hexCount, waterPath = null, capBonus = false) {
   // a fresh hit always renders at full strength — fadeStart stays unset
   // until its OWN turn ends (see the big note above combatFXList)
-  combatFXList.push({ fromId, toId, atk, def, win, attackerRoyId, defenderRoyId, hexCount, waterPath, start: performance.now(), fadeStart: null });
+  combatFXList.push({ fromId, toId, atk, def, win, attackerRoyId, defenderRoyId, hexCount, waterPath, capBonus, start: performance.now(), fadeStart: null });
   ensureFXLoop();
 }
 // Same list, same persist-to-end-of-turn/fade lifecycle as a real combat
@@ -3710,9 +3749,19 @@ function attack(fromId, toId, chainIndex = -1) {
   // directly from these two numbers, real force vs real force, at every
   // force level, not just FORCE_CAP.
   const atk = attackingForce, def = to.force;
-  const win = resolveCombat(atk, def);
+  // "Le pouvoir des 12" — a guaranteed win, consuming one point of this
+  // royaume's own activation budget (see ensureCapBonusActivation()).
+  // Separately, "par la bénédiction du dieu de la guerre romain" — once
+  // permanently unlocked (3 activations across 3 different matches, same
+  // shape as the octopus unlock), the human always wins a true 12-vs-12
+  // grind too, without spending any budget — a passive blessing, not a
+  // use of the power itself.
+  const capBonusWin = (capBonusBudget[from.owner] || 0) > 0;
+  const marsBonusWin = marsBlessingUnlocked && from.owner === humanRoyId && atk === FORCE_CAP && def === FORCE_CAP;
+  const win = capBonusWin || marsBonusWin ? true : resolveCombat(atk, def);
+  if (capBonusWin) capBonusBudget[from.owner]--;
   logMsg(`${ROYAUMES[from.owner].name} attaque ${ROYAUMES[to.owner].name} — ${atk} vs ${def} — ${win ? "victoire" : "échec"}`);
-  triggerCombatFX(fromId, toId, atk, def, win, from.owner, to.owner, to.hexKeys.length, waterPath);
+  triggerCombatFX(fromId, toId, atk, def, win, from.owner, to.owner, to.hexKeys.length, waterPath, capBonusWin || marsBonusWin);
   // sfxReinforce() (see endTurn()) stays replay-silent — reported multiple
   // times as unwanted clutter — but the attack win/fail sound itself is
   // back now, per a later explicit request ("ajoute les sons de réussite de
@@ -3854,6 +3903,14 @@ function advanceTurn() {
     guard++;
   } while ((!isAlive(next) || ROYAUMES[next].neutral) && guard <= ROYAUME_COUNT);
   currentPlayer = next;
+  // "Le pouvoir des 12" — refills this royaume's guaranteed-win attack
+  // budget for its turn, IF every province it owns is sitting at FORCE_CAP
+  // right now (before it's attacked anything this turn) — see
+  // ensureCapBonusActivation()'s own note on why turn-start is the right
+  // moment, not a continuous re-check. Deterministic, no RNG involved, so
+  // it must run identically during a replay too (same reasoning as
+  // checkStalemate()/checkLoneDefections() just below).
+  ensureCapBonusActivation(currentPlayer);
   if (currentPlayer === humanRoyId) {
     // roundNumber must advance identically during a replay too, or
     // escalated() (which reads it) diverges from the original match the
@@ -3980,6 +4037,35 @@ function ensureCapBonusPulseLoop() {
     requestAnimationFrame(step);
   }
   requestAnimationFrame(step);
+}
+
+// "Le pouvoir des 12" / Merlin — "s'active quand toutes les provinces sont
+// à fond". capBonusBudget[royId] is the guaranteed-win attack budget this
+// royaume has left from its CURRENT activation, consumed one per forced
+// win in attack() below. Checked and refilled once, right when a royaume's
+// turn starts (see advanceTurn()'s own call site) — NOT continuously on
+// every allProvincesCapped() check like the pulse loop above, since the
+// very first bonus-powered attack necessarily drops the attacking
+// province back below FORCE_CAP, which would otherwise cancel the bonus
+// on its own first use. A fresh activation's budget is the royaume's own
+// territory count at that moment — "attaquer autant de cases que de
+// provinces" — and every activation (human or AI) counts toward the
+// permanent 3x-per-match unlock below, tracked for the human only.
+let capBonusBudget = {};
+let capBonusActivations = 0; // this match, human-only — see recordCapBonusRevealAndCheckUnlock()
+let capBonusRevealedThisMatch = false;
+function ensureCapBonusActivation(royId) {
+  if (!isAlive(royId) || !allProvincesCapped(royId)) return;
+  const owned = territories.reduce((n, t) => n + (t.owner === royId ? 1 : 0), 0);
+  capBonusBudget[royId] = owned;
+  if (royId === humanRoyId) {
+    capBonusActivations++;
+    if (capBonusActivations >= 3 && !capBonusRevealedThisMatch) {
+      capBonusRevealedThisMatch = true;
+      triggerCapBonusReveal();
+      if (!replaying) recordCapBonusRevealAndCheckUnlock();
+    }
+  }
 }
 
 function checkElimination() {
@@ -5449,14 +5535,22 @@ function drawHighlightOutlines() {
 // passed in from the callers below, computed the same way as before) still
 // aims the tip at the defender exactly like the old vector version did.
 const SWORD_ANGLE_CORRECTION = Math.PI / 2;
-function drawSwordAt(x, y, angle, alpha) {
+function drawSwordAt(x, y, angle, alpha, doubleSword = false) {
   if (!SWORD_IMG.complete || !SWORD_IMG.naturalWidth) return; // not decoded yet — skip this frame rather than draw a broken image
   const size = 38; // doubled to 68, then -30%, then a further -20% per follow-up requests
   ctx.save();
   ctx.translate(x, y);
   ctx.rotate(angle + SWORD_ANGLE_CORRECTION);
   ctx.globalAlpha = alpha;
-  ctx.drawImage(SWORD_IMG, -size / 2, -size / 2, size, size);
+  if (doubleSword) {
+    // "l'icône d'épée passe sur une double épée côte à côte pour comprendre
+    // que c'est puissant" — a bonus-powered guaranteed win draws two
+    // slightly-splayed swords instead of one.
+    ctx.save(); ctx.translate(-7, 0); ctx.rotate(-0.25); ctx.drawImage(SWORD_IMG, -size / 2, -size / 2, size, size); ctx.restore();
+    ctx.save(); ctx.translate(7, 0); ctx.rotate(0.25); ctx.drawImage(SWORD_IMG, -size / 2, -size / 2, size, size); ctx.restore();
+  } else {
+    ctx.drawImage(SWORD_IMG, -size / 2, -size / 2, size, size);
+  }
   ctx.restore();
 }
 // Used specifically for water-related combat FX (see the two call sites of
@@ -5591,10 +5685,11 @@ function render() {
   if (spotlightActive) {
     drawRoyaumeOutline(humanRoyId, "gold");
   }
-  // "Bonus de 12" — every province a royaume owns at the force cap gets a
-  // slowly vibrating gold outline around the whole realm ("comme s'ils
-  // étaient chauds pour le combat"). Visual trigger only for now — the
-  // unstoppable long-range attack it's meant to unlock isn't built yet.
+  // "Bonus de 12"/Merlin — every province a royaume owns at the force cap
+  // gets a slowly vibrating gold outline around the whole realm ("comme
+  // s'ils étaient chauds pour le combat"), and refills that royaume's own
+  // guaranteed-win attack budget for its next turn (see
+  // ensureCapBonusActivation()/attack()'s own capBonusWin).
   if (!replaying) {
     for (let royId = 0; royId < ROYAUME_COUNT - 1; royId++) {
       if (!isAlive(royId) || !allProvincesCapped(royId)) continue;
@@ -5827,7 +5922,7 @@ function render() {
         drawBoatsAlongPath({ x: fromT.cx, y: fromT.cy }, fx.waterPath, { x: toT.cx, y: toT.cy }, fadeAlpha);
       } else {
         const angle = Math.atan2(toT.cy - fromT.cy, toT.cx - fromT.cx);
-        drawSwordAt(midX, midY, angle, fadeAlpha);
+        drawSwordAt(midX, midY, angle, fadeAlpha, fx.capBonus);
       }
     }
 
@@ -5961,6 +6056,24 @@ function render() {
     ctx.globalAlpha = alpha;
     ctx.filter = "invert(1) hue-rotate(180deg) brightness(.7)";
     ctx.drawImage(OCTOPUS_IMG, cthulhuRevealFX.x - size / 2, cthulhuRevealFX.y - size / 2, size, size);
+    ctx.restore();
+  }
+
+  // The "pouvoir des 12"/Merlin reveal — same 2s fade-in/out shape as the
+  // two above, but centered on the map (no single hex to anchor it to,
+  // unlike a water ritual) and a crossed double-sword flourish instead of
+  // a creature sprite.
+  if (capBonusRevealFX && SWORD_IMG.complete && SWORD_IMG.naturalWidth) {
+    const elapsed = performance.now() - capBonusRevealFX.start;
+    const fadeMs = 350;
+    const alpha = elapsed < fadeMs ? elapsed / fadeMs
+      : elapsed > CAP_BONUS_REVEAL_MS - fadeMs ? Math.max(0, (CAP_BONUS_REVEAL_MS - elapsed) / fadeMs)
+      : 1;
+    const size = 70;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.save(); ctx.translate(-22, 0); ctx.rotate(-0.3); ctx.drawImage(SWORD_IMG, -size / 2, -size / 2, size, size); ctx.restore();
+    ctx.save(); ctx.translate(22, 0); ctx.rotate(0.3); ctx.drawImage(SWORD_IMG, -size / 2, -size / 2, size, size); ctx.restore();
     ctx.restore();
   }
 
@@ -6683,7 +6796,12 @@ document.getElementById("replayResumeHereBtn").addEventListener("click", () => {
 });
 
 const settingsPanel = document.getElementById("settingsPanel");
-document.getElementById("settingsBtnImg").src = pieuvreUnlocked ? OCTOPUS_IMG_SRC : BLAZON_IMG_SRC;
+// mars > pieuvre > blazon precedence when more than one is unlocked —
+// doubleSwordIconSrc may not be built yet at this exact boot instant
+// (SWORD_IMG still decoding); buildDoubleSwordIcon()'s own load handler
+// sets it directly once ready, so this just needs a same-frame fallback.
+document.getElementById("settingsBtnImg").src =
+  marsBlessingUnlocked && doubleSwordIconSrc ? doubleSwordIconSrc : pieuvreUnlocked ? OCTOPUS_IMG_SRC : BLAZON_IMG_SRC;
 document.getElementById("sideGueux").src = GUEUX_IMG_SRC;
 // the mounted-knight sprite (CHEVALIER_IMG_SRC) is a wide landscape image not
 // suited to a tall side panel — the archer's standing portrait figure mirrors
@@ -6801,6 +6919,7 @@ document.getElementById("loreSoldier1").src = FIGURE1_IMG_SRC;
 document.getElementById("loreSoldier2").src = FIGURE2_IMG_SRC;
 document.getElementById("loreOctopusImg").src = OCTOPUS_IMG_SRC;
 document.getElementById("loreCthulhuImg").src = OCTOPUS_IMG_SRC;
+document.querySelectorAll("#loreMarsSwords img").forEach((img) => { img.src = SWORD_IMG_SRC; });
 refreshLorePieuvre();
 document.getElementById("lorePersonalities").innerHTML = ROYAUMES.slice(0, ROYAUME_COUNT - 1).map(roy => `
   <div class="personalityRow">
@@ -6862,8 +6981,14 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.74";
+const GAME_VERSION = "1.75";
 const CHANGELOG = [
+  {
+    version: "1.75",
+    notes: [
+      "Le contour doré pulsant de la province au max fait maintenant quelque chose : attaques garanties en écrivant à sa propre légende.",
+    ],
+  },
   {
     version: "1.74",
     notes: [
@@ -7966,6 +8091,40 @@ function refreshLorePieuvre() {
   const el = document.getElementById("lorePieuvre");
   if (el) el.style.display = pieuvreUnlocked ? "" : "none";
 }
+// "Le pouvoir des 12" / Merlin reveal — same shape as the octopus reveal
+// just above (3 separate matches with an in-match reveal permanently
+// unlocks it), triggered instead by ensureCapBonusActivation() reaching 3
+// activations in one match (see its own note).
+let capBonusRevealFX = null; // { start } — drawn in render(), see its own note
+const CAP_BONUS_REVEAL_MS = 2000;
+function capBonusRevealLoop() {
+  if (!capBonusRevealFX) return;
+  render();
+  if (performance.now() - capBonusRevealFX.start < CAP_BONUS_REVEAL_MS) requestAnimationFrame(capBonusRevealLoop);
+  else { capBonusRevealFX = null; render(); }
+}
+function triggerCapBonusReveal() {
+  capBonusRevealFX = { start: performance.now() };
+  requestAnimationFrame(capBonusRevealLoop);
+}
+function recordCapBonusRevealAndCheckUnlock() {
+  if (marsBlessingUnlocked) return;
+  let count = 0;
+  try { count = Number(localStorage.getItem("kw_capBonusRevealCount")) || 0; } catch (e) { /* ignore */ }
+  count++;
+  try { localStorage.setItem("kw_capBonusRevealCount", String(count)); } catch (e) { /* ignore */ }
+  if (count >= 3) {
+    marsBlessingUnlocked = true;
+    try { localStorage.setItem("kw_marsBlessingUnlocked", "1"); } catch (e) { /* ignore */ }
+    buildDoubleSwordIcon();
+    if (doubleSwordIconSrc) document.getElementById("settingsBtnImg").src = doubleSwordIconSrc;
+    refreshLoreMars();
+  }
+}
+function refreshLoreMars() {
+  const el = document.getElementById("loreMars");
+  if (el) el.style.display = marsBlessingUnlocked ? "" : "none";
+}
 // Cthulhu reveal — same shape as the octopus reveal just above, but for the
 // hidden difficulty tier (see executeWaterSacrifice()'s own note and
 // CTHULHU_LEVEL's). Unlike the octopus (which needs 3 SEPARATE matches with
@@ -8211,6 +8370,7 @@ function startGame(seed) {
   gameOver = false; selected = -1; aiRunning = false;
   oceanTapCount = 0; // fresh running gag for a fresh match — see showOceanTapEasterEgg()
   ritualCountThisMatch = 0; octopusRevealedThisMatch = false; octopusRevealFX = null; cthulhuRevealFX = null;
+  capBonusBudget = {}; capBonusActivations = 0; capBonusRevealedThisMatch = false; capBonusRevealFX = null;
   lastConqueredId = null; lastConqueredRoyId = -1;
   allCappedStreak = 0; lastStalemateFingerprint = null; truceEnded = false; truceWinnerId = -1; humanSurrendered = false; mercyGranted = false; peaceGueuxGained = 0;
   mercyOfferShownAtRound = null;
