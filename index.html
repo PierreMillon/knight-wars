@@ -424,9 +424,18 @@
   #surrenderConfirmOverlay p { font-size: 14px; line-height: 1.5; opacity: .9; margin: 0 0 18px; }
   /* Same back-to-settings corner button as #backConseilsToSettings — Le lore
      is also only ever opened from within Réglages. */
-  #backLoreToSettings {
+  /* Doubly-qualified (#loreOverlay button#...) purely to out-specificity
+     the later shared "#loreOverlay button, #conseilsOverlay button, ..."
+     rule below (10px 20px padding) — a bare "#backLoreToSettings" selector
+     TIES that rule's specificity (1 ID + 1 type each) and loses on source
+     order, silently stretching this into a 70x30 oval instead of a real
+     30x30 circle, reading as "off-center" rather than a circle at all.
+     Two IDs here beats it outright regardless of source order. box-sizing
+     pinned too, so a future padding change on the shared rule can't do
+     this again. */
+  #loreOverlay button#backLoreToSettings {
     position: absolute; top: 10px; left: 10px; margin: 0; z-index: 1;
-    width: 30px; height: 30px; padding: 0; border-radius: 50%;
+    width: 30px; height: 30px; padding: 0; border-radius: 50%; box-sizing: border-box;
     font-size: 20px; line-height: 1; display: flex; align-items: center; justify-content: center;
   }
   #loreOverlay {
@@ -450,6 +459,8 @@
      is meant for the lone blazon above, not a horizontal pair */
   #loreSoldiers { display: flex; justify-content: center; align-items: flex-end; gap: 28px; margin: 0 0 16px; }
   #loreSoldiers img { width: 54px; height: auto; margin: 0; image-rendering: pixelated; }
+  #loreWarTools { display: flex; justify-content: center; align-items: center; gap: 24px; margin: 0 0 16px; }
+  #loreWarTools img { width: 42px; height: auto; margin: 0; }
   #lorePersonalities { display: flex; flex-direction: column; gap: 10px; margin: 0 0 16px; }
   #lorePersonalities .personalityRow { font-size: 13px; line-height: 1.5; }
   #lorePersonalities .personalityRow .rname { font-weight: 700; }
@@ -469,9 +480,10 @@
      goes straight back there instead of all the way to the map, mirroring
      #closeSettings's own corner-circle style but top-LEFT and pointing back
      rather than closing outright (see closeConseils()/"Fermer" for that). */
-  #backConseilsToSettings {
+  /* same specificity fight as #backLoreToSettings — see its own note */
+  #conseilsOverlay button#backConseilsToSettings {
     position: absolute; top: 10px; left: 10px; margin: 0; z-index: 1;
-    width: 30px; height: 30px; padding: 0; border-radius: 50%;
+    width: 30px; height: 30px; padding: 0; border-radius: 50%; box-sizing: border-box;
     font-size: 20px; line-height: 1; display: flex; align-items: center; justify-content: center;
   }
   #conseilsOverlay h2 { margin: 0 0 10px; font-size: 20px; text-align: center; }
@@ -490,10 +502,10 @@
   }
   .hLevel .hName { font-weight: 700; white-space: nowrap; }
   .hLevel .hDesc { opacity: .75; text-align: right; }
-  .hVillage { margin-left: 0; }
-  .hProvince { margin-left: 12px; }
-  .hRoyaume { margin-left: 24px; }
-  .hPays { margin-left: 36px; }
+  /* every row flush, full width — the old staggered left-indent per level
+     (nested "containment" idea) read as narrower encarts, not full-width
+     ("les encarts village royaume etc doivent occuper toute la largeur de
+     la page"). */
   #conseilsMechanics p { font-size: 13.5px; line-height: 1.55; margin: 0 0 12px; }
   #conseilsMechanics strong { color: #6b2318; }
   #changelogOverlay {
@@ -806,6 +818,15 @@
       <p>En cet an de grâce 1183, la Bretagne n'a plus de duc, et quatre châtelains se disputent son héritage — Châteauvieux, Villiers, Montherlant, Beaumanoir. Quatre noms de fief, mais un seul sang : tous portent le même blason, celui d'un aïeul commun, les Millon, dont le domaine fut fracturé entre ses héritiers il y a plus d'un siècle.</p>
       <p>Chaque bataille livrée ici n'oppose pas des étrangers, mais des cousins — une querelle de famille qui ne connaît ni trêve ni pardon, jusqu'à ce qu'un seul Millon reste debout pour reformer sous une seule bannière la terre que leurs pères ont laissée en morceaux.</p>
       <p>Un siècle de guerre a forgé le caractère de chaque branche — et à la table de jeu, ce caractère se traduit en habitudes de commandement bien réelles, pas seulement en surnom :</p>
+      <!-- chevalier à cheval / bateau / épées — the same sprites already
+           used elsewhere (Seigneur's own difficulty icon, water-crossing
+           FX, combat FX) shown together here as the family's own tools of
+           war. -->
+      <div id="loreWarTools">
+        <img id="loreChevalierImg" alt="">
+        <img id="loreBoatImg" alt="">
+        <img id="loreSwordImg" alt="">
+      </div>
       <!-- two soldier sketches drawn by the user, sitting between the family
            history above and each house's own commanding character below —
            the rank and file that character actually leads into battle. -->
@@ -865,10 +886,11 @@
       <div id="conseilsMechanics">
         <p><strong>La force est plafonnée à 12</strong> par province — impossible d'empiler plus haut, quelle que soit la taille de votre royaume.</p>
         <p><strong>Le combat</strong> : la plus grande force gagne toujours, sauf tout près de l'égalité — à force égale, l'attaquant a une chance sur 3 de l'emporter quand même ; à un seul de moins que le défenseur, une chance sur 5. Sinon aucun hasard : c'est toujours la plus grande force qui gagne.</p>
-        <p><strong>Le renfort de fin de tour</strong> dépend de votre part du territoire par rapport à une part égale entre les royaumes encore debout — au-dessus de la moyenne, vous gagnez plus ; en dessous, moins (jamais 0). Un vaste royaume touche en plus un bonus qui grandit avec sa taille réelle, pas seulement sa part relative : un empire qui domine vraiment continue de gagner en puissance de feu à mesure qu'il s'étend, au lieu de plafonner.</p>
-        <p><strong>Le classement en haut à gauche</strong> trie les royaumes par territoire (le plus vaste bloc de terre d'un seul tenant en premier) mais n'affiche plus ce chiffre lui-même : un total de cases ne veut rien dire tout seul, ça dépend entièrement de la taille de la carte et du nombre de rivaux encore debout. Ce qui compte, c'est votre position dans le classement, pas le chiffre en lui-même — d'où le tri, sans le nombre brut. Le petit rond coloré de chaque ligne se remplit comme une horloge selon la force totale de ce royaume par rapport à ce qui est théoriquement possible (12 par province) : plein à 100%, chaque province qu'il possède est au plafond.</p>
+        <p><strong>Le renfort de fin de tour</strong> dépend de votre part du territoire : au-dessus de la moyenne des royaumes encore debout, vous gagnez plus de renfort ; en dessous, moins (jamais zéro). Un très grand royaume gagne encore plus, en plus de sa part relative.</p>
+        <p><strong>Le classement en haut à gauche</strong> trie les royaumes par territoire, le plus vaste en premier. Le petit rond coloré de chaque ligne se remplit comme une horloge selon la force totale de ce royaume par rapport à ce qui est théoriquement possible (12 par province) : plein à 100%, chaque province qu'il possède est au plafond.</p>
+        <p><strong>Le pouvoir des 12</strong> : quand toutes vos provinces sont au plafond en même temps, un contour doré se met à vibrer autour de tout votre royaume. Tant qu'il vibre, vous gagnez à coup sûr chaque attaque que vous lancez (autant que vous avez de provinces) — l'épée qui frappe devient une épée double pour vous le rappeler. Activez-le trois fois dans la même partie, puis trois parties différentes : vous débloquez une bénédiction permanente qui vous fait toujours gagner un combat à 12 contre 12.</p>
         <p><strong>La trêve</strong> se déclenche quand toutes les frontières sont bloquées au plafond et que rien ne bouge depuis plusieurs tours d'affilée — signe qu'aucune attaque n'a de chance d'aboutir. Vous pouvez l'accepter (match nul) ou continuer le siège en espérant un 12 contre 12 favorable.</p>
-        <p><strong>La difficulté</strong> règle le comportement des royaumes adverses, pas juste un chiffre abstrait : à Page, ils restent prudents (jamais un vrai désavantage) mais attaquent dès la force égale, et lancent de temps en temps une attaque risquée même sans aucun avantage ; à Seigneur, ils attaquent à la moindre ouverture et se trompent presque jamais. Elle change aussi la part de terres neutres au départ (bien plus nombreuses à Page, presque absentes à Seigneur) et votre avance de force initiale. C'est aussi pour ça que la force de vos adversaires change d'un coup au moment où vous choisissez votre camp : leur avantage lié à la difficulté ne peut s'appliquer qu'une fois qu'on sait qui joue qui — un petit message l'annonce sur le moment.</p>
+        <p><strong>La difficulté</strong> règle le comportement des royaumes adverses : à Gueux, ils restent prudents et n'attaquent jamais à leur désavantage (mais tentent de temps en temps une attaque risquée quand même) ; à Seigneur, ils attaquent à la moindre ouverture et se trompent presque jamais. Elle change aussi la part de terres neutres au départ (bien plus nombreuses à Gueux, presque absentes à Seigneur) et votre propre avance de force initiale.</p>
         <p><strong>Les gueux</strong> sont une réserve d'un tour à l'autre : vous en gagnez un à chaque victoire, et pouvez en dépenser un en touchant le badge puis une de vos provinces, pour lui donner +1 de force sur-le-champ, avant même la bataille suivante.</p>
       </div>
       <button id="closeConseils">Fermer</button>
@@ -7040,6 +7062,9 @@ document.getElementById("loreSoldier2").src = FIGURE2_IMG_SRC;
 document.getElementById("loreOctopusImg").src = OCTOPUS_IMG_SRC;
 document.getElementById("loreCthulhuImg").src = OCTOPUS_IMG_SRC;
 document.querySelectorAll("#loreMarsSwords img").forEach((img) => { img.src = SWORD_IMG_SRC; });
+document.getElementById("loreChevalierImg").src = CHEVALIER_IMG_SRC;
+document.getElementById("loreBoatImg").src = BOAT_IMG_SRC;
+document.getElementById("loreSwordImg").src = SWORD_IMG_SRC;
 refreshLorePieuvre();
 document.getElementById("lorePersonalities").innerHTML = ROYAUMES.slice(0, ROYAUME_COUNT - 1).map(roy => `
   <div class="personalityRow">
@@ -7101,8 +7126,17 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.78";
+const GAME_VERSION = "1.79";
 const CHANGELOG = [
+  {
+    version: "1.79",
+    notes: [
+      "Corrigé le bouton retour des pages Conseils/Lore, mal centré (cercle ovale au lieu de rond).",
+      "Les encarts village/province/royaume/pays occupent maintenant toute la largeur de la page.",
+      "Conseils simplifiés pour un nouveau joueur, avec une explication du pouvoir des 12.",
+      "Ajouté le chevalier, le bateau et les épées dans le lore.",
+    ],
+  },
   {
     version: "1.78",
     notes: [
