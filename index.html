@@ -2732,9 +2732,15 @@ const SWORD_INTRO_MS = 480; // 3rd speedup pass tried and reverted per request �
 // own) until endTurn() calls startCombatFXFadeOut(), then fades over this
 // many ms.
 const FX_LINGER_MS = 500;
-// Independent short fade shared by the ring/label, the raw atk/def dice,
-// and the water-crossing path trace/cost numbers — see the big note above.
+// Independent short fade shared by the raw atk/def dice and the
+// water-crossing path trace/cost numbers — see the big note above.
 const NUMBER_FADE_MS = 1400;
+// The "+N villages"/"-N villages"/"échec" outcome ring+label reads as the
+// actual headline of the fight, not a supporting number like atk/def — kept
+// on screen twice as long as those ("le nombre de villages gagné affiche
+// float reste deux fois plus longtemps"), its own fade independent of
+// NUMBER_FADE_MS.
+const OUTCOME_FADE_MS = NUMBER_FADE_MS * 2;
 // Same idea as NUMBER_FADE_MS, for the reinforcement pulse ring + its "+N"
 // specifically (kept as its own constant since it's a visually distinct
 // effect, even though the value matches for now).
@@ -2827,7 +2833,7 @@ function fxStep() {
   // fading, a fully-lingering combatFXList/pulseTiles is a static picture —
   // no need to keep burning frames on it until startCombatFXFadeOut() (or a
   // fresh triggerPulse()) actually resumes the loop.
-  const stillAnimating = combatFXList.some((fx) => now - fx.start < Math.max(SWORD_INTRO_MS, NUMBER_FADE_MS) || fx.fadeStart != null) ||
+  const stillAnimating = combatFXList.some((fx) => now - fx.start < Math.max(SWORD_INTRO_MS, NUMBER_FADE_MS, OUTCOME_FADE_MS) || fx.fadeStart != null) ||
     pulseTiles.length > 0;
   if (stillAnimating) {
     requestAnimationFrame(fxStep);
@@ -5371,6 +5377,7 @@ function render() {
     // version kept the ring/label tied to fadeAlpha too. Only the sword
     // itself persists to end of turn (see swordAlpha's own note below).
     const numberAlpha = Math.max(0, 1 - (pulseNow - fx.start) / NUMBER_FADE_MS);
+    const outcomeAlpha = Math.max(0, 1 - (pulseNow - fx.start) / OUTCOME_FADE_MS);
     const floatY = -20 - introProgress * 14; // was -14 - progress*10 — +40%
 
     // A water-sacrifice hit (see triggerWaterSacrificeFX()) has no defender
@@ -5514,7 +5521,7 @@ function render() {
     }
 
     const ringT = fx.win ? toT : fromT;
-    if (ringT && numberAlpha > 0) {
+    if (ringT && outcomeAlpha > 0) {
       // "+1 province" said the same thing on every single win regardless of
       // how big that province actually was. Now it's the real village
       // (hex) count of whichever territory just changed hands — and when
@@ -5531,7 +5538,7 @@ function render() {
       if (!fx.win) label = "échec";
       else if (humanLostThis) label = `-${n} ${villageWord}`;
       else label = `+${n} ${villageWord}`;
-      const outcomeColor = isGreen ? `rgba(90,200,120,${numberAlpha})` : `rgba(200,70,60,${numberAlpha})`;
+      const outcomeColor = isGreen ? `rgba(90,200,120,${outcomeAlpha})` : `rgba(200,70,60,${outcomeAlpha})`;
 
       ctx.beginPath();
       ctx.arc(ringT.cx, ringT.cy, 15 + introProgress * 8, 0, Math.PI * 2); // was 11 + progress*6 — +40%
@@ -5541,7 +5548,7 @@ function render() {
 
       // plain-language outcome, in addition to the raw dice numbers above
       ctx.font = "bold 15px -apple-system, sans-serif"; // was 11px — +40%
-      ctx.strokeStyle = `rgba(20,16,12,${numberAlpha * 0.8})`;
+      ctx.strokeStyle = `rgba(20,16,12,${outcomeAlpha * 0.8})`;
       ctx.lineWidth = 2.5;
       ctx.fillStyle = outcomeColor;
       drawMapNumber(label, ringT.cx, ringT.cy + floatY - 17);
@@ -6443,8 +6450,14 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.62";
+const GAME_VERSION = "1.63";
 const CHANGELOG = [
+  {
+    version: "1.63",
+    notes: [
+      "Le flottant « +N villages »/« -N villages » de fin de combat reste affiché deux fois plus longtemps que les chiffres d'attaque/défense.",
+    ],
+  },
   {
     version: "1.62",
     notes: [
