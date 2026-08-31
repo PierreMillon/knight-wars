@@ -3593,7 +3593,10 @@ function playTone(freq, duration, opts = {}) {
     gain.gain.linearRampToValueAtTime(vol, t0 + 0.012);
     gain.gain.exponentialRampToValueAtTime(0.0001, t0 + duration);
     osc.connect(filter); filter.connect(gain); gain.connect(ac.destination);
-    if (opts.underwater) {
+    // Underwater always wants this tail; anything else can opt in on its own
+    // now too (opts.reverb) — was underwater-only, generalized per request
+    // ("la musique de victoire... on doit rajouter un effet de réverb").
+    if (opts.underwater || opts.reverb) {
       // a short feedback delay standing in for a light reverb tail — cheap
       // and dependency-free, no convolver/impulse-response asset needed
       const delay = ac.createDelay(0.3);
@@ -3607,7 +3610,7 @@ function playTone(freq, duration, opts = {}) {
       delay.connect(wet); wet.connect(ac.destination);
     }
     osc.start(t0);
-    osc.stop(t0 + duration + (opts.underwater ? 0.3 : 0.03));
+    osc.stop(t0 + duration + (opts.underwater || opts.reverb ? 0.3 : 0.03));
   };
   if (ac.state === "suspended") {
     // wait for the actual resume instead of scheduling against a context
@@ -3814,12 +3817,15 @@ function processReinforceSoundQueue() {
 // long drag-to-attack chain plays through) — so a win feels like "your own
 // royaume's sound, run all the way out", not an unrelated jingle.
 function sfxVictory(royId = humanRoyId) {
-  const root = reinforceRootHzFor(royId);
+  // A full octave below its usual reinforcement root, plus a reverb tail —
+  // "la musique de victoire doit commencer de tons musicaux plus bas, et on
+  // doit rajouter un effet de réverb".
+  const root = reinforceRootHzFor(royId) / 2;
   // fixed 8-note flourish — same 8 values chainIntervalFor(0..7) always
   // produced back when this table was a flat, hard-coded array
   for (let i = 0; i < 8; i++) {
     const freq = root * Math.pow(2, chainIntervalFor(i) / 12);
-    scheduleSound(() => playTone(freq, 0.22, { type: "triangle", cutoff: 1400, volume: 0.09 }), i * 130);
+    scheduleSound(() => playTone(freq, 0.22, { type: "triangle", cutoff: 1400, volume: 0.09, reverb: true }), i * 130);
   }
 }
 // same chord shape and the human's own root, run in reverse — the fall
@@ -6140,18 +6146,58 @@ function drawHexHatch(cx, cy, size, angleDeg) {
   const px = -dy, py = dx; // perpendicular — steps from one hatch line to the next
   const spacing = 4.5;
   const halfLen = size * 1.2; // a bit past the hex's own radius, clipped anyway
-  const steps = Math.ceil(halfLen / spacing);
+  // Snap the perpendicular offset to an ABSOLUTE canvas-space grid instead
+  // of stepping outward from THIS hex's own (cx,cy) — two hexes whose
+  // centers don't happen to sit an exact multiple of `spacing` apart along
+  // the perpendicular axis (true of vertically-stacked neighbors in this
+  // hex grid, only coincidentally true of side-by-side ones on the same
+  // row) used to draw their lines each on their own independent phase, so
+  // horizontal/vertical hatching visibly seamed at the shared edge whenever
+  // one village sat above/below another instead of beside it — "il y a un
+  // petit décalage de ligne qui est très perturbant pour l'œil". The
+  // diagonals (30°/150°) never showed this because they already run along
+  // the hex grid's own repeat directions; snapping globally here fixes the
+  // other two without changing how those already looked.
+  const across = cx * px + cy * py; // this hex's own position along the perpendicular axis, in absolute canvas space
+  const along = cx * dx + cy * dy; // this hex's own position along the line's own direction
+  const startAcross = Math.floor((across - halfLen) / spacing) * spacing;
+  const endAcross = Math.ceil((across + halfLen) / spacing) * spacing;
   ctx.save();
   ctx.clip();
   ctx.strokeStyle = "rgba(20,16,12,.5)";
   ctx.lineWidth = 1.2;
   ctx.beginPath();
-  for (let i = -steps; i <= steps; i++) {
-    const ox = cx + px * i * spacing, oy = cy + py * i * spacing;
+  for (let a = startAcross; a <= endAcross; a += spacing) {
+    const ox = a * px + along * dx, oy = a * py + along * dy;
     ctx.moveTo(ox - dx * halfLen, oy - dy * halfLen);
     ctx.lineTo(ox + dx * halfLen, oy + dy * halfLen);
   }
   ctx.stroke();
+  ctx.restore();
+}
+// Dot fill, replacing the "\" diagonal hatch (30°, royId 2) specifically —
+// "on va remplacer par un fond de village qui est rempli de petits points,
+// ça sera plus lisible". Same global-grid-snap idea as drawHexHatch() above
+// (round to absolute canvas coordinates, not this hex's own center) so
+// neighboring hexes' dots line up into one continuous grid too.
+function drawHexDots(cx, cy, size) {
+  const spacing = 6;
+  const r = 1.1;
+  const half = size * 1.2;
+  const startX = Math.floor((cx - half) / spacing) * spacing;
+  const endX = Math.ceil((cx + half) / spacing) * spacing;
+  const startY = Math.floor((cy - half) / spacing) * spacing;
+  const endY = Math.ceil((cy + half) / spacing) * spacing;
+  ctx.save();
+  ctx.clip();
+  ctx.fillStyle = "rgba(20,16,12,.5)";
+  for (let y = startY; y <= endY; y += spacing) {
+    for (let x = startX; x <= endX; x += spacing) {
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
   ctx.restore();
 }
 function render() {
@@ -6229,7 +6275,11 @@ function render() {
     // computed per-hex, not as a fixed tile repeated at arbitrary map
     // coordinates.
     if (colorblindMode && !roy.neutral) {
-      drawHexHatch(h2.x, h2.y, HEX_SIZE, HATCH_ANGLES[roy.id % HATCH_ANGLES.length]);
+      // royId 2's own "\" diagonal (30°) replaced with a dot fill instead —
+      // "on va remplacer par un fond de village qui est rempli de petits
+      // points, ça sera plus lisible".
+      if (roy.id === 2) drawHexDots(h2.x, h2.y, HEX_SIZE);
+      else drawHexHatch(h2.x, h2.y, HEX_SIZE, HATCH_ANGLES[roy.id % HATCH_ANGLES.length]);
       ctx.beginPath(); // drawHexHatch()'s ctx.clip() consumed the hex path as its clip region but left it as the current path too — rebuild it so the fog-of-war fill just below (same hex, same path) isn't accidentally drawing against a stale/cleared path.
       pts.forEach(([x, y], i) => i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y));
       ctx.closePath();
@@ -7617,8 +7667,15 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.91";
+const GAME_VERSION = "1.92";
 const CHANGELOG = [
+  {
+    version: "1.92",
+    notes: [
+      "Mode daltonien : les hachures horizontales/verticales sont maintenant parfaitement alignées entre provinces voisines (petit décalage corrigé), et l'un des deux motifs diagonaux est remplacé par des petits points.",
+      "Musique de victoire : commence une octave plus bas, avec un effet de réverbération.",
+    ],
+  },
   {
     version: "1.91",
     notes: [
