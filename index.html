@@ -748,7 +748,7 @@
       </div>
       <div id="conseilsMechanics">
         <p><strong>La force est plafonnée à 12</strong> par province — impossible d'empiler plus haut, quelle que soit la taille de votre royaume.</p>
-        <p><strong>Le combat est sans hasard</strong> : la plus grande force gagne toujours. Seule exception — attaquant ET défenseur tous les deux au plafond (12 contre 12) : là, et seulement là, les dés tranchent, sinon une frontière bloquée au plafond des deux côtés ne pourrait jamais bouger.</p>
+        <p><strong>Le combat</strong> : la plus grande force gagne toujours, sauf tout près de l'égalité — à force égale, l'attaquant a une chance sur 3 de l'emporter quand même ; à un seul de moins que le défenseur, une chance sur 5. Sinon aucun hasard : c'est toujours la plus grande force qui gagne.</p>
         <p><strong>Le renfort de fin de tour</strong> dépend de votre part du territoire par rapport à une part égale entre les royaumes encore debout — au-dessus de la moyenne, vous gagnez plus ; en dessous, moins (jamais 0). Un vaste royaume touche en plus un bonus qui grandit avec sa taille réelle, pas seulement sa part relative : un empire qui domine vraiment continue de gagner en puissance de feu à mesure qu'il s'étend, au lieu de plafonner.</p>
         <p><strong>Le classement en haut à gauche</strong> trie les royaumes par territoire (le plus vaste bloc de terre d'un seul tenant en premier) mais n'affiche plus ce chiffre lui-même : un total de cases ne veut rien dire tout seul, ça dépend entièrement de la taille de la carte et du nombre de rivaux encore debout. Ce qui compte, c'est votre position dans le classement, pas le chiffre en lui-même — d'où le tri, sans le nombre brut. Le petit rond coloré de chaque ligne se remplit comme une horloge selon la force totale de ce royaume : plein à 100%, il a atteint le plafond de 12 par province.</p>
         <p><strong>La trêve</strong> se déclenche quand toutes les frontières sont bloquées au plafond et que rien ne bouge depuis plusieurs tours d'affilée — signe qu'aucune attaque n'a de chance d'aboutir. Vous pouvez l'accepter (match nul) ou continuer le siège en espérant un 12 contre 12 favorable.</p>
@@ -2727,12 +2727,6 @@ function fxStep() {
   }
 }
 
-function rollSum(n) {
-  let s = 0;
-  for (let i = 0; i < n; i++) s += 1 + rand(6);
-  return s;
-}
-
 /* ---------- SOUND ---------- */
 // Minimal, synthesized (no audio assets) — short, low-pass-filtered tone
 // bursts deliberately kept muffled/matte rather than bright "game" beeps, so
@@ -3058,6 +3052,11 @@ function sfxTruce() {
 function sfxMenuOpen() { playTone(130, 0.1, { type: "sine", cutoff: 700, volume: 0.05, slideTo: 170 }); }
 function sfxMenuClose() { playTone(130, 0.09, { type: "sine", cutoff: 700, volume: 0.05, slideTo: 95 }); }
 function sfxToggle() { playTone(260, 0.05, { type: "square", cutoff: 1400, volume: 0.03 }); }
+// Soft cue for "Changer la carte" while still picking a camp — "faut un
+// bruitage doux au début quand on reload une map pour choisir la bonne".
+// A gentle upward swell, quieter and longer than sfxToggle's own click, so
+// it reads as "a new map settling in" rather than a button press.
+function sfxRerollMap() { playTone(280, 0.16, { type: "sine", cutoff: 900, volume: 0.05, slideTo: 400 }); }
 function sfxPickFaction() {
   [165, 220].forEach((f, i) => setTimeout(() => playTone(f, 0.18, { type: "triangle", cutoff: 900, volume: 0.07 }), i * 90));
 }
@@ -3079,13 +3078,20 @@ function sfxYourTurn() {
   [392, 523.25].forEach((f, i) => setTimeout(() => playTone(f, 0.3, { type: "sine", cutoff: 2200, volume: 0.06 }), i * 150));
 }
 
-// No more toggle: the biggest force always wins (no dice), *except* when
-// both sides are exactly at FORCE_CAP — a strict tie there would otherwise
-// be permanently unwinnable (ties go to the defender), so that one specific
-// matchup rolls dice instead, giving a capped-out border an actual chance
-// to break instead of freezing forever.
-function isDeterministicMatchup(atkForce, defForce) {
-  return !(atkForce === FORCE_CAP && defForce === FORCE_CAP);
+// The biggest force always wins — except right at the margin, where real
+// (seeded, replay-safe) odds apply instead of an automatic loss for the
+// attacker: exact equal force (any value, not just the old 12-vs-12-only
+// case) gives the attacker a 1 in 3 chance; exactly one below the defender
+// gives a 1 in 5 chance. "Redonne l'instruction de hasard... quand y a une
+// différence de un, type j'attaque à 5 contre 6, j'ai une chance sur 5 de
+// gagner." Replaces the old isDeterministicMatchup()/rollSum() dice, which
+// only ever kicked in at 12 vs 12 — a capped-out border below FORCE_CAP
+// used to be permanently unwinnable by direct assault (only reinforcement
+// drift could shift it), it isn't any more.
+function resolveCombat(attackingForce, defendingForce) {
+  if (attackingForce === defendingForce) return rngFloat() < 1 / 3;
+  if (attackingForce === defendingForce - 1) return rngFloat() < 1 / 5;
+  return attackingForce > defendingForce;
 }
 
 let lastAttackWasGrind = false; // both sides near the force cap — used for the victory flavor text
@@ -3252,10 +3258,12 @@ function attack(fromId, toId, chainIndex = -1) {
   // attacking side, exactly as if a smaller army had marched up to attack.
   const attackingForce = Math.max(1, from.force - waterCost);
   lastAttackWasGrind = attackingForce >= FORCE_CAP - 2 && to.force >= FORCE_CAP - 2;
-  const deterministic = isDeterministicMatchup(attackingForce, to.force);
-  const atk = deterministic ? attackingForce : rollSum(attackingForce);
-  const def = deterministic ? to.force : rollSum(to.force);
-  const win = atk > def;
+  // atk/def shown on the map are always the real forces now — no more dice
+  // sums (rollSum()'s own job), since resolveCombat() decides the outcome
+  // directly from these two numbers, real force vs real force, at every
+  // force level, not just FORCE_CAP.
+  const atk = attackingForce, def = to.force;
+  const win = resolveCombat(atk, def);
   logMsg(`${ROYAUMES[from.owner].name} attaque ${ROYAUMES[to.owner].name} — ${atk} vs ${def} — ${win ? "victoire" : "échec"}`);
   triggerCombatFX(fromId, toId, atk, def, win, from.owner, to.owner, to.hexKeys.length, waterPath);
   // Both this and sfxReinforce() below (see endTurn()) used to also play
@@ -3453,16 +3461,13 @@ function checkElimination() {
 
 // Checked once per full round; requires it to hold for several rounds
 // running before calling it, in case a reinforcement is about to shuffle
-// things loose. Any tie below FORCE_CAP is only ever temporary — reinforcement
-// keeps adding force up to the cap every turn, so it'll eventually break one
-// side's favor even under "biggest force always wins" rules. The only tie
-// that truly can't move on its own is FORCE_CAP vs FORCE_CAP, which is
-// exactly why that one specific matchup rolls dice (see isDeterministicMatchup())
-// instead of being flatly unwinnable — but dice can still run cold for a
-// while, so this treats a fully-capped board (every contested border already
-// at FORCE_CAP) whose ownership hasn't budged for several rounds running as
-// a de-facto stalemate, backstopping the case where nobody's actually
-// landing a winning roll even though one remains possible.
+// things loose. Every equal or one-below matchup now has real odds to break
+// on its own (see resolveCombat()), not just FORCE_CAP vs FORCE_CAP — but
+// those odds can still run cold for a long stretch, so this treats a
+// fully-capped board (every contested border already at FORCE_CAP) whose
+// ownership hasn't budged for several rounds running as a de-facto
+// stalemate, backstopping the case where nobody's actually landing a
+// winning roll even though one remains possible.
 // "Round" means every royaume STILL ALIVE playing once — with 4 royaumes up
 // this was 4×4=16 individual turns, but reported live as feeling way too
 // fast ("tous les 10 tours c'est rapide ça") once the match narrows down to
@@ -4594,6 +4599,27 @@ function runAI() {
         }
         score -= exposure * 0.3 * pers.exposureWeight;
 
+        if (score > bestScore) { bestScore = score; best = { from: t.id, to: nId }; }
+      }
+      // Water-route targets — same scoring as land above, but the crossing's
+      // own cost comes off the attacking force first (same math attack()
+      // itself uses), and only a route the royaume can actually survive is
+      // ever considered (canAffordWaterRoute() — never a doomed crossing).
+      // Was human-only in the mechanic's first version ("Donne aux IA la
+      // capacité d'attaquer par bateau" — task #82).
+      for (const [nId, route] of t.waterRoutes) {
+        const n = territories[nId];
+        if (n.owner === royId || !canAffordWaterRoute(t, nId)) continue;
+        const attackingForce = t.force - route.cost;
+        const adv = attackingForce - n.force;
+        if (adv < escalated(AI_AGGRESSION_THRESHOLD, -1) + pers.aggressionDelta) continue;
+        let score = adv + (territoryCount[n.owner] <= 2 ? pers.finishOffBonus : 0);
+        let exposure = 0;
+        for (const oId of t.neighbors) {
+          const o = territories[oId];
+          if (o.owner !== royId) exposure = Math.max(exposure, o.force);
+        }
+        score -= exposure * 0.3 * pers.exposureWeight;
         if (score > bestScore) { bestScore = score; best = { from: t.id, to: nId }; }
       }
     }
@@ -5833,7 +5859,7 @@ document.getElementById("rerollBtn").addEventListener("click", () => {
     if (activeReplayFinish) activeReplayFinish();
     return;
   }
-  if (!reloadIfUpdateAvailable()) startGame();
+  if (!reloadIfUpdateAvailable()) { sfxRerollMap(); startGame(); }
 });
 document.getElementById("replayPauseBtn").addEventListener("click", () => {
   if (activeReplayTogglePause) activeReplayTogglePause();
@@ -6021,8 +6047,16 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.52";
+const GAME_VERSION = "1.53";
 const CHANGELOG = [
+  {
+    version: "1.53",
+    notes: [
+      "Bruitage doux ajouté quand on change de carte avant de choisir un camp.",
+      "Combat : à force égale l'attaquant a 1 chance sur 3 de gagner, à un de moins 1 chance sur 5 — plus seulement à 12 contre 12.",
+      "Les IA peuvent maintenant lancer des attaques par bateau, pas seulement le joueur.",
+    ],
+  },
   {
     version: "1.52",
     notes: [
