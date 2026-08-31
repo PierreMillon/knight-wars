@@ -9,11 +9,11 @@ Copié tel quel pour suivi. Statut ajouté en préfixe au fur et à mesure :
 
 [x] Ajoute un bouton carte précédente quand on génère aléatoirement trop vite.
 
-Préciser au piano les accord de chaque animation pour éviter les notes trop aiguës
+[x] Préciser au piano les accord de chaque animation pour éviter les notes trop aiguës (superseded par la refonte gamme-par-royaume : racines en registre médium D4/C#4/C4, chime de renfort déjà baissé d'une octave après un retour "shrill/piercing" — plus de notes aiguës en pratique)
 
-Supprime les options du menu pour régler les stats par …
+[x] Supprime les options du menu pour régler les stats par … (déjà fait plus tôt — voir changelog v1.4x "Retiré « Nouvelle guerre » et le tri des stats des réglages", vérifié : plus aucune option de tri dans le menu)
 
-Graphique de fin déplace en haut les chiffre de territoire. Ajout en dessous du graphique même chose pour les nombre de soldat
+[x] Graphique de fin déplace en haut les chiffre de territoire. Ajout en dessous du graphique même chose pour les nombre de soldat
 
 Sur safari la page charge mais après plusieurs dizaines de secondes
 Firefox focus direct chargement
@@ -200,3 +200,5 @@ Sound (gamme par royaume), épée/bateau taille + alignement, portée d'attaque 
 - [x] Replay : retrait épées/bateaux, contour doré tenu tant que non lancé (replayPaused), sons de combat réussite/échec ajoutés, pieuvre visible si apparue dans la partie originale.
 - [x] Retrait des mentions "s'applique à la prochaine guerre" dans le menu réglages (taille de carte, nombre d'adversaires).
 - [ ] "J'ai gagné beaucoup trop facilement en niveau 4" — tuning en cours, la correction du chaînage IA devrait aider ; pas de rééquilibrage dédié fait cette fois (le système de paliers de probabilité exacts reste un chantier séparé, plus large).
+- [x] Inversé la position des boutons "Nouvelle partie aléatoire" et "Partager ma victoire" sur l'écran de fin.
+- [x] Graphique de fin : chiffres de territoire déplacés en haut du graphique, nombres de soldat (force) ajoutés en dessous — le panneau Force retiré du graphique (tâche #37) revient sous cette forme simple, pas comme bande empilée.
