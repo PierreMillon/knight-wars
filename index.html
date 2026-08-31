@@ -240,7 +240,7 @@
      dark outer keyline (via layered box-shadow — no image assets needed) */
   .box {
     background: linear-gradient(160deg, #f6ecd2, #e6d3a3);
-    color: #2b1d10; border-radius: 10px; padding: 22px 24px;
+    color: #2b1d10; border-radius: 10px; padding: 11px 12px; /* halved per request — "réduction de moitié de l'espace sur les bords du contenu des menus et de la page de fin de partie" */
     max-width: 320px; box-sizing: border-box;
     border: 1px solid #8a6d3b;
     box-shadow: 0 0 0 5px #1b1712, inset 0 0 0 1px rgba(139,109,59,.6), 0 12px 30px rgba(0,0,0,.5);
@@ -6623,8 +6623,14 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.69";
+const GAME_VERSION = "1.70";
 const CHANGELOG = [
+  {
+    version: "1.70",
+    notes: [
+      "Espace sur les bords réduit de moitié dans tous les menus et l'écran de fin de partie.",
+    ],
+  },
   {
     version: "1.69",
     notes: [
