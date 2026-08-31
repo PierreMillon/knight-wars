@@ -46,7 +46,7 @@ Si on appuie sur accéléré les combat ça ajout un son de cloche type glas que
 
 Sur safari privée tout chargé bien et pas safari normal gros bug d'affichage.
 
-Prépare version anglaise, chinoise et espagnole et allemande avec option dans les menu clair avec un drapeau et la langue pour trouver si on parle pas français. Switcher direct en anglais à la première ouverture sauf si tu sais reconnaître la langue de l'utilisateur.
+[~] Prépare version anglaise, chinoise et espagnole et allemande avec option dans les menu clair avec un drapeau et la langue pour trouver si on parle pas français. Switcher direct en anglais à la première ouverture sauf si tu sais reconnaître la langue de l'utilisateur. (démarré en petit exprès sur demande directe : "fais l'anglais en premier maintenant juste pour les boutons de jeu utiles au minimum" — toggle FR/EN dans Réglages, juste les boutons d'action du jeu (Fin de bataille, Changer la carte, écran de fin...). Reste à faire : chinois/espagnol/allemand, sélecteur avec drapeau, auto-détection de langue, traduction du lore/des textes de combat.)
 
 [x] Les boutons du replay doivent entrer sur une seul ligne en bas. Part belle a la carte ! (doublon — voir ligne 111 plus bas, déjà fait)
 
@@ -60,7 +60,7 @@ On déplace le compteur de gueux bonus à côté des stats en direct. Et on fait
 
 Sur ordi, agrandi dynamiquement les cases de jeu pour occupe autant d'écran relativement au téléphone.
 
-Un double clic rapide sur prochaine bataille affiche direct le tour suivant y'a une latence pour l'instant.
+[x] Un double clic rapide sur prochaine bataille affiche direct le tour suivant y'a une latence pour l'instant. (double-tap sur « Fin de bataille » déclenche forceInstantSkip, saute la pause de renfort + le rythme de l'IA)
 
 Quand on tue le dernier village pour gagner, on va ajoute une seconde d'animation en plus, tout le territoire gagné est entouré de la limite dorée avec un son que je fournis.
 
@@ -86,7 +86,7 @@ Quand les batailles sont trop longues faut ajouter une option de proposer le sta
 
 [x] Phrase suivante des noyés « Du rhum, des femmes ! Et du cidre nom de Zeus ! » puis « glouglouglou… »
 
-[x] Si j'ai deux soldats et que je traverse l'eau pour attaquer un barbare. Pour l'instant ça fonctionne. Mais ça devrait pas. Je perd deux forces phrase « plouf ! » et j'arrive avec 0 dont je devrais pas conquérir.
+[x] [x] Si j'ai deux soldats et que je traverse l'eau pour attaquer un barbare. Pour l'instant ça fonctionne. Mais ça devrait pas. Je perd deux forces phrase « plouf ! » et j'arrive avec 0 dont je devrais pas conquérir. (déjà corrigé — attack() : `from.force - waterCost <= 0` = échec automatique, noyade)
 
 Sinon attaque avec 1 et qu'on perd. Le territoire perdu devient aux barbares.
 
