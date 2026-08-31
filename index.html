@@ -1532,16 +1532,29 @@ let mapNumberRotationRad = 0;
 // strokeStyle and fillStyle (in either order — canvas style properties are
 // independent of when stroke/fill actually paint) before calling this.
 function drawMapNumber(text, x, y) {
+  // ctx.textAlign="center" centers each glyph by its *advance width*, not
+  // by where its ink actually falls — a digit like "1" has asymmetric
+  // left/right side bearings in this font, so its stroke visibly sits off
+  // to one side of that centered slot instead of dead center in the hex
+  // ("certains chiffres ne sont pas alignés parfaitement au centre de leur
+  // hexagone"). Re-center on the glyphs' real ink bounding box instead.
+  let dx = 0;
+  try {
+    const m = ctx.measureText(text);
+    if (m.actualBoundingBoxLeft !== undefined && m.actualBoundingBoxRight !== undefined) {
+      dx = (m.actualBoundingBoxLeft - m.actualBoundingBoxRight) / 2;
+    }
+  } catch (e) { /* unsupported — draw uncorrected rather than crash */ }
   if (mapNumberRotationRad) {
     ctx.save();
     ctx.translate(x, y);
     ctx.rotate(mapNumberRotationRad);
-    ctx.strokeText(text, 0, 0);
-    ctx.fillText(text, 0, 0);
+    ctx.strokeText(text, dx, 0);
+    ctx.fillText(text, dx, 0);
     ctx.restore();
   } else {
-    ctx.strokeText(text, x, y);
-    ctx.fillText(text, x, y);
+    ctx.strokeText(text, x + dx, y);
+    ctx.fillText(text, x + dx, y);
   }
 }
 // try/catch, not just the truthy guard above: this runs at the top level
@@ -2063,14 +2076,29 @@ function generateTerritories() {
 // search indefinitely. Same order of magnitude as waterPathToHex()'s own
 // MAX_SACRIFICE_SEARCH_HEXES guard, for the same reason.
 const MAX_ROUTE_SEARCH_HEXES = 6000;
+// Ranked by (hop count, then force cost) rather than cost alone. Every hex
+// in one connected water blob shares the SAME waterCost (classifyWaterBlobs:
+// 1 for an enclosed lake, 2 for open sea) — so a route minimizing only total
+// cost could zig-zag through a longer chain of cheap lake hexes over a
+// shorter, pricier open-sea crossing, drawing/attacking along a visibly
+// roundabout detour instead of the actually-shortest hex path ("le chemin
+// est toujours pas le plus court... ça fait un trait trop long qui fait un
+// détour", and separately "je peux toujours tracer un trait mega long sans
+// rapport avec mes forces" — a long, cheap lake detour reading as
+// disproportionate to the force actually spent). Hop count is the primary
+// key so the shortest path always wins; cost only breaks ties between
+// routes of equal length.
+function betterRoute(hopA, costA, hopB, costB) {
+  return hopA !== hopB ? hopA < hopB : costA < costB;
+}
 function computeWaterRoutes() {
   for (const t of territories) t.waterRoutes = new Map(); // targetTerritoryId -> { cost, path }
   const hasWater = Object.keys(hexes).some((k) => hexes[k].isWater);
   if (!hasWater) return;
   for (const startT of territories) {
-    const dist = new Map(); // hexKey -> cheapest cost reaching that water hex
-    const bestPath = new Map(); // hexKey -> the path (array of hex keys) achieving that cost
-    const frontier = []; // [cost, key] — small maps, a plain array re-sorted each pop is plenty fast
+    const dist = new Map(); // hexKey -> { hop, cost } of the best-ranked way reaching that water hex
+    const bestPath = new Map(); // hexKey -> the path (array of hex keys) achieving that rank
+    const frontier = []; // [hop, cost, key] — small maps, a plain array re-sorted each pop is plenty fast
     for (const hk of startT.hexKeys) {
       const h = hexes[hk];
       for (const nk of neighborsOf(h.q, h.r)) {
@@ -2086,7 +2114,8 @@ function computeWaterRoutes() {
         const nh = hexAt(nq, nr);
         if (nh.isWater) {
           const c = nh.waterCost || 2; // void has no stored waterCost — defaults to open-sea cost, same fallback computeWaterTailDecay() already uses
-          if (!dist.has(nk) || dist.get(nk) > c) { dist.set(nk, c); bestPath.set(nk, [nk]); frontier.push([c, nk]); }
+          const d = dist.get(nk);
+          if (!d || betterRoute(1, c, d.hop, d.cost)) { dist.set(nk, { hop: 1, cost: c }); bestPath.set(nk, [nk]); frontier.push([1, c, nk]); }
         }
       }
     }
@@ -2094,9 +2123,10 @@ function computeWaterRoutes() {
     let guard = 0;
     while (frontier.length) {
       if (++guard > MAX_ROUTE_SEARCH_HEXES) break; // open background water with nothing to reach — stop searching this territory rather than loop forever
-      frontier.sort((a, b) => a[0] - b[0]);
-      const [cost, key] = frontier.shift();
-      if (settled.has(key) || dist.get(key) < cost) continue; // already settled, or a stale (superseded) entry
+      frontier.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+      const [hop, cost, key] = frontier.shift();
+      const d = dist.get(key);
+      if (settled.has(key) || betterRoute(d.hop, d.cost, hop, cost)) continue; // already settled, or a stale (superseded) entry
       settled.add(key);
       const path = bestPath.get(key);
       const [q, r] = key.split(",").map(Number);
@@ -2104,16 +2134,19 @@ function computeWaterRoutes() {
         const [nq, nr] = nk.split(",").map(Number);
         const nh = hexAt(nq, nr); // see the same note above — void counts as open sea here too
         if (nh.isWater) {
-          const nc = cost + (nh.waterCost || 2);
-          if (!dist.has(nk) || dist.get(nk) > nc) {
-            dist.set(nk, nc);
+          const nc = cost + (nh.waterCost || 2), nhop = hop + 1;
+          const nd = dist.get(nk);
+          if (!nd || betterRoute(nhop, nc, nd.hop, nd.cost)) {
+            dist.set(nk, { hop: nhop, cost: nc });
             bestPath.set(nk, [...path, nk]);
-            frontier.push([nc, nk]);
+            frontier.push([nhop, nc, nk]);
           }
         } else if (nh.territoryId !== startT.id) {
           const destId = nh.territoryId;
           const existing = startT.waterRoutes.get(destId);
-          if (existing === undefined || existing.cost > cost) startT.waterRoutes.set(destId, { cost, path });
+          if (existing === undefined || betterRoute(hop, cost, existing.path.length, existing.cost)) {
+            startT.waterRoutes.set(destId, { cost, path });
+          }
         }
       }
     }
@@ -2865,15 +2898,31 @@ function playTone(freq, duration, opts = {}) {
     if (opts.slideTo) osc.frequency.exponentialRampToValueAtTime(opts.slideTo, t0 + duration);
     const filter = ac.createBiquadFilter();
     filter.type = "lowpass";
-    filter.frequency.value = opts.cutoff || 900;
+    // underwater crossings reuse the same attack sound, muffled and given a
+    // short watery tail — "faut les même bruitage d'attaque dans l'eau mais
+    // avec un léger effet sous-marin (filtre sonore adapté et reverb légère)"
+    filter.frequency.value = opts.underwater ? Math.min(opts.cutoff || 900, 500) : (opts.cutoff || 900);
     const gain = ac.createGain();
     const vol = opts.volume || 0.08;
     gain.gain.setValueAtTime(0, t0);
     gain.gain.linearRampToValueAtTime(vol, t0 + 0.012);
     gain.gain.exponentialRampToValueAtTime(0.0001, t0 + duration);
     osc.connect(filter); filter.connect(gain); gain.connect(ac.destination);
+    if (opts.underwater) {
+      // a short feedback delay standing in for a light reverb tail — cheap
+      // and dependency-free, no convolver/impulse-response asset needed
+      const delay = ac.createDelay(0.3);
+      delay.delayTime.value = 0.1;
+      const feedback = ac.createGain();
+      feedback.gain.value = 0.32;
+      const wet = ac.createGain();
+      wet.gain.value = 0.28;
+      gain.connect(delay);
+      delay.connect(feedback); feedback.connect(delay);
+      delay.connect(wet); wet.connect(ac.destination);
+    }
     osc.start(t0);
-    osc.stop(t0 + duration + 0.03);
+    osc.stop(t0 + duration + (opts.underwater ? 0.3 : 0.03));
   };
   if (ac.state === "suspended") {
     // wait for the actual resume instead of scheduling against a context
@@ -2932,14 +2981,17 @@ const ROYAUME_SCALES = {
   2: { root: 277.1826, semitones: [0, 2, 3, 6, 7, 8, 11] },
   3: { root: 261.6256, semitones: [0, 3, 5, 7, 8, 10] },
 };
-function sfxAttack(win, chainIndex = -1, royId = -1) {
+// underwater: same note/timbre as any other attack, just routed through
+// playTone()'s muffled-filter + light-reverb branch — "faut les même
+// bruitage d'attaque dans l'eau mais avec un léger effet sous-marin".
+function sfxAttack(win, chainIndex = -1, royId = -1, underwater = false) {
   const scale = win ? ROYAUME_SCALES[royId] : null;
   if (scale) {
     const noteIndex = Math.max(0, chainIndex);
     const lap = Math.floor(noteIndex / scale.semitones.length);
     const semitone = scale.semitones[noteIndex % scale.semitones.length] + 12 * lap;
     const freq = scale.root * Math.pow(2, semitone / 12);
-    playTone(freq, 0.14, { type: "triangle", cutoff: 700, volume: 0.09, slideTo: freq * (160 / 220) });
+    playTone(freq, 0.14, { type: "triangle", cutoff: 700, volume: 0.09, slideTo: freq * (160 / 220), underwater });
     return;
   }
   let mul = 1;
@@ -2948,7 +3000,7 @@ function sfxAttack(win, chainIndex = -1, royId = -1) {
     mul = Math.pow(2, (interval - 2) / 12); // -2 semitones: "un ou deux tons plus grave" for the chain's first hop
   }
   const baseFreq = win ? 220 : 140, baseSlide = win ? 160 : 90;
-  playTone(baseFreq * mul, 0.16, { type: "triangle", cutoff: 700, volume: 0.09, slideTo: baseSlide * mul });
+  playTone(baseFreq * mul, 0.16, { type: "triangle", cutoff: 700, volume: 0.09, slideTo: baseSlide * mul, underwater });
 }
 function sfxEndTurn() { playTone(120, 0.14, { type: "sine", cutoff: 480, volume: 0.06 }); }
 // Discreet cue for each extra village joining a drag-to-attack chain,
@@ -3319,7 +3371,7 @@ function attack(fromId, toId, chainIndex = -1) {
   if (from.force - waterCost <= 0) {
     logMsg(`${ROYAUMES[from.owner].name} attaque ${ROYAUMES[to.owner].name} — noyés en chemin, aucune troupe n'arrive — échec`);
     triggerCombatFX(fromId, toId, 0, to.force, false, from.owner, to.owner, to.hexKeys.length, waterPath);
-    if (!replaying) sfxAttack(false, chainIndex, from.owner);
+    if (!replaying) sfxAttack(false, chainIndex, from.owner, !!waterPath);
     from.force = 1;
     checkElimination();
     checkWinner();
@@ -3343,7 +3395,7 @@ function attack(fromId, toId, chainIndex = -1) {
   // during replay playback, reported multiple times as unwanted — the
   // visuals (swords, rings) are the point during a replay, the sounds
   // aren't.
-  if (!replaying) sfxAttack(win, chainIndex, from.owner);
+  if (!replaying) sfxAttack(win, chainIndex, from.owner, !!waterPath);
   if (win) {
     to.owner = from.owner;
     to.force = Math.max(1, attackingForce - 1);
@@ -4274,6 +4326,12 @@ function playReplay(seed, difficulty, replayHumanRoyId, log, onFinish, replayMap
     stopAllReplayTimers(); // no leftover replay timer should keep firing into the now-live, forked match
     replayPaused = false;
     forceInstantSkip = false;
+    // Forking right as (or just after) the decisive move played left the
+    // board still flagged gameOver/truceEnded — a genuinely unplayable HUD
+    // (endturn hidden, no attacks possible) even though the whole point of
+    // "Jouer depuis là" is to hand back a live, continuable match. Same
+    // reset step() already applies for "Continuer le combat" past a truce.
+    gameOver = false; truceEnded = false; truceWinnerId = -1; allCappedStreak = 0;
     moveLog = log.slice(0, i);
     gameStartDifficulty = DIFFICULTY;
     gameStartMapSize = mapSize;
@@ -4549,7 +4607,14 @@ function saveChartImage() {
   // thumbnail, one built fresh in JS often doesn't)
   const file = new File([blob], `knight-wars-v${GAME_VERSION}-${buildMapCode()}.png`, { type: "image/png" });
   if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-    navigator.share({ files: [file], title: "Knight Wars" }).catch(() => {
+    // files-only, no title/text alongside: adding those made iOS Safari's
+    // share sheet render this as a generic document row (plain file icon)
+    // instead of recognizing a lone image share and showing its real
+    // thumbnail — reported live, more than once, as "un truc dégueu" in the
+    // save menu ("faut une icône prévue dans le menu d'enregistrement").
+    navigator.share({ files: [file] }).then(() => {
+      showToast("Graphique enregistré !");
+    }).catch(() => {
       // cancelled, or share failed after all — fall back to opening the
       // image in its own tab so it can still be long-pressed/saved manually
       const url = URL.createObjectURL(blob);
@@ -4559,6 +4624,7 @@ function saveChartImage() {
   }
   const url = URL.createObjectURL(blob);
   window.open(url, "_blank");
+  showToast("Image ouverte dans un nouvel onglet — appui long pour l'enregistrer.");
 }
 document.getElementById("saveChartImage").addEventListener("click", () => { saveChartImage(); });
 
@@ -4923,7 +4989,7 @@ function drawHighlightOutlines() {
 const SWORD_ANGLE_CORRECTION = Math.PI / 2;
 function drawSwordAt(x, y, angle, alpha) {
   if (!SWORD_IMG.complete || !SWORD_IMG.naturalWidth) return; // not decoded yet — skip this frame rather than draw a broken image
-  const size = 48; // doubled to 68, then -30% per follow-up request ("diminue la taille des épées de 30%")
+  const size = 38; // doubled to 68, then -30%, then a further -20% per follow-up requests
   ctx.save();
   ctx.translate(x, y);
   ctx.rotate(angle + SWORD_ANGLE_CORRECTION);
@@ -6265,8 +6331,19 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.58";
+const GAME_VERSION = "1.59";
 const CHANGELOG = [
+  {
+    version: "1.59",
+    notes: [
+      "Attaque par mer : le chemin choisi est enfin le plus court (nombre de cases), pas juste le moins cher en force — fini les détours qui traçaient un trait disproportionné.",
+      "Chiffres de force recentrés au pixel près dans leur hexagone.",
+      "Épées de combat encore réduites de 20%.",
+      "« Jouer depuis là » en replay ne peut plus retomber sur une partie déjà terminée/injouable.",
+      "Attaque par mer : même bruitage qu'une attaque normale, avec un filtre étouffé + un léger écho sous-marin.",
+      "Enregistrement du graphique de fin : message de confirmation, et correction du menu de partage iOS qui affichait une icône générique.",
+    ],
+  },
   {
     version: "1.58",
     notes: [
@@ -7085,17 +7162,21 @@ document.getElementById("onboardingHint").addEventListener("click", dismissOnboa
 // there's nothing to tap in response, so it shouldn't linger like the
 // onboarding hint or a real button does.
 let forceAdaptToastTimer = null;
-function showForceAdaptToast() {
+// Reused for any short-lived confirmation message, not just the difficulty
+// one it was built for (see saveChartImage()) — same slot/materials, no
+// point duplicating the show/fade/hide plumbing for a second toast element.
+function showToast(msg, holdMs = 1000) {
   const el = document.getElementById("forceAdaptToast");
   clearTimeout(forceAdaptToastTimer);
-  el.textContent = "Adaptation de la force des adversaires selon la difficulté";
+  el.textContent = msg;
   el.style.display = "block";
   requestAnimationFrame(() => { el.style.opacity = "1"; });
   forceAdaptToastTimer = setTimeout(() => {
     el.style.opacity = "0";
     forceAdaptToastTimer = setTimeout(() => { el.style.display = "none"; }, 650); // matches the CSS opacity transition duration
-  }, 1000);
+  }, holdMs);
 }
+function showForceAdaptToast() { showToast("Adaptation de la force des adversaires selon la difficulté"); }
 
 // A little running joke for the deliberate ocean-sacrifice ritual (see
 // executeWaterSacrifice()) — a maxed-out village sent straight into open
