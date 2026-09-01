@@ -492,6 +492,10 @@
   #loreOverlay .box { max-height: 80vh; overflow-y: auto; position: relative; padding-top: 34px; }
   #loreOverlay h2 { margin: 0 0 14px; font-size: 20px; text-align: center; }
   #loreOverlay p { font-size: 14px; line-height: 1.6; margin: 0 0 14px; }
+  /* set apart from the rest of the page's prose as a distinct chronicle/
+     epigraph, not just another paragraph of the "Les Millon" account right
+     below it — a left rule + slightly dimmer tone, same idea as a pull-quote. */
+  #loreChronique { border-left: 3px solid #a97e2a; padding-left: 12px; opacity: .88; }
   #loreOverlay img { display: block; width: 64px; height: auto; margin: 0 auto 14px; image-rendering: pixelated; }
   /* same octopus sprite, no separate art drawn for Cthulhu — inverted +
      darkened so it reads as something else answering, not a repeat */
@@ -965,6 +969,17 @@
     <div class="box" id="loreBox">
       <button id="backLoreToSettings" aria-label="Retour aux réglages">‹</button>
       <img id="loreBlazon" alt="">
+      <!-- "on pourrait écrire une petite partie légende qui reprend tout
+           ce qu'on raconte dans une petite histoire, comme César dans la
+           guerre des Gaules, qui laisse entrevoir les différents dieux et
+           leur pouvoir... nous laisse voir des mécaniques" — a short
+           chronicle-style epigraph (~200 mots, style César : phrases
+           courtes, déclaratives, presque un rapport) devant l'intro "Les
+           Millon" existante, pas à sa place — celle-ci reste le récit
+           complet, ceci n'en est que le condensé qui laisse deviner les
+           dieux/pouvoirs sans les nommer en clair comme les paragraphes de
+           déblocage le font déjà chacun de leur côté. -->
+      <p id="loreChronique"><em>La Bretagne se divise en quatre maisons, toutes du même sang Millon que la haine a désuni. Chacune a son dieu propre, et chaque dieu son prix. Châteauvieux faillit tomber, se releva d'une seule province, et depuis Vulcain veille sur chacun de ses remparts. Villiers n'a jamais cédé un pouce de terre en un siège entier ; Bellone arme sa lance d'une force qu'aucune autre maison ne connaît. Montherlant a un jour tenu sept dixièmes du pays d'une seule main ; les greniers de Cérès depuis ne se vident plus jamais tout à fait. Beaumanoir seul acheva un siège par la mer ; Neptune, depuis, lui écarte les flots. On dit aussi qu'une maison dont les douze provinces atteignent ensemble leur plein effectif ne perd plus une seule bataille, le temps que cela dure — et qu'à la troisième fois, dans trois guerres séparées, un dieu plus ancien que les autres, romain celui-là, ne quitte plus jamais son camp. Sous la mer que Beaumanoir traverse sans perdre un homme, les pêcheurs jurent qu'autre chose regarde, plus vieux que Neptune, et que personne n'a encore osé nommer.</em></p>
       <h2>Les Millon</h2>
       <p>En cet an de grâce 1183, la Bretagne n'a plus de duc, et quatre châtelains se disputent son héritage — Châteauvieux, Villiers, Montherlant, Beaumanoir. Quatre noms de fief, mais un seul sang : tous portent le même blason, celui d'un aïeul commun, les Millon, dont le domaine fut fracturé entre ses héritiers il y a plus d'un siècle.</p>
       <p>Chaque bataille livrée ici n'oppose pas des étrangers, mais des cousins — une querelle de famille qui ne connaît ni trêve ni pardon, jusqu'à ce qu'un seul Millon reste debout pour reformer sous une seule bannière la terre que leurs pères ont laissée en morceaux.</p>
@@ -7867,8 +7882,14 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "2.03";
+const GAME_VERSION = "2.04";
 const CHANGELOG = [
+  {
+    version: "2.04",
+    notes: [
+      "Ajouté une courte chronique en tête du Lore, façon César, qui laisse deviner les dieux et leurs pouvoirs sans les nommer en clair.",
+    ],
+  },
   {
     version: "2.03",
     notes: [
