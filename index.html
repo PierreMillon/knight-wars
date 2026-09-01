@@ -2762,11 +2762,9 @@ function balanceStartingForces() {
   for (let i = 0; i < ROYAUME_COUNT - 1; i++) if (i !== humanRoyId) aiIds.push(i); // exclude neutral and the human
   if (!aiIds.length) return; // e.g. humanRoyId still -1 (pre-pick) — nothing to balance yet
   const owned = {}, totals = {};
-  let aiGrandTotal = 0;
   for (const royId of aiIds) {
     owned[royId] = territories.filter(t => t.owner === royId);
     totals[royId] = owned[royId].reduce((s, t) => s + t.force, 0);
-    aiGrandTotal += totals[royId];
   }
 
   // Harder difficulty = bigger AI starting-force edge, on top of the AI's
@@ -2774,7 +2772,22 @@ function balanceStartingForces() {
   // split among the AI seats (no edge); at Seigneur (1) each AI's target is
   // 80% above that equal split.
   const AI_BONUS = lerp(0, 0.8, DIFFICULTY);
-  const equalShare = aiGrandTotal / aiIds.length;
+  // The "fair share" reference is the map-wide average across ALL real
+  // royaumes (every AI seat plus the human's own), not just an average of
+  // whichever seats happen to end up AI. Averaging over the AI seats alone
+  // made the reference — and so the total enemy force at a GIVEN
+  // difficulty — depend on which royaume the human picked (since picking
+  // one excludes it from that average): confirmed empirically, the same
+  // map/seed/difficulty could hand out anywhere from 30 to 77 total AI
+  // force depending purely on the pick. "Le nombre de forces ennemis ne
+  // devrait pas varier au choix de camp." The map-wide total is fixed the
+  // instant the map finishes generating, before anyone has picked
+  // anything, so this average is now the same regardless of which seat
+  // ends up human — only DIFFICULTY still moves it, via AI_BONUS below.
+  let humanTotal = 0;
+  for (const t of territories) if (t.owner === humanRoyId) humanTotal += t.force;
+  const mapWideTotal = aiIds.reduce((s, id) => s + totals[id], 0) + humanTotal;
+  const equalShare = mapWideTotal / (aiIds.length + 1);
 
   // Attenuated: blend each royaume's actual total toward its target share
   // rather than forcing an exact match.
@@ -7810,8 +7823,14 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.96";
+const GAME_VERSION = "1.97";
 const CHANGELOG = [
+  {
+    version: "1.97",
+    notes: [
+      "Corrigé : la force totale des adversaires pouvait fortement varier selon la maison choisie, à difficulté égale (jusqu'à 2,5× d'écart) — la référence d'équilibrage se base maintenant sur les 4 maisons de la carte, pas seulement les 3 qui restent IA.",
+    ],
+  },
   {
     version: "1.96",
     notes: [
