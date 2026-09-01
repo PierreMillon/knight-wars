@@ -1,0 +1,19 @@
+name: Simulate
+
+# Runs simulate.js — a headless smoke test + replay-determinism check —
+# on every push and every pull request, so a broken game or a determinism
+# regression (which would silently break replays and shared-match links)
+# shows up as a red ✗ on the PR instead of only being caught by hand.
+on:
+  push:
+  pull_request:
+
+jobs:
+  simulate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: node simulate.js
