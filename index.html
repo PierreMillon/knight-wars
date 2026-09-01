@@ -217,8 +217,20 @@
      the old pair of clock hands (removed) that used to bracket the wedge
      the rest of the way around; now the dial is bare while filling and only
      gains a ring once it's actually full, echoing OUTLINE_GRADIENTS.gold's
-     own bright-to-dark gold tone used for a selected territory's outline. */
-  .chip .swatch.full { box-shadow: 0 0 0 1.5px #e8c468, 0 0 0 3px #a97e2a; }
+     own bright-to-dark gold tone used for a selected territory's outline.
+     100% full here is exactly allProvincesCapped() — the same condition
+     that pulses the map's own gold outline around a capped royaume (see
+     render()'s `pulse = 0.72 + 0.28*sin(now/260)` there) — so this ring
+     vibrates too now instead of sitting static, matching that outline
+     rather than just borrowing its color ("le trait doré de l'horloge doit
+     être le même et doit vibrer comme le trait doré autour des provinces").
+     ~1.63s period (2π×260ms) approximates that same sine, translated to a
+     CSS animation since this is a DOM ring, not a canvas stroke. */
+  @keyframes chipFullPulse {
+    0%, 100% { box-shadow: 0 0 0 1.5px #e8c468, 0 0 0 3px #a97e2a; }
+    50% { box-shadow: 0 0 0 1.5px #fff3c4, 0 0 0 3.5px #e8c468; }
+  }
+  .chip .swatch.full { animation: chipFullPulse 1.63s ease-in-out infinite; }
   /* fixed-width, left-aligned column (like the swatch already is) instead
      of a run-on text node — so every row's number starts at the same X
      regardless of digit count. Just the total force (soldiers) now — the
@@ -358,6 +370,11 @@
     position: absolute; right: 14px; /* bottom is set in JS, stacked just above #endturn */
     pointer-events: auto; background: linear-gradient(135deg, #fff3c4, #e8c468, #a97e2a); color: #2b1d10;
     padding: 8px 16px; font-size: 13px; white-space: nowrap; font-weight: 700;
+    /* explicit shared floor — "les boutons du bas en replay doivent avoir
+       la même hauteur" — same box-sizing/min-height convention as
+       #gueuxBadge/#endturn/#surrenderBtn (see their own note), belt-and-
+       braces alongside the identical padding/font-size these already share. */
+    box-sizing: border-box; min-height: 38px; display: inline-flex; align-items: center; justify-content: center;
   }
   /* sits directly left of #rerollBtn, same bottom — both right/bottom
      recomputed in JS (resize()) once rerollBtn's own rendered width is
@@ -715,15 +732,18 @@
     font-family: Georgia, "Iowan Old Style", Palatino, "Times New Roman", serif;
     display: none; opacity: 0; transition: opacity .6s ease;
   }
-  /* same slot/materials as #forceAdaptToast right above — the two never show
-     at once in practice (that one only ever fires once, right at faction
-     pick) — for the little running joke in showOceanTapEasterEgg(): a tap
-     or drag-release landing on open water instead of a real target. A
-     little wider since the longer of its three lines runs on. */
+  /* Same top slot as #onboardingHint now (left:14px/right:54px, clear of
+     #settingsBtn) instead of centered lower down on the map — "les messages
+     quand on envoie des hommes dans l'eau doivent être affichés tout en
+     haut de la carte comme l'espace des tutoriels, sans déborder sur le
+     menu". Shared by showOceanTapEasterEgg() (a tap/drag-release landing on
+     open water) and showForcedSwimToast() (men actually lost to the sea) —
+     the two never show at once in practice, and neither ever overlaps
+     #onboardingHint (that one only ever fires very early in a first match). */
   #oceanTapToast {
-    position: absolute; top: calc(130px + env(safe-area-inset-top, 0px)); left: 50%;
-    transform: translateX(-50%); z-index: 5; pointer-events: none;
-    max-width: 84vw; text-align: center;
+    position: absolute; top: calc(8px + env(safe-area-inset-top, 0px)); left: 14px; right: 54px;
+    z-index: 5; pointer-events: none;
+    text-align: left;
     background: rgba(20,16,12,.75); color: #f2ede2; font-size: 12px; font-weight: 600;
     padding: 7px 13px; border-radius: 10px; border: 1px solid #8a6d3b;
     box-shadow: 0 0 0 1px rgba(20,16,12,.7), 0 2px 6px rgba(0,0,0,.45);
@@ -1921,15 +1941,33 @@ function resize() {
       const endturnLocal = physicalToWrapLocal(endturnRect.left, endturnRect.top, wrapRect);
       const rowBottom = (h - endturnLocal.y + 8) + "px";
       rerollEl.style.bottom = rowBottom;
-      let rightEdge = 14 + rerollEl.offsetWidth; // 14px matches the shared base right: offset
-      if (pauseVisible) {
-        pauseEl.style.bottom = rowBottom;
-        pauseEl.style.right = (rightEdge + 8) + "px";
-        rightEdge += 8 + pauseEl.offsetWidth;
-      }
-      if (resumeHereVisible) {
-        resumeHereEl.style.bottom = rowBottom;
-        resumeHereEl.style.right = (rightEdge + 8) + "px";
+      if (pauseVisible || resumeHereVisible) {
+        // Actually replaying (pause/resumeHere only ever show then) —
+        // spread the row evenly across the FULL width (left:14px to
+        // right:14px) instead of clustering right-anchored with unused
+        // space on the left — "les trois [boutons de replay] ensemble
+        // doivent occuper le maximum de largeur à droite et à gauche de
+        // l'écran". Same left-to-right reading order the old right-to-left
+        // stack produced (resumeHere, pause, reroll — reroll rightmost).
+        const rowEls = [];
+        if (resumeHereVisible) rowEls.push(resumeHereEl);
+        if (pauseVisible) rowEls.push(pauseEl);
+        rowEls.push(rerollEl);
+        const totalBtnWidth = rowEls.reduce((sum, el) => sum + el.offsetWidth, 0);
+        const availableWidth = w - 28; // left:14px .. right:14px
+        const gap = rowEls.length > 1 ? Math.max(8, (availableWidth - totalBtnWidth) / (rowEls.length - 1)) : 0;
+        let x = 14;
+        for (const el of rowEls) {
+          el.style.bottom = rowBottom;
+          el.style.left = x + "px";
+          el.style.right = "auto"; // cancel the CSS default right:14px — left+right together would stretch the button
+          x += el.offsetWidth + gap;
+        }
+      } else {
+        // Just "Changer la carte" alone (awaitingFactionPick, not
+        // replaying) — unchanged, right-anchored via the CSS default.
+        rerollEl.style.left = "auto";
+        rerollEl.style.right = "14px";
       }
     }
   }
@@ -3633,21 +3671,27 @@ function playTone(freq, duration, opts = {}) {
     // Underwater always wants this tail; anything else can opt in on its own
     // now too (opts.reverb) — was underwater-only, generalized per request
     // ("la musique de victoire... on doit rajouter un effet de réverb").
-    if (opts.underwater || opts.reverb) {
+    // opts.reverb can also be a 0-1 AMOUNT (not just true/underwater's full
+    // strength) — "la réverb doit être à zéro sur la première note et à
+    // l'état actuel sur la dernière, progression linéaire entre les deux"
+    // (see sfxVictory()'s own per-note ramp). true/underwater both mean
+    // "full strength", same as before this option existed.
+    const reverbAmount = opts.reverb === true || opts.underwater ? 1 : (opts.reverb || 0);
+    if (reverbAmount > 0) {
       // a short feedback delay standing in for a light reverb tail — cheap
       // and dependency-free, no convolver/impulse-response asset needed
       const delay = ac.createDelay(0.3);
       delay.delayTime.value = 0.1;
       const feedback = ac.createGain();
-      feedback.gain.value = 0.32;
+      feedback.gain.value = 0.32 * reverbAmount;
       const wet = ac.createGain();
-      wet.gain.value = 0.28;
+      wet.gain.value = 0.28 * reverbAmount;
       gain.connect(delay);
       delay.connect(feedback); feedback.connect(delay);
       delay.connect(wet); wet.connect(ac.destination);
     }
     osc.start(t0);
-    osc.stop(t0 + duration + (opts.underwater || opts.reverb ? 0.3 : 0.03));
+    osc.stop(t0 + duration + (opts.underwater || reverbAmount > 0 ? 0.3 : 0.03));
   };
   if (ac.state === "suspended") {
     // wait for the actual resume instead of scheduling against a context
@@ -3862,7 +3906,11 @@ function sfxVictory(royId = humanRoyId) {
   // produced back when this table was a flat, hard-coded array
   for (let i = 0; i < 8; i++) {
     const freq = root * Math.pow(2, chainIntervalFor(i) / 12);
-    scheduleSound(() => playTone(freq, 0.22, { type: "triangle", cutoff: 1400, volume: 0.09, reverb: true }), i * 130);
+    // "la réverb doit être à zéro sur la première note et à l'état actuel
+    // [pleine intensité] sur la dernière, une progression linéaire entre
+    // les deux" — was a flat `true` (full reverb) on every note.
+    const reverbAmount = i / 7;
+    scheduleSound(() => playTone(freq, 0.22, { type: "triangle", cutoff: 1400, volume: 0.09, reverb: reverbAmount }), i * 130);
   }
 }
 // same chord shape and the human's own root, run in reverse — the fall
@@ -7819,8 +7867,17 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "2.02";
+const GAME_VERSION = "2.03";
 const CHANGELOG = [
+  {
+    version: "2.03",
+    notes: [
+      "Musique de victoire : la réverb progresse maintenant linéairement (nulle sur la première note, pleine sur la dernière) au lieu d'être uniforme du début à la fin.",
+      "Boutons du bas en replay (Changer la carte/◀/Lire) : même hauteur, répartis sur toute la largeur de l'écran au lieu de se coller au bord droit.",
+      "Messages liés à l'eau (hommes perdus en mer, easter egg) : déplacés tout en haut de la carte comme le tutoriel, sans déborder sur le bouton menu ; durée doublée.",
+      "L'anneau doré de l'horloge des stats (royaume au plafond) vibre maintenant comme le contour doré des provinces, au lieu de rester statique.",
+    ],
+  },
   {
     version: "2.02",
     notes: [
@@ -9353,7 +9410,7 @@ function showForcedSwimToast(fromId = 0) {
   oceanTapToastTimer = setTimeout(() => {
     el.style.opacity = "0";
     oceanTapToastTimer = setTimeout(() => { el.style.display = "none"; }, 650);
-  }, 2200);
+  }, 4400); // doubled per request (was 2200) — now matches showOceanTapEasterEgg()'s own already-doubled hold
 }
 
 function refreshGueuxBadge() {
