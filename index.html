@@ -94,10 +94,11 @@
     pointer-events: auto; white-space: nowrap; text-align: center;
     /* background color is set inline in JS to match the player's chosen royaume */
     padding: 10px 12px; font-size: 15px; font-weight: 700;
-    /* same min-height as gueuxBadge/surrenderBtn (see their own rules) so the
-       three bottom-row buttons all line up at one consistent height — this
+    /* same min-height as surrenderBtn (see its own rule) so the two
+       remaining bottom-row buttons line up at one consistent height — this
        one can still grow taller on its own for the two-line "Statu quo dans
-       N tours" hint, min-height only sets the floor */
+       N tours" hint, min-height only sets the floor. gueuxBadge is a
+       separate, standalone element now, no longer sharing this row. */
     min-height: 44px; box-sizing: border-box;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     /* fills whatever's left in #bottomHudRow rather than sizing to its own
@@ -127,6 +128,12 @@
   .sideArtRight { right: 2vw; }
   @media (min-width: 900px) {
     .sideArt { display: block; }
+    /* "sur ordi double taille des stats" — the top-left royaume chips read
+       small on a wide desktop viewport next to the side art; doubled here
+       specifically (not on phone, where the current size already fits the
+       screen well). */
+    .chip { font-size: 24px; gap: 10px; }
+    .chip .swatch { width: 22px; height: 22px; }
   }
   /* the three bottom-of-screen action buttons, laid out by flexbox instead
      of individually-computed pixel offsets — space-between guarantees they
@@ -137,19 +144,20 @@
     pointer-events: none; /* the row itself is just a layout shell — each child re-enables it */
   }
   #gueuxBadge {
-    /* always a flex layout box (never display:none) so it always reserves
-       its slot in #bottomHudRow's flex row — see .gueuxHidden just below */
+    /* standalone now, right under #settingsBtn (top-right) — no longer a
+       flex child of #bottomHudRow, see its own note in the markup. Same
+       right edge as #settingsBtn, stacked just below its 34px height. */
+    position: absolute; top: calc(8px + 34px + 6px + env(safe-area-inset-top, 0px)); right: 10px;
     display: flex; align-items: center; justify-content: center; pointer-events: auto; cursor: pointer;
     background: linear-gradient(135deg, #fff3c4, #e8c468, #a97e2a);
     color: #2b1d10; font-size: 12px; padding: 0 12px; font-weight: 700;
-    /* same floor as #endturn/#surrenderBtn — the three bottom buttons line up */
-    min-height: 44px; box-sizing: border-box; flex-shrink: 0;
+    min-height: 34px; box-sizing: border-box;
     transition: box-shadow .15s, opacity .15s;
   }
-  /* hidden (metaProgress off) still reserves its flex slot via visibility,
-     not display:none — otherwise #surrenderBtn drifts to the row's left
-     edge instead of staying between gueux's slot and endturn's */
-  #gueuxBadge.gueuxHidden { visibility: hidden; pointer-events: none; }
+  /* no longer needs to reserve a flex slot for a sibling now that it's
+     standalone — a plain display:none is enough once it's not sharing a
+     row with anything else. */
+  #gueuxBadge.gueuxHidden { display: none; }
   /* armed: tap a territory to spend one gueux as a reinforcement there */
   #gueuxBadge.gueuxArmed { border-color: #e8c468; box-shadow: 0 0 0 2px rgba(232,196,104,.55), 0 0 10px rgba(232,196,104,.6); }
   #endturn:disabled { background: #5a5044 !important; color: #f2ede2 !important; opacity: .6; }
@@ -650,15 +658,16 @@
   #langToggle.lang-en .langSwitchThumb { transform: translateX(100%); }
   #langToggle.lang-en .langSwitchOption[data-lang="en"],
   #langToggle:not(.lang-en) .langSwitchOption[data-lang="fr"] { color: #2b1d10; }
-  /* plain icon button, main HUD, bottom-center between #gueuxBadge (left)
-     and #endturn (right) — same circular gold treatment as #settingsBtn now
+  /* plain icon button, main HUD, left end of #bottomHudRow's now-two-button
+     row (#gueuxBadge moved out to stand under #settingsBtn instead — see
+     its own note) — same circular gold treatment as #settingsBtn now
      (it used to deliberately stay dark/unadorned as a "destructive action"
      cue, but that read as visually inconsistent with the rest of the HUD
      once every other button went gold — the button already requires an
      actual tap to trigger, no confirmation dialog needed either way). */
   #surrenderBtn {
     pointer-events: auto; background: linear-gradient(135deg, #fff3c4, #e8c468, #a97e2a);
-    /* same floor as #endturn/#gueuxBadge — the three bottom buttons line up */
+    /* same floor as #endturn — the two remaining bottom buttons line up */
     width: 44px; height: 44px; min-height: 44px; padding: 6px; box-sizing: border-box;
     display: flex; align-items: center; justify-content: center; flex-shrink: 0;
   }
@@ -799,13 +808,15 @@
     <button id="versionBtn" aria-label="Notes de version"></button>
   </div>
   <button id="settingsBtn" aria-label="Réglages"><img id="settingsBtnImg" alt=""></button>
+  <!-- moved out of #bottomHudRow, standalone, right under #settingsBtn —
+       "déplace le compteur de gueux en dessous du bouton de menu". -->
+  <div id="gueuxBadge"></div>
   <!-- one flex row for the three bottom buttons — flexbox's own
        space-between guarantees they never overlap regardless of how wide
        any one of them gets (endturn's text/hint especially varies a lot),
        instead of computing pixel offsets by hand in resize() and having
        that math fall short on a real device's actual measurements. -->
   <div id="bottomHudRow">
-    <div id="gueuxBadge"></div>
     <!-- plain icon, no confirmation — surrenders immediately (see
          surrenderGame()); landing on the loss screen already offers
          "recommencer" right there, so a confirm dialog would be redundant.
@@ -1996,9 +2007,10 @@ function resize() {
   }
   // surrenderBtn's horizontal position is no longer computed here at all —
   // it's a plain flex child of #bottomHudRow now (see its CSS), which
-  // guarantees it never overlaps gueuxBadge/endturn regardless of how wide
-  // either one gets, instead of three increasingly-defensive attempts at
-  // computing the same guarantee by hand from measured pixel rects.
+  // guarantees it never overlaps endturn regardless of how wide either one
+  // gets, instead of computing that guarantee by hand from measured pixel
+  // rects. gueuxBadge is a separate, standalone element now (see its own
+  // note), not part of this row at all any more.
   const availH = h - topInset - bottomInset;
   centerX = w / 2; centerY = topInset + availH / 2;
   // Fit to the map's *actual* generated extents (not a nominal guess) so it
@@ -6911,11 +6923,10 @@ function updateGroups() {
     // un petit cercle doré s'affiche autour" — no more tick marks tracking
     // the fill live; just a gold ring once the dot is actually maxed out.
     swatchEl.classList.toggle("full", pct >= 100);
-    // "(nous)" marks our own row — same during a live game and while
-    // watching a replay, since humanRoyId stays set to whichever seat was
-    // actually played either way; requested so it's obvious at a glance
-    // which dot is ours without having to remember the color.
-    rowEl.querySelector(".n").textContent = r.roy.id === humanRoyId ? `${r.force} (nous)` : r.force;
+    // "(nous)" used to mark our own row here — removed per direct request
+    // ("supprime (nous)"), same cleanup as the chart legend's own "Nous,"
+    // just above (see recolorBlazonDiagonal()'s neighboring note).
+    rowEl.querySelector(".n").textContent = r.force;
     // exactly one row emphasized at a time, including our own when it's
     // our turn — see the CSS's own note on the transition itself
     rowEl.classList.toggle("activeTurn", r.roy.id === currentPlayer);
@@ -7163,11 +7174,14 @@ function handlePointer(clientX, clientY) {
       // actually lands on reachable water: the tap-select-then-tap-target
       // half of the ocean-sacrifice ritual (see executeWaterSacrifice()) —
       // the free-drag half lives in extendDragPath()/pointerup below. A
-      // bare water tap with nothing selected is just a no-op now — the
-      // Easter egg used to fire right here on ANY water tap at no real
-      // cost; it's reserved for a genuine sacrifice now (see
-      // showOceanTapEasterEgg()'s own note).
+      // bare water tap with nothing selected used to be a no-op here — now
+      // it ends the turn too, same as landscape's own ocean tap always
+      // does, instead of the two orientations disagreeing on what a plain
+      // water tap does ("si je clique sur l'eau ça doit être fin de
+      // bataille sur toute plateforme"). Only actually diving (a real
+      // selection + a valid route) still takes priority over that.
       const h = hexAtClientPoint(clientX, clientY);
+      let dove = false;
       if (h && h.isWater && selected !== -1 && !aiRunning && currentPlayer === humanRoyId) {
         const selTerr = territories[selected];
         const destKey = `${h.q},${h.r}`;
@@ -7177,8 +7191,10 @@ function handlePointer(clientX, clientY) {
           selected = -1;
           logMove({ sac: fromId, path: waterPath, pure: true }); // tap-select-then-tap-target is always a direct dive, no prior chain possible
           executeWaterSacrifice(fromId, waterPath);
+          dove = true;
         }
       }
+      if (!dove) handleEndTurnTap();
     }
     return;
   }
@@ -7882,8 +7898,17 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "2.04";
+const GAME_VERSION = "2.05";
 const CHANGELOG = [
+  {
+    version: "2.05",
+    notes: [
+      "Toucher l'eau met désormais fin au tour (ou accélère l'IA) sur toutes les orientations, plus seulement en mode paysage.",
+      "Le badge des gueux déménage sous le bouton des réglages, au lieu de partager la rangée du bas avec Reddition/Fin de bataille.",
+      "Sur ordinateur, les statistiques en haut à gauche doublent de taille.",
+      "Retiré « (nous) » à côté de vos troupes dans le classement en haut à gauche.",
+    ],
+  },
   {
     version: "2.04",
     notes: [
