@@ -502,6 +502,20 @@
   #lorePersonalities .personalityRow { font-size: 13px; line-height: 1.5; }
   #lorePersonalities .personalityRow .rname { font-weight: 700; }
   #lorePersonalities .personalityRow .repithet { font-style: italic; }
+  /* "avoir joué avec chaque faction" — one slot per playable royaume,
+     always visible (unlike the hidden-until-earned god paragraphs above),
+     dimmed until pickFaction() has picked that royaume at least once
+     (kw_royaumePlayed_N, persisted across sessions), then full opacity +
+     the same gold ring OUTLINE_GRADIENTS.gold/stats-clock "100%" already
+     uses elsewhere marks it done. Placeholder art for now — every slot
+     reuses the single shared BLAZON_IMG_SRC until the four dedicated
+     per-maison blazons the user is drawing arrive (see refreshLoreRoyaumesJoues()). */
+  #loreRoyaumesJoues { display: flex; justify-content: center; gap: 14px; margin: 0 0 16px; }
+  .loreBlazonSlot { display: flex; flex-direction: column; align-items: center; gap: 4px; opacity: .4; transition: opacity .3s; }
+  .loreBlazonSlot.played { opacity: 1; }
+  .loreBlazonSlot img { width: 34px; height: 34px; object-fit: contain; border-radius: 6px; }
+  .loreBlazonSlot.played img { box-shadow: 0 0 0 1.5px #e8c468, 0 0 0 3px #a97e2a; }
+  .loreBlazonSlot .loreBlazonName { font-size: 10px; text-align: center; line-height: 1.2; max-width: 60px; }
   #conseilsOverlay {
     position: absolute; inset: 0; display: none;
     align-items: center; justify-content: center;
@@ -923,6 +937,9 @@
         <img id="loreSoldier2" alt="">
       </div>
       <div id="lorePersonalities"></div>
+      <!-- see refreshLoreRoyaumesJoues() — one slot per maison, marks which
+           ones you've actually taken up arms for at least once. -->
+      <div id="loreRoyaumesJoues"></div>
       <p>Il reste, aux confins des quatre fiefs, des terres qu'aucun Millon ne songe à conquérir : celles des Barbares païens pacifistes. Une tribu inutile qui refuse de forger la moindre arme, préférant passer ses journées à compter des cailloux et tracer des figures dans la terre — quand elle ne se passionne pas pour la poterie de terre cuite ou le travail du verre. Une coiffure sophistiquée et un nuage de parfum leur importent bien plus que le noble art de la guerre : un peuple aussi inoffensif que pathétique, que même les Millon jugent indigne d'un vrai siège.</p>
       <!-- unlocked after 3 separate matches each with a 3-full-ritual octopus
            reveal (Seigneur only) — see recordOctopusRevealAndCheckUnlock() -->
@@ -3394,6 +3411,13 @@ const GOD_NAMES = ["Vulcain", "Bellone", "Cérès", "Neptune"];
 let godUnlocked = [false, false, false, false];
 try {
   for (let i = 0; i < 4; i++) godUnlocked[i] = localStorage.getItem(`kw_godUnlocked_${i}`) === "1";
+} catch (e) { /* ignore */ }
+// "Avoir joué avec chaque faction" — much simpler than the gods above: just
+// whether this royaume has ever been PICKED at pickFaction() at least once,
+// no win/condition required. Persisted the same way (one flag per royaume).
+let royaumePlayed = [false, false, false, false];
+try {
+  for (let i = 0; i < 4; i++) royaumePlayed[i] = localStorage.getItem(`kw_royaumePlayed_${i}`) === "1";
 } catch (e) { /* ignore */ }
 // Per-match tracking for each royaume's own unlock condition — reset in
 // startGame(), updated live during play, checked once at showWin() (see
@@ -7030,6 +7054,14 @@ function pickFaction(royId) {
   // stuck on screen
   document.getElementById("rerollBtn").style.display = "none";
   sfxPickFaction();
+  // "Avoir joué avec chaque faction" — Le lore's own checklist, marked the
+  // instant a real (non-replay) pick actually happens, regardless of how
+  // the match eventually turns out.
+  if (!replaying && !royaumePlayed[royId]) {
+    royaumePlayed[royId] = true;
+    try { localStorage.setItem(`kw_royaumePlayed_${royId}`, "1"); } catch (e) { /* ignore */ }
+    refreshLoreRoyaumesJoues();
+  }
   balanceStartingForces();
   if (DIFFICULTY > 0) showForceAdaptToast(); // Page (0) applies no edge at all — nothing actually changed, so no point announcing it
   // baseline for the end-of-game "gained ground?" flavor line — territory
@@ -7613,6 +7645,22 @@ document.getElementById("lorePersonalities").innerHTML = ROYAUMES.slice(0, ROYAU
     ${AI_PERSONALITIES[roy.id].lore}
   </div>
 `).join("");
+// Placeholder art: every slot reuses the single shared BLAZON_IMG_SRC for
+// now — swap each for its own dedicated per-maison blazon (4 distinct
+// files the user is drawing) once provided, same as SWORD_DIAGONAL_IMG_SRC
+// earlier. Called at boot (persisted state from an earlier session) and
+// again from pickFaction() the instant a NEW royaume gets picked.
+function refreshLoreRoyaumesJoues() {
+  const el = document.getElementById("loreRoyaumesJoues");
+  if (!el) return;
+  el.innerHTML = ROYAUMES.slice(0, ROYAUME_COUNT - 1).map(roy => `
+    <div class="loreBlazonSlot${royaumePlayed[roy.id] ? " played" : ""}">
+      <img src="${BLAZON_IMG_SRC}" alt="${roy.name}">
+      <span class="loreBlazonName">${roy.name.replace("Millon de ", "")}</span>
+    </div>
+  `).join("");
+}
+refreshLoreRoyaumesJoues();
 document.getElementById("loreBtn").addEventListener("click", () => {
   // #loreOverlay and #settingsPanel share the same z-index (10); DOM order
   // alone would otherwise leave #settingsPanel (declared later) painted on
@@ -7667,8 +7715,14 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.93";
+const GAME_VERSION = "1.94";
 const CHANGELOG = [
+  {
+    version: "1.94",
+    notes: [
+      "Le lore affiche maintenant les quatre maisons jouées au moins une fois, avec un anneau doré sur celles déjà menées au combat.",
+    ],
+  },
   {
     version: "1.93",
     notes: [
