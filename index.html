@@ -1029,7 +1029,7 @@
         <p><strong>Le combat</strong> : la plus grande force gagne toujours, sauf tout près de l'égalité — à force égale, l'attaquant a une chance sur 3 de l'emporter quand même ; à un seul de moins que le défenseur, une chance sur 5. Sinon aucun hasard : c'est toujours la plus grande force qui gagne.</p>
         <p><strong>Le renfort de fin de tour</strong> dépend de votre part du territoire : au-dessus de la moyenne des royaumes encore debout, vous gagnez plus de renfort ; en dessous, moins (jamais zéro). Un très grand royaume gagne encore plus, en plus de sa part relative.</p>
         <p><strong>Le classement en haut à gauche</strong> trie les royaumes par territoire, le plus vaste en premier. Le petit rond coloré de chaque ligne se remplit comme une horloge selon la force totale de ce royaume par rapport à ce qui est théoriquement possible (12 par province) : plein à 100%, chaque province qu'il possède est au plafond.</p>
-        <p><strong>Le pouvoir des 12</strong> : quand toutes vos provinces sont au plafond en même temps, un contour doré se met à vibrer autour de tout votre royaume. Tant qu'il vibre, vous gagnez à coup sûr chaque attaque que vous lancez (autant que vous avez de provinces) — l'épée qui frappe devient la grande épée diagonale pour vous le rappeler. Activez-le trois fois dans la même partie, puis trois parties différentes : vous débloquez une bénédiction permanente qui vous fait toujours gagner un combat à 12 contre 12.</p>
+        <p><strong>Le pouvoir des 12</strong> : quand toutes vos provinces sont au plafond en même temps, un contour doré se met à vibrer autour de tout votre royaume. Tant qu'il vibre, vous gagnez à coup sûr chaque attaque terrestre que vous lancez (autant que vous avez de provinces) — l'épée qui frappe devient la grande épée diagonale pour vous le rappeler. Il ne s'applique pas à la mer, qui a son propre bonus (voir la pieuvre/Cthulhu). Activez-le trois fois dans la même partie, puis trois parties différentes : vous débloquez une bénédiction permanente qui vous fait toujours gagner un combat terrestre à 12 contre 12.</p>
         <p><strong>La trêve</strong> se déclenche quand toutes les frontières sont bloquées au plafond et que rien ne bouge depuis plusieurs tours d'affilée — signe qu'aucune attaque n'a de chance d'aboutir. Vous pouvez l'accepter (match nul) ou continuer le siège en espérant un 12 contre 12 favorable.</p>
         <p><strong>La difficulté</strong> règle le comportement des royaumes adverses : à Page, ils restent prudents et n'attaquent jamais à leur désavantage (mais tentent de temps en temps une attaque risquée quand même) ; à Seigneur, ils attaquent à la moindre ouverture et se trompent presque jamais. Elle change aussi la part de terres neutres au départ (bien plus nombreuses à Page, presque absentes à Seigneur) et votre propre avance de force initiale.</p>
         <p><strong>Les gueux</strong> sont une réserve d'un tour à l'autre : vous en gagnez un à chaque victoire, et pouvez en dépenser un en touchant le badge puis une de vos provinces, pour lui donner +1 de force sur-le-champ, avant même la bataille suivante.</p>
@@ -4111,7 +4111,7 @@ function executeWaterSacrifice(fromId, waterHexKeys, pureDirectDive = true) {
   logMsg(`${ROYAUMES[from.owner].name} perd des soldats en mer.`);
   render();
 }
-function attack(fromId, toId, chainIndex = -1) {
+function attack(fromId, toId, chainIndex = -1, forcedGuaranteed = null) {
   const from = territories[fromId], to = territories[toId];
   const waterCost = waterCostBetween(from, toId);
   const waterPath = from.neighbors.has(toId) ? null : waterPathBetween(from, toId);
@@ -4152,8 +4152,20 @@ function attack(fromId, toId, chainIndex = -1) {
   // shape as the octopus unlock), the human always wins a true 12-vs-12
   // grind too, without spending any budget — a passive blessing, not a
   // use of the power itself.
-  const capBonusWin = (capBonusBudget[from.owner] || 0) > 0;
-  const marsBonusWin = marsBlessingUnlocked && from.owner === humanRoyId && atk === FORCE_CAP && def === FORCE_CAP;
+  // forcedGuaranteed lets a caller (resolveChainedAttack(), for a drag-chain
+  // or its replay) pre-decide this instead of checking the live budget
+  // here — see that function's own note on why a whole chain must share ONE
+  // decision instead of re-checking (and re-draining) the budget per hop.
+  // Land only — water crossings are the Cthulhu unlock's own domain (free
+  // crossings, "sans perdre un seul homme", see waterCostBetween()), not
+  // this power's: "il faut bien qu'on note que c'est valable que sur la
+  // terre, c'est pas valable dans l'eau, puisque dans l'eau c'est un autre
+  // bonus, le bonus de Cthulhu". A water hop inside an otherwise-guaranteed
+  // chain still resolves on its own (normal combat, real water-crossing
+  // rules) — only land hops actually manifest the free win/black sword.
+  const isLandAttack = waterPath === null;
+  const capBonusWin = isLandAttack && (forcedGuaranteed !== null ? forcedGuaranteed : (capBonusBudget[from.owner] || 0) > 0);
+  const marsBonusWin = isLandAttack && marsBlessingUnlocked && from.owner === humanRoyId && atk === FORCE_CAP && def === FORCE_CAP;
   // "Dieux spéciaux par royaume" — Bellone (id1) adds +1 to the attacker's
   // effective force, Vulcain (id0) adds +1 to the defender's, ONLY inside
   // this resolution — atk/def themselves (displayed/logged below, and used
@@ -4163,7 +4175,10 @@ function attack(fromId, toId, chainIndex = -1) {
   const godAtk = atk + (isGodActiveFor(from.owner) && from.owner === 1 ? 1 : 0);
   const godDef = def + (isGodActiveFor(to.owner) && to.owner === 0 ? 1 : 0);
   const win = capBonusWin || marsBonusWin ? true : resolveCombat(godAtk, godDef);
-  if (capBonusWin) capBonusBudget[from.owner]--;
+  // forcedGuaranteed !== null means resolveChainedAttack() already drained
+  // the budget once, up front, for the whole chain — draining it again here
+  // per hop is exactly the bug this fixes (see that function's note).
+  if (capBonusWin && forcedGuaranteed === null) capBonusBudget[from.owner]--;
   logMsg(`${ROYAUMES[from.owner].name} attaque ${ROYAUMES[to.owner].name} — ${atk} vs ${def} — ${win ? "victoire" : "échec"}`);
   triggerCombatFX(fromId, toId, atk, def, win, from.owner, to.owner, to.hexKeys.length, waterPath, capBonusWin || marsBonusWin);
   // sfxReinforce() (see endTurn()) stays replay-silent — reported multiple
@@ -5260,6 +5275,14 @@ function playReplay(seed, difficulty, replayHumanRoyId, log, onFinish, replayMap
     else if (action.gueux !== undefined) reinforceTerritory(action.gueux); // no gueuxCount touched — replay only reproduces the force change, never spends the viewer's own stock
     else if (action.sac !== undefined) executeWaterSacrifice(action.sac, action.path, action.pure);
     else if (action.continue) { /* stray continue entry with no matching pause active — nothing to undo, just skip it rather than misreading it as attack(undefined, undefined) */ }
+    // action.first (present only on a drag-chain move logged after this
+    // fix) routes through resolveChainedAttack() so the guaranteed-win
+    // decision + budget deduction replay exactly as they happened, hop for
+    // hop — see that function's own note. Absent (a lone tap-attack, or an
+    // older replay/share-link recorded before this fix existed) means "check
+    // the live budget for just this one attack", which is exactly what both
+    // of those already did originally, so it's still correct as-is.
+    else if (action.first !== undefined) resolveChainedAttack(action.a, action.b, -1, action.first);
     else attack(action.a, action.b);
     scheduleStep(REPLAY_STEP_MS);
   }
@@ -6073,7 +6096,7 @@ function drawSwordAt(x, y, angle, alpha, doubleSword = false) {
   // SWORD_DIAGONAL_ANGLE_CORRECTION's own note just above).
   if (doubleSword) {
     if (!SWORD_DIAGONAL_IMG.complete || !SWORD_DIAGONAL_IMG.naturalWidth) return;
-    const size = 56;
+    const size = 28; // -50% per direct request ("la taille de l'épée noire doit être diminuée de 50%"), was 56
     ctx.save();
     ctx.translate(x, y);
     ctx.rotate(angle + SWORD_DIAGONAL_ANGLE_CORRECTION);
@@ -7339,6 +7362,34 @@ canvas.addEventListener("pointercancel", (e) => {
   render();
 });
 
+// "Le pouvoir des 12" — a full drag-chain attack must be ONE use of the
+// guaranteed-win budget, not one per hop: checking (and draining) it hop by
+// hop could run the budget dry mid-chain, showing the black diagonal sword
+// (and an unconditional win) on the earlier hops and a plain white sword
+// (ordinary combat, which could even LOSE) on the later ones — all within
+// what reads as a single continuous move. Reported live with a screenshot:
+// "ça a lancé une [épée noire] sur une attaque en chaîne et les autres
+// étaient blanches [...] quand ce bonus est activé [...] peu importe sa
+// longueur, il y a que des épées noires."
+// The decision (and the single budget deduction) is made ONCE, at the
+// chain's first hop (isChainStart), and carried in this module-level flag
+// for every later hop of THAT chain. A replay re-plays each hop as its own
+// independent attack() call with no inherent memory of chain grouping, so
+// executeAttackChain()/the two replay step() functions all explicitly log
+// and pass isChainStart per hop (see logMove() call below) rather than
+// letting it be re-derived — that's what makes a replay reproduce the exact
+// same outcome AND the exact same budget bookkeeping as the original match,
+// hop for hop, instead of silently drifting from it (the same class of bug
+// as balanceStartingForces()'s own replay-desync fix).
+let chainBonusActive = false;
+function resolveChainedAttack(fromId, toId, chainIndex, isChainStart) {
+  if (isChainStart) {
+    const royId = territories[fromId].owner;
+    chainBonusActive = (capBonusBudget[royId] || 0) > 0;
+    if (chainBonusActive) capBonusBudget[royId]--;
+  }
+  return attack(fromId, toId, chainIndex, chainBonusActive);
+}
 // Runs each hop of a dragged attack chain in sequence. A hop can only
 // continue from the territory the *previous* hop just won — attacking your
 // own territory makes no sense, and losing a hop drops that stack back to
@@ -7349,8 +7400,8 @@ function executeAttackChain(path, i = 0) {
   const fromId = path[i], toId = path[i + 1];
   const fromT = territories[fromId];
   if (fromT.owner !== currentPlayer || fromT.force <= 1 || !canAffordWaterRoute(fromT, toId)) { render(); return; }
-  logMove({ a: fromId, b: toId });
-  const win = attack(fromId, toId, i);
+  logMove({ a: fromId, b: toId, first: i === 0 });
+  const win = resolveChainedAttack(fromId, toId, i, i === 0);
   if (!win || gameOver) { render(); return; }
   // paced, not instant — back-to-back synchronous calls all landed in the
   // same paint frame, so a 4-5 hop chain used to just jump straight to its
@@ -7751,8 +7802,16 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "2.00";
+const GAME_VERSION = "2.01";
 const CHANGELOG = [
+  {
+    version: "2.01",
+    notes: [
+      "Corrigé le « pouvoir des 12 » sur une attaque en chaîne (glisser sur plusieurs provinces d'affilée) : le budget de victoires garanties se consommait à chaque maillon de la chaîne, pouvant s'épuiser en plein milieu — certains maillons finissaient en épée blanche/combat normal (et potentiellement perdus) au lieu d'une chaîne entièrement garantie et noire d'un bout à l'autre. Une seule chaîne consomme maintenant un seul point de budget, quelle que soit sa longueur.",
+      "Le « pouvoir des 12 » ne s'applique plus qu'aux attaques terrestres — la mer reste le domaine du bonus de Cthulhu, distinct.",
+      "Taille de l'épée diagonale noire (« pouvoir des 12 ») réduite de 50%.",
+    ],
+  },
   {
     version: "2.00",
     notes: [
@@ -9582,6 +9641,10 @@ function resumeSavedGame(saved) {
     else if (action.gueux !== undefined) reinforceTerritory(action.gueux);
     else if (action.sac !== undefined) executeWaterSacrifice(action.sac, action.path, action.pure);
     else if (action.continue) { /* stray entry with no matching pause active — nothing to undo, just skip it */ }
+    // see playReplay()'s step()/resolveChainedAttack()'s own note — same
+    // chain-aware replay needed here so a resumed match's guaranteed-win
+    // bookkeeping matches the original exactly, hop for hop.
+    else if (action.first !== undefined) resolveChainedAttack(action.a, action.b, -1, action.first);
     else attack(action.a, action.b);
     // queueMicrotask, not setTimeout(fn, 0) — browsers throttle a *chain* of
     // nested zero-delay setTimeout calls to a real ~4ms floor each, which a
