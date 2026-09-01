@@ -7823,8 +7823,14 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.97";
+const GAME_VERSION = "1.98";
 const CHANGELOG = [
+  {
+    version: "1.98",
+    notes: [
+      "Mode application (PWA) mis en pause — trop de bugs d'affichage récurrents liés au cache hors-ligne. Le jeu reste jouable normalement dans le navigateur ; toute icône déjà installée repasse automatiquement en onglet classique, sans manipulation.",
+    ],
+  },
   {
     version: "1.97",
     notes: [
@@ -9338,57 +9344,35 @@ function refreshGueuxBadge() {
 refreshGueuxBadge();
 
 /* ---------- OFFLINE + AUTO-UPDATE ---------- */
-// Service worker caches the app shell (this one file, plus the manifest/
-// icons) so the game keeps working with no network at all. It intentionally
-// does NOT try to hot-swap a newer version into an already-running page —
-// see checkForUpdate() below, which reloads only at a natural break point.
-//
-// Reported live, TWICE: a home-screen PWA stuck permanently on a black-
-// then-white blank screen, surviving even a reload — while the exact same
-// URL opened fine in a plain Safari tab. The fixes shipped for the first
-// report (a navigation timeout + cache fallback in sw.js, a reload-loop
-// guard here) both live INSIDE the service worker/page that's already
-// installed — so they can't rescue an install that's still stuck running
-// the OLD, pre-fix service worker in the first place. The real gap: a bare
-// register() call, with nothing ever explicitly asking the browser to
-// check the server for a newer sw.js. Per spec the browser does check on
-// its own eventually, but a standalone home-screen launch is a much
-// weaker/less consistent trigger for that than a fresh tab navigation is —
-// exactly matching "Safari nickel" (fine) vs. the installed icon (stuck).
-// "Les mises à jour doivent se faire sans avoir besoin de réinstaller,
-// c'est tout l'intérêt" — fair, and true: reinstalling by hand shouldn't
-// ever be the only way out. Two changes close that gap without it:
-// 1. registration.update() is called explicitly, every time — right after
-//    registering, AND every time the app becomes visible again (exactly
-//    the moment a backgrounded/reopened PWA icon launch happens), instead
-//    of only ever relying on the browser's own, less predictable schedule.
-// 2. Once a genuinely new worker takes over (oncontrollerchange — only
-//    fires when the ACTIVE controller actually changes, never on the very
-//    first install), the page reloads itself automatically so the fresh
-//    content actually gets shown, rather than silently updating underneath
-//    a screen that's still displaying whatever the old worker served.
+// PWA/offline support PAUSED — "on va mettre le PWA en pause, c'est plus
+// embêtant qu'autre chose... à voir plus tard si on remet." sw.js's own
+// caching turned into a recurring, hard-to-pin-down source of exactly the
+// bugs it was meant to guard against: a black screen, then black-then-
+// white, then pink/magenta, then a blank map with the HUD still fine —
+// each one a new symptom of the same underlying shape (a stuck/stale
+// service worker, sometimes surviving a plain reload, sometimes even
+// surviving "vider les données du site" if the PWA icon's own storage
+// wasn't what actually got cleared). Every fix attempted (a nav timeout +
+// cache fallback in sw.js, an explicit registration.update() on every
+// visibility change, an auto-reload on controllerchange, this exact
+// unregister-and-purge escape hatch wired into the fatal-error banner
+// above) narrowed the failure window without ever closing it for good.
+// Rather than keep patching a caching layer that isn't earning its keep,
+// this now does the opposite of registering one: unregisters ANY service
+// worker already installed for this origin and purges Cache Storage,
+// unconditionally, every load — so every device that ever installed the
+// old PWA self-heals back to a plain page with no caching layer of its
+// own (ordinary browser HTTP caching only) the next time it's opened,
+// without needing the player to find and tap anything by hand. sw.js
+// itself is left in the repo, unused, in case this gets revisited later —
+// re-enabling is just restoring the register() call that used to be here.
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js").then((registration) => {
-    registration.update().catch(() => {});
-    document.addEventListener("visibilitychange", () => {
-      if (!document.hidden) registration.update().catch(() => {});
-    });
-  }).catch(() => { /* offline on first load, or blocked — not fatal */ });
-  // A worker taking over mid-session (not the very first install — there's
-  // no "previous controller" that time) means a strictly newer version was
-  // just fetched and won the update race — reload once to actually show
-  // it. Guarded the same way reloadIfUpdateAvailable() already guards its
-  // own reload, so this can't loop either.
-  let sawControllerBefore = !!navigator.serviceWorker.controller;
-  navigator.serviceWorker.addEventListener("controllerchange", () => {
-    if (!sawControllerBefore) { sawControllerBefore = true; return; }
-    const now = Date.now();
-    let lastReload = 0;
-    try { lastReload = Number(sessionStorage.getItem("kw_lastSwReload")) || 0; } catch (e) { /* ignore */ }
-    if (now - lastReload < 10000) return;
-    try { sessionStorage.setItem("kw_lastSwReload", String(now)); } catch (e) { /* ignore */ }
-    location.reload();
-  });
+  navigator.serviceWorker.getRegistrations()
+    .then((regs) => Promise.all(regs.map((r) => r.unregister())))
+    .catch(() => {});
+}
+if ("caches" in window) {
+  caches.keys().then((keys) => Promise.all(keys.map((k) => caches.delete(k)))).catch(() => {});
 }
 
 // A newer index.html landing on the server doesn't change anything for a
