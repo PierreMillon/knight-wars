@@ -7823,8 +7823,14 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.98";
+const GAME_VERSION = "1.99";
 const CHANGELOG = [
+  {
+    version: "1.99",
+    notes: [
+      "L'icône plein écran (PWA) revient — c'était bien le cache hors-ligne le fautif, pas le mode application lui-même, qui reste désormais désactivé seul.",
+    ],
+  },
   {
     version: "1.98",
     notes: [
@@ -9344,28 +9350,31 @@ function refreshGueuxBadge() {
 refreshGueuxBadge();
 
 /* ---------- OFFLINE + AUTO-UPDATE ---------- */
-// PWA/offline support PAUSED — "on va mettre le PWA en pause, c'est plus
-// embêtant qu'autre chose... à voir plus tard si on remet." sw.js's own
-// caching turned into a recurring, hard-to-pin-down source of exactly the
-// bugs it was meant to guard against: a black screen, then black-then-
-// white, then pink/magenta, then a blank map with the HUD still fine —
-// each one a new symptom of the same underlying shape (a stuck/stale
-// service worker, sometimes surviving a plain reload, sometimes even
-// surviving "vider les données du site" if the PWA icon's own storage
-// wasn't what actually got cleared). Every fix attempted (a nav timeout +
-// cache fallback in sw.js, an explicit registration.update() on every
-// visibility change, an auto-reload on controllerchange, this exact
-// unregister-and-purge escape hatch wired into the fatal-error banner
-// above) narrowed the failure window without ever closing it for good.
-// Rather than keep patching a caching layer that isn't earning its keep,
-// this now does the opposite of registering one: unregisters ANY service
-// worker already installed for this origin and purges Cache Storage,
-// unconditionally, every load — so every device that ever installed the
-// old PWA self-heals back to a plain page with no caching layer of its
-// own (ordinary browser HTTP caching only) the next time it's opened,
-// without needing the player to find and tap anything by hand. sw.js
-// itself is left in the repo, unused, in case this gets revisited later —
-// re-enabling is just restoring the register() call that used to be here.
+// The PWA itself (installable icon, manifest.json's own "standalone"
+// full-screen display) stays — only its OFFLINE-CACHING layer (sw.js) is
+// gone: "je veux laisser le PWA mais enlève ce qui crée des bugs, c'est la
+// mise en cache non accessible hors réseau ?" — yes, confirmed: every
+// symptom reported this session (a black screen, then black-then-white,
+// then pink/magenta, then a blank map with the HUD still fine) traced back
+// to the same underlying shape, a stuck/stale service worker — never to
+// the installable-app part itself. Every fix attempted at the caching
+// layer (a nav timeout + cache fallback in sw.js, an explicit
+// registration.update() on every visibility change, an auto-reload on
+// controllerchange, the unregister-and-purge escape hatch still wired into
+// the fatal-error banner above) narrowed the failure window without ever
+// closing it for good. Rather than keep patching a caching layer that
+// isn't earning its keep, this now does the opposite of registering one:
+// unregisters ANY service worker already installed for this origin and
+// purges Cache Storage, unconditionally, every load — so a device that
+// installed one of the earlier, buggier PWA builds self-heals back to a
+// plain installed app with no caching layer of its own (ordinary browser
+// HTTP caching only) the next time it's opened, without needing the
+// player to find and tap anything by hand. One real trade-off: the game
+// no longer works with truly zero network (airplane mode) — it needs at
+// least some connectivity on each launch to fetch the page fresh, same as
+// any ordinary website. sw.js itself is left in the repo, unused, in case
+// offline support gets revisited later — re-enabling is just restoring the
+// register() call that used to be here.
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.getRegistrations()
     .then((regs) => Promise.all(regs.map((r) => r.unregister())))
