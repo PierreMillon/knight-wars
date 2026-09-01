@@ -232,9 +232,9 @@
     background: rgba(10,8,6,.82); color: #2b1d10; text-align: left;
     /* matches #loreOverlay/#conseilsOverlay/#truceOverlay/#shareIntro's own
        z-index:10 — without one of its own here, a positioned HUD element
-       with an explicit z-index (e.g. #reviewBackBtn/#reviewReplayBtn while
-       the win banner's board reveal is open underneath) could still paint
-       on top of this panel instead of being covered by it. */
+       with an explicit z-index (e.g. #reviewRow while the win banner's
+       board reveal is open underneath) could still paint on top of this
+       panel instead of being covered by it. */
     z-index: 10;
   }
   /* illuminated-manuscript card: warm parchment ground, a gold rule, and a
@@ -736,16 +736,24 @@
      conseils panel opened on top of the reveal, poking through it (those
      panels have no z-index of their own, losing the stacking fight to this
      pair's z-index:5 — see the z-index added to #settingsPanel/#winbanner). */
+  /* real flex row, same left/right safe-area-inset margin as #bottomHudRow
+     — was two individually left:50%+transform-positioned buttons with no
+     awareness of the viewport's own right edge, which let the longer label
+     ("Revoir la partie") crowd right up against an iPhone's curved corner
+     with no margin at all ("attention aux boutons en bas qui débordent...
+     écrans d'iPhone incurvés sur les bords, il faut une petite marge"). */
+  #reviewRow {
+    position: absolute; left: 14px; right: 14px; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); z-index: 5;
+    display: flex; justify-content: center; align-items: center; gap: 8px;
+    pointer-events: none;
+  }
   #reviewBackBtn, #reviewReplayBtn {
-    position: absolute; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); z-index: 5;
     pointer-events: auto; background: linear-gradient(135deg, #fff3c4, #e8c468, #a97e2a);
     color: #2b1d10; font-size: 13px; font-weight: 700; white-space: nowrap;
     padding: 8px 14px; border-radius: 10px; border: 1.5px solid #e8c468;
     box-shadow: 0 0 0 1px rgba(20,16,12,.75), inset 0 1px 0 rgba(255,255,255,.6), inset 0 -2px 3px rgba(0,0,0,.3), 0 2px 6px rgba(0,0,0,.45);
     font-family: Georgia, "Iowan Old Style", Palatino, "Times New Roman", serif;
   }
-  #reviewBackBtn { left: 50%; transform: translateX(calc(-100% - 4px)); }
-  #reviewReplayBtn { left: 50%; transform: translateX(4px); }
 </style>
 </head>
 <body>
@@ -786,9 +794,17 @@
   <!-- shown while the win banner is swiped away to reveal the final board
        underneath (see enableSwipeToDismiss on #winbannerBox / revealFinalBoard()) —
        same idea as a paused replay: a way back to the summary screen, and a
-       way to actually launch the replay from right here instead. -->
-  <button id="reviewBackBtn" style="display:none;">🔙 Retour</button>
-  <button id="reviewReplayBtn" style="display:none;">🎬 Revoir la partie</button>
+       way to actually launch the replay from right here instead.
+       #reviewRow is a real flex row (same left/right safe-area-inset margin
+       as #bottomHudRow) instead of the pair's old fixed-pixel-from-center
+       positioning — "attention aux boutons en bas qui débordent, c'est avec
+       les écrans d'iPhone incurvés sur les bords, il faut une petite marge":
+       a long enough label (Revoir la partie) pushed right up against the
+       curved edge with no margin at all. -->
+  <div id="reviewRow" style="display:none;">
+    <button id="reviewBackBtn">🔙 Retour</button>
+    <button id="reviewReplayBtn">🎬 Revoir la partie</button>
+  </div>
   <!-- only ever shown when the sole remaining rival is hopelessly outmatched
        (see updateEnemySurrenderOffer()) — accepting ends the match right
        now as a human win, without actually having to grind them down -->
@@ -1125,7 +1141,6 @@
         <span class="langSwitchOption" data-lang="en">🇬🇧 EN</span>
         <span class="langSwitchThumb"></span>
       </button>
-      <label style="display:block; margin-top:10px;"><input type="checkbox" id="reinforcePulseToggle"> Cercles d'animation de renfort</label>
       <!-- "un mode accessible en option dans le menu ou les couleurs sont
            remplacés par hachure horizontales, verticale, diagonale droite et
            gauche" — four playable royaumes (ROYAUMES 0-3), four hatch
@@ -3352,13 +3367,6 @@ try {
   if (savedVolume !== null) soundVolume = Math.max(0, Math.min(100, parseInt(savedVolume, 10) || 0));
 } catch (e) { /* ignore */ }
 if (soundVolume === 0) soundEnabled = false;
-// "Bouton options pour activer les cercles d'animation de renfort" —
-// on by default, opt-out.
-let showReinforcePulse = true;
-try {
-  const savedPulse = localStorage.getItem("kw_showReinforcePulse");
-  if (savedPulse !== null) showReinforcePulse = savedPulse !== "0";
-} catch (e) { /* ignore */ }
 // Colorblind-accessible mode — "un mode accessible en option dans le menu ou
 // les couleurs sont remplacés par hachure horizontales, verticale, diagonale
 // droite et gauche": one hatch pattern per playable royaume (ROYAUMES 0-3),
@@ -4922,8 +4930,8 @@ const STAT_CHART_PANEL_X = 6, STAT_CHART_PANEL_W = STAT_CHART_W - 12;
 // "Ordre du Chroniqueur" (order #70 of all 120 possible arrangements),
 // chosen for how the resulting band colors read together rather than any
 // gameplay meaning — same fixed order regardless of who's human or which
-// royaume that turns out to be (see the legend's own "(Nous, Sire !)" tag
-// for that, independent of position).
+// royaume that turns out to be (see the legend's own "(Sire !)" tag for
+// that, independent of position).
 const CHART_ROYAUME_ORDER = [2, 4, 1, 3, 0];
 function chartRoyaumeOrder(royIdSet, neutralId) {
   const present = new Set([...royIdSet, neutralId]); // only royaumes that actually appeared in this match (e.g. fewer opponents)
@@ -5129,7 +5137,7 @@ function drawStatChart() {
   document.getElementById("chartLegend").innerHTML = chartRoyaumeOrder(royIdSet, neutralId).map(id => `
     <div class="royaumeRow">
       <span class="swatch" style="background:${ROYAUMES[id].color}"></span>
-      <span class="rname">${ROYAUMES[id].name}${id === humanRoyId ? " (Nous, Sire !)" : ""}</span>
+      <span class="rname">${ROYAUMES[id].name}${id === humanRoyId ? " (Sire !)" : ""}</span>
     </div>
   `).join("");
 }
@@ -6456,9 +6464,10 @@ function render() {
   // as NUMBER_FADE_MS. Only the sword itself persists to end of turn now.
   const pulseNow = performance.now();
   // hidden entirely during replay — see the "no number indications" note
-  // above combatFXList's own numeric draws below. Also opt-out-able now —
-  // "bouton options pour activer/désactiver les cercles d'animation".
-  if (!replaying && showReinforcePulse) {
+  // above combatFXList's own numeric draws below. Always on now — "on va
+  // garder les cercles d'animation de renfort tout le temps, supprime
+  // l'option dans le menu" (the opt-out toggle is gone).
+  if (!replaying) {
     for (const p of pulseTiles) {
       const t = territories[p.id];
       if (!t) continue;
@@ -7604,6 +7613,7 @@ enableSwipeToDismiss(document.getElementById("settingsBox"), document.getElement
 // from here, and one to go back to the summary screen.
 function revealFinalBoard() {
   document.getElementById("winbanner").style.display = "none";
+  document.getElementById("reviewRow").style.display = "flex";
   document.getElementById("reviewBackBtn").style.display = "";
   document.getElementById("reviewReplayBtn").style.display = replaying || !lastMatchArchive ? "none" : "";
   // the live gameplay bottom row (gueux/reddition/fin de bataille) is dead
@@ -7617,8 +7627,7 @@ function revealFinalBoard() {
   resize();
 }
 document.getElementById("reviewBackBtn").addEventListener("click", () => {
-  document.getElementById("reviewBackBtn").style.display = "none";
-  document.getElementById("reviewReplayBtn").style.display = "none";
+  document.getElementById("reviewRow").style.display = "none";
   document.getElementById("bottomHudRow").style.visibility = "";
   const winbannerEl = document.getElementById("winbanner");
   winbannerEl.style.display = "flex";
@@ -7626,8 +7635,7 @@ document.getElementById("reviewBackBtn").addEventListener("click", () => {
   if (boxEl) boxEl.scrollTop = 0; // same "always land at the top" fix as showWin() itself
 });
 document.getElementById("reviewReplayBtn").addEventListener("click", () => {
-  document.getElementById("reviewBackBtn").style.display = "none";
-  document.getElementById("reviewReplayBtn").style.display = "none";
+  document.getElementById("reviewRow").style.display = "none";
   document.getElementById("bottomHudRow").style.visibility = ""; // playReplay() manages it from here same as always
   startReplay();
 });
@@ -7802,8 +7810,17 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "2.01";
+const GAME_VERSION = "2.02";
 const CHANGELOG = [
+  {
+    version: "2.02",
+    notes: [
+      "Boutons « Retour »/« Revoir la partie » (après avoir glissé l'écran de victoire) : marge de sécurité sur les bords, pour ne plus déborder près des coins incurvés d'un écran d'iPhone.",
+      "Le message d'adaptation de force au choix de camp précise maintenant le niveau de difficulté concerné.",
+      "Retiré l'option « Cercles d'animation de renfort » des réglages — gardée activée en permanence.",
+      "Retiré « Nous, » du tag « Sire ! » de la légende des statistiques.",
+    ],
+  },
   {
     version: "2.01",
     notes: [
@@ -8746,13 +8763,6 @@ soundVolumeSlider.addEventListener("input", () => {
 // level, same click cue the old checkbox gave on every toggle
 soundVolumeSlider.addEventListener("change", () => { sfxToggle(); });
 
-const reinforcePulseToggle = document.getElementById("reinforcePulseToggle");
-reinforcePulseToggle.checked = showReinforcePulse;
-reinforcePulseToggle.addEventListener("change", () => {
-  showReinforcePulse = reinforcePulseToggle.checked;
-  try { localStorage.setItem("kw_showReinforcePulse", showReinforcePulse ? "1" : "0"); } catch (e) { /* ignore */ }
-  sfxToggle();
-});
 
 const colorblindToggle = document.getElementById("colorblindToggle");
 colorblindToggle.checked = colorblindMode;
@@ -9099,7 +9109,16 @@ function showToast(msg, holdMs = 1000) {
     forceAdaptToastTimer = setTimeout(() => { el.style.display = "none"; }, 650); // matches the CSS opacity transition duration
   }, holdMs);
 }
-function showForceAdaptToast() { showToast("Adaptation de la force des adversaires selon la difficulté"); }
+// "Il faut que le mot après [difficulté] soit le niveau de difficulté qui
+// est enclenché, par exemple selon la difficulté, Seigneur" — names the
+// actual active tier instead of leaving the player to infer which one it
+// meant. cthulhuSelected takes priority over difficultyLevel, same
+// precedence as everywhere else this pair is read together (applyDifficulty()'s
+// own callers).
+function showForceAdaptToast() {
+  const name = cthulhuSelected ? CTHULHU_LEVEL.name : DIFFICULTY_LEVELS[difficultyLevel].name;
+  showToast(`Adaptation de la force des adversaires selon la difficulté : ${name}`);
+}
 
 // A little running joke for the deliberate ocean-sacrifice ritual (see
 // executeWaterSacrifice()) — a maxed-out village sent straight into open
