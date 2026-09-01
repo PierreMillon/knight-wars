@@ -4,7 +4,7 @@
   "description": "Jeu de conquête de territoire sur grille hexagonale, façon Dice Wars, dans un royaume de Bretagne fictif.",
   "start_url": "./index.html",
   "scope": "./",
-  "display": "browser",
+  "display": "standalone",
   "orientation": "portrait",
   "background_color": "#1b1712",
   "theme_color": "#1b1712",
