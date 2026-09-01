@@ -516,6 +516,10 @@
   .loreBlazonSlot img { width: 34px; height: 34px; object-fit: contain; border-radius: 6px; }
   .loreBlazonSlot.played img { box-shadow: 0 0 0 1.5px #e8c468, 0 0 0 3px #a97e2a; }
   .loreBlazonSlot .loreBlazonName { font-size: 10px; text-align: center; line-height: 1.2; max-width: 60px; }
+  /* "rajoute les deux mots qui disent jamais joué... pour qu'on comprenne
+     qu'il y a quelque chose à faire" — without any label, a dimmed blazon
+     alone didn't read as "unlock this" so much as just a duller icon. */
+  .loreBlazonSlot .loreBlazonUnplayed { font-size: 9px; font-style: italic; text-align: center; line-height: 1.2; max-width: 60px; opacity: .85; }
   #conseilsOverlay {
     position: absolute; inset: 0; display: none;
     align-items: center; justify-content: center;
@@ -1041,13 +1045,9 @@
         <div id="royaumesList"></div>
       </div>
       <div id="conseilsMechanics">
-        <p><strong>La force est plafonnée à 12</strong> par province — impossible d'empiler plus haut, quelle que soit la taille de votre royaume.</p>
         <p><strong>Le combat</strong> : la plus grande force gagne toujours, sauf tout près de l'égalité — à force égale, l'attaquant a une chance sur 3 de l'emporter quand même ; à un seul de moins que le défenseur, une chance sur 5. Sinon aucun hasard : c'est toujours la plus grande force qui gagne.</p>
         <p><strong>Le renfort de fin de tour</strong> dépend de votre part du territoire : au-dessus de la moyenne des royaumes encore debout, vous gagnez plus de renfort ; en dessous, moins (jamais zéro). Un très grand royaume gagne encore plus, en plus de sa part relative.</p>
-        <p><strong>Le classement en haut à gauche</strong> trie les royaumes par territoire, le plus vaste en premier. Le petit rond coloré de chaque ligne se remplit comme une horloge selon la force totale de ce royaume par rapport à ce qui est théoriquement possible (12 par province) : plein à 100%, chaque province qu'il possède est au plafond.</p>
         <p><strong>Le pouvoir des 12</strong> : quand toutes vos provinces sont au plafond en même temps, un contour doré se met à vibrer autour de tout votre royaume. Tant qu'il vibre, vous gagnez à coup sûr chaque attaque terrestre que vous lancez (autant que vous avez de provinces) — l'épée qui frappe devient la grande épée diagonale pour vous le rappeler. Il ne s'applique pas à la mer, qui a son propre bonus (voir la pieuvre/Cthulhu). Activez-le trois fois dans la même partie, puis trois parties différentes : vous débloquez une bénédiction permanente qui vous fait toujours gagner un combat terrestre à 12 contre 12.</p>
-        <p><strong>La trêve</strong> se déclenche quand toutes les frontières sont bloquées au plafond et que rien ne bouge depuis plusieurs tours d'affilée — signe qu'aucune attaque n'a de chance d'aboutir. Vous pouvez l'accepter (match nul) ou continuer le siège en espérant un 12 contre 12 favorable.</p>
-        <p><strong>La difficulté</strong> règle le comportement des royaumes adverses : à Page, ils restent prudents et n'attaquent jamais à leur désavantage (mais tentent de temps en temps une attaque risquée quand même) ; à Seigneur, ils attaquent à la moindre ouverture et se trompent presque jamais. Elle change aussi la part de terres neutres au départ (bien plus nombreuses à Page, presque absentes à Seigneur) et votre propre avance de force initiale.</p>
         <p><strong>Les gueux</strong> sont une réserve d'un tour à l'autre : vous en gagnez un à chaque victoire, et pouvez en dépenser un en touchant le badge puis une de vos provinces, pour lui donner +1 de force sur-le-champ, avant même la bataille suivante.</p>
       </div>
       <button id="closeConseils">Fermer</button>
@@ -7723,13 +7723,21 @@ function recolorBlazonDiagonal(royColor) {
   octx.drawImage(BLAZON_IMG, 0, 0);
   const imgData = octx.getImageData(0, 0, w, h);
   const px = imgData.data;
-  const [targetH] = rgbToHsl(parseInt(royColor.slice(1, 3), 16), parseInt(royColor.slice(3, 5), 16), parseInt(royColor.slice(5, 7), 16));
+  // The exact same flat color the map itself fills this royaume's territory
+  // with — "les couleurs qui sont à l'intérieur, sur la barre diagonale, ça
+  // doit être les mêmes couleurs que celles qui sont utilisées sur la
+  // carte". Earlier this only shifted the stripe's HUE, keeping each
+  // pixel's own lightness/saturation (so shading/anti-aliasing survived) —
+  // close to, but not literally, royColor. Now every stripe pixel is set to
+  // the flat target color outright; alpha is untouched, so the edges still
+  // blend naturally against whatever's underneath.
+  const [targetH, targetS, targetL] = rgbToHsl(parseInt(royColor.slice(1, 3), 16), parseInt(royColor.slice(3, 5), 16), parseInt(royColor.slice(5, 7), 16));
+  const [targetR, targetG, targetB] = hslToRgb(targetH, targetS, targetL);
   for (let i = 0; i < px.length; i += 4) {
     if (px[i + 3] === 0) continue; // transparent — nothing to recolor
-    const [h2, s2, l2] = rgbToHsl(px[i], px[i + 1], px[i + 2]);
+    const [h2, s2] = rgbToHsl(px[i], px[i + 1], px[i + 2]);
     if (s2 > 0.15 && h2 > 150 && h2 < 280) { // only the blue diagonal stripe, never the outline/field/band
-      const [nr, ng, nb] = hslToRgb(targetH, s2, l2);
-      px[i] = nr; px[i + 1] = ng; px[i + 2] = nb;
+      px[i] = targetR; px[i + 1] = targetG; px[i + 2] = targetB;
     }
   }
   octx.putImageData(imgData, 0, 0);
@@ -7752,6 +7760,7 @@ function refreshLoreRoyaumesJoues() {
     <div class="loreBlazonSlot${royaumePlayed[roy.id] ? " played" : ""}">
       <img src="${recolorBlazonDiagonal(roy.color) || BLAZON_IMG_SRC}" alt="${roy.name}">
       <span class="loreBlazonName">${roy.name.replace("Millon de ", "")}</span>
+      ${royaumePlayed[roy.id] ? "" : '<span class="loreBlazonUnplayed">Jamais joué</span>'}
     </div>
   `).join("");
 }
@@ -7819,6 +7828,9 @@ const CHANGELOG = [
       "Le message d'adaptation de force au choix de camp précise maintenant le niveau de difficulté concerné.",
       "Retiré l'option « Cercles d'animation de renfort » des réglages — gardée activée en permanence.",
       "Retiré « Nous, » du tag « Sire ! » de la légende des statistiques.",
+      "Le trait diagonal des blasons « maisons jouées » (Lore) reprend maintenant exactement la même couleur que celle utilisée sur la carte, au lieu d'une teinte proche mais pas identique.",
+      "Ajouté « Jamais joué » sous les blasons non encore débloqués, pour que ce soit clair qu'il y a quelque chose à faire.",
+      "Retiré les chapitres « La trêve », « La difficulté », « La force est plafonnée à 12 » et « Le classement en haut à gauche » des Conseils.",
     ],
   },
   {
