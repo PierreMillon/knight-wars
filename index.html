@@ -1126,9 +1126,6 @@
         <span class="langSwitchThumb"></span>
       </button>
       <label style="display:block; margin-top:10px;"><input type="checkbox" id="reinforcePulseToggle"> Cercles d'animation de renfort</label>
-      <!-- experimental, off by default — "essayer une version avec du
-           brouillard comme aoe I" -->
-      <label style="display:block; margin-top:10px;"><input type="checkbox" id="fogOfWarToggle"> 🌫️ Brouillard de guerre (expérimental)</label>
       <!-- "un mode accessible en option dans le menu ou les couleurs sont
            remplacés par hachure horizontales, verticale, diagonale droite et
            gauche" — four playable royaumes (ROYAUMES 0-3), four hatch
@@ -3362,22 +3359,6 @@ try {
   const savedPulse = localStorage.getItem("kw_showReinforcePulse");
   if (savedPulse !== null) showReinforcePulse = savedPulse !== "0";
 } catch (e) { /* ignore */ }
-// "Essayer une version avec du brouillard comme aoe I" — display-only: the
-// AI keeps its full internal knowledge and existing behavior exactly as-is,
-// only what the HUMAN actually sees on screen changes. Classic AoE-style
-// fog, not a strict line-of-sight — see updateFogKnowledge()'s own note.
-// ON by default now (was off-by-default/experimental at first, flipped per
-// direct request — "les cercles d'animation de renfort doivent être activé
-// par défaut, ainsi que le brouillard de guerre"); the `!== null` guard
-// (same pattern as showReinforcePulse just above) is what actually makes
-// that possible — a bare `=== "1"` check would silently re-force it back
-// to false for every install with no saved preference yet.
-let fogOfWarEnabled = true;
-try {
-  const savedFog = localStorage.getItem("kw_fogOfWarEnabled");
-  if (savedFog !== null) fogOfWarEnabled = savedFog === "1";
-} catch (e) { /* ignore */ }
-
 // Colorblind-accessible mode — "un mode accessible en option dans le menu ou
 // les couleurs sont remplacés par hachure horizontales, verticale, diagonale
 // droite et gauche": one hatch pattern per playable royaume (ROYAUMES 0-3),
@@ -6153,33 +6134,6 @@ function drawBoatsAlongPath(fromPt, waterPath, toPt, alpha) {
     drawBoatAt(pts[i].x, pts[i].y, alpha, angle);
   }
 }
-// Fog of war (opt-in, see fogOfWarEnabled's own note) — "on garde sa vision
-// géographique" always (every hex's shape/fill color is drawn normally,
-// unaffected by any of this); only the FORCE NUMBER on a territory is what
-// fog ever hides. A territory is "in sight" right now if it's the human's
-// own, or currently borders one of the human's own territories (land-
-// adjacency only for this first pass — water sight isn't covered yet).
-// Classic AoE-style fog, not strict line-of-sight, confirmed live ("si on
-// quitte une région tu vois") — once a territory has EVER been in sight,
-// its force number keeps showing afterward too, just frozen at whatever it
-// last actually was (t.lastKnownForce), not the live current value, dimmed
-// in drawForceIcon() to read as possibly stale. A territory never yet in
-// sight at all shows no number.
-function isInFogSight(t) {
-  return t.owner === humanRoyId || [...t.neighbors].some((nId) => territories[nId].owner === humanRoyId);
-}
-function updateFogKnowledge() {
-  // pre-pick there's no human royaume yet to see anything FROM — every
-  // number stays visible on the picking screen regardless of this setting,
-  // same as it always has (see drawForceIcon()'s own note on why nothing
-  // needs to hide there).
-  if (!fogOfWarEnabled || awaitingFactionPick) return;
-  for (const t of territories) {
-    t.fogInSight = isInFogSight(t);
-    if (t.fogInSight) { t.everExplored = true; t.lastKnownForce = t.force; }
-  }
-}
-
 // Colorblind mode (see colorblindMode's own note) — one hatch angle per
 // playable royaume (ROYAUMES 0-3): horizontal, vertical, diagonal droite,
 // diagonal gauche, in that order, matching the settings label's own listed
@@ -6262,7 +6216,6 @@ function drawHexDots(cx, cy, size) {
   ctx.restore();
 }
 function render() {
-  updateFogKnowledge();
   const w = canvas.clientWidth, h = canvas.clientHeight;
   ctx.clearRect(0, 0, w, h);
   ctx.save();
@@ -6341,18 +6294,6 @@ function render() {
       // points, ça sera plus lisible".
       if (roy.id === 2) drawHexDots(h2.x, h2.y, HEX_SIZE);
       else drawHexHatch(h2.x, h2.y, HEX_SIZE, HATCH_ANGLES[roy.id % HATCH_ANGLES.length]);
-      ctx.beginPath(); // drawHexHatch()'s ctx.clip() consumed the hex path as its clip region but left it as the current path too — rebuild it so the fog-of-war fill just below (same hex, same path) isn't accidentally drawing against a stale/cleared path.
-      pts.forEach(([x, y], i) => i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y));
-      ctx.closePath();
-    }
-    // Fog of war — a real visual haze over an out-of-sight hex, not just a
-    // missing number, so it reads as "hidden by fog" rather than "broken"
-    // ("faut ajouter un effet brouillard pour qu'on sache que c'est le
-    // brouillard"). A lighter wash for a remembered-but-stale territory,
-    // a heavier one for a never-explored one — see updateFogKnowledge().
-    if (fogOfWarEnabled && !awaitingFactionPick && !t.fogInSight) {
-      ctx.fillStyle = t.everExplored ? "rgba(210,214,222,0.4)" : "rgba(35,32,30,0.6)";
-      ctx.fill();
     }
   }
 
@@ -6929,14 +6870,6 @@ function drawForceIcon(t) {
   // needs to stay hidden pre-pick to avoid a shift that no longer happens.
   ctx.textAlign = "center";
 
-  // Fog of war — see updateFogKnowledge()'s own note. Never touches
-  // t.force itself, only which number (if any) THIS draw call shows.
-  let displayForce = t.force;
-  if (fogOfWarEnabled && !awaitingFactionPick && !t.fogInSight) {
-    if (!t.everExplored) return; // never seen at all yet — no number
-    displayForce = t.lastKnownForce; // frozen at whatever it was last time it WAS in sight, possibly stale now
-  }
-
   if (!SHOW_UNIT_SPRITES) {
     // Sprites temporarily disabled per request — plain (double-size) number
     // only. The sprite-drawing code below is left in place, untouched, to
@@ -6950,15 +6883,10 @@ function drawForceIcon(t) {
     // glyph's true vertical center, so the number always read as sitting
     // low/off-center in its hexagon rather than pinned to the actual middle
     ctx.textBaseline = "middle";
-    // A remembered-but-not-current fog value reads visibly dimmer, so it's
-    // never mistaken for a live, trustworthy number.
-    const stale = fogOfWarEnabled && !awaitingFactionPick && !t.fogInSight;
-    if (stale) ctx.globalAlpha = 0.55;
     // stays upright in place around its own hex center regardless of the
     // map's own CSS rotation in landscape — see drawMapNumber()/
     // mapNumberRotationRad's own notes.
-    drawMapNumber(String(displayForce), t.cx, t.cy);
-    if (stale) ctx.globalAlpha = 1;
+    drawMapNumber(String(t.force), t.cx, t.cy);
     ctx.textBaseline = "alphabetic"; // restore the default for every other text draw in render()
     return;
   }
@@ -7823,8 +7751,14 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.99";
+const GAME_VERSION = "2.00";
 const CHANGELOG = [
+  {
+    version: "2.00",
+    notes: [
+      "Retiré l'option expérimentale « Brouillard de guerre » des réglages — pas concluante.",
+    ],
+  },
   {
     version: "1.99",
     notes: [
@@ -8758,15 +8692,6 @@ reinforcePulseToggle.checked = showReinforcePulse;
 reinforcePulseToggle.addEventListener("change", () => {
   showReinforcePulse = reinforcePulseToggle.checked;
   try { localStorage.setItem("kw_showReinforcePulse", showReinforcePulse ? "1" : "0"); } catch (e) { /* ignore */ }
-  sfxToggle();
-});
-
-const fogOfWarToggle = document.getElementById("fogOfWarToggle");
-fogOfWarToggle.checked = fogOfWarEnabled;
-fogOfWarToggle.addEventListener("change", () => {
-  fogOfWarEnabled = fogOfWarToggle.checked;
-  try { localStorage.setItem("kw_fogOfWarEnabled", fogOfWarEnabled ? "1" : "0"); } catch (e) { /* ignore */ }
-  render();
   sfxToggle();
 });
 
