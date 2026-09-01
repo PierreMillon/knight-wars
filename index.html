@@ -1029,7 +1029,7 @@
         <p><strong>Le combat</strong> : la plus grande force gagne toujours, sauf tout près de l'égalité — à force égale, l'attaquant a une chance sur 3 de l'emporter quand même ; à un seul de moins que le défenseur, une chance sur 5. Sinon aucun hasard : c'est toujours la plus grande force qui gagne.</p>
         <p><strong>Le renfort de fin de tour</strong> dépend de votre part du territoire : au-dessus de la moyenne des royaumes encore debout, vous gagnez plus de renfort ; en dessous, moins (jamais zéro). Un très grand royaume gagne encore plus, en plus de sa part relative.</p>
         <p><strong>Le classement en haut à gauche</strong> trie les royaumes par territoire, le plus vaste en premier. Le petit rond coloré de chaque ligne se remplit comme une horloge selon la force totale de ce royaume par rapport à ce qui est théoriquement possible (12 par province) : plein à 100%, chaque province qu'il possède est au plafond.</p>
-        <p><strong>Le pouvoir des 12</strong> : quand toutes vos provinces sont au plafond en même temps, un contour doré se met à vibrer autour de tout votre royaume. Tant qu'il vibre, vous gagnez à coup sûr chaque attaque que vous lancez (autant que vous avez de provinces) — l'épée qui frappe devient une épée double pour vous le rappeler. Activez-le trois fois dans la même partie, puis trois parties différentes : vous débloquez une bénédiction permanente qui vous fait toujours gagner un combat à 12 contre 12.</p>
+        <p><strong>Le pouvoir des 12</strong> : quand toutes vos provinces sont au plafond en même temps, un contour doré se met à vibrer autour de tout votre royaume. Tant qu'il vibre, vous gagnez à coup sûr chaque attaque que vous lancez (autant que vous avez de provinces) — l'épée qui frappe devient la grande épée diagonale pour vous le rappeler. Activez-le trois fois dans la même partie, puis trois parties différentes : vous débloquez une bénédiction permanente qui vous fait toujours gagner un combat à 12 contre 12.</p>
         <p><strong>La trêve</strong> se déclenche quand toutes les frontières sont bloquées au plafond et que rien ne bouge depuis plusieurs tours d'affilée — signe qu'aucune attaque n'a de chance d'aboutir. Vous pouvez l'accepter (match nul) ou continuer le siège en espérant un 12 contre 12 favorable.</p>
         <p><strong>La difficulté</strong> règle le comportement des royaumes adverses : à Page, ils restent prudents et n'attaquent jamais à leur désavantage (mais tentent de temps en temps une attaque risquée quand même) ; à Seigneur, ils attaquent à la moindre ouverture et se trompent presque jamais. Elle change aussi la part de terres neutres au départ (bien plus nombreuses à Page, presque absentes à Seigneur) et votre propre avance de force initiale.</p>
         <p><strong>Les gueux</strong> sont une réserve d'un tour à l'autre : vous en gagnez un à chaque victoire, et pouvez en dépenser un en touchant le badge puis une de vos provinces, pour lui donner +1 de force sur-le-champ, avant même la bataille suivante.</p>
@@ -6046,19 +6046,32 @@ function drawHighlightOutlines() {
 // passed in from the callers below, computed the same way as before) still
 // aims the tip at the defender exactly like the old vector version did.
 const SWORD_ANGLE_CORRECTION = Math.PI / 2;
+// SWORD_DIAGONAL_IMG's own source art rests at a baked-in 45° tip-to-upper-
+// left angle (measured via PCA over its opaque pixels: exactly 45°, by
+// design) — a completely different resting angle from SWORD_IMG's own
+// vertical tip-up pose, so it needs its OWN correction constant, not
+// SWORD_ANGLE_CORRECTION. Reusing that one pointed the blade diagonally
+// regardless of the actual attack direction instead of aiming at the
+// defender ("épée diagonale qui doit être droite dans l'axe de l'attaque
+// au final. Elle est diagonale que sur mon image de base"). Verified
+// empirically (small standalone canvas test, screenshotted): with this
+// correction, angle=0 draws the blade pointing along +x, angle=π/2 draws
+// it pointing straight down — the source art's own diagonal disappears
+// once actually aimed.
+const SWORD_DIAGONAL_ANGLE_CORRECTION = (3 * Math.PI) / 4;
 function drawSwordAt(x, y, angle, alpha, doubleSword = false) {
   // "on va utiliser la grande épée diagonale noire pour symboliser les
   // attaques quand on ajustement ce bonus des 12, au lieu des deux épées
   // côte à côte" — the "pouvoir des 12" guaranteed-win now flourishes with
   // one bigger SWORD_DIAGONAL_IMG instead of two slightly-splayed SWORD_IMG
-  // copies (its own art is already drawn at an angle — see #loreWarTools's
-  // own note — so no extra rotate needed beyond the usual aim-at-target one).
+  // copies, aimed at the defender just like the normal sword (see
+  // SWORD_DIAGONAL_ANGLE_CORRECTION's own note just above).
   if (doubleSword) {
     if (!SWORD_DIAGONAL_IMG.complete || !SWORD_DIAGONAL_IMG.naturalWidth) return;
     const size = 56;
     ctx.save();
     ctx.translate(x, y);
-    ctx.rotate(angle + SWORD_ANGLE_CORRECTION);
+    ctx.rotate(angle + SWORD_DIAGONAL_ANGLE_CORRECTION);
     ctx.globalAlpha = alpha;
     ctx.drawImage(SWORD_DIAGONAL_IMG, -size / 2, -size / 2, size, size);
     ctx.restore();
@@ -7715,8 +7728,15 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "1.94";
+const GAME_VERSION = "1.95";
 const CHANGELOG = [
+  {
+    version: "1.95",
+    notes: [
+      "L'épée diagonale du « pouvoir des 12 » pointe maintenant droit vers l'ennemi attaqué, au lieu de rester en diagonale peu importe la direction.",
+      "Conseils : la mention de « l'épée double » corrigée pour refléter la grande épée diagonale actuelle.",
+    ],
+  },
   {
     version: "1.94",
     notes: [
