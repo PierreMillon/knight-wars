@@ -1834,7 +1834,7 @@ const VULCAIN_IMG = loadSprite(VULCAIN_IMG_SRC);
 // (godUnlockedRoyaume fully filled in, all 16 combinations), not tracked as
 // its own flag — computed live from that same matrix, see
 // allRoyaumesFullyBlessed() below.
-const YINYANG_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJAAAACQCAYAAADnRuK4AAACPUlEQVR4nO3coU5rQRRA0dcXFAaDr+H/vwhTj8FgwSM6YjO5nblrWUJ70+wccTJzL/8e3OvL8/fRz/DIPj6/Lkd+//8jv5z1CYhEQCQCIhEQiYBIBEQyfYdQ9zi32/vdv1+vb+XjGRjtmUwgEgGRCIhEQCQCIhEQiYBI8h5otOep51WOPg802kON7L6nMoFIBEQiIBIBkQiIREAkAiJ5OvoBjlb3PPXzV98TmUAkAiIREImASAREIiASAZEIiERAJAIiERCJgEgERCIgEgGRDM8Dzb73xdpMIBIBkQiIREAkAiIREImASE5/L2x0L8v7ge4zgUgERCIgEgGRCIhEQCQCIrmsft7n6PdIn50JRCIgEgGRCIhEQCQCIhEQyfLngUZ7KnuiuUwgEgGRCIhEQCQCIhEQiYBIlt8DjdgTzWUCkQiIREAkAiIREImASAREsv0eaGT2vbfd90wmEImASAREIiASAZEIiERAJKffA822+3kkE4hEQCQCIhEQiYBIBEQiIJLhWZjV3yM9UvcwZz9PZAKRCIhEQCQCIhEQiYBIBESy/Xmg2XuU3fdkIyYQiYBIBEQiIBIBkQiIREAkwz1Qvde0+x7k7EwgEgGRCIhEQCQCIhEQiYBItj8PNPv9PGffc5lAJAIiERCJgEgERCIgEgGRTN9hzL6XtfoeZvT73G7vd///en370+f5bfT7mkAkAiIREImASAREIiASAZE8/A5l9fM6u+/BTCASAZEIiERAJAIiERCJgEh+AJ/NZYbip+LPAAAAAElFTkSuQmCC";
+const YINYANG_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJgAAACYCAYAAAAYwiAhAAACcElEQVR4nO3cQW7jMBAAQWux//+y9wUrGqDbIqWqewIlasxhQPF43d/76gcYOK5+gNKfqx+AexMYKYGREhgpgZESGCmBkdphB7P6HutqS79DE4yUwEgJjJTASAmMlMBICYzUL3YoU3us9/v8x49j6TXQDtJ/oAlGSmCkBEZKYKQERkpgpARG6hs7kNNF1WiPNXL1nmv35/+CqT/ABCMlMFICIyUwUgIjJTBSAiP19+oHuNrsnmv2999gT3bKBCMlMFICIyUwUgIjJTBSAiP1yR4sPe/F8kYv+HSRZ4KREhgpgZESGCmBkRIYKYGRevx5sNF5LN9FzjHBSAmMlMBICYyUwEgJjJTASB2vzc97PX3PtDoTjJTASAmMlMBICYyUwEgJjNT258Gefv/W6kwwUgIjJTBSAiMlMFICIyUwUtvvwUbsya5lgpESGCmBkRIYKYGREhgpgZG6/R5spP7u8+l7NhOMlMBICYyUwEgJjJTASAmM1OP3YLWnn0czwUgJjJTASAmMlMBICYyUwEh9soTZ+h79kdk9lPNk5w2ZYKQERkpgpARGSmCkBEZKYKRufx6s3iONfv/ue8JZJhgpgZESGCmBkRIYKYGREhipT/Zgp4ue4zhufV6Mj84M/pcJRkpgpARGSmCkBEZKYKQERur258Hq+7ns+c6ZYKQERkpgpARGSmCkBEZKYKR+cflUuijafQ81+13lF777TBswwUgJjJTASAmMlMBICYyUwEgtfwn7a3KPdvWe7Af33C/9Dk0wUgIjJTBSAiMlMFICIyUwUkvvUL5k9QNjt34HJhgpgZESGCmBkRIYKYGREhipf0J3TDilK/ACAAAAAElFTkSuQmCC";
 const YINYANG_IMG = loadSprite(YINYANG_IMG_SRC);
 // "Graal pour 100% de tout avoir débloqué. Le dernier à débloquer" — a
 // 17th, meta-trophy (user-supplied sprite) earned only once every OTHER
@@ -8218,8 +8218,14 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "2.17";
+const GAME_VERSION = "2.18";
 const CHANGELOG = [
+  {
+    version: "2.18",
+    notes: [
+      "Re-corrigé le symbole yin-yang (trophée « Toutes les familles »), toujours visiblement écrasé/déformé malgré un précédent correctif : la vraie grille de l'image source fait 19×19 cases (pas 18×18 comme les autres sprites) — ré-extrait sur cette bonne grille, cercle de nouveau parfaitement rond des deux côtés (fond clair et fond sombre).",
+    ],
+  },
   {
     version: "2.17",
     notes: [
