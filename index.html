@@ -1048,21 +1048,22 @@
         <div id="loreMarsSwords"><img alt=""><img alt=""></div>
         <p>Un vieil enchanteur errant — Merlin, disent les paysans, sans trop y croire — vient s'incliner devant quiconque tient ses douze provinces à leur plein effectif à la fois. Il ne demande rien, ne promet rien, et repart aussitôt son signe fait. Mais ceux qui l'ont vu passer trois fois racontent qu'un dieu bien plus ancien, romain celui-là, prend ensuite le relais : jamais plus une bataille à douze contre douze ne se perdra sous cette bannière. Un tel don a un prix, chuchotent les vieilles branches — mais lequel, nul ne l'a encore découvert.</p>
       </div>
-      <!-- "Dieux spéciaux par royaume" — one per playable royaume, each
-           unlocked independently the first time ITS OWN condition is met
-           on a real win (see checkGodUnlockOnWin()) — shown/hidden one at a
-           time by refreshLoreGods(), never all four before they're earned. -->
+      <!-- "Dieux spéciaux" — each unlocked independently the first time ITS
+           OWN condition is met on a real win, quelle que soit la maison
+           jouée (see checkGodUnlockOnWin()) — shown/hidden one at a time by
+           refreshLoreGods(), gated on godUnlockedPlayer (the player's own
+           progress, not any one royaume's), never all four before earned. -->
       <div id="loreGodVulcain" style="display:none;">
-        <p><strong>Vulcain</strong>, dieu de la forge, ne se manifeste qu'à la maison Châteauvieux — et seulement à qui l'a vue redescendre à sa dernière province avant de renverser le siège. Depuis, ses murailles ne tombent plus tout à fait comme les autres : une force de plus veille toujours derrière chaque rempart, invisible sur le parchemin.</p>
+        <p><strong>Vulcain</strong>, dieu de la forge, s'incline devant quiconque l'a vue redescendre à sa dernière province avant de renverser le siège — peu importe la bannière. Depuis, ses murailles ne tombent plus tout à fait comme les autres : une force de plus veille toujours derrière chaque rempart, invisible sur le parchemin. Mais sa forge a un prix : elle dévore un renfort à chaque fin de tour.</p>
       </div>
       <div id="loreGodBellone" style="display:none;">
-        <p><strong>Bellone</strong>, déesse romaine de la guerre, n'honore que la maison Villiers — et seulement celui qui a remporté un siège entier sans jamais céder une seule province. Sa fureur reste depuis dans chaque lance levée sous cette bannière : une force de plus à l'assaut, toujours.</p>
+        <p><strong>Bellone</strong>, déesse romaine de la guerre, honore quiconque a remporté un siège entier sans jamais céder une seule province, quelle que soit la maison. Sa fureur reste depuis dans chaque lance levée : une force de plus à l'assaut, toujours. Mais ses remparts, distraits par la bataille, en gardent une de moins en défense.</p>
       </div>
       <div id="loreGodCeres" style="display:none;">
-        <p><strong>Cérès</strong>, déesse des moissons, sourit à la maison Montherlant — et seulement à qui a un jour tenu les sept dixièmes du pays d'une seule main. Ses greniers ne se vident plus jamais tout à fait : un renfort de plus arrive à chaque fin de tour.</p>
+        <p><strong>Cérès</strong>, déesse des moissons, sourit à qui a un jour tenu les sept dixièmes du pays d'une seule main, face à des rivaux encore bien vivants. Ses greniers ne se vident plus jamais tout à fait : un renfort de plus arrive à chaque fin de tour. Mais l'abondance amollit : plus jamais une seule province ne dépassera onze soldats.</p>
       </div>
       <div id="loreGodNeptune" style="display:none;">
-        <p><strong>Neptune</strong>, dieu de la mer, ne répond qu'à la maison Beaumanoir — et seulement à qui a scellé un siège entier par une dernière charge venue des flots. L'onde s'écarte un peu plus vite pour elle depuis : chaque traversée coûte une force de moins.</p>
+        <p><strong>Neptune</strong>, dieu de la mer, répond à qui a scellé un siège entier par une dernière charge venue des flots. L'onde s'écarte un peu plus vite depuis : chaque traversée coûte une force de moins. Mais ses côtes restent tournées vers le large, une force de moins pour qui l'attaque depuis la mer — et si jamais un dieu plus ancien s'éveillait sous les flots, la mer cesserait de lui obéir.</p>
       </div>
       <!-- chevalier à cheval / blason / pieuvre / bateau / épées (droite +
            diagonale) — the same sprites already used elsewhere (Seigneur's
@@ -2909,11 +2910,13 @@ function balanceStartingForces() {
     const target = equalShare * (1 + AI_BONUS);
     const blended = current + (target - current) * BALANCE_STRENGTH;
     const scale = blended / current;
-    // clamp to FORCE_CAP — a royaume with very few starting territories can
-    // otherwise get scaled well past it in one shot (e.g. a single-territory
-    // AI royaume at Seigneur's 80% target bonus), which looked like a
-    // territory instantly maxed out before a single turn had been played
-    for (const t of owned[royId]) t.force = Math.max(1, Math.min(FORCE_CAP, Math.round(t.force * scale)));
+    // clamp to FORCE_CAP (or effectiveForceCap(royId) if this royaume has
+    // earned Cérès's own lower cap already) — a royaume with very few
+    // starting territories can otherwise get scaled well past it in one
+    // shot (e.g. a single-territory AI royaume at Seigneur's 80% target
+    // bonus), which looked like a territory instantly maxed out before a
+    // single turn had been played
+    for (const t of owned[royId]) t.force = Math.max(1, Math.min(effectiveForceCap(royId), Math.round(t.force * scale)));
   }
 }
 
@@ -3151,7 +3154,7 @@ let surrenderCostAGueux = false;
 
 // same visual pulse as a combat reinforcement — reused here for a gueux spend
 function reinforceTerritory(tId) {
-  territories[tId].force = Math.min(FORCE_CAP, territories[tId].force + 1);
+  territories[tId].force = Math.min(effectiveForceCap(territories[tId].owner), territories[tId].force + 1);
   triggerPulse({ [tId]: 1 });
 }
 function spendGueux(tId) {
@@ -3497,32 +3500,62 @@ function isPremiumUnlocked() {
   return premiumUnlockedForever || Date.now() < premiumUnlockedUntil;
 }
 
-// "Dieux spéciaux par royaume" — one distinct god per playable royaume
-// (ROYAUMES 0-3), each with its own permanent power and its own real,
-// non-random unlock condition met while playing that royaume — scoped live
-// through questions: go now, a DIFFERENT condition per royaume (not one
-// shared threshold), and the power stays PERMANENTLY active once earned
-// (not a rechargeable budget like "le pouvoir des 12"). Kept OUT of
-// DIFFICULTY_LEVELS/CTHULHU_LEVEL entirely — this is per-royaume, not a
-// difficulty tier.
-//   id0 Vulcain  (Châteauvieux, vert)  — forge/forteresse : +1 force en
-//     défense uniquement (jamais affiché, seulement dans le calcul du
-//     combat — voir attack()). Débloqué en gagnant une partie après être
-//     redescendu à une seule province (une vraie remontée depuis le bord
-//     de l'élimination).
-//   id1 Bellone  (Villiers, rouge)     — déesse romaine de la guerre : +1
-//     force en attaque uniquement. Débloqué en gagnant une partie sans
-//     jamais perdre une seule province (victoire "sans-faute").
-//   id2 Cérès    (Montherlant, or)     — abondance : +1 renfort de fin de
-//     tour, en plus de la formule normale. Débloqué en gagnant une partie
-//     après avoir possédé au moins 70% du territoire total à un moment.
-//   id3 Neptune  (Beaumanoir, marine)  — maîtrise navale : coût des
-//     traversées en mer réduit de 1 (jamais en dessous de 1). Débloqué en
-//     gagnant une partie sur l'attaque finale elle-même portée par la mer.
+// "Dieux spéciaux" — 4 gods, 4 distinct real conditions, but NOT tied to one
+// fixed royaume any more ("peu importe la maison que je choisis je peux
+// débloquer chaque Dieu") — whichever royaume you're playing when a
+// condition is met earns THAT god, not just "its own". Each earned god also
+// stays PERMANENTLY active once earned (not a rechargeable budget like "le
+// pouvoir des 12"), and now unlocks on TWO levels at once ("la famille garde
+// le bonus toujours ET moi en tant que joueur aussi peu importe avec qui je
+// joue") :
+//   - godUnlockedRoyaume[royId][godIdx] : THIS royaume has earned THIS god —
+//     stays with it forever, whoever plays it afterwards, human or AI.
+//   - godUnlockedPlayer[godIdx] : the PLAYER has personally earned this god
+//     at least once (with any royaume) — follows the player into every
+//     future match, whichever royaume they pick next.
+// Each bonus also has a real cost ("chaque dieu son prix") — see
+// isGodActiveFor()'s call sites (attack(), reinforcement, effectiveForceCap()).
+//   id0 Vulcain  — forge/forteresse : +1 force en défense ; -1 renfort de fin
+//     de tour (la forge coûte cher à entretenir). Débloqué en gagnant une
+//     partie après être redescendu à une seule province (une vraie remontée
+//     depuis le bord de l'élimination), quelle que soit la maison jouée.
+//   id1 Bellone  — déesse romaine de la guerre : +1 force en attaque ; -1
+//     force en défense (partout, pas seulement contre l'attaquant du
+//     moment). Débloqué en gagnant une partie sans jamais perdre une seule
+//     province (victoire "sans-faute").
+//   id2 Cérès    — abondance : +1 renfort de fin de tour ; plafond de force
+//     abaissé à 11 au lieu de 12 (voir effectiveForceCap() — prix réel :
+//     plus jamais éligible au "pouvoir des 12"). Débloqué en gagnant une
+//     partie après avoir possédé au moins 70% du territoire total à un
+//     moment — mais seulement pendant qu'au moins 2 autres royaumes étaient
+//     encore vivants (sinon la condition était trivialement toujours vraie :
+//     "je gagne si j'ai 100%, j'aurais toujours au moins 70%" — vrai sur
+//     TOUTE victoire une fois qu'il ne reste qu'un seul rival, donc ce n'est
+//     plus une vraie prouesse ; voir son tracking dans attack()).
+//   id3 Neptune  — maîtrise navale : coût des traversées en mer réduit de 1
+//     (jamais en dessous de 1) ; -1 défense CÔTIÈRE (seulement quand
+//     attaqué via une traversée en mer, pas en défense terrestre normale).
+//     Débloqué en gagnant une partie sur l'attaque finale elle-même portée
+//     par la mer. USURPÉ par Cthulhu une fois celui-ci débloqué ("si je
+//     débloque Cthulhu ça annule l'avantage de Neptune" — plus ancien,
+//     Cthulhu prend le dessus sur la mer, voir isGodActiveFor()).
 const GOD_NAMES = ["Vulcain", "Bellone", "Cérès", "Neptune"];
-let godUnlocked = [false, false, false, false];
+let godUnlockedRoyaume = [[false, false, false, false], [false, false, false, false], [false, false, false, false], [false, false, false, false]];
+let godUnlockedPlayer = [false, false, false, false];
 try {
-  for (let i = 0; i < 4; i++) godUnlocked[i] = localStorage.getItem(`kw_godUnlocked_${i}`) === "1";
+  for (let r = 0; r < 4; r++) {
+    for (let g = 0; g < 4; g++) godUnlockedRoyaume[r][g] = localStorage.getItem(`kw_godUnlockedRoyaume_${r}_${g}`) === "1";
+  }
+  for (let g = 0; g < 4; g++) godUnlockedPlayer[g] = localStorage.getItem(`kw_godUnlockedPlayer_${g}`) === "1";
+  // One-time migration from the old one-god-per-royaume system (each
+  // royaume N could only ever earn god N, and only the human playing
+  // royaume N could earn it) — maps cleanly onto both new dimensions.
+  for (let i = 0; i < 4; i++) {
+    if (localStorage.getItem(`kw_godUnlocked_${i}`) === "1") {
+      godUnlockedRoyaume[i][i] = true;
+      godUnlockedPlayer[i] = true;
+    }
+  }
 } catch (e) { /* ignore */ }
 // "Avoir joué avec chaque faction" — much simpler than the gods above: just
 // whether this royaume has ever been PICKED at pickFaction() at least once,
@@ -3531,38 +3564,68 @@ let royaumePlayed = [false, false, false, false];
 try {
   for (let i = 0; i < 4; i++) royaumePlayed[i] = localStorage.getItem(`kw_royaumePlayed_${i}`) === "1";
 } catch (e) { /* ignore */ }
-// Per-match tracking for each royaume's own unlock condition — reset in
+// Per-match tracking for each god's own unlock condition — reset in
 // startGame(), updated live during play, checked once at showWin() (see
-// checkGodUnlockOnWin()). Human-only: the condition is about EARNING a
-// god by playing its royaume yourself, not something an AI can trigger.
+// checkGodUnlockOnWin()). Human-only: the condition is about EARNING a god
+// yourself, not something an AI can trigger. No longer indexed by royId —
+// any of the 4 can be earned while playing any royaume.
 let wasDownToOneTerritory = false;    // Vulcain (id0)
 let neverLostATerritory = true;       // Bellone (id1)
-let maxHumanTerritoryShare = 0;       // Cérès (id2)
+let maxHumanTerritoryShare = 0;       // Cérès (id2) — see its own note above on the ≥2-rivals-alive guard
 let lastAttackFinishedViaWater = false; // Neptune (id3) — see its own note in attack()
-// Whether royId's god power is actually in effect right now — permanently
-// once unlocked (whoever plays that royaume from then on, human or AI:
-// "actif qu'on le joue ou qu'il soit adversaire"), or — before that — only
-// for an AI-controlled royaume at the hardest visible difficulty or above
-// ("actives pour le joueur uniquement, sauf en mode le plus dur"): a
-// player who hasn't earned a god themselves never gets its power for free,
-// but the toughest AI already fights like it knows every trick.
-function isGodActiveFor(royId) {
+// Whether royId benefits from godIdx's power right now:
+//  1. Cthulhu usurps Neptune's sea (id3) the moment it's unlocked — cancels
+//     that bonus for EVERYONE, human or AI, own royaume or not.
+//  2. The PLAYER personally earned this god before (any royaume, any past
+//     match) and royId is what they're playing right now — follows them.
+//  3. THIS royaume earned this god itself, in some past match (by anyone) —
+//     stays with the family forever, human or AI.
+//  4. Difficulty freebie: an AI-controlled royaume at the hardest visible
+//     tier or above already fights with every trick, unearned.
+function isGodActiveFor(royId, godIdx) {
   if (royId == null || royId < 0 || !ROYAUMES[royId] || ROYAUMES[royId].neutral) return false;
-  if (godUnlocked[royId]) return true;
+  if (godIdx === 3 && cthulhuUnlocked) return false;
+  if (royId === humanRoyId && godUnlockedPlayer[godIdx]) return true;
+  if (godUnlockedRoyaume[royId][godIdx]) return true;
   return royId !== humanRoyId && (cthulhuActive() || DIFFICULTY >= DIFFICULTY_LEVELS[3].value);
+}
+// A royaume with Cérès (id2) active pays for its abundance with a lower
+// personal force cap (11 instead of 12) — see the block comment above for
+// why that's a real, permanent trade (never eligible for "le pouvoir des
+// 12" again). Only ever used for a royaume's OWN force-accumulation clamps
+// (reinforcement, starting-force balance) — deliberately NOT used for the
+// Mars/"pouvoir des 12" check or the all-provinces-capped gold ring, both
+// of which stay pinned to the literal FORCE_CAP=12 so they become
+// permanently unreachable for a Cérès-active royaume, which IS the point.
+function effectiveForceCap(royId) {
+  return isGodActiveFor(royId, 2) ? FORCE_CAP - 1 : FORCE_CAP;
 }
 // Checked once, right at the win screen, only for a real outright human
 // win (never a truce, never during replay — replaying someone else's
 // match must never silently unlock a god on the local viewer's own
-// device). Returns the newly-unlocked god's name for the win-banner note,
-// or null if nothing changed.
+// device). Returns an array of newly-unlocked god names for the win-banner
+// note (0 or more — more than one condition can be met in the same
+// winning match), or null if nothing changed.
 function checkGodUnlockOnWin(royId) {
   if (replaying || truceEnded || royId !== humanRoyId) return null;
   const earnedThisMatch = [wasDownToOneTerritory, neverLostATerritory, maxHumanTerritoryShare >= 0.7, lastAttackFinishedViaWater];
-  if (godUnlocked[royId] || !earnedThisMatch[royId]) return null;
-  godUnlocked[royId] = true;
-  try { localStorage.setItem(`kw_godUnlocked_${royId}`, "1"); } catch (e) { /* ignore */ }
-  return GOD_NAMES[royId];
+  const newlyUnlocked = [];
+  for (let g = 0; g < 4; g++) {
+    if (!earnedThisMatch[g]) continue;
+    let isNew = false;
+    if (!godUnlockedRoyaume[royId][g]) {
+      godUnlockedRoyaume[royId][g] = true;
+      try { localStorage.setItem(`kw_godUnlockedRoyaume_${royId}_${g}`, "1"); } catch (e) { /* ignore */ }
+      isNew = true;
+    }
+    if (!godUnlockedPlayer[g]) {
+      godUnlockedPlayer[g] = true;
+      try { localStorage.setItem(`kw_godUnlockedPlayer_${g}`, "1"); } catch (e) { /* ignore */ }
+      isNew = true;
+    }
+    if (isNew) newlyUnlocked.push(GOD_NAMES[g]);
+  }
+  return newlyUnlocked.length ? newlyUnlocked : null;
 }
 
 // Difficulty-tier win trophies (Salle des trophées) — "les niveaux de
@@ -4072,7 +4135,7 @@ let lastAttackWasGrind = false; // both sides near the force cap — used for th
 // with "noyés en chemin" in attack() because the two checks disagreed.
 function effectiveWaterCost(fromT, route) {
   if (cthulhuActive()) return 0; // "Chtulhu active les attaques longue distance sans perte" — waived entirely, at any distance
-  return isGodActiveFor(fromT.owner) && fromT.owner === 3 ? Math.max(1, route.cost - 1) : route.cost;
+  return isGodActiveFor(fromT.owner, 3) ? Math.max(1, route.cost - 1) : route.cost;
 }
 function waterCostBetween(fromT, toId) {
   if (fromT.neighbors.has(toId)) return 0;
@@ -4303,14 +4366,21 @@ function attack(fromId, toId, chainIndex = -1, forcedGuaranteed = null) {
   const isLandAttack = waterPath === null;
   const capBonusWin = isLandAttack && (forcedGuaranteed !== null ? forcedGuaranteed : (capBonusBudget[from.owner] || 0) > 0);
   const marsBonusWin = isLandAttack && marsBlessingUnlocked && from.owner === humanRoyId && atk === FORCE_CAP && def === FORCE_CAP;
-  // "Dieux spéciaux par royaume" — Bellone (id1) adds +1 to the attacker's
-  // effective force, Vulcain (id0) adds +1 to the defender's, ONLY inside
-  // this resolution — atk/def themselves (displayed/logged below, and used
-  // for lastAttackWasGrind above) stay the real force values, same
-  // treatment capBonusWin/marsBonusWin already get (an invisible thumb on
-  // the scale, not a fake number on screen).
-  const godAtk = atk + (isGodActiveFor(from.owner) && from.owner === 1 ? 1 : 0);
-  const godDef = def + (isGodActiveFor(to.owner) && to.owner === 0 ? 1 : 0);
+  // "Dieux spéciaux" — Bellone (id1) adds +1 to the attacker's effective
+  // force (and takes -1 off THAT SAME royaume whenever it defends, its own
+  // malus — see the block comment on isGodActiveFor()); Vulcain (id0) adds
+  // +1 to the defender's; Neptune (id3) takes -1 off the defender but only
+  // when the attack itself came via water ("-1 défense côtière" — its own
+  // malus for the crossing discount, doesn't apply to ordinary land
+  // defense). Only inside this resolution — atk/def themselves
+  // (displayed/logged below, and used for lastAttackWasGrind above) stay
+  // the real force values, same treatment capBonusWin/marsBonusWin already
+  // get (an invisible thumb on the scale, not a fake number on screen).
+  const godAtk = atk + (isGodActiveFor(from.owner, 1) ? 1 : 0);
+  const godDef = Math.max(0, def
+    + (isGodActiveFor(to.owner, 0) ? 1 : 0)
+    - (isGodActiveFor(to.owner, 1) ? 1 : 0)
+    - (waterPath && isGodActiveFor(to.owner, 3) ? 1 : 0));
   const win = capBonusWin || marsBonusWin ? true : resolveCombat(godAtk, godDef);
   // forcedGuaranteed !== null means resolveChainedAttack() already drained
   // the budget once, up front, for the whole chain — draining it again here
@@ -4358,7 +4428,15 @@ function attack(fromId, toId, chainIndex = -1, forcedGuaranteed = null) {
     const humanTerrCount = territories.filter(t => t.owner === humanRoyId).length;
     if (humanTerrCount === 1) wasDownToOneTerritory = true;
     const humanShare = humanTerrCount / territories.length;
-    if (humanShare > maxHumanTerritoryShare) maxHumanTerritoryShare = humanShare;
+    // Cérès (id2) — only counts while at least 2 OTHER royaumes are still
+    // alive: without this guard the condition is trivially always true on
+    // any win ("je gagne si j'ai 100%, j'aurais toujours au moins 70%, trop
+    // facile à obtenir" — a fair call-out, since winning requires wiping
+    // out every rival, so share always crosses 70% right at the very end
+    // regardless of skill). Requiring active rivals filters that out.
+    let livingRivals = 0;
+    for (let r = 0; r < ROYAUME_COUNT - 1; r++) if (r !== humanRoyId && isAlive(r)) livingRivals++;
+    if (livingRivals >= 2 && humanShare > maxHumanTerritoryShare) maxHumanTerritoryShare = humanShare;
   }
   checkElimination();
   // detect a match-ending attack immediately, whoever made it — previously
@@ -4433,15 +4511,19 @@ function endTurn() {
   const absoluteBonus = ownHexes / 20;
   // Cérès (id2) — see isGodActiveFor()'s own note: +1 extra reinforcement
   // per turn, on top of the normal formula, once earned/active for this
-  // royaume.
-  const godReinforceBonus = isGodActiveFor(royId) && royId === 2 ? 1 : 0;
-  const reinforcement = Math.max(1, Math.round(1.0 + 1.5 * relativeShare + absoluteBonus)) + godReinforceBonus;
+  // royaume. Vulcain (id0) — its own malus for the +1 defense: -1
+  // reinforcement per turn, same formula slot, negated against Cérès's own
+  // bonus if a royaume somehow has both. Final result floored at 0 (not 1)
+  // so Vulcain's malus alone can genuinely starve a turn's reinforcement —
+  // the whole point of a real cost, not a token one.
+  const godReinforceBonus = (isGodActiveFor(royId, 2) ? 1 : 0) - (isGodActiveFor(royId, 0) ? 1 : 0);
+  const reinforcement = Math.max(0, Math.max(1, Math.round(1.0 + 1.5 * relativeShare + absoluteBonus)) + godReinforceBonus);
   let pts = reinforcement;
   let guardCount = 0;
   const reinforcedCounts = {}; // territory id -> how many points landed there
   while (pts > 0 && guardCount < 500) {
     guardCount++;
-    const owned = territories.filter(t => t.owner === royId && t.force < FORCE_CAP);
+    const owned = territories.filter(t => t.owner === royId && t.force < effectiveForceCap(royId));
     if (!owned.length) break;
     const chosen = pickReinforceTarget(royId, owned);
     chosen.force++;
@@ -5012,12 +5094,15 @@ function showWin(royId) {
   document.getElementById("cthulhuHintNote").textContent =
     cthulhuHintFired ? CTHULHU_HINT_LINES[Math.abs(currentSeed) % CTHULHU_HINT_LINES.length] : "";
   const GOD_UNLOCK_LINES = {
-    Vulcain: "🔨 Vulcain vous accorde sa forge : vos provinces défendent désormais avec +1 force, pour toujours.",
-    Bellone: "⚔ Bellone vous accorde sa fureur : vos attaques portent désormais +1 force, pour toujours.",
-    Cérès: "🌾 Cérès vous accorde son abondance : +1 renfort à chaque fin de tour, pour toujours.",
-    Neptune: "🌊 Neptune vous accorde sa maîtrise des flots : vos traversées en mer coûtent désormais 1 force de moins, pour toujours.",
+    Vulcain: "🔨 Vulcain vous accorde sa forge : +1 force en défense, pour toujours — mais sa forge coûte cher, -1 renfort à chaque fin de tour.",
+    Bellone: "⚔ Bellone vous accorde sa fureur : +1 force en attaque, pour toujours — mais elle laisse vos remparts nus, -1 force en défense.",
+    Cérès: "🌾 Cérès vous accorde son abondance : +1 renfort à chaque fin de tour, pour toujours — mais votre force plafonne désormais à 11, pas 12.",
+    Neptune: "🌊 Neptune vous accorde sa maîtrise des flots : vos traversées en mer coûtent 1 force de moins, pour toujours — mais vos côtes restent vulnérables, -1 défense contre une attaque venue de la mer.",
   };
-  document.getElementById("godUnlockNote").textContent = newlyUnlockedGod ? GOD_UNLOCK_LINES[newlyUnlockedGod] : "";
+  // newlyUnlockedGod is an array now (0+ names — more than one condition
+  // can be met in the same winning match) — see checkGodUnlockOnWin().
+  document.getElementById("godUnlockNote").textContent =
+    newlyUnlockedGod ? newlyUnlockedGod.map((n) => GOD_UNLOCK_LINES[n]).join(" ") : "";
   if (newlyUnlockedGod) refreshLoreGods();
   document.getElementById("endturn").disabled = true;
   drawStatChart();
@@ -7263,7 +7348,7 @@ function handlePointer(clientX, clientY) {
   const tId = t.id;
 
   if (placingGueux) {
-    if (t.owner === currentPlayer && t.force < FORCE_CAP) {
+    if (t.owner === currentPlayer && t.force < effectiveForceCap(t.owner)) {
       logMove({ gueux: tId });
       spendGueux(tId);
     }
@@ -7928,7 +8013,7 @@ function refreshTrophyRoom() {
   // les juste quand débloqués"), ring appearing only once earned.
   const GOD_EMOJI = ["🔨", "⚔️", "🌾", "🔱"]; // Vulcain, Bellone, Cérès, Neptune — see GOD_NAMES's own order
   const slots = GOD_NAMES.map((name, i) => ({
-    earned: godUnlocked[i], name, emoji: GOD_EMOJI[i], placeholder: true,
+    earned: godUnlockedPlayer[i], name, emoji: GOD_EMOJI[i], placeholder: true,
   }));
   slots.push({ earned: pieuvreUnlocked, name: "La pieuvre", img: OCTOPUS_IMG_SRC });
   slots.push({ earned: cthulhuUnlocked, name: "Cthulhu", img: OCTOPUS_IMG_SRC, filter: "invert(1) hue-rotate(180deg) brightness(.7)" });
@@ -8004,8 +8089,18 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "2.06";
+const GAME_VERSION = "2.07";
 const CHANGELOG = [
+  {
+    version: "2.07",
+    notes: [
+      "Refonte des dieux spéciaux : n'importe quelle maison peut désormais débloquer n'importe quel dieu (plus besoin de jouer sa maison d'origine).",
+      "Chaque dieu débloqué reste acquis pour toujours à la fois pour cette maison précise (qui la joue ensuite, vous ou l'IA) ET pour vous en tant que joueur, quelle que soit la maison choisie plus tard.",
+      "Chaque bonus a désormais un vrai prix : Vulcain (+1 défense) coûte -1 renfort par tour ; Bellone (+1 attaque) coûte -1 en défense ; Cérès (+1 renfort) plafonne la force à 11 au lieu de 12 (donc plus jamais éligible au pouvoir des 12) ; Neptune (traversées -1) coûte -1 en défense côtière face à une attaque venue de la mer.",
+      "Débloquer Cthulhu annule désormais l'avantage de Neptune (plus ancien, il usurpe son domaine sur la mer).",
+      "Corrigé : la condition de Cérès (avoir tenu 70% du territoire) ne compte plus les tout derniers instants d'une victoire, où elle était de toute façon toujours atteinte — il faut désormais l'avoir tenue pendant qu'au moins 2 autres maisons étaient encore vivantes.",
+    ],
+  },
   {
     version: "2.06",
     notes: [
@@ -9461,15 +9556,18 @@ function refreshLoreMars() {
   const el = document.getElementById("loreMars");
   if (el) el.style.display = marsBlessingUnlocked ? "" : "none";
 }
-// "Dieux spéciaux par royaume" — unlike refreshLoreMars() (only ever called
-// right after a fresh unlock, this same session), this is also called once
-// at boot below so a god unlocked in an EARLIER session (persisted via
-// kw_godUnlocked_N) still shows correctly in Le lore after a reload.
+// "Dieux spéciaux" — unlike refreshLoreMars() (only ever called right after
+// a fresh unlock, this same session), this is also called once at boot
+// below so a god unlocked in an EARLIER session (persisted via
+// kw_godUnlockedPlayer_N) still shows correctly in Le lore after a reload.
+// Gated on the PLAYER-level flag (has the player themselves ever learned
+// this god's secret, with any royaume) rather than any one royaume's own —
+// this is player-facing lore text, not a per-royaume stat.
 const LORE_GOD_EL_IDS = ["loreGodVulcain", "loreGodBellone", "loreGodCeres", "loreGodNeptune"];
 function refreshLoreGods() {
   for (let i = 0; i < LORE_GOD_EL_IDS.length; i++) {
     const el = document.getElementById(LORE_GOD_EL_IDS[i]);
-    if (el) el.style.display = godUnlocked[i] ? "" : "none";
+    if (el) el.style.display = godUnlockedPlayer[i] ? "" : "none";
   }
 }
 refreshLoreGods();
