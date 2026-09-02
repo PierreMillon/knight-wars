@@ -16,7 +16,7 @@ Document de référence unique pour toutes les mécaniques de jeu, pour éviter 
 
 ---
 
-## Partie 2 — Les règles (état actuel du code, v2.14)
+## Partie 2 — Les règles (état actuel du code, v2.16)
 
 ### 2.1 Combat
 - Chaque territoire a une force entre 1 et 12 (`FORCE_CAP`), affichée sur sa "capitale" (voir §2.6 pour la distinction capitale/village — mécanique PAS encore implémentée, voir Partie 3).
@@ -70,7 +70,8 @@ Notes importantes :
 
 ### 2.7 Salle des trophées (Le Lore)
 18 emplacements, tous toujours visibles à pleine opacité (aucun coffre-mystère, idée essayée puis retirée) — seul l'anneau doré distingue un trophée gagné, et chaque image est bornée à sa case carrée (`object-fit: contain`) quel que soit son format d'origine :
-- 4 dieux (Vulcain, Bellone et Page ont leur propre sprite ; Cérès/Neptune encore en emoji placeholder)
+- 4 dieux, tous avec leur propre sprite désormais (Vulcain, Bellone, Cérès — épi de blé —, Neptune — trident) ; plus aucun emoji placeholder.
+- Un compteur "X/18" à côté du titre affiche la progression globale d'un coup d'œil.
 - Le bateau (toujours acquis — jamais eu de condition de déblocage propre, ancien flourish décoratif de la rangée d'outils au-dessus du titre, maintenant relocalisé ici)
 - Pieuvre, Cthulhu (sprite dédié), Pouvoir des 12
 - 4 victoires par palier de difficulté (Page/Écuyer/Chevalier/Seigneur)

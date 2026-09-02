@@ -517,6 +517,7 @@
   #loreSoldiers { display: flex; justify-content: center; align-items: flex-end; gap: 28px; margin: 0 0 16px; }
   #loreSoldiers img { width: 54px; height: auto; margin: 0; image-rendering: pixelated; }
   #trophyRoomLabel { margin: 18px 0 6px; text-align: center; }
+  #trophyRoomCount { font-size: 13px; font-weight: 400; opacity: .65; }
   /* real grid (wraps to as many rows as needed), unlike #loreRoyaumesJoues'
      single fixed row up top — this one's meant to grow as more trophies get
      added later. Same full-opacity/gold-ring visual language as that row,
@@ -1095,7 +1096,10 @@
            qu'on a pas activé". Distinct from #loreRoyaumesJoues (the maisons
            jouées row up top, in the intro) — that one stays exactly where
            it is, this is a separate, later addition at the very bottom. -->
-      <div class="fieldLabel" id="trophyRoomLabel">🏆 Salle des trophées</div>
+      <!-- "Un compteur de complétion visible — genre '14/18 débloqués'" —
+           a plain completion count, set by refreshTrophyRoom() alongside
+           the grid itself. -->
+      <div class="fieldLabel" id="trophyRoomLabel">🏆 Salle des trophées <span id="trophyRoomCount"></span></div>
       <div id="trophyRoom"></div>
       <button id="closeLore">Fermer</button>
     </div>
@@ -1799,6 +1803,12 @@ const CTHULHU_IMG = loadSprite(CTHULHU_IMG_SRC);
 // dropped in favor of just showing each placeholder plainly).
 const BELLONE_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGgAAABoCAYAAAAdHLWhAAABJUlEQVR4nO3dO27DMBQAQSWlGze5/wnTpElr3yAsCOGtopnW1g8LFpQI6TgAAADu5WP1h6/n4/XX798/v8t9TO5/+vi7+//cOTjnEyhOoDiB4gSKEyhOoLjtOcb0PGba2ddvBMUJFCdQnEBxAsUJFCdQ3OlzlKvPk6bP3wiKEyhOoDiB4gSKEyhOoLjLr4ub3n7Furh/TqA4geIEihMoTqA4gQAAAEgZX5M2/Txnet3bijsJcQLFCRQnUJxAcQLFCQQAAEDK+POgXfXnObvcSYgTKE6gOIHiBIoTKE6gOO+LW5g+fyMoTqA4geIEihMoTqA4geJ8P2iT7wfdnEBxAsUJFCdQnEBxAsVd/r3Zu+rXZwTFCRQnUJxAcQLFCRQnEAAAAClvyytkiMn5wIQAAAAASUVORK5CYII=";
 const BELLONE_IMG = loadSprite(BELLONE_IMG_SRC);
+// Cérès (wheat/grain stalk) and Neptune (trident) — the last two gods
+// still without their own art, replacing the 🌾/🔱 emoji placeholders.
+const CERES_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAOoAAADqCAYAAACslNlOAAAC8klEQVR4nO3cQW7CUBAFQYi4/5XJ4h8AaRa2e1S1RwFHrdk8+fUCAAAAAAAAAAAAAABG3nd/AX76Dj7j/7rM391fAPhNqBAgVAgQKgQIFQKECgFChQChQoBQIUCoECBUCBAqBAgVAoQKAUKFAKFCgFAhQKgQIFQIECoECBUChAoBQoUAoUKAUCHAG9UPb6Of8dwu4qJCgFAhQKgQIFQIECoECBUChAoBQoUAoUKAUCFAqBAgVAgwkJ67apC+7e8w4KJCgFAhQKgQIFQIECoECBUChAoBQoUAoUKAUCFAqBAgVAgwqn4+Y3lcVCgQKgQIFQKECgFChQChQoBQIUCoECBUCBAqBAgVAoQKAZ+7v8BDGL7PeG4XcVEhQKgQIFQIECoECBUChAoBQoUAoUKAUCFAqBAgVAgQKgQY5R+Tofi2Qfq237OKiwoBQoUAoUKAUCFAqBAgVAgQKgQIFQKECgFChQChQoBQIcCo+vmM5XFRoUCoECBUCBAqBAgVAoQKAUKFAKFCgFAhQKgQIFQIECoEeFP+Yfg+47ldxEWFAKFCgFAhQKgQIFQIECoECBUChAoBQoUAoUKAUCFAqBBglH9MhuLbBunbfs8qLioECBUChAoBQoUAoUKAUCFAqBAgVAgQKgQIFQKECgFChQCj6uczlsdFhQKhQoBQIUCoECBUCBAqBAgVAoQKAUKFAKFCgFAhQKgQ4E35h+H7jOd2ERcVAoQKAUKFAKFCgFAhQKgQIFQIECoECBUChAoBQoUAoUKAUf4xGYpvG6Rv+z2ruKgQIFQIECoECBUChAoBQoUAoUKAUCFAqBAgVAgQKgQIFQKMqp/PWB4XFQqECgFChQChQoBQIUCoECBUCBAqBAgVAoQKAUKFAKFCgFAhQKgQIFQIECoECBUChAoBQoUAoUKAUCFAqBAgVAgQKgQIFQKECgFChQChQoBQIUCoECBUCBAqBAgVAoQKAUKFAKFCgFAhQKgAAAAAAAAAAAAAAADs9Q8yGRepqBTUxQAAAABJRU5ErkJggg==";
+const CERES_IMG = loadSprite(CERES_IMG_SRC);
+const NEPTUNE_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAOoAAADqCAYAAACslNlOAAAC2klEQVR4nO3cQW4CMRAAQYjy/y+TJyCsZHZ7UnVHa+Nt+TLweAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAwKTn1QvgrdfBZ5zrMl9XLwB4T6gQIFQIECoECBUChAoBQoUAoUKAUCFAqBAgVAgQKgQY3p51MmA/xbtwY25UCBAqBAgVAoQKAUKFAKFCgFAhQKgQIFQIECoECBUChAoBBrHPTf2D/bbncMCNCgFChQChQoBQIUCoECBUCBAqBAgVAoQKAUKFAKFCgFAhYONQ9bbhcvu5935GuFEhQKgQIFQIECoECBUChAoBQoUAoUKAUCFAqBAgVAgQKgTcfdj5ZIB7ytR3d+chduczxI0KAUKFAKFCgFAhQKgQIFQIECoECBUChAoBQoUAoUKAUCHge/BZU8Pl254zZdv3tup83KgQIFQIECoECBUChAoBQoUAoUKAUCFAqBAgVAgQKgQIFQImh/JvO/B8yH7ubdV+3KgQIFQIECoECBUChAoBQoUAoUKAUCFAqBAgVAgQKgQIFQKECgFChQChQoBQIUCoECBUCBAqBAgVAoQKAUKFAKFCgFAhQKgQIFQIECoECBUChAoBQoUAoUKAUCFAqBAgVAgQKgQIFQKECgFChYDn1Qv4A6+rF8Cv2/iefsSNCgFChQChQoBQIUCoECBUCBAqBAgVAoQKAUKFAKFCgFAh4N8POwec/MjAuS7jRoUAoUKAUCFAqBAgVAgQKgQIFQKECgFChQChQoBQIUCoECBUCBAqBAgVAoQKAUKFAKFCgFAhQKgQIFQIECoECBUChAoBQoUAoUKAUCFAqBAgVAgQKgQIFQKECgFChQChQoBQIUCoECBUCBAqBAgVAoQKAUKFAKFCgFAhQKgQIFQIECoECBUChAoBQoUAoUKAUCFAqBAgVAgQKgQIFQKECgFChQChQoBQIUCoECBUCBAqBAgVAoQKAAAAAAAAAAAAAADAXj8GhxSI6Dao7wAAAABJRU5ErkJggg==";
+const NEPTUNE_IMG = loadSprite(NEPTUNE_IMG_SRC);
 // "Un enfant qui porte un écu" — the Page difficulty tier's own dedicated
 // trophy sprite (user-supplied), replacing the plain white SWORD_IMG_SRC
 // placeholder used until now — see DIFF_TROPHY_IMG in refreshTrophyRoom().
@@ -8115,14 +8125,14 @@ function refreshTrophyRoom() {
   // and reverted live ("garde un coffre... revenir aux emoji partout") —
   // every slot now always shows its real icon/emoji at full opacity
   // ("oublie le côté opaque... entoure les juste quand débloqués"), ring
-  // appearing only once earned, no exceptions. Bellone has her own
-  // dedicated sprite now (BELLONE_IMG_SRC) — Vulcain/Cérès/Neptune still
-  // use their emoji placeholder until their own art arrives.
+  // appearing only once earned, no exceptions. All 4 gods now have their
+  // own dedicated sprite — Cérès (wheat stalk) and Neptune (trident) were
+  // the last two still on emoji placeholders.
   const GOD_ICON = [
     { img: VULCAIN_IMG_SRC },      // Vulcain
     { img: BELLONE_IMG_SRC },      // Bellone
-    { emoji: "🌾" },               // Cérès
-    { emoji: "🔱" },               // Neptune
+    { img: CERES_IMG_SRC },        // Cérès
+    { img: NEPTUNE_IMG_SRC },      // Neptune
   ];
   const slots = GOD_NAMES.map((name, i) => ({ earned: godUnlockedPlayer[i], name, ...GOD_ICON[i] }));
   // The boat used to sit in its own decorative row above this title
@@ -8159,6 +8169,8 @@ function refreshTrophyRoom() {
       ${s.emoji ? `<span class="trophyEmoji">${s.emoji}</span>` : `<img src="${s.img}" alt="${s.name}">`}
     </div>
   `).join("");
+  const countEl = document.getElementById("trophyRoomCount");
+  if (countEl) countEl.textContent = `${slots.filter((s) => s.earned).length}/${slots.length}`;
 }
 refreshTrophyRoom();
 document.getElementById("loreBtn").addEventListener("click", () => {
@@ -8216,8 +8228,15 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "2.15";
+const GAME_VERSION = "2.16";
 const CHANGELOG = [
+  {
+    version: "2.16",
+    notes: [
+      "Cérès (épi de blé) et Neptune (trident) ont enfin leur propre sprite dans la Salle des trophées — les 4 dieux ont désormais tous un vrai dessin, plus aucun emoji placeholder.",
+      "Ajouté un compteur de complétion à côté du titre « Salle des trophées » (ex : 14/18) pour voir sa progression d'un coup d'œil.",
+    ],
+  },
   {
     version: "2.15",
     notes: [
