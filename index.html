@@ -1011,12 +1011,13 @@
       <p>En cet an de grâce 1183, la Bretagne n'a plus de duc, et quatre châtelains se disputent son héritage — Châteauvieux, Villiers, Montherlant, Beaumanoir. Quatre noms de fief, mais un seul sang : tous portent le même blason, celui d'un aïeul commun, les Millon, dont le domaine fut fracturé entre ses héritiers il y a plus d'un siècle.</p>
       <p>Chaque bataille livrée ici n'oppose pas des étrangers, mais des cousins — une querelle de famille qui ne connaît ni trêve ni pardon, jusqu'à ce qu'un seul Millon reste debout pour reformer sous une seule bannière la terre que leurs pères ont laissée en morceaux.</p>
       <p>Un siècle de guerre a forgé le caractère de chaque branche — et à la table de jeu, ce caractère se traduit en habitudes de commandement bien réelles, pas seulement en surnom :</p>
-      <!-- two soldier sketches drawn by the user, sitting between the family
-           history above and each house's own commanding character below —
-           the rank and file that character actually leads into battle. -->
+      <!-- "enlever les deux perso et met juste le cavalier" — was two soldier
+           sketches (FIGURE1/FIGURE2), replaced by a single mounted knight
+           (CREATURE_IMG_SRC, same sprite as the Seigneur difficulty icon)
+           between the family history above and each house's own commanding
+           character below. -->
       <div id="loreSoldiers">
         <img id="loreSoldier1" alt="">
-        <img id="loreSoldier2" alt="">
       </div>
       <div id="lorePersonalities"></div>
       <!-- see refreshLoreRoyaumesJoues() — one slot per maison, marks which
@@ -7979,8 +7980,7 @@ document.getElementById("winbanner").addEventListener("click", (e) => {
   if (e.target === document.getElementById("winbanner")) revealFinalBoard();
 });
 document.getElementById("loreBlazon").src = BLAZON_IMG_SRC;
-document.getElementById("loreSoldier1").src = FIGURE1_IMG_SRC;
-document.getElementById("loreSoldier2").src = FIGURE2_IMG_SRC;
+document.getElementById("loreSoldier1").src = CREATURE_IMG_SRC;
 document.getElementById("loreOctopusImg").src = OCTOPUS_IMG_SRC;
 document.getElementById("loreCthulhuImg").src = CTHULHU_IMG_SRC;
 document.querySelectorAll("#loreMarsSwords img").forEach((img) => { img.src = SWORD_IMG_SRC; });
@@ -8216,8 +8216,14 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "2.14";
+const GAME_VERSION = "2.15";
 const CHANGELOG = [
+  {
+    version: "2.15",
+    notes: [
+      "Dans Le lore, les deux soldats sous « Les Millon » sont remplacés par un seul cavalier (même sprite que l'icône de difficulté Seigneur).",
+    ],
+  },
   {
     version: "2.14",
     notes: [
