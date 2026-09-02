@@ -50,34 +50,35 @@ Notes importantes :
 - **Historique de la condition Cérès** : deux versions plus faciles ont été essayées et rejetées avant celle-ci, l'une après l'autre, en discussion directe — "70% du territoire à un moment" (trivial : toute victoire finit proche de 100%, donc toujours vrai), puis "70% pendant qu'au moins 2 rivaux vivent" (encore jugé pas assez exigeant). La version retenue exige de garder tout le monde vivant jusqu'au bout puis de tout renverser d'un coup, ce qui est un vrai exploit de timing et d'exécution.
 - **Double persistance** : chaque dieu débloqué l'est à la fois pour LA MAISON précise jouée à ce moment (`godUnlockedRoyaume[royId][godIdx]` — reste actif pour cette maison pour toujours, qu'elle soit ensuite jouée par vous ou par l'IA) ET pour LE JOUEUR (`godUnlockedPlayer[godIdx]` — reste actif pour vous quelle que soit la maison choisie ensuite). Logique : le joueur est un mercenaire (Partie 1) — la maison garde l'expérience transmise, le mercenaire garde le savoir-faire.
 - **Cumulatif, jamais exclusif** : tous les bonus/malus des 4 dieux se cumulent entre eux et avec toutes les autres mécaniques (pouvoir des 12, Cthulhu). Aucun n'en annule un autre.
-- Une IA au palier de difficulté le plus dur (Seigneur) ou à Cthulhu bénéficie de tous les bonus des 4 dieux gratuitement, même non gagnés — "elle connaît déjà tous les trucs".
+- Une IA au palier de difficulté le plus dur (Chevalier) ou à Cthulhu bénéficie de tous les bonus des 4 dieux gratuitement, même non gagnés — "elle connaît déjà tous les trucs".
 
 ### 2.5 Attaques en mer et rituel du sacrifice océanique
 - Une traversée en mer coûte de la force (calculée par route, jusqu'à `MAX_WATER_CROSSING_HOPS` = 3 cases d'eau) ; si le coût dépasse la force disponible, la traversée échoue entièrement (noyade, aucun combat).
 - **Cthulhu actif** (voir §2.6) : coût de traversée nul, distance illimitée.
 - **Rituel du sacrifice** : envoyer une province à 12/12 force droit dans une mer ouverte, assez loin pour retomber à 1 (pas via un lac, pas enchaîné à la fin d'une autre conquête ce tour) = un "plein bateau" sacrifié. En dessous de ce seuil exact, on perd quand même la force mais ce n'est qu'une "baignade forcée" (pas de rituel compté).
-- **Déblocage de la pieuvre (état actuel du code)** : le rituel complet ne compte que joué en difficulté Seigneur. 3 rituels complets DANS UNE MÊME PARTIE déclenchent la révélation visuelle (l'apparition de la pieuvre, 2s). 3 PARTIES SÉPARÉES avec cette révélation débloquent `pieuvreUnlocked` de façon permanente (icône du menu changée, paragraphe de Lore débloqué).
+- **Déblocage de la pieuvre (état actuel du code)** : le rituel complet ne compte que joué en difficulté Chevalier (le palier le plus dur). 3 rituels complets DANS UNE MÊME PARTIE déclenchent la révélation visuelle (l'apparition de la pieuvre, 2s). 3 PARTIES SÉPARÉES avec cette révélation débloquent `pieuvreUnlocked` de façon permanente (icône du menu changée, paragraphe de Lore débloqué).
 - **Indice "parchemin crypté"** : entre la 5ᵉ et la 10ᵉ victoire totale (seuil aléatoire tiré une fois), un message de fin de partie annonce qu'un seigneur rival remet un parchemin crypté — un indice, pas un débloquage en soi.
 - **Déblocage de Cthulhu (état actuel du code)** : une fois l'indice apparu sur une victoire antérieure, un 4ᵉ rituel complet dans une même partie (un de plus que le 3ᵉ qui révèle la pieuvre) débloque `cthulhuUnlocked` immédiatement, la toute première fois.
 - ⚠️ Une simplification de cette dernière règle a été discutée ("juste 3 pieuvres sur une partie, au bout de trois c'est Cthulhu") mais **n'est pas encore implémentée** — voir Partie 3.
 
 ### 2.6 Paliers de difficulté
-- 4 paliers visibles, du plus facile au plus dur : **Page** (0), **Écuyer** (0.35), **Chevalier** (0.91), **Seigneur** (1.3) — la valeur pilote l'agressivité/force de départ de l'IA.
+- 4 paliers visibles, du plus facile au plus dur : **Gueux** (0), **Page** (0.35), **Écuyer** (0.91), **Chevalier** (1.3) — la valeur pilote l'agressivité/force de départ de l'IA. Renommés (chaque nom descend d'un rang social : l'ancien "Seigneur", le plus dur, disparaît) — les valeurs elles-mêmes sont inchangées.
 - **Cthulhu** (1.6) est un 5ᵉ palier caché, débloqué par le rituel ci-dessus : IA parfaite/agressivité maximale, traversées en mer gratuites et sans limite de distance pour TOUS (humain et IA).
 - Chaque victoire au palier réellement joué (`gameStartDifficulty`, pas le réglage courant) enregistre un trophée de victoire par palier (`difficultyTierWon[]`), affiché dans la Salle des trophées — Cthulhu exclu de ce suivi (redondant avec son propre déblocage).
 - ⚠️ **Capitale vs villages** : le joueur a décrit une mécanique où une province est composée de plusieurs villages, un seul affichant le chiffre de force ("la capitale") — **PAS ENCORE IMPLÉMENTÉE**, le modèle actuel traite chaque hexagone comme un territoire indépendant sans notion de capitale/village. Voir Partie 3.
 - **Chemin d'attaque = plus court chemin réel, déjà garanti** : reposé la question ("juste une règle de trajet" plutôt que le regroupement capitale/village ci-dessus), puis vérifié le code — c'est déjà le cas. `extendDragPath()` n'ajoute un maillon à une chaîne d'attaque QUE si la destination est un vrai voisin direct du dernier maillon (`fromT.neighbors.has(toId)`) ou une route maritime réellement calculée (Dijkstra, plafonnée à `MAX_WATER_CROSSING_HOPS`) — jamais un raccourci arbitraire vers une case visée plus loin, quelle que soit la vitesse du glissement (les points intermédiaires du geste sont eux-mêmes échantillonnés, voir `pointermove`). Rien à changer ici tant que le modèle reste un hexagone = un territoire.
 
 ### 2.7 Salle des trophées (Le Lore)
-18 emplacements, tous toujours visibles à pleine opacité (aucun coffre-mystère, idée essayée puis retirée) — seul l'anneau doré distingue un trophée gagné, et chaque image est bornée à sa case carrée (`object-fit: contain`) quel que soit son format d'origine :
+21 emplacements, tous toujours visibles à pleine opacité (aucun coffre-mystère, idée essayée puis retirée) — seul l'anneau doré distingue un trophée gagné, et chaque image est bornée à sa case carrée (`object-fit: contain`) quel que soit son format d'origine :
 - 4 dieux, tous avec leur propre sprite désormais (Vulcain, Bellone, Cérès — épi de blé —, Neptune — trident) ; plus aucun emoji placeholder.
-- Un compteur "X/18" à côté du titre affiche la progression globale d'un coup d'œil.
+- Un compteur "X/21" à côté du titre affiche la progression globale d'un coup d'œil.
 - Le bateau (toujours acquis — jamais eu de condition de déblocage propre, ancien flourish décoratif de la rangée d'outils au-dessus du titre, maintenant relocalisé ici)
 - Pieuvre, Cthulhu (sprite dédié), Pouvoir des 12
-- 4 victoires par palier de difficulté (Page/Écuyer/Chevalier/Seigneur)
+- 4 victoires par palier de difficulté (Gueux/Page/Écuyer/Chevalier)
 - 4 blasons de famille (même condition/art que `#loreRoyaumesJoues`)
 - 1 trophée ultime (symbole yin-yang) : vaincre avec les 4 familles, chacune ayant débloqué les 4 dieux — calculé à la volée (`allRoyaumesFullyBlessed()`), pas persisté séparément.
-- 1 Graal, la toute dernière case à débloquer : n'apparaît gagnée qu'une fois les 17 autres emplacements acquis (100% de la salle), calculé à la volée lui aussi.
+- 1 Graal : n'apparaît gagné qu'une fois les 17 emplacements listés ci-dessus acquis (calculé à la volée) — délibérément AVANT les 3 emplacements suivants dans le calcul, pour rester atteignable (voir juste en dessous).
+- **Excalibur, le parchemin, l'épée blanche** : 3 emplacements réels ajoutés, sans condition de déblocage pour l'instant (`earned:false` fixe — "on verra la mécanique plus tard"). Volontairement exclus du calcul du Graal ci-dessus (sinon il ne serait jamais atteignable tant qu'aucune mécanique n'existe pour ces 3).
 
 La rangée d'icônes décorative qui existait juste au-dessus de ce titre (chevalier/blason/pieuvre/bateau/épées) a été retirée : 5 de ses 6 images étaient de purs doublons d'art déjà visible ailleurs dans le Lore (chevalier → trophée Seigneur, blason/pieuvre en N&B → déjà en couleur plus haut, épée droite → `#loreMarsSwords`, épée diagonale → trophée Pouvoir des 12) et ont donc été supprimées plutôt que dupliquées ; seul le bateau, sans doublon, a survécu en migrant dans la grille des trophées elle-même.
 
