@@ -94,10 +94,11 @@
     pointer-events: auto; white-space: nowrap; text-align: center;
     /* background color is set inline in JS to match the player's chosen royaume */
     padding: 10px 12px; font-size: 15px; font-weight: 700;
-    /* same min-height as gueuxBadge/surrenderBtn (see their own rules) so the
-       three bottom-row buttons all line up at one consistent height — this
+    /* same min-height as surrenderBtn (see its own rule) so the two
+       remaining bottom-row buttons line up at one consistent height — this
        one can still grow taller on its own for the two-line "Statu quo dans
-       N tours" hint, min-height only sets the floor */
+       N tours" hint, min-height only sets the floor. gueuxBadge is a
+       separate, standalone element now, no longer sharing this row. */
     min-height: 44px; box-sizing: border-box;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     /* fills whatever's left in #bottomHudRow rather than sizing to its own
@@ -127,6 +128,12 @@
   .sideArtRight { right: 2vw; }
   @media (min-width: 900px) {
     .sideArt { display: block; }
+    /* "sur ordi double taille des stats" — the top-left royaume chips read
+       small on a wide desktop viewport next to the side art; doubled here
+       specifically (not on phone, where the current size already fits the
+       screen well). */
+    .chip { font-size: 24px; gap: 10px; }
+    .chip .swatch { width: 22px; height: 22px; }
   }
   /* the three bottom-of-screen action buttons, laid out by flexbox instead
      of individually-computed pixel offsets — space-between guarantees they
@@ -137,19 +144,20 @@
     pointer-events: none; /* the row itself is just a layout shell — each child re-enables it */
   }
   #gueuxBadge {
-    /* always a flex layout box (never display:none) so it always reserves
-       its slot in #bottomHudRow's flex row — see .gueuxHidden just below */
+    /* standalone now, right under #settingsBtn (top-right) — no longer a
+       flex child of #bottomHudRow, see its own note in the markup. Same
+       right edge as #settingsBtn, stacked just below its 34px height. */
+    position: absolute; top: calc(8px + 34px + 6px + env(safe-area-inset-top, 0px)); right: 10px;
     display: flex; align-items: center; justify-content: center; pointer-events: auto; cursor: pointer;
     background: linear-gradient(135deg, #fff3c4, #e8c468, #a97e2a);
     color: #2b1d10; font-size: 12px; padding: 0 12px; font-weight: 700;
-    /* same floor as #endturn/#surrenderBtn — the three bottom buttons line up */
-    min-height: 44px; box-sizing: border-box; flex-shrink: 0;
+    min-height: 34px; box-sizing: border-box;
     transition: box-shadow .15s, opacity .15s;
   }
-  /* hidden (metaProgress off) still reserves its flex slot via visibility,
-     not display:none — otherwise #surrenderBtn drifts to the row's left
-     edge instead of staying between gueux's slot and endturn's */
-  #gueuxBadge.gueuxHidden { visibility: hidden; pointer-events: none; }
+  /* no longer needs to reserve a flex slot for a sibling now that it's
+     standalone — a plain display:none is enough once it's not sharing a
+     row with anything else. */
+  #gueuxBadge.gueuxHidden { display: none; }
   /* armed: tap a territory to spend one gueux as a reinforcement there */
   #gueuxBadge.gueuxArmed { border-color: #e8c468; box-shadow: 0 0 0 2px rgba(232,196,104,.55), 0 0 10px rgba(232,196,104,.6); }
   #endturn:disabled { background: #5a5044 !important; color: #f2ede2 !important; opacity: .6; }
@@ -163,18 +171,17 @@
   #groups {
     display: flex; flex-direction: column; align-items: flex-start; gap: 4px;
   }
-  /* standalone, centered at the very top — NOT nested inside #topBar any
-     more (that kept it stuck left-aligned above the faction stats). Same
-     top offset as #topBar and #settingsBtn so all three share one top
-     edge: centered title, left-aligned stats, right-aligned menu button. */
+  /* standalone, NOT nested inside #topBar any more (that kept it stuck
+     left-aligned above the faction stats). Same top offset as #topBar and
+     #settingsBtn so all three share one top edge: left-aligned stats,
+     right-aligned title, right-aligned menu button — the title sits
+     immediately to the left of #settingsBtn (34px wide, right:10px), right
+     side aligned so it reads as attached to the menu button rather than
+     floating mid-screen. */
   #gameTitleBlock {
-    /* nudged right of dead-center (58% not 50%) — the faction stats column
-       at top-left can run several lines wide (up to 4 royaumes, each up to
-       "24 ·13·22%"), and a perfectly centered title overlapped it on a
-       narrower phone screen */
-    position: absolute; top: calc(8px + env(safe-area-inset-top, 0px)); left: 58%;
-    transform: translateX(-50%);
-    display: flex; flex-direction: column; align-items: center; text-align: center;
+    position: absolute; top: calc(8px + env(safe-area-inset-top, 0px));
+    right: calc(10px + 34px + 8px); left: 14px;
+    display: flex; flex-direction: column; align-items: flex-end; text-align: right;
     pointer-events: none; color: #f2ede2; text-shadow: 0 1px 2px rgba(0,0,0,.6);
   }
   #gameTitle {
@@ -497,9 +504,9 @@
      below it — a left rule + slightly dimmer tone, same idea as a pull-quote. */
   #loreChronique { border-left: 3px solid #a97e2a; padding-left: 12px; opacity: .88; }
   #loreOverlay img { display: block; width: 64px; height: auto; margin: 0 auto 14px; image-rendering: pixelated; }
-  /* same octopus sprite, no separate art drawn for Cthulhu — inverted +
-     darkened so it reads as something else answering, not a repeat */
-  #loreCthulhuImg { filter: invert(1) hue-rotate(180deg) brightness(.7); width: 76px !important; }
+  /* dedicated Cthulhu sprite (CTHULHU_IMG_SRC), no filter needed any more —
+     it used to reuse/tint the octopus sprite before its own art existed */
+  #loreCthulhuImg { width: 76px !important; }
   #loreMarsSwords { display: flex; justify-content: center; gap: 4px; margin: 0 0 14px; }
   #loreMarsSwords img { width: 40px; height: auto; margin: 0; transform: rotate(-18deg); }
   #loreMarsSwords img + img { transform: rotate(18deg); }
@@ -513,7 +520,27 @@
      fit on one row instead of spilling to a second ("faire rentrer tous les
      petits dessins sur une seule ligne"), even on a narrow phone width. */
   #loreWarTools { display: flex; justify-content: center; align-items: center; gap: 6px; margin: 16px 0 0; flex-wrap: nowrap; }
+  /* "les images au-dessus du titre trophée doivent être dans des cases" —
+     boxed the same way as .trophySlot just below, so the two rows read as
+     one consistent visual language, but without the gold "earned" ring:
+     these are decorative, not unlock-tracked. "Les cases des trophées
+     doivent être carrées avec un simple trait pixel noir" — square corners,
+     a flat 1px black line, no rounding/glow/tinted background. */
+  .loreToolSlot { display: flex; align-items: center; justify-content: center; width: 38px; height: 38px; border: 1px solid #000; flex: none; }
   #loreWarTools img { width: 26px; height: auto; margin: 0; flex: none; }
+  #trophyRoomLabel { margin: 18px 0 6px; text-align: center; }
+  /* real grid (wraps to as many rows as needed), unlike #loreRoyaumesJoues'
+     single fixed row up top — this one's meant to grow as more trophies get
+     added later. Same full-opacity/gold-ring visual language as that row,
+     just without a name label under each icon — a trophy slot is small and
+     square, a name would either wrap awkwardly or force the grid wider
+     than the page. */
+  #trophyRoom { display: grid; grid-template-columns: repeat(auto-fill, minmax(52px, 1fr)); gap: 10px; margin: 0 0 16px; }
+  .trophySlot { display: flex; align-items: center; justify-content: center; width: 38px; height: 38px; border: 1px solid #000; }
+  .trophySlot img { width: 30px; height: 30px; object-fit: contain; }
+  .trophySlot.earned img { box-shadow: 0 0 0 2px #e8c468; }
+  .trophySlot .trophyEmoji { font-size: 26px; line-height: 1; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; }
+  .trophySlot.earned .trophyEmoji { box-shadow: 0 0 0 2px #e8c468; }
   #loreWarTools img.bw { filter: grayscale(1); }
   /* SWORD_DIAGONAL_IMG_SRC is already drawn at an angle in the source art
      itself — no CSS rotate needed (a first version rotated SWORD_IMG
@@ -650,15 +677,16 @@
   #langToggle.lang-en .langSwitchThumb { transform: translateX(100%); }
   #langToggle.lang-en .langSwitchOption[data-lang="en"],
   #langToggle:not(.lang-en) .langSwitchOption[data-lang="fr"] { color: #2b1d10; }
-  /* plain icon button, main HUD, bottom-center between #gueuxBadge (left)
-     and #endturn (right) — same circular gold treatment as #settingsBtn now
+  /* plain icon button, main HUD, left end of #bottomHudRow's now-two-button
+     row (#gueuxBadge moved out to stand under #settingsBtn instead — see
+     its own note) — same circular gold treatment as #settingsBtn now
      (it used to deliberately stay dark/unadorned as a "destructive action"
      cue, but that read as visually inconsistent with the rest of the HUD
      once every other button went gold — the button already requires an
      actual tap to trigger, no confirmation dialog needed either way). */
   #surrenderBtn {
     pointer-events: auto; background: linear-gradient(135deg, #fff3c4, #e8c468, #a97e2a);
-    /* same floor as #endturn/#gueuxBadge — the three bottom buttons line up */
+    /* same floor as #endturn — the two remaining bottom buttons line up */
     width: 44px; height: 44px; min-height: 44px; padding: 6px; box-sizing: border-box;
     display: flex; align-items: center; justify-content: center; flex-shrink: 0;
   }
@@ -799,13 +827,15 @@
     <button id="versionBtn" aria-label="Notes de version"></button>
   </div>
   <button id="settingsBtn" aria-label="Réglages"><img id="settingsBtnImg" alt=""></button>
+  <!-- moved out of #bottomHudRow, standalone, right under #settingsBtn —
+       "déplace le compteur de gueux en dessous du bouton de menu". -->
+  <div id="gueuxBadge"></div>
   <!-- one flex row for the three bottom buttons — flexbox's own
        space-between guarantees they never overlap regardless of how wide
        any one of them gets (endturn's text/hint especially varies a lot),
        instead of computing pixel offsets by hand in resize() and having
        that math fall short on a real device's actual measurements. -->
   <div id="bottomHudRow">
-    <div id="gueuxBadge"></div>
     <!-- plain icon, no confirmation — surrenders immediately (see
          surrenderGame()); landing on the loss screen already offers
          "recommencer" right there, so a confirm dialog would be redundant.
@@ -979,7 +1009,7 @@
            complet, ceci n'en est que le condensé qui laisse deviner les
            dieux/pouvoirs sans les nommer en clair comme les paragraphes de
            déblocage le font déjà chacun de leur côté. -->
-      <p id="loreChronique"><em>La Bretagne se divise en quatre maisons, toutes du même sang Millon que la haine a désuni. Chacune a son dieu propre, et chaque dieu son prix. Châteauvieux faillit tomber, se releva d'une seule province, et depuis Vulcain veille sur chacun de ses remparts. Villiers n'a jamais cédé un pouce de terre en un siège entier ; Bellone arme sa lance d'une force qu'aucune autre maison ne connaît. Montherlant a un jour tenu sept dixièmes du pays d'une seule main ; les greniers de Cérès depuis ne se vident plus jamais tout à fait. Beaumanoir seul acheva un siège par la mer ; Neptune, depuis, lui écarte les flots. On dit aussi qu'une maison dont les douze provinces atteignent ensemble leur plein effectif ne perd plus une seule bataille, le temps que cela dure — et qu'à la troisième fois, dans trois guerres séparées, un dieu plus ancien que les autres, romain celui-là, ne quitte plus jamais son camp. Sous la mer que Beaumanoir traverse sans perdre un homme, les pêcheurs jurent qu'autre chose regarde, plus vieux que Neptune, et que personne n'a encore osé nommer.</em></p>
+      <p id="loreChronique"><em>La Bretagne se divise en quatre maisons, toutes du même sang Millon que la haine a désuni. Chacune a son dieu propre, et chaque dieu son prix. Châteauvieux faillit tomber, se releva d'une seule province, et depuis Vulcain veille sur chacun de ses remparts. Villiers n'a jamais cédé un pouce de terre en un siège entier ; Bellone arme sa lance d'une force qu'aucune autre maison ne connaît. Montherlant laissa vivre chaque maison rivale jusqu'au bout, puis les faucha toutes d'une seule charge, sans laisser un arpent aux Barbares ; les greniers de Cérès depuis ne se vident plus jamais tout à fait. Beaumanoir seul acheva un siège par la mer ; Neptune, depuis, lui écarte les flots. On dit aussi qu'une maison dont les douze provinces atteignent ensemble leur plein effectif ne perd plus une seule bataille, le temps que cela dure — et qu'à la troisième fois, dans trois guerres séparées, un dieu plus ancien que les autres, romain celui-là, ne quitte plus jamais son camp. Sous la mer que Beaumanoir traverse sans perdre un homme, les pêcheurs jurent qu'autre chose regarde, plus vieux que Neptune, et que personne n'a encore osé nommer.</em></p>
       <h2>Les Millon</h2>
       <p>En cet an de grâce 1183, la Bretagne n'a plus de duc, et quatre châtelains se disputent son héritage — Châteauvieux, Villiers, Montherlant, Beaumanoir. Quatre noms de fief, mais un seul sang : tous portent le même blason, celui d'un aïeul commun, les Millon, dont le domaine fut fracturé entre ses héritiers il y a plus d'un siècle.</p>
       <p>Chaque bataille livrée ici n'oppose pas des étrangers, mais des cousins — une querelle de famille qui ne connaît ni trêve ni pardon, jusqu'à ce qu'un seul Millon reste debout pour reformer sous une seule bannière la terre que leurs pères ont laissée en morceaux.</p>
@@ -1020,21 +1050,31 @@
         <div id="loreMarsSwords"><img alt=""><img alt=""></div>
         <p>Un vieil enchanteur errant — Merlin, disent les paysans, sans trop y croire — vient s'incliner devant quiconque tient ses douze provinces à leur plein effectif à la fois. Il ne demande rien, ne promet rien, et repart aussitôt son signe fait. Mais ceux qui l'ont vu passer trois fois racontent qu'un dieu bien plus ancien, romain celui-là, prend ensuite le relais : jamais plus une bataille à douze contre douze ne se perdra sous cette bannière. Un tel don a un prix, chuchotent les vieilles branches — mais lequel, nul ne l'a encore découvert.</p>
       </div>
-      <!-- "Dieux spéciaux par royaume" — one per playable royaume, each
-           unlocked independently the first time ITS OWN condition is met
-           on a real win (see checkGodUnlockOnWin()) — shown/hidden one at a
-           time by refreshLoreGods(), never all four before they're earned. -->
+      <!-- "Dieux spéciaux" — each unlocked independently the first time ITS
+           OWN condition is met on a real win, quelle que soit la maison
+           jouée (see checkGodUnlockOnWin()) — shown/hidden one at a time by
+           refreshLoreGods(), gated on godUnlockedPlayer (the player's own
+           progress, not any one royaume's), never all four before earned. -->
+      <!-- General explainer for the family/player dual persistence — shown
+           once the player has earned at least one god, right before the
+           per-god paragraphs. "La logique c'est que puisqu'on est un
+           mercenaire engagé par les familles, à la fois l'expérience est
+           gardée par la famille, et à la fois on retient qu'on a cette
+           compétence-là, avec les hommes qu'on a, en tout cas." -->
+      <div id="loreGodsExplainer" style="display:none;">
+        <p>Un mercenaire ne sert jamais une seule maison. Le savoir-faire qu'il enseigne à celle qui l'engage aujourd'hui, la maison le garde pour de bon — que ce soit encore lui qui la commande demain, ou un autre. Mais lui aussi retient la leçon : où qu'il porte son épée ensuite, quelle que soit la bannière, il n'oublie jamais un tour qu'il a un jour appris. Un général assez habile pour avoir servi les quatre maisons finit par porter en lui les quatre dieux à la fois — et leur prix avec.</p>
+      </div>
       <div id="loreGodVulcain" style="display:none;">
-        <p><strong>Vulcain</strong>, dieu de la forge, ne se manifeste qu'à la maison Châteauvieux — et seulement à qui l'a vue redescendre à sa dernière province avant de renverser le siège. Depuis, ses murailles ne tombent plus tout à fait comme les autres : une force de plus veille toujours derrière chaque rempart, invisible sur le parchemin.</p>
+        <p><strong>Vulcain</strong>, dieu de la forge, s'incline devant quiconque l'a vue redescendre à sa dernière province avant de renverser le siège — peu importe la bannière. Depuis, ses murailles ne tombent plus tout à fait comme les autres : une force de plus veille toujours derrière chaque rempart, invisible sur le parchemin. Mais sa forge a un prix : elle dévore un renfort à chaque fin de tour.</p>
       </div>
       <div id="loreGodBellone" style="display:none;">
-        <p><strong>Bellone</strong>, déesse romaine de la guerre, n'honore que la maison Villiers — et seulement celui qui a remporté un siège entier sans jamais céder une seule province. Sa fureur reste depuis dans chaque lance levée sous cette bannière : une force de plus à l'assaut, toujours.</p>
+        <p><strong>Bellone</strong>, déesse romaine de la guerre, honore quiconque a remporté un siège entier sans jamais céder une seule province, quelle que soit la maison. Sa fureur reste depuis dans chaque lance levée : une force de plus à l'assaut, toujours. Mais ses remparts, distraits par la bataille, en gardent une de moins en défense.</p>
       </div>
       <div id="loreGodCeres" style="display:none;">
-        <p><strong>Cérès</strong>, déesse des moissons, sourit à la maison Montherlant — et seulement à qui a un jour tenu les sept dixièmes du pays d'une seule main. Ses greniers ne se vident plus jamais tout à fait : un renfort de plus arrive à chaque fin de tour.</p>
+        <p><strong>Cérès</strong>, déesse des moissons, sourit à qui a laissé chaque maison rivale vivre jusqu'au bout, pour ensuite toutes les faucher d'un seul geste, en une charge continue qui ne laisse pas même un arpent aux Barbares. Ses greniers ne se vident plus jamais tout à fait : un renfort de plus arrive à chaque fin de tour. Mais l'abondance amollit : plus jamais une seule province ne dépassera onze soldats.</p>
       </div>
       <div id="loreGodNeptune" style="display:none;">
-        <p><strong>Neptune</strong>, dieu de la mer, ne répond qu'à la maison Beaumanoir — et seulement à qui a scellé un siège entier par une dernière charge venue des flots. L'onde s'écarte un peu plus vite pour elle depuis : chaque traversée coûte une force de moins.</p>
+        <p><strong>Neptune</strong>, dieu de la mer, répond à qui a scellé un siège entier par une dernière charge venue des flots. L'onde s'écarte un peu plus vite depuis : chaque traversée coûte une force de moins. Mais ses côtes restent tournées vers le large, une force de moins pour qui l'attaque depuis la mer.</p>
       </div>
       <!-- chevalier à cheval / blason / pieuvre / bateau / épées (droite +
            diagonale) — the same sprites already used elsewhere (Seigneur's
@@ -1049,13 +1089,24 @@
            (SWORD_DIAGONAL_IMG_SRC — a solid black blade, already drawn at
            an angle in the source art), not the first one rotated. -->
       <div id="loreWarTools">
-        <img id="loreChevalierImg" alt="">
-        <img id="loreBlazonBWImg" class="bw" alt="">
-        <img id="loreOctopusBWImg" class="bw" alt="">
-        <img id="loreBoatImg" alt="">
-        <img id="loreSwordImg" alt="">
-        <img id="loreSwordDiagonalImg" alt="">
+        <div class="loreToolSlot"><img id="loreChevalierImg" alt=""></div>
+        <div class="loreToolSlot"><img id="loreBlazonBWImg" class="bw" alt=""></div>
+        <div class="loreToolSlot"><img id="loreOctopusBWImg" class="bw" alt=""></div>
+        <div class="loreToolSlot"><img id="loreBoatImg" alt=""></div>
+        <div class="loreToolSlot"><img id="loreSwordImg" alt=""></div>
+        <div class="loreToolSlot"><img id="loreSwordDiagonalImg" alt=""></div>
       </div>
+      <!-- "Salle des trophées" — see refreshTrophyRoom() — one slot per
+           real unlock the game currently tracks, always shown (icon or
+           emoji placeholder, never a blank silhouette), dimmed until
+           actually earned, same visual language as #loreRoyaumesJoues just
+           without a name label under each icon — "pour l'instant je veux
+           toutes les voir... peut-être qu'elles sont un peu grisées tant
+           qu'on a pas activé". Distinct from #loreRoyaumesJoues (the maisons
+           jouées row up top, in the intro) — that one stays exactly where
+           it is, this is a separate, later addition at the very bottom. -->
+      <div class="fieldLabel" id="trophyRoomLabel">🏆 Salle des trophées</div>
+      <div id="trophyRoom"></div>
       <button id="closeLore">Fermer</button>
     </div>
   </div>
@@ -1730,6 +1781,37 @@ const OCTOPUS_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAKUAAAClC
 const OCTOPUS_IMG = loadSprite(OCTOPUS_IMG_SRC);
 const CREATURE_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAANAAAADQCAYAAAB2pO90AAAC2klEQVR4nO3dQWoDMRAAwd3g/39ZOeQHahgroupuvF7TzGWQ3rXWw4z3fUde9lrrnfiend8z9WxTfr79APCfCQgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAg+336AE5y85LnzbJY855hAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEFx3MqlTOe/7PSf/pyYQBAKCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAiCd62RG9559pYimbOzgGoCQSAgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAguO5kUvbsLFJOLcdOPdvOZ0wgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAElkkZNbUYOvU9JhAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJAQBAICILrlkldJb9namHzZK65h2ECgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgrFl0pOvRD/Zbe/ttqVVEwgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAgEBMF1J5My57bF0B0mEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgq1lUlfJW6TkjwkEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJg7GTSnUXKqaXVqcXQk6+styC8xwSCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUHwccLmHO/tvhNdTSAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEASfkxf1OJsTUE0gSAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEY9fcw/OcfcroDhMIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgl9clHexCa709wAAAABJRU5ErkJggg==";
 const CREATURE_IMG = loadSprite(CREATURE_IMG_SRC);
+// Locked-trophy placeholder ("Coffre" — pixel-art chest, user-supplied via
+// dotpict) — shown in the Salle des trophées for any slot not yet earned,
+// in place of the real icon (which only appears, ringed in gold, once
+// unlocked — see refreshTrophyRoom()'s own note on this design change).
+const CHEST_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAHgAAABoCAYAAAA6sjRJAAABVUlEQVR4nO3cMQrCQBBAUSNWNjbe/4Q2NrZ6A6cIuOT7Xqshgc8Uyy67nQb32/U9/Yd1Hs/X9u33868+hDUEjhM4TuA4geMEjhM4bpvWudM6i7WmfiY4TuA4geMEjhM4TuA4gePGdTDHZoLjBI4TOE7gOIHjBI4TOE7gOIHjBI4TOE7gOIHjBI4TOO6y+gP2ms5t7z33ffT9chMcJ3CcwHECxwkcJ3CcwHH5c9H1de7EBMcJHCdwnMBxAscJHCdwnP3g+DrZBMcJHCdwnMBxAscJHCdwXH4/+N+Z4DiB4wSOEzhO4DiB4wSOEzhO4DiB4wSOEzhO4DiB4wSOEzhO4DiB4wSOEzhO4DiB4wSOEzhO4DiB4wSOEzhO4DiB4wSOG+/JWn0Plef3PW+C4wSOEzhO4DiB4wSOEzhuXAevvkfL+/e93wTHCRwncJzAcQLHCRwncNwHgMdCNPinodwAAAAASUVORK5CYII=";
+const CHEST_IMG = loadSprite(CHEST_IMG_SRC);
+// Cthulhu's own dedicated sprite (user-supplied via dotpict) — replaces the
+// tinted/inverted OCTOPUS_IMG_SRC placeholder previously reused for it in
+// the Salle des trophées and the Lore's #loreCthulhuImg (see
+// refreshTrophyRoom() and the boot-time icon assignment below).
+const CTHULHU_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJAAAACQCAYAAADnRuK4AAAB5klEQVR4nO3dMU4DMRBAURaloqHh/iekoaGFG2Qkvix70XttlOyu8uXCcibXS/Tx/vbz7PXPr++rXoO/W/39vJY3g4BIBEQiIBIBkQiIREAkj9UXmPYhJtM+Rf383e7+fFYgEgGRCIhEQCQCIhEQiYBI8lmd0/cpeM55ILYSEImASAREIiASAZEIiERAJAIiERCJgEgERCIgEgGRCIhEQCQCIhEQiYBIBEQiIBIBkQiIREAkAiIREImASAREIiASAZEIiGScDbN7/s/d5yhPTn++6f6sQCQCIhEQiYBIBEQiIBIBkSz/v7DdVu+znL6Ps5oViERAJAIiERCJgEgERCIgkuPPA7GX80AsJSASAZEIiERAJAIiERCJgEgERCIgEgGRCIhEQCQCIhEQiYBIBEQiIBIBkQiIREAkAiIREImASAREIiASAZEIiERAJAIiERDJOB9oYn7QvU3zfyZWIBIBkQiIREAkAiIREImASMyJ5ilzollKQCQCIhEQiYBIBEQiIBL7QCRWIBIBkQiIREAkAiIREImASAREIiASAZEIiERAJAIiERCJgEiu08/7TL9LOv3+/zsrEImASAREIiASAZEIiERAJI/dN3C6Oke5On2fywpEIiASAZEIiERAJAIiERDJLwvpQKMt5/g+AAAAAElFTkSuQmCC";
+const CTHULHU_IMG = loadSprite(CTHULHU_IMG_SRC);
+// Bellone's own dedicated sprite (user-supplied via dotpict, "Belenos" —
+// clarified live as a name mix-up for Bellone) — replaces the ⚔️ emoji
+// placeholder for her specifically in the Salle des trophées. Vulcain,
+// Cérès and Neptune still use their emoji placeholder until their own art
+// arrives (see refreshTrophyRoom()'s own note on why the chest idea was
+// dropped in favor of just showing each placeholder plainly).
+const BELLONE_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGgAAABoCAYAAAAdHLWhAAABJUlEQVR4nO3dO27DMBQAQSWlGze5/wnTpElr3yAsCOGtopnW1g8LFpQI6TgAAADu5WP1h6/n4/XX798/v8t9TO5/+vi7+//cOTjnEyhOoDiB4gSKEyhOoLjtOcb0PGba2ddvBMUJFCdQnEBxAsUJFCdQ3OlzlKvPk6bP3wiKEyhOoDiB4gSKEyhOoLjLr4ub3n7Furh/TqA4geIEihMoTqA4gQAAAEgZX5M2/Txnet3bijsJcQLFCRQnUJxAcQLFCQQAAEDK+POgXfXnObvcSYgTKE6gOIHiBIoTKE6gOO+LW5g+fyMoTqA4geIEihMoTqA4geJ8P2iT7wfdnEBxAsUJFCdQnEBxAsVd/r3Zu+rXZwTFCRQnUJxAcQLFCRQnEAAAAClvyytkiMn5wIQAAAAASUVORK5CYII=";
+const BELLONE_IMG = loadSprite(BELLONE_IMG_SRC);
+// "Un enfant qui porte un écu" — the Page difficulty tier's own dedicated
+// trophy sprite (user-supplied), replacing the plain white SWORD_IMG_SRC
+// placeholder used until now — see DIFF_TROPHY_IMG in refreshTrophyRoom().
+const PAGE_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADwAAACMCAYAAAAgNsoHAAAA80lEQVR4nO3cIRLCMBQA0RaJqemxOC7HwtRg4QoRhcL2Pf1Fdr5MJvM0aF2ur9HZIzy25zwyd/n0QX6N4DrBdYLrBNcJrhNcJ7hOcJ3gOsF1gusE1wmuE1wnuE5wneA6wXWC6wTXCa4TXCe4bvhF/N72fmF/2x5Dc6fbsOA6wXWC6wTXDf32OU1+Lv1bgusE1wmuE1wnuE5wneA6wXWC6wTXCa4TXCe4TnCd4DrBdYLrBNcJrjvsRfxRTrdhwXWC6wTXCa57A1gLEG+rm1keAAAAAElFTkSuQmCC";
+const PAGE_IMG = loadSprite(PAGE_IMG_SRC);
+// Vulcain's own dedicated sprite (user-supplied via dotpict — an anvil with
+// sparks) — replaces the 🔨 emoji placeholder for him specifically in the
+// Salle des trophées. Cérès and Neptune still use theirs until their own
+// art arrives.
+const VULCAIN_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJAAAACQCAYAAADnRuK4AAACKElEQVR4nO3dMU4kMRBAUQYRkWyy9z8hCQkp3AAHX1bZw3spAprmq4JSu+fx/9/798svPj6/Hr99vZr+/dXq+lduv7+v5ZtBQCQCIhEQiYBIBEQiIJLH6XuY6eure55q9fdN3x8TiERAJAIiERCJgEgERCIgkrfpC1h59j1PNb2nM4FIBEQiIBIBkQiIREAkAiLJe6Dpc1Gn73Gm9zS7mUAkAiIREImASAREIiASAZFcfy7sdrv3YM6FcTQBkQiIREAkAiIREImASI4/Fzatvp9npe5xpt8fZAKRCIhEQCQCIhEQiYBIBESy/Xmg6Z9fPfv1VSYQiYBIBEQiIBIBkQiIREAkeQ80fS7pdrfviUwgEgGRCIhEQCQCIhEQiYBI8rkwe55m97mz3UwgEgGRCIhEQCQCIhEQiYBIBEQiIBIBkQiIREAkAiIREImASLa/J/r051me3e77bwKRCIhEQCQCIhEQiYBIBESyfQ90+7mnv271/zOBSAREIiASAZEIiERAJAIiGf/ceHuiWT43nlECIhEQiYBIBEQiIBIBkYzvgVZ2v4f69j3T9Hu6TSASAZEIiERAJAIiERCJgEiO3wPtdvrzSNN7nhUTiERAJAIiERCJgEgERCIgEgGRCIhEQCQCIhEQiYBIBEQiIJI//zzQ9PM+K6vrm35eyAQiERCJgEgERCIgEgGRCIjk+j3Q6Xuc3ab3RCYQiYBIBEQiIBIBkQiIREAkP/zSla48RLyzAAAAAElFTkSuQmCC";
+const VULCAIN_IMG = loadSprite(VULCAIN_IMG_SRC);
 // Cross-match progress toward the permanent octopus unlock (3 separate
 // matches where the in-match reveal fired) — persisted, declared here
 // (well before settingsBtnImg's own init below reads it) rather than down
@@ -1996,9 +2078,10 @@ function resize() {
   }
   // surrenderBtn's horizontal position is no longer computed here at all —
   // it's a plain flex child of #bottomHudRow now (see its CSS), which
-  // guarantees it never overlaps gueuxBadge/endturn regardless of how wide
-  // either one gets, instead of three increasingly-defensive attempts at
-  // computing the same guarantee by hand from measured pixel rects.
+  // guarantees it never overlaps endturn regardless of how wide either one
+  // gets, instead of computing that guarantee by hand from measured pixel
+  // rects. gueuxBadge is a separate, standalone element now (see its own
+  // note), not part of this row at all any more.
   const availH = h - topInset - bottomInset;
   centerX = w / 2; centerY = topInset + availH / 2;
   // Fit to the map's *actual* generated extents (not a nominal guess) so it
@@ -2863,11 +2946,13 @@ function balanceStartingForces() {
     const target = equalShare * (1 + AI_BONUS);
     const blended = current + (target - current) * BALANCE_STRENGTH;
     const scale = blended / current;
-    // clamp to FORCE_CAP — a royaume with very few starting territories can
-    // otherwise get scaled well past it in one shot (e.g. a single-territory
-    // AI royaume at Seigneur's 80% target bonus), which looked like a
-    // territory instantly maxed out before a single turn had been played
-    for (const t of owned[royId]) t.force = Math.max(1, Math.min(FORCE_CAP, Math.round(t.force * scale)));
+    // clamp to FORCE_CAP (or effectiveForceCap(royId) if this royaume has
+    // earned Cérès's own lower cap already) — a royaume with very few
+    // starting territories can otherwise get scaled well past it in one
+    // shot (e.g. a single-territory AI royaume at Seigneur's 80% target
+    // bonus), which looked like a territory instantly maxed out before a
+    // single turn had been played
+    for (const t of owned[royId]) t.force = Math.max(1, Math.min(effectiveForceCap(royId), Math.round(t.force * scale)));
   }
 }
 
@@ -3105,7 +3190,7 @@ let surrenderCostAGueux = false;
 
 // same visual pulse as a combat reinforcement — reused here for a gueux spend
 function reinforceTerritory(tId) {
-  territories[tId].force = Math.min(FORCE_CAP, territories[tId].force + 1);
+  territories[tId].force = Math.min(effectiveForceCap(territories[tId].owner), territories[tId].force + 1);
   triggerPulse({ [tId]: 1 });
 }
 function spendGueux(tId) {
@@ -3157,6 +3242,14 @@ function saveGameState() {
     localStorage.setItem(SAVED_GAME_KEY, JSON.stringify({
       seed: currentSeed, difficulty: gameStartDifficulty, mapSize: gameStartMapSize,
       opponentCount: gameStartOpponentCount, humanRoyId, moveLog,
+      // Stamped so a save written under an OLDER version of the game (map
+      // generation, combat rules, anything that could change what the
+      // recorded moveLog even means) is never blindly replayed against
+      // today's code — see tryLoadSavedGame()'s own note ("le même bug
+      // d'affichage, alors qu'on a enlevé le système hors ligne" turned out
+      // to be exactly this: a stale autosave surviving a code update, not a
+      // caching issue at all).
+      savedVersion: GAME_VERSION,
     }));
   } catch (e) { /* private mode, quota, ... — losing autosave isn't fatal */ }
 }
@@ -3451,32 +3544,64 @@ function isPremiumUnlocked() {
   return premiumUnlockedForever || Date.now() < premiumUnlockedUntil;
 }
 
-// "Dieux spéciaux par royaume" — one distinct god per playable royaume
-// (ROYAUMES 0-3), each with its own permanent power and its own real,
-// non-random unlock condition met while playing that royaume — scoped live
-// through questions: go now, a DIFFERENT condition per royaume (not one
-// shared threshold), and the power stays PERMANENTLY active once earned
-// (not a rechargeable budget like "le pouvoir des 12"). Kept OUT of
-// DIFFICULTY_LEVELS/CTHULHU_LEVEL entirely — this is per-royaume, not a
-// difficulty tier.
-//   id0 Vulcain  (Châteauvieux, vert)  — forge/forteresse : +1 force en
-//     défense uniquement (jamais affiché, seulement dans le calcul du
-//     combat — voir attack()). Débloqué en gagnant une partie après être
-//     redescendu à une seule province (une vraie remontée depuis le bord
-//     de l'élimination).
-//   id1 Bellone  (Villiers, rouge)     — déesse romaine de la guerre : +1
-//     force en attaque uniquement. Débloqué en gagnant une partie sans
-//     jamais perdre une seule province (victoire "sans-faute").
-//   id2 Cérès    (Montherlant, or)     — abondance : +1 renfort de fin de
-//     tour, en plus de la formule normale. Débloqué en gagnant une partie
-//     après avoir possédé au moins 70% du territoire total à un moment.
-//   id3 Neptune  (Beaumanoir, marine)  — maîtrise navale : coût des
-//     traversées en mer réduit de 1 (jamais en dessous de 1). Débloqué en
-//     gagnant une partie sur l'attaque finale elle-même portée par la mer.
+// "Dieux spéciaux" — 4 gods, 4 distinct real conditions, but NOT tied to one
+// fixed royaume any more ("peu importe la maison que je choisis je peux
+// débloquer chaque Dieu") — whichever royaume you're playing when a
+// condition is met earns THAT god, not just "its own". Each earned god also
+// stays PERMANENTLY active once earned (not a rechargeable budget like "le
+// pouvoir des 12"), and now unlocks on TWO levels at once ("la famille garde
+// le bonus toujours ET moi en tant que joueur aussi peu importe avec qui je
+// joue") :
+//   - godUnlockedRoyaume[royId][godIdx] : THIS royaume has earned THIS god —
+//     stays with it forever, whoever plays it afterwards, human or AI.
+//   - godUnlockedPlayer[godIdx] : the PLAYER has personally earned this god
+//     at least once (with any royaume) — follows the player into every
+//     future match, whichever royaume they pick next.
+// Each bonus also has a real cost ("chaque dieu son prix") — see
+// isGodActiveFor()'s call sites (attack(), reinforcement, effectiveForceCap()).
+//   id0 Vulcain  — forge/forteresse : +1 force en défense ; -1 renfort de fin
+//     de tour (la forge coûte cher à entretenir). Débloqué en gagnant une
+//     partie après être redescendu à une seule province (une vraie remontée
+//     depuis le bord de l'élimination), quelle que soit la maison jouée.
+//   id1 Bellone  — déesse romaine de la guerre : +1 force en attaque ; -1
+//     force en défense (partout, pas seulement contre l'attaquant du
+//     moment). Débloqué en gagnant une partie sans jamais perdre une seule
+//     province (victoire "sans-faute").
+//   id2 Cérès    — abondance : +1 renfort de fin de tour ; plafond de force
+//     abaissé à 11 au lieu de 12 (voir effectiveForceCap() — prix réel :
+//     plus jamais éligible au "pouvoir des 12"). Débloqué en gagnant une
+//     partie sans jamais avoir éliminé un seul rival avant le tout dernier
+//     instant, puis en les éliminant TOUS d'un coup avec une seule attaque
+//     en chaîne qui laisse aussi le joueur maître de 100% de la carte
+//     (barbares inclus) — voir son tracking dans attack(). Deux versions
+//     plus faciles de cette condition (juste "70% du territoire à un
+//     moment", puis la même avec un garde-fou "≥2 rivaux vivants") se sont
+//     révélées trop triviales l'une après l'autre, en discussion directe —
+//     celle-ci est la version retenue.
+//   id3 Neptune  — maîtrise navale : coût des traversées en mer réduit de 1
+//     (jamais en dessous de 1) ; -1 défense CÔTIÈRE (seulement quand
+//     attaqué via une traversée en mer, pas en défense terrestre normale).
+//     Débloqué en gagnant une partie sur l'attaque finale elle-même portée
+//     par la mer. Reste cumulable avec Cthulhu (et tout le reste) — "il
+//     faut pouvoir combiner les bonus... l'intérêt c'est un jeu hyper
+//     complexe à la fin", jamais qu'un bonus en efface un autre.
 const GOD_NAMES = ["Vulcain", "Bellone", "Cérès", "Neptune"];
-let godUnlocked = [false, false, false, false];
+let godUnlockedRoyaume = [[false, false, false, false], [false, false, false, false], [false, false, false, false], [false, false, false, false]];
+let godUnlockedPlayer = [false, false, false, false];
 try {
-  for (let i = 0; i < 4; i++) godUnlocked[i] = localStorage.getItem(`kw_godUnlocked_${i}`) === "1";
+  for (let r = 0; r < 4; r++) {
+    for (let g = 0; g < 4; g++) godUnlockedRoyaume[r][g] = localStorage.getItem(`kw_godUnlockedRoyaume_${r}_${g}`) === "1";
+  }
+  for (let g = 0; g < 4; g++) godUnlockedPlayer[g] = localStorage.getItem(`kw_godUnlockedPlayer_${g}`) === "1";
+  // One-time migration from the old one-god-per-royaume system (each
+  // royaume N could only ever earn god N, and only the human playing
+  // royaume N could earn it) — maps cleanly onto both new dimensions.
+  for (let i = 0; i < 4; i++) {
+    if (localStorage.getItem(`kw_godUnlocked_${i}`) === "1") {
+      godUnlockedRoyaume[i][i] = true;
+      godUnlockedPlayer[i] = true;
+    }
+  }
 } catch (e) { /* ignore */ }
 // "Avoir joué avec chaque faction" — much simpler than the gods above: just
 // whether this royaume has ever been PICKED at pickFaction() at least once,
@@ -3485,38 +3610,106 @@ let royaumePlayed = [false, false, false, false];
 try {
   for (let i = 0; i < 4; i++) royaumePlayed[i] = localStorage.getItem(`kw_royaumePlayed_${i}`) === "1";
 } catch (e) { /* ignore */ }
-// Per-match tracking for each royaume's own unlock condition — reset in
+// Per-match tracking for each god's own unlock condition — reset in
 // startGame(), updated live during play, checked once at showWin() (see
-// checkGodUnlockOnWin()). Human-only: the condition is about EARNING a
-// god by playing its royaume yourself, not something an AI can trigger.
+// checkGodUnlockOnWin()). Human-only: the condition is about EARNING a god
+// yourself, not something an AI can trigger. No longer indexed by royId —
+// any of the 4 can be earned while playing any royaume.
 let wasDownToOneTerritory = false;    // Vulcain (id0)
 let neverLostATerritory = true;       // Bellone (id1)
-let maxHumanTerritoryShare = 0;       // Cérès (id2)
+// Cérès (id2) — "un vrai exploit de domination précoce, c'est pas du tout un
+// exploit [...] terminer la partie en gardant tous les adversaires avec au
+// moins une province et tous les tuer d'un coup en chaîne pour gagner, ça
+// c'est valable et dur, incluant les barbares" — replaced the original
+// "held ≥70% of the map" condition (itself already a fix for an earlier,
+// even more trivial version) with this much harder one: no rival royaume
+// is ever fully eliminated before the very last blow, AND that last blow
+// is a single chained attack that also leaves the human owning literally
+// 100% of the map (barbarian land included) — see its own tracking in
+// attack() and its check in checkGodUnlockOnWin().
+let ceresFlawlessRun = true;
+let lastAttackWasChained = false; // set on every attack() — see its own note there
+let maxHumanTerritoryShare = 0;       // no longer used by a god condition, kept only in case something else reads it
 let lastAttackFinishedViaWater = false; // Neptune (id3) — see its own note in attack()
-// Whether royId's god power is actually in effect right now — permanently
-// once unlocked (whoever plays that royaume from then on, human or AI:
-// "actif qu'on le joue ou qu'il soit adversaire"), or — before that — only
-// for an AI-controlled royaume at the hardest visible difficulty or above
-// ("actives pour le joueur uniquement, sauf en mode le plus dur"): a
-// player who hasn't earned a god themselves never gets its power for free,
-// but the toughest AI already fights like it knows every trick.
-function isGodActiveFor(royId) {
+// Whether royId benefits from godIdx's power right now — bonuses always
+// STACK, never cancel each other out ("il faut pouvoir combiner les
+// bonus... l'intérêt c'est un jeu hyper complexe à la fin, pas qu'une fois
+// qu'on a tout débloqué on perde un bonus quelque part parce qu'il est
+// remplacé par un plus fort"):
+//  1. The PLAYER personally earned this god before (any royaume, any past
+//     match) and royId is what they're playing right now — follows them.
+//  2. THIS royaume earned this god itself, in some past match (by anyone) —
+//     stays with the family forever, human or AI.
+//  3. Difficulty freebie: an AI-controlled royaume at the hardest visible
+//     tier or above already fights with every trick, unearned.
+function isGodActiveFor(royId, godIdx) {
   if (royId == null || royId < 0 || !ROYAUMES[royId] || ROYAUMES[royId].neutral) return false;
-  if (godUnlocked[royId]) return true;
+  if (royId === humanRoyId && godUnlockedPlayer[godIdx]) return true;
+  if (godUnlockedRoyaume[royId][godIdx]) return true;
   return royId !== humanRoyId && (cthulhuActive() || DIFFICULTY >= DIFFICULTY_LEVELS[3].value);
+}
+// A royaume with Cérès (id2) active pays for its abundance with a lower
+// personal force cap (11 instead of 12) — see the block comment above for
+// why that's a real, permanent trade (never eligible for "le pouvoir des
+// 12" again). Only ever used for a royaume's OWN force-accumulation clamps
+// (reinforcement, starting-force balance) — deliberately NOT used for the
+// Mars/"pouvoir des 12" check or the all-provinces-capped gold ring, both
+// of which stay pinned to the literal FORCE_CAP=12 so they become
+// permanently unreachable for a Cérès-active royaume, which IS the point.
+function effectiveForceCap(royId) {
+  return isGodActiveFor(royId, 2) ? FORCE_CAP - 1 : FORCE_CAP;
 }
 // Checked once, right at the win screen, only for a real outright human
 // win (never a truce, never during replay — replaying someone else's
 // match must never silently unlock a god on the local viewer's own
-// device). Returns the newly-unlocked god's name for the win-banner note,
-// or null if nothing changed.
+// device). Returns an array of newly-unlocked god names for the win-banner
+// note (0 or more — more than one condition can be met in the same
+// winning match), or null if nothing changed.
 function checkGodUnlockOnWin(royId) {
   if (replaying || truceEnded || royId !== humanRoyId) return null;
-  const earnedThisMatch = [wasDownToOneTerritory, neverLostATerritory, maxHumanTerritoryShare >= 0.7, lastAttackFinishedViaWater];
-  if (godUnlocked[royId] || !earnedThisMatch[royId]) return null;
-  godUnlocked[royId] = true;
-  try { localStorage.setItem(`kw_godUnlocked_${royId}`, "1"); } catch (e) { /* ignore */ }
-  return GOD_NAMES[royId];
+  const earnedThisMatch = [
+    wasDownToOneTerritory,
+    neverLostATerritory,
+    ceresFlawlessRun && lastAttackWasChained && territories.every((t) => t.owner === royId),
+    lastAttackFinishedViaWater,
+  ];
+  const newlyUnlocked = [];
+  for (let g = 0; g < 4; g++) {
+    if (!earnedThisMatch[g]) continue;
+    let isNew = false;
+    if (!godUnlockedRoyaume[royId][g]) {
+      godUnlockedRoyaume[royId][g] = true;
+      try { localStorage.setItem(`kw_godUnlockedRoyaume_${royId}_${g}`, "1"); } catch (e) { /* ignore */ }
+      isNew = true;
+    }
+    if (!godUnlockedPlayer[g]) {
+      godUnlockedPlayer[g] = true;
+      try { localStorage.setItem(`kw_godUnlockedPlayer_${g}`, "1"); } catch (e) { /* ignore */ }
+      isNew = true;
+    }
+    if (isNew) newlyUnlocked.push(GOD_NAMES[g]);
+  }
+  return newlyUnlocked.length ? newlyUnlocked : null;
+}
+
+// Difficulty-tier win trophies (Salle des trophées) — "les niveaux de
+// difficulté" as their own trophy, one per tier actually WON at least once
+// (Page/Écuyer/Chevalier/Seigneur), separate from royaumePlayed (which only
+// needs having picked a house, not won) and from cthulhuUnlocked (a much
+// deeper condition than just winning at that tier, kept as its own trophy).
+let difficultyTierWon = [false, false, false, false];
+try {
+  for (let i = 0; i < 4; i++) difficultyTierWon[i] = localStorage.getItem(`kw_difficultyTierWon_${i}`) === "1";
+} catch (e) { /* ignore */ }
+function recordDifficultyTierWin(royId) {
+  if (replaying || truceEnded || royId !== humanRoyId) return;
+  // gameStartDifficulty (the tier THIS match was actually played at, not
+  // the live/possibly-since-changed DIFFICULTY setting) — same convention
+  // as lastMatchArchive/applyPendingDifficulty() elsewhere.
+  const idx = DIFFICULTY_LEVELS.findIndex((l) => l.value === gameStartDifficulty);
+  if (idx === -1 || difficultyTierWon[idx]) return;
+  difficultyTierWon[idx] = true;
+  try { localStorage.setItem(`kw_difficultyTierWon_${idx}`, "1"); } catch (e) { /* ignore */ }
 }
 
 // English support kicked off small on purpose — "fais l'anglais en premier
@@ -4006,7 +4199,7 @@ let lastAttackWasGrind = false; // both sides near the force cap — used for th
 // with "noyés en chemin" in attack() because the two checks disagreed.
 function effectiveWaterCost(fromT, route) {
   if (cthulhuActive()) return 0; // "Chtulhu active les attaques longue distance sans perte" — waived entirely, at any distance
-  return isGodActiveFor(fromT.owner) && fromT.owner === 3 ? Math.max(1, route.cost - 1) : route.cost;
+  return isGodActiveFor(fromT.owner, 3) ? Math.max(1, route.cost - 1) : route.cost;
 }
 function waterCostBetween(fromT, toId) {
   if (fromT.neighbors.has(toId)) return 0;
@@ -4237,14 +4430,21 @@ function attack(fromId, toId, chainIndex = -1, forcedGuaranteed = null) {
   const isLandAttack = waterPath === null;
   const capBonusWin = isLandAttack && (forcedGuaranteed !== null ? forcedGuaranteed : (capBonusBudget[from.owner] || 0) > 0);
   const marsBonusWin = isLandAttack && marsBlessingUnlocked && from.owner === humanRoyId && atk === FORCE_CAP && def === FORCE_CAP;
-  // "Dieux spéciaux par royaume" — Bellone (id1) adds +1 to the attacker's
-  // effective force, Vulcain (id0) adds +1 to the defender's, ONLY inside
-  // this resolution — atk/def themselves (displayed/logged below, and used
-  // for lastAttackWasGrind above) stay the real force values, same
-  // treatment capBonusWin/marsBonusWin already get (an invisible thumb on
-  // the scale, not a fake number on screen).
-  const godAtk = atk + (isGodActiveFor(from.owner) && from.owner === 1 ? 1 : 0);
-  const godDef = def + (isGodActiveFor(to.owner) && to.owner === 0 ? 1 : 0);
+  // "Dieux spéciaux" — Bellone (id1) adds +1 to the attacker's effective
+  // force (and takes -1 off THAT SAME royaume whenever it defends, its own
+  // malus — see the block comment on isGodActiveFor()); Vulcain (id0) adds
+  // +1 to the defender's; Neptune (id3) takes -1 off the defender but only
+  // when the attack itself came via water ("-1 défense côtière" — its own
+  // malus for the crossing discount, doesn't apply to ordinary land
+  // defense). Only inside this resolution — atk/def themselves
+  // (displayed/logged below, and used for lastAttackWasGrind above) stay
+  // the real force values, same treatment capBonusWin/marsBonusWin already
+  // get (an invisible thumb on the scale, not a fake number on screen).
+  const godAtk = atk + (isGodActiveFor(from.owner, 1) ? 1 : 0);
+  const godDef = Math.max(0, def
+    + (isGodActiveFor(to.owner, 0) ? 1 : 0)
+    - (isGodActiveFor(to.owner, 1) ? 1 : 0)
+    - (waterPath && isGodActiveFor(to.owner, 3) ? 1 : 0));
   const win = capBonusWin || marsBonusWin ? true : resolveCombat(godAtk, godDef);
   // forcedGuaranteed !== null means resolveChainedAttack() already drained
   // the budget once, up front, for the whole chain — draining it again here
@@ -4262,6 +4462,10 @@ function attack(fromId, toId, chainIndex = -1, forcedGuaranteed = null) {
   // right below, via checkWinner()/showWin()); overwritten on every attack
   // so a later, non-water win can't inherit an earlier water attack's flag.
   lastAttackFinishedViaWater = win && !!waterPath && from.owner === humanRoyId;
+  // Cérès (id2) — see checkGodUnlockOnWin()'s own note: the winning blow
+  // has to be a chained attack, not a lone tap. Overwritten on every
+  // attack for the same reason as lastAttackFinishedViaWater just above.
+  lastAttackWasChained = chainIndex !== -1;
   if (win) {
     // Bellone (id1) — "sans jamais perdre une seule province" breaks the
     // moment a human-owned territory changes hands to someone else, however
@@ -4284,15 +4488,26 @@ function attack(fromId, toId, chainIndex = -1, forcedGuaranteed = null) {
       from.owner = ROYAUME_COUNT - 1;
     }
   }
-  // Vulcain (id0) — "remonter depuis une seule province" ; Cérès (id2) —
-  // "avoir possédé au moins 70% du territoire à un moment" : both read the
-  // human's CURRENT territory count/share right after this attack's own
-  // ownership changes, whichever side of the attack the human was on.
+  // Vulcain (id0) — "remonter depuis une seule province" : reads the
+  // human's CURRENT territory count right after this attack's own ownership
+  // change, whichever side of the attack the human was on.
   if (isAlive(humanRoyId)) {
     const humanTerrCount = territories.filter(t => t.owner === humanRoyId).length;
     if (humanTerrCount === 1) wasDownToOneTerritory = true;
-    const humanShare = humanTerrCount / territories.length;
-    if (humanShare > maxHumanTerritoryShare) maxHumanTerritoryShare = humanShare;
+  }
+  // Cérès (id2) — "garder tous les adversaires en vie jusqu'à la fin, tous
+  // les tuer d'un coup en chaîne, barbares inclus" (see its own declaration
+  // above) : any rival dropping to 0 territory breaks this run for the
+  // rest of the match, UNLESS the human simultaneously owns literally every
+  // territory on the map right now — that's the one legitimate case, the
+  // final chained blow that both wins and completes 100% at once.
+  if (ceresFlawlessRun) {
+    const allTerritoriesHumanNow = territories.every((t) => t.owner === humanRoyId);
+    if (!allTerritoriesHumanNow) {
+      for (let r = 0; r < ROYAUME_COUNT - 1; r++) {
+        if (r !== humanRoyId && !isAlive(r)) { ceresFlawlessRun = false; break; }
+      }
+    }
   }
   checkElimination();
   // detect a match-ending attack immediately, whoever made it — previously
@@ -4367,15 +4582,19 @@ function endTurn() {
   const absoluteBonus = ownHexes / 20;
   // Cérès (id2) — see isGodActiveFor()'s own note: +1 extra reinforcement
   // per turn, on top of the normal formula, once earned/active for this
-  // royaume.
-  const godReinforceBonus = isGodActiveFor(royId) && royId === 2 ? 1 : 0;
-  const reinforcement = Math.max(1, Math.round(1.0 + 1.5 * relativeShare + absoluteBonus)) + godReinforceBonus;
+  // royaume. Vulcain (id0) — its own malus for the +1 defense: -1
+  // reinforcement per turn, same formula slot, negated against Cérès's own
+  // bonus if a royaume somehow has both. Final result floored at 0 (not 1)
+  // so Vulcain's malus alone can genuinely starve a turn's reinforcement —
+  // the whole point of a real cost, not a token one.
+  const godReinforceBonus = (isGodActiveFor(royId, 2) ? 1 : 0) - (isGodActiveFor(royId, 0) ? 1 : 0);
+  const reinforcement = Math.max(0, Math.max(1, Math.round(1.0 + 1.5 * relativeShare + absoluteBonus)) + godReinforceBonus);
   let pts = reinforcement;
   let guardCount = 0;
   const reinforcedCounts = {}; // territory id -> how many points landed there
   while (pts > 0 && guardCount < 500) {
     guardCount++;
-    const owned = territories.filter(t => t.owner === royId && t.force < FORCE_CAP);
+    const owned = territories.filter(t => t.owner === royId && t.force < effectiveForceCap(royId));
     if (!owned.length) break;
     const chosen = pickReinforceTarget(royId, owned);
     chosen.force++;
@@ -4812,6 +5031,8 @@ function showWin(royId) {
   // "Dieux spéciaux par royaume" — see checkGodUnlockOnWin()'s own note;
   // guards truceEnded/replaying/royId internally, same as the Cthulhu hint.
   const newlyUnlockedGod = checkGodUnlockOnWin(royId);
+  // Salle des trophées — see recordDifficultyTierWin()'s own note.
+  recordDifficultyTierWin(royId);
   if (royId === humanRoyId) {
     sfxVictory(royId);
     if (metaProgressEnabled) {
@@ -4944,12 +5165,15 @@ function showWin(royId) {
   document.getElementById("cthulhuHintNote").textContent =
     cthulhuHintFired ? CTHULHU_HINT_LINES[Math.abs(currentSeed) % CTHULHU_HINT_LINES.length] : "";
   const GOD_UNLOCK_LINES = {
-    Vulcain: "🔨 Vulcain vous accorde sa forge : vos provinces défendent désormais avec +1 force, pour toujours.",
-    Bellone: "⚔ Bellone vous accorde sa fureur : vos attaques portent désormais +1 force, pour toujours.",
-    Cérès: "🌾 Cérès vous accorde son abondance : +1 renfort à chaque fin de tour, pour toujours.",
-    Neptune: "🌊 Neptune vous accorde sa maîtrise des flots : vos traversées en mer coûtent désormais 1 force de moins, pour toujours.",
+    Vulcain: "🔨 Vulcain vous accorde sa forge : +1 force en défense, pour toujours — mais sa forge coûte cher, -1 renfort à chaque fin de tour.",
+    Bellone: "⚔ Bellone vous accorde sa fureur : +1 force en attaque, pour toujours — mais elle laisse vos remparts nus, -1 force en défense.",
+    Cérès: "🌾 Cérès vous accorde son abondance : +1 renfort à chaque fin de tour, pour toujours — mais votre force plafonne désormais à 11, pas 12 (plus jamais éligible au pouvoir des 12).",
+    Neptune: "🌊 Neptune vous accorde sa maîtrise des flots : vos traversées en mer coûtent 1 force de moins, pour toujours — mais vos côtes restent vulnérables, -1 défense contre une attaque venue de la mer.",
   };
-  document.getElementById("godUnlockNote").textContent = newlyUnlockedGod ? GOD_UNLOCK_LINES[newlyUnlockedGod] : "";
+  // newlyUnlockedGod is an array now (0+ names — more than one condition
+  // can be met in the same winning match) — see checkGodUnlockOnWin().
+  document.getElementById("godUnlockNote").textContent =
+    newlyUnlockedGod ? newlyUnlockedGod.map((n) => GOD_UNLOCK_LINES[n]).join(" ") : "";
   if (newlyUnlockedGod) refreshLoreGods();
   document.getElementById("endturn").disabled = true;
   drawStatChart();
@@ -6795,11 +7019,11 @@ function render() {
     ctx.restore();
   }
 
-  // The Cthulhu reveal — same shape as the octopus one just above, but
-  // bigger, inverted/darkened (see #loreCthulhuImg's own CSS note) and a
-  // touch longer-lingering, to read as something larger and older
-  // answering, not a repeat of the same creature.
-  if (cthulhuRevealFX && OCTOPUS_IMG.complete && OCTOPUS_IMG.naturalWidth) {
+  // The Cthulhu reveal — same shape as the octopus one just above, but with
+  // its own dedicated sprite (CTHULHU_IMG_SRC), bigger and a touch
+  // longer-lingering, to read as something larger and older answering, not
+  // a repeat of the same creature.
+  if (cthulhuRevealFX && CTHULHU_IMG.complete && CTHULHU_IMG.naturalWidth) {
     const elapsed = performance.now() - cthulhuRevealFX.start;
     const fadeMs = 350;
     const alpha = elapsed < fadeMs ? elapsed / fadeMs
@@ -6808,8 +7032,7 @@ function render() {
     const size = 130;
     ctx.save();
     ctx.globalAlpha = alpha;
-    ctx.filter = "invert(1) hue-rotate(180deg) brightness(.7)";
-    ctx.drawImage(OCTOPUS_IMG, cthulhuRevealFX.x - size / 2, cthulhuRevealFX.y - size / 2, size, size);
+    ctx.drawImage(CTHULHU_IMG, cthulhuRevealFX.x - size / 2, cthulhuRevealFX.y - size / 2, size, size);
     ctx.restore();
   }
 
@@ -6911,11 +7134,10 @@ function updateGroups() {
     // un petit cercle doré s'affiche autour" — no more tick marks tracking
     // the fill live; just a gold ring once the dot is actually maxed out.
     swatchEl.classList.toggle("full", pct >= 100);
-    // "(nous)" marks our own row — same during a live game and while
-    // watching a replay, since humanRoyId stays set to whichever seat was
-    // actually played either way; requested so it's obvious at a glance
-    // which dot is ours without having to remember the color.
-    rowEl.querySelector(".n").textContent = r.roy.id === humanRoyId ? `${r.force} (nous)` : r.force;
+    // "(nous)" used to mark our own row here — removed per direct request
+    // ("supprime (nous)"), same cleanup as the chart legend's own "Nous,"
+    // just above (see recolorBlazonDiagonal()'s neighboring note).
+    rowEl.querySelector(".n").textContent = r.force;
     // exactly one row emphasized at a time, including our own when it's
     // our turn — see the CSS's own note on the transition itself
     rowEl.classList.toggle("activeTurn", r.roy.id === currentPlayer);
@@ -7163,11 +7385,14 @@ function handlePointer(clientX, clientY) {
       // actually lands on reachable water: the tap-select-then-tap-target
       // half of the ocean-sacrifice ritual (see executeWaterSacrifice()) —
       // the free-drag half lives in extendDragPath()/pointerup below. A
-      // bare water tap with nothing selected is just a no-op now — the
-      // Easter egg used to fire right here on ANY water tap at no real
-      // cost; it's reserved for a genuine sacrifice now (see
-      // showOceanTapEasterEgg()'s own note).
+      // bare water tap with nothing selected used to be a no-op here — now
+      // it ends the turn too, same as landscape's own ocean tap always
+      // does, instead of the two orientations disagreeing on what a plain
+      // water tap does ("si je clique sur l'eau ça doit être fin de
+      // bataille sur toute plateforme"). Only actually diving (a real
+      // selection + a valid route) still takes priority over that.
       const h = hexAtClientPoint(clientX, clientY);
+      let dove = false;
       if (h && h.isWater && selected !== -1 && !aiRunning && currentPlayer === humanRoyId) {
         const selTerr = territories[selected];
         const destKey = `${h.q},${h.r}`;
@@ -7177,8 +7402,10 @@ function handlePointer(clientX, clientY) {
           selected = -1;
           logMove({ sac: fromId, path: waterPath, pure: true }); // tap-select-then-tap-target is always a direct dive, no prior chain possible
           executeWaterSacrifice(fromId, waterPath);
+          dove = true;
         }
       }
+      if (!dove) handleEndTurnTap();
     }
     return;
   }
@@ -7191,7 +7418,7 @@ function handlePointer(clientX, clientY) {
   const tId = t.id;
 
   if (placingGueux) {
-    if (t.owner === currentPlayer && t.force < FORCE_CAP) {
+    if (t.owner === currentPlayer && t.force < effectiveForceCap(t.owner)) {
       logMove({ gueux: tId });
       spendGueux(tId);
     }
@@ -7714,7 +7941,7 @@ document.getElementById("loreBlazon").src = BLAZON_IMG_SRC;
 document.getElementById("loreSoldier1").src = FIGURE1_IMG_SRC;
 document.getElementById("loreSoldier2").src = FIGURE2_IMG_SRC;
 document.getElementById("loreOctopusImg").src = OCTOPUS_IMG_SRC;
-document.getElementById("loreCthulhuImg").src = OCTOPUS_IMG_SRC;
+document.getElementById("loreCthulhuImg").src = CTHULHU_IMG_SRC;
 document.querySelectorAll("#loreMarsSwords img").forEach((img) => { img.src = SWORD_IMG_SRC; });
 // CREATURE_IMG_SRC, not CHEVALIER_IMG_SRC (deleted — see its own removal
 // note): this is the actual pixel-art mounted knight the user drew (also
@@ -7828,7 +8055,66 @@ function refreshLoreRoyaumesJoues() {
   `).join("");
 }
 refreshLoreRoyaumesJoues();
+// "Salle des trophées" — one slot per real unlock the game currently
+// tracks: the 4 per-royaume gods (placeholder emoji — "des smileys que tu
+// prends adaptés, réfléchis pas trop, c'est des placeholders"), pieuvre,
+// Cthulhu, le pouvoir des 12/Mars (the black diagonal sword, per direct
+// request), and the 4 difficulty tiers actually WON at least once (Page's
+// own trophy is the plain white sword, per direct request too — the other
+// three reuse the same icons already shown next to their name in Réglages,
+// for one consistent visual vocabulary instead of inventing new ones).
+// Always shows every slot, never a blank silhouette — but "toutes les voir
+// [...] grisées" (dimming the real icon) was superseded live: "Oublie le
+// côté opaque des trucs non débloqués. Entoure les juste quand ils sont
+// débloqués" — so a NOT-YET-earned slot shows the mystery chest (CHEST_IMG_SRC,
+// user-supplied pixel art) instead of the real icon, full opacity; the real
+// icon only appears, ringed in gold, once actually earned. Recomputed fresh
+// each time Le lore is opened (see its own click handler below) rather than
+// on every individual unlock event — nothing here needs to update live
+// mid-match.
+function refreshTrophyRoom() {
+  const el = document.getElementById("trophyRoom");
+  if (!el) return;
+  // The chest idea (hiding an unearned slot behind CHEST_IMG_SRC) was tried
+  // and reverted live ("garde un coffre... revenir aux emoji partout") —
+  // every slot now always shows its real icon/emoji at full opacity
+  // ("oublie le côté opaque... entoure les juste quand débloqués"), ring
+  // appearing only once earned, no exceptions. Bellone has her own
+  // dedicated sprite now (BELLONE_IMG_SRC) — Vulcain/Cérès/Neptune still
+  // use their emoji placeholder until their own art arrives.
+  const GOD_ICON = [
+    { img: VULCAIN_IMG_SRC },      // Vulcain
+    { img: BELLONE_IMG_SRC },      // Bellone
+    { emoji: "🌾" },               // Cérès
+    { emoji: "🔱" },               // Neptune
+  ];
+  const slots = GOD_NAMES.map((name, i) => ({ earned: godUnlockedPlayer[i], name, ...GOD_ICON[i] }));
+  slots.push({ earned: pieuvreUnlocked, name: "La pieuvre", img: OCTOPUS_IMG_SRC });
+  slots.push({ earned: cthulhuUnlocked, name: "Cthulhu", img: CTHULHU_IMG_SRC });
+  slots.push({ earned: marsBlessingUnlocked, name: "Le pouvoir des 12", img: SWORD_DIAGONAL_IMG_SRC });
+  // "Un enfant qui porte un écu" — Page's own dedicated sprite, replacing
+  // the plain white sword placeholder used until now.
+  const DIFF_TROPHY_IMG = [PAGE_IMG_SRC, FIGURE1_IMG_SRC, FIGURE2_IMG_SRC, CREATURE_IMG_SRC];
+  DIFFICULTY_LEVELS.forEach((lvl, i) => {
+    slots.push({ earned: difficultyTierWon[i], name: `Victoire — ${lvl.name}`, img: DIFF_TROPHY_IMG[i] });
+  });
+  // "Ajoute une case par blason pour les familles" — one slot per royaume,
+  // same condition/art as the #loreRoyaumesJoues row above (royaumePlayed,
+  // the per-house recolored blazon) — a second, additive place to see the
+  // same progress, inside the trophy grid itself rather than only the
+  // dedicated row up top.
+  ROYAUMES.slice(0, ROYAUME_COUNT - 1).forEach((roy) => {
+    slots.push({ earned: royaumePlayed[roy.id], name: roy.name.replace("Millon de ", ""), img: recolorBlazonDiagonal(roy.color) || BLAZON_IMG_SRC });
+  });
+  el.innerHTML = slots.map((s) => `
+    <div class="trophySlot${s.earned ? " earned" : ""}" title="${s.name}">
+      ${s.emoji ? `<span class="trophyEmoji">${s.emoji}</span>` : `<img src="${s.img}" alt="${s.name}">`}
+    </div>
+  `).join("");
+}
+refreshTrophyRoom();
 document.getElementById("loreBtn").addEventListener("click", () => {
+  refreshTrophyRoom();
   // #loreOverlay and #settingsPanel share the same z-index (10); DOM order
   // alone would otherwise leave #settingsPanel (declared later) painted on
   // top, so opening Le lore from within Réglages showed nothing at all —
@@ -7882,8 +8168,50 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "2.04";
+const GAME_VERSION = "2.09";
 const CHANGELOG = [
+  {
+    version: "2.09",
+    notes: [
+      "Vulcain, Bellone et le palier Page ont enfin leur propre sprite dans la Salle des trophées (fournis par l'utilisateur) — Cérès et Neptune gardent leur emoji placeholder en attendant les leurs.",
+      "Retiré le coffre-mystère des trophées non débloqués — chaque case affiche à nouveau directement sa vraie icône (ou son emoji), à pleine opacité, et n'est entourée d'or qu'une fois gagnée.",
+      "Les cases de la Salle des trophées (et la rangée d'outils juste au-dessus) sont maintenant carrées, avec un simple trait pixel noir, au lieu de coins arrondis et d'un fond doré.",
+      "Ajouté 4 nouvelles cases dans la Salle des trophées, une par blason de famille (même condition — avoir joué cette maison — que la rangée dédiée tout en haut du Lore).",
+    ],
+  },
+  {
+    version: "2.08",
+    notes: [
+      "Corrigé (définitivement, on l'espère) : le bug d'écran/carte vide qui pouvait réapparaître après une mise à jour. Ce n'était pas un problème de cache — une sauvegarde automatique de partie en cours, écrite par une VERSION ANTÉRIEURE du jeu, était rejouée silencieusement contre le nouveau code et pouvait planter en cours de route sans jamais afficher la carte. Une sauvegarde d'une version différente est désormais rejetée d'office (nouvelle partie relancée à la place) plutôt que rejouée à l'aveugle, et toute erreur inattendue pendant une reprise de partie relance maintenant une partie fraîche automatiquement au lieu de rester bloqué sur un écran vide.",
+      "Cthulhu a enfin son propre sprite (fourni par l'utilisateur) — ne réutilise plus l'image de la pieuvre teintée, dans la Salle des trophées comme dans Le lore.",
+      "Nouvelle condition de déblocage pour Cérès, bien plus exigeante que la précédente (encore trop facile) : ne jamais éliminer un seul rival avant le tout dernier instant, puis les éliminer TOUS d'un coup dans une seule attaque en chaîne qui laisse aussi 100% de la carte conquise (barbares inclus).",
+    ],
+  },
+  {
+    version: "2.07",
+    notes: [
+      "Refonte des dieux spéciaux : n'importe quelle maison peut désormais débloquer n'importe quel dieu (plus besoin de jouer sa maison d'origine).",
+      "Chaque dieu débloqué reste acquis pour toujours à la fois pour cette maison précise (qui la joue ensuite, vous ou l'IA) ET pour vous en tant que joueur, quelle que soit la maison choisie plus tard.",
+      "Chaque bonus a désormais un vrai prix : Vulcain (+1 défense) coûte -1 renfort par tour ; Bellone (+1 attaque) coûte -1 en défense ; Cérès (+1 renfort) plafonne la force à 11 au lieu de 12 (donc plus jamais éligible au pouvoir des 12) ; Neptune (traversées -1) coûte -1 en défense côtière face à une attaque venue de la mer. Tous les bonus se cumulent, aucun n'en efface un autre.",
+    ],
+  },
+  {
+    version: "2.06",
+    notes: [
+      "Nouveau : Salle des trophées dans le Lore — 11 emplacements (4 dieux, Pieuvre, Cthulhu, Pouvoir des 12, 4 victoires par difficulté). Les 4 dieux (encore en icônes provisoires) restent cachés derrière un coffre à motif tant qu'ils ne sont pas débloqués ; tous les autres trophées ont déjà leur vraie image et sont toujours visibles, entourés d'or une fois gagnés.",
+      "La rangée d'icônes juste au-dessus (armes/outils du Lore) est maintenant présentée dans des cases, comme la Salle des trophées juste en dessous.",
+      "Titre du jeu aligné à droite, juste à gauche du bouton réglages, au lieu d'être centré en haut de l'écran.",
+    ],
+  },
+  {
+    version: "2.05",
+    notes: [
+      "Toucher l'eau met désormais fin au tour (ou accélère l'IA) sur toutes les orientations, plus seulement en mode paysage.",
+      "Le badge des gueux déménage sous le bouton des réglages, au lieu de partager la rangée du bas avec Reddition/Fin de bataille.",
+      "Sur ordinateur, les statistiques en haut à gauche doublent de taille.",
+      "Retiré « (nous) » à côté de vos troupes dans le classement en haut à gauche.",
+    ],
+  },
   {
     version: "2.04",
     notes: [
@@ -9322,15 +9650,20 @@ function refreshLoreMars() {
   const el = document.getElementById("loreMars");
   if (el) el.style.display = marsBlessingUnlocked ? "" : "none";
 }
-// "Dieux spéciaux par royaume" — unlike refreshLoreMars() (only ever called
-// right after a fresh unlock, this same session), this is also called once
-// at boot below so a god unlocked in an EARLIER session (persisted via
-// kw_godUnlocked_N) still shows correctly in Le lore after a reload.
+// "Dieux spéciaux" — unlike refreshLoreMars() (only ever called right after
+// a fresh unlock, this same session), this is also called once at boot
+// below so a god unlocked in an EARLIER session (persisted via
+// kw_godUnlockedPlayer_N) still shows correctly in Le lore after a reload.
+// Gated on the PLAYER-level flag (has the player themselves ever learned
+// this god's secret, with any royaume) rather than any one royaume's own —
+// this is player-facing lore text, not a per-royaume stat.
 const LORE_GOD_EL_IDS = ["loreGodVulcain", "loreGodBellone", "loreGodCeres", "loreGodNeptune"];
 function refreshLoreGods() {
+  const explainerEl = document.getElementById("loreGodsExplainer");
+  if (explainerEl) explainerEl.style.display = godUnlockedPlayer.some(Boolean) ? "" : "none";
   for (let i = 0; i < LORE_GOD_EL_IDS.length; i++) {
     const el = document.getElementById(LORE_GOD_EL_IDS[i]);
-    if (el) el.style.display = godUnlocked[i] ? "" : "none";
+    if (el) el.style.display = godUnlockedPlayer[i] ? "" : "none";
   }
 }
 refreshLoreGods();
@@ -9572,7 +9905,7 @@ function startGame(seed) {
   // "Dieux spéciaux par royaume" — per-match unlock tracking, fresh every
   // match (a comeback/flawless-run/territory-share/water-finish has to
   // happen IN this match to count — see checkGodUnlockOnWin()).
-  wasDownToOneTerritory = false; neverLostATerritory = true; maxHumanTerritoryShare = 0; lastAttackFinishedViaWater = false;
+  wasDownToOneTerritory = false; neverLostATerritory = true; ceresFlawlessRun = true; lastAttackWasChained = false; maxHumanTerritoryShare = 0; lastAttackFinishedViaWater = false;
   lastConqueredId = null; lastConqueredRoyId = -1;
   allCappedStreak = 0; lastStalemateFingerprint = null; truceEnded = false; truceWinnerId = -1; humanSurrendered = false; mercyGranted = false; peaceGueuxGained = 0;
   mercyOfferShownAtRound = null;
@@ -9704,7 +10037,31 @@ function startGame(seed) {
 // for exactly this "don't treat re-simulation as new live input" purpose,
 // so this gets all of that for free — the same reasoning forkFromReplay()
 // already relies on.
+// Self-healing fallback for resumeSavedGame() below — any exception
+// anywhere in the reconstruction (map generation, replaying a move that no
+// longer makes sense against today's code, anything unforeseen) now falls
+// through to here instead of leaving a blank map stuck behind an otherwise
+// fully-drawn HUD forever ("le même bug d'affichage ! Alors qu'on a enlevé
+// le système hors ligne !! [...] je veux plus réinstaller, il faut régler
+// ce problème de cache définitivement" — turned out to not be a cache
+// problem, see tryLoadSavedGame()'s own version-stamp guard for the other
+// half of this fix; this half exists so a *future* code change that breaks
+// old saves in some new, unforeseen way still can't get anyone stuck).
+function abandonSavedGameAndStartFresh() {
+  try { localStorage.removeItem(SAVED_GAME_KEY); } catch (e) { /* ignore */ }
+  replaying = false;
+  forceInstantSkip = false;
+  activeReplayFinish = null;
+  startGame();
+}
 function resumeSavedGame(saved) {
+  try {
+    resumeSavedGameInner(saved);
+  } catch (e) {
+    abandonSavedGameAndStartFresh();
+  }
+}
+function resumeSavedGameInner(saved) {
   if (saved.humanRoyId < 0) {
     // no camp had actually been picked yet when this was saved (nothing
     // played, nothing to lose) — just regenerate the same map and let the
@@ -9729,6 +10086,18 @@ function resumeSavedGame(saved) {
   const log = saved.moveLog;
   let i = 0;
   function step() {
+    try {
+      stepInner();
+    } catch (e) {
+      // step() runs across many queueMicrotask hops — a throw here would
+      // otherwise surface as an unhandled rejection with the map already
+      // left mid-reconstruction (exactly the blank-map symptom this whole
+      // fix targets), not caught by the try/catch around the initial
+      // synchronous call above.
+      abandonSavedGameAndStartFresh();
+    }
+  }
+  function stepInner() {
     if (!replaying) return; // escaped via rerollBtn's "stop" (see activeReplayFinish below) — bail cleanly
     if (gameOver) {
       // mirrors playReplay()'s own handling of a logged "continue" entry
@@ -9812,6 +10181,20 @@ function tryLoadSavedGame() {
     // reconstruction that never finished ("bloqué sur l'écran du replay").
     // Reject it outright and fall through to a fresh game instead.
     if (!(saved.opponentCount >= 1 && saved.opponentCount <= 3)) return reject();
+    // Same idea, generalized: ANY code change that could shift what a
+    // recorded moveLog means (map generation, combat resolution, anything)
+    // makes an autosave from an older version unsafe to replay, not just the
+    // opponentCount case above — "je veux plus réinstaller, il faut régler
+    // ce problème de cache définitivement" turned out to not be a cache
+    // problem at all: a stale autosave from before a code update was being
+    // silently replayed against today's code, desyncing partway through and
+    // leaving a blank map behind a fully-drawn HUD (the reconstruction
+    // never reaches its own render()/resize() call — see resumeSavedGame()'s
+    // own try/catch fallback below for the second half of this fix).
+    // Rejecting on ANY version mismatch, not just a matching one, is
+    // deliberately conservative: losing an in-progress match on the exact
+    // version that changed the rules is far cheaper than a stuck game.
+    if (saved.savedVersion !== GAME_VERSION) return reject();
     return saved;
   } catch (e) { return reject(); } // corrupted/old-format entry — treat as no save rather than crash
 }
@@ -9827,7 +10210,18 @@ if (pendingSharedReplay) {
 } else if (pendingSavedGame) {
   resumeSavedGame(pendingSavedGame);
 } else {
-  startGame();
+  // Belt-and-suspenders alongside resumeSavedGame()'s own try/catch above:
+  // a genuinely fresh game should never be able to throw (verified across
+  // hundreds of random seeds/map sizes/opponent counts), but if some future
+  // change ever makes it possible, retry once with a brand new random seed
+  // (bypassing whatever specific seed/localStorage state caused it) rather
+  // than leaving a blank map behind the HUD with no way out at all.
+  try {
+    startGame();
+  } catch (e) {
+    try { localStorage.removeItem(SAVED_GAME_KEY); } catch (e2) { /* ignore */ }
+    try { startGame(randomSeed()); } catch (e3) { /* truly out of options — at least the HUD still shows "Changer la carte" to retry by hand */ }
+  }
 }
 </script>
 </body>
