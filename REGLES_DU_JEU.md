@@ -16,7 +16,7 @@ Document de référence unique pour toutes les mécaniques de jeu, pour éviter 
 
 ---
 
-## Partie 2 — Les règles (état actuel du code, v2.12)
+## Partie 2 — Les règles (état actuel du code, v2.14)
 
 ### 2.1 Combat
 - Chaque territoire a une force entre 1 et 12 (`FORCE_CAP`), affichée sur sa "capitale" (voir §2.6 pour la distinction capitale/village — mécanique PAS encore implémentée, voir Partie 3).
@@ -68,13 +68,16 @@ Notes importantes :
 - ⚠️ **Capitale vs villages** : le joueur a décrit une mécanique où une province est composée de plusieurs villages, un seul affichant le chiffre de force ("la capitale"), et où un chemin d'attaque doit obligatoirement passer par le village le plus proche d'un adversaire plutôt que capitale à capitale — **PAS ENCORE IMPLÉMENTÉE**, le modèle actuel traite chaque hexagone comme un territoire indépendant sans notion de capitale/village. Voir Partie 3.
 
 ### 2.7 Salle des trophées (Le Lore)
-17 emplacements, tous toujours visibles à pleine opacité (aucun coffre-mystère, idée essayée puis retirée) — seul l'anneau doré distingue un trophée gagné, et chaque image est bornée à sa case carrée (`object-fit: contain`) quel que soit son format d'origine :
+18 emplacements, tous toujours visibles à pleine opacité (aucun coffre-mystère, idée essayée puis retirée) — seul l'anneau doré distingue un trophée gagné, et chaque image est bornée à sa case carrée (`object-fit: contain`) quel que soit son format d'origine :
 - 4 dieux (Vulcain, Bellone et Page ont leur propre sprite ; Cérès/Neptune encore en emoji placeholder)
+- Le bateau (toujours acquis — jamais eu de condition de déblocage propre, ancien flourish décoratif de la rangée d'outils au-dessus du titre, maintenant relocalisé ici)
 - Pieuvre, Cthulhu (sprite dédié), Pouvoir des 12
 - 4 victoires par palier de difficulté (Page/Écuyer/Chevalier/Seigneur)
 - 4 blasons de famille (même condition/art que `#loreRoyaumesJoues`)
 - 1 trophée ultime (symbole yin-yang) : vaincre avec les 4 familles, chacune ayant débloqué les 4 dieux — calculé à la volée (`allRoyaumesFullyBlessed()`), pas persisté séparément.
-- 1 Graal, la toute dernière case à débloquer : n'apparaît gagnée qu'une fois les 16 autres emplacements acquis (100% de la salle), calculé à la volée lui aussi.
+- 1 Graal, la toute dernière case à débloquer : n'apparaît gagnée qu'une fois les 17 autres emplacements acquis (100% de la salle), calculé à la volée lui aussi.
+
+La rangée d'icônes décorative qui existait juste au-dessus de ce titre (chevalier/blason/pieuvre/bateau/épées) a été retirée : 5 de ses 6 images étaient de purs doublons d'art déjà visible ailleurs dans le Lore (chevalier → trophée Seigneur, blason/pieuvre en N&B → déjà en couleur plus haut, épée droite → `#loreMarsSwords`, épée diagonale → trophée Pouvoir des 12) et ont donc été supprimées plutôt que dupliquées ; seul le bateau, sans doublon, a survécu en migrant dans la grille des trophées elle-même.
 
 ### 2.8 Langue de l'interface
 - Interrupteur à 3 arrêts dans Réglages (`uiLang`, `kw_uiLang` en localStorage) : Français → English → 中文 → Français, un curseur doré glisse d'une option à l'autre.
