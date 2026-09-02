@@ -16,7 +16,7 @@ Document de référence unique pour toutes les mécaniques de jeu, pour éviter 
 
 ---
 
-## Partie 2 — Les règles (état actuel du code, v2.11)
+## Partie 2 — Les règles (état actuel du code, v2.12)
 
 ### 2.1 Combat
 - Chaque territoire a une force entre 1 et 12 (`FORCE_CAP`), affichée sur sa "capitale" (voir §2.6 pour la distinction capitale/village — mécanique PAS encore implémentée, voir Partie 3).
@@ -76,7 +76,11 @@ Notes importantes :
 - 1 trophée ultime (symbole yin-yang) : vaincre avec les 4 familles, chacune ayant débloqué les 4 dieux — calculé à la volée (`allRoyaumesFullyBlessed()`), pas persisté séparément.
 - 1 Graal, la toute dernière case à débloquer : n'apparaît gagnée qu'une fois les 16 autres emplacements acquis (100% de la salle), calculé à la volée lui aussi.
 
-### 2.8 Sauvegarde automatique et résilience
+### 2.8 Langue de l'interface
+- Interrupteur à 3 arrêts dans Réglages (`uiLang`, `kw_uiLang` en localStorage) : Français → English → 中文 → Français, un curseur doré glisse d'une option à l'autre.
+- Seul le français a une couverture complète. L'anglais et le chinois ne couvrent (délibérément, "juste les boutons de jeu utiles au minimum" / "au maximum 10 boutons essentiels") que les boutons d'action de jeu/préparation les plus essentiels (`t()` retombe sur le français pour toute clé sans traduction dans la langue active) — pas le Lore, pas les Conseils, pas les textes d'ambiance.
+
+### 2.9 Sauvegarde automatique et résilience
 - La partie en cours est sauvegardée en continu (`saveGameState()`) et reconstruite silencieusement au chargement suivant (`resumeSavedGame()`) si l'app a été fermée en plein match.
 - Chaque sauvegarde porte un tampon de version (`savedVersion`) — une sauvegarde écrite par une version antérieure du jeu est rejetée d'office (nouvelle partie relancée) plutôt que rejouée à l'aveugle contre des règles qui ont changé depuis.
 - Toute erreur imprévue pendant une reconstruction (ou même au tout premier lancement d'une partie neuve) relance automatiquement une partie fraîche plutôt que de laisser un écran bloqué — **aucune manipulation manuelle (réinstallation, vidage de cache) ne devrait plus jamais être nécessaire** pour ce genre de blocage.
@@ -91,7 +95,6 @@ Notes importantes :
 - **IA qui se ligue ou cible le plus faible** : les royaumes IA pourraient parfois former une alliance informelle contre le royaume le plus fort, ou au contraire s'acharner sur le plus faible. Idée jugée positivement (casse la dynamique "toujours seul contre 3") mais non implémentée.
 - **5ᵉ palier "toutes les maisons se liguent"** : une fois les 4 dieux débloqués par le joueur (cumul des 4 bonus), un mode où toutes les maisons rivales s'allient sans pitié contre lui pour compenser sa puissance — idée émergente, à discuter avant tout développement.
 - **ARG / recherche externe** : un puzzle qui pousserait à chercher un indice HORS du jeu (code source, communautés type Reddit, recherche historique) — à l'état de brainstorm, terminologie et faisabilité non arrêtées.
-- **Chinois sur les boutons clés** : traduire au maximum 10 boutons essentiels (jouer/préparer une partie) en chinois — demandé ("Chinois fais"), en cours.
 - **Chemin d'attaque par villages/capitale** (voir §2.6) : le chemin d'une attaque devrait obligatoirement passer par le village d'une province le plus proche d'un adversaire, pas capitale à capitale ; les troupes peuvent être stationnées n'importe où sur la province indépendamment de la position du chiffre de force. Demandé, pas encore conçu ni implémenté — nécessite de repenser le modèle territoire/hexagone actuel.
 - **Réinitialisation complète de la progression** + choix d'une maison fétiche, avec un bonus cachée pour qui débloque tout avec toutes les maisons — idée "éventuelle", non ferme.
 - **Grille de collection façon cartes à collectionner** dans le Lore — en partie déjà réalisée par la Salle des trophées (§2.7), mais l'idée d'origine (cases vides pour tout ce qu'on n'a jamais vu, curiosité/chasse au trésor) pourrait aller plus loin.

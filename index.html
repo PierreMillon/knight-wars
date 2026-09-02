@@ -666,24 +666,28 @@
      whichever is active. Requalified with the settingsPanel ID (same
      specificity trick as the Conseils/Lore back buttons above) to beat the
      shared button rule's padding/background. */
+  /* 3 stops now (fr/en/zh, "Chinois fais" adding the 3rd) — widened to fit
+     an extra segment, same sliding-thumb idea as the original 2-way switch. */
   #settingsPanel button#langToggle.langSwitch {
-    position: relative; display: flex; width: 128px; height: 34px; padding: 0;
+    position: relative; display: flex; width: 176px; height: 34px; padding: 0;
     background: rgba(20,16,12,.45); border: 1px solid #8a6d3b; border-radius: 17px;
     overflow: hidden; box-sizing: border-box;
   }
   .langSwitchOption {
-    flex: 1 1 50%; display: flex; align-items: center; justify-content: center;
+    flex: 1 1 33.333%; display: flex; align-items: center; justify-content: center;
     font-size: 12.5px; font-weight: 700; color: rgba(242,237,226,.75);
     position: relative; z-index: 1; transition: color .28s ease;
   }
   .langSwitchThumb {
-    position: absolute; top: 2px; left: 2px; width: calc(50% - 3px); height: calc(100% - 4px);
+    position: absolute; top: 2px; left: 2px; width: calc(33.333% - 2.7px); height: calc(100% - 4px);
     background: linear-gradient(135deg, #fff3c4, #e8c468, #a97e2a);
     border-radius: 14px; transition: transform .28s cubic-bezier(.34, 1.56, .64, 1);
   }
   #langToggle.lang-en .langSwitchThumb { transform: translateX(100%); }
+  #langToggle.lang-zh .langSwitchThumb { transform: translateX(200%); }
   #langToggle.lang-en .langSwitchOption[data-lang="en"],
-  #langToggle:not(.lang-en) .langSwitchOption[data-lang="fr"] { color: #2b1d10; }
+  #langToggle.lang-zh .langSwitchOption[data-lang="zh"],
+  #langToggle:not(.lang-en):not(.lang-zh) .langSwitchOption[data-lang="fr"] { color: #2b1d10; }
   /* plain icon button, main HUD, left end of #bottomHudRow's now-two-button
      row (#gueuxBadge moved out to stand under #settingsBtn instead — see
      its own note) — same circular gold treatment as #settingsBtn now
@@ -1228,10 +1232,13 @@
            minimum") — just the core in-game action buttons (Fin de
            bataille, Changer la carte, écran de fin, etc.), not the lore or
            flavor text yet. A plain toggle, not a full language picker with
-           auto-detect — that's the bigger version still on the backlog. -->
+           auto-detect — that's the bigger version still on the backlog.
+           "Chinois fais" added a 3rd stop (中文) on the same switch, same
+           minimal scope: only the ~10 core play/prepare buttons. -->
       <button id="langToggle" class="langSwitch" style="margin-top:10px;">
         <span class="langSwitchOption" data-lang="fr">🇫🇷 FR</span>
         <span class="langSwitchOption" data-lang="en">🇬🇧 EN</span>
+        <span class="langSwitchOption" data-lang="zh">🇨🇳 中</span>
         <span class="langSwitchThumb"></span>
       </button>
       <!-- "un mode accessible en option dans le menu ou les couleurs sont
@@ -3750,21 +3757,26 @@ function recordDifficultyTierWin(royId) {
 // core in-game action buttons, not the lore/flavor text or a real
 // language-picker-with-flag-and-auto-detect yet (that's the bigger version
 // still on the backlog). A plain FR/EN toggle in Réglages for now.
+// "Chinois fais" ("Chinois sur les boutons clés... traduire au maximum 10
+// boutons essentiels") added a 3rd stop (fr → en → zh → fr) on the same
+// switch — deliberately only the ~10 core play/prepare buttons below carry
+// a `zh` field, not the whole UI_STRINGS table; t() falls back to `fr` for
+// every key that has none, same as it always has for a missing `en`.
 let uiLang = "fr";
 try {
   const savedLang = localStorage.getItem("kw_uiLang");
-  if (savedLang === "en" || savedLang === "fr") uiLang = savedLang;
+  if (savedLang === "en" || savedLang === "fr" || savedLang === "zh") uiLang = savedLang;
 } catch (e) { /* ignore */ }
 const UI_STRINGS = {
   settingsAria: { fr: "Réglages", en: "Settings" },
   surrenderAria: { fr: "Abandonner", en: "Surrender" },
   accelerateAria: { fr: "Accélérer les batailles", en: "Speed up battles" },
-  endturnMain: { fr: "Fin de bataille", en: "End battle" },
-  chooseCamp: { fr: "Choisissez un camp", en: "Choose a side" },
+  endturnMain: { fr: "Fin de bataille", en: "End battle", zh: "结束战斗" },
+  chooseCamp: { fr: "Choisissez un camp", en: "Choose a side", zh: "选择阵营" },
   stalemateHint: { fr: "Statu quo dans", en: "Stalemate in" }, // + "{N} tour(s)" / "{N} turn(s)" appended separately, see updateEndTurnButton()
   turn: { fr: "tour", en: "turn" },
   turns: { fr: "tours", en: "turns" },
-  rerollChangeMap: { fr: "🔀 Changer la carte", en: "🔀 New map" },
+  rerollChangeMap: { fr: "🔀 Changer la carte", en: "🔀 New map", zh: "🔀 更换地图" },
   rerollStopReplayAria: { fr: "Arrêter le replay", en: "Stop replay" },
   rerollChangeMapAria: { fr: "Changer la carte", en: "New map" },
   // Just the arrow now, no label text — "ça doit être une simple flèche
@@ -3772,19 +3784,19 @@ const UI_STRINGS = {
   prevMap: { fr: "◀", en: "◀" },
   prevMapAria: { fr: "Carte précédente", en: "Previous map" },
   replayResumeHere: { fr: "Jouer depuis là", en: "Play from here" },
-  restart: { fr: "⬅️ Rejouer la même carte", en: "⬅️ Replay same map" },
-  watchReplay: { fr: "🎬 Revoir la partie", en: "🎬 Watch replay" },
+  restart: { fr: "⬅️ Rejouer la même carte", en: "⬅️ Replay same map", zh: "⬅️ 重玩同张地图" },
+  watchReplay: { fr: "🎬 Revoir la partie", en: "🎬 Watch replay", zh: "🎬 观看回放" },
   shareVictory: { fr: "📤 Partager ma victoire", en: "📤 Share my victory" },
   shareTruce: { fr: "📜 Partager ce match nul", en: "📜 Share this draw" },
-  randomGame: { fr: "🔀 Nouvelle partie aléatoire", en: "🔀 New random game" },
+  randomGame: { fr: "🔀 Nouvelle partie aléatoire", en: "🔀 New random game", zh: "🔀 新的随机对局" },
   saveChart: { fr: "💾 Enregistrer le graphique", en: "💾 Save the chart" },
   reviewBack: { fr: "🔙 Retour", en: "🔙 Back" },
-  acceptTruce: { fr: "J'accepte la trêve", en: "I accept the truce" },
+  acceptTruce: { fr: "J'accepte la trêve", en: "I accept the truce", zh: "我接受停战" },
   cancelSurrender: { fr: "Annuler", en: "Cancel" },
-  proposePeace: { fr: "🕊️ Proposer la paix", en: "🕊️ Propose peace" },
-  confirmSurrender: { fr: "Abandonner", en: "Surrender" },
-  continueSiege: { fr: "⚔ Continuer le combat", en: "⚔ Continue the fight" },
-  langToggleLabel: { fr: "🇫🇷 Français", en: "🇬🇧 English" },
+  proposePeace: { fr: "🕊️ Proposer la paix", en: "🕊️ Propose peace", zh: "🕊️ 提议和平" },
+  confirmSurrender: { fr: "Abandonner", en: "Surrender", zh: "投降" },
+  continueSiege: { fr: "⚔ Continuer le combat", en: "⚔ Continue the fight", zh: "⚔ 继续战斗" },
+  langToggleLabel: { fr: "🇫🇷 Français", en: "🇬🇧 English", zh: "🇨🇳 中文" },
 };
 function t(key) {
   const entry = UI_STRINGS[key];
@@ -8221,8 +8233,14 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "2.11";
+const GAME_VERSION = "2.12";
 const CHANGELOG = [
+  {
+    version: "2.12",
+    notes: [
+      "Le sélecteur de langue (Réglages) a maintenant un 3ᵉ arrêt, 中文, en plus du français et de l'anglais — pour l'instant sur les mêmes ~10 boutons essentiels de jeu/préparation de partie (Fin de bataille, Changer la carte, Rejouer la même carte, Nouvelle partie aléatoire, Revoir la partie, trêve, paix, Abandonner, Continuer le combat), pas encore le Lore ni les Conseils.",
+    ],
+  },
   {
     version: "2.11",
     notes: [
@@ -9215,6 +9233,7 @@ function applyUiLanguage() {
   document.getElementById("continueSiege").textContent = t("continueSiege");
   const langToggleEl = document.getElementById("langToggle");
   langToggleEl.classList.toggle("lang-en", uiLang === "en");
+  langToggleEl.classList.toggle("lang-zh", uiLang === "zh");
   langToggleEl.setAttribute("aria-label", t("langToggleLabel"));
   const rerollBtnEl = document.getElementById("rerollBtn");
   rerollBtnEl.textContent = replaying ? "⏹" : t("rerollChangeMap");
@@ -9231,7 +9250,7 @@ function applyUiLanguage() {
 }
 applyUiLanguage();
 document.getElementById("langToggle").addEventListener("click", () => {
-  uiLang = uiLang === "fr" ? "en" : "fr";
+  uiLang = uiLang === "fr" ? "en" : uiLang === "en" ? "zh" : "fr";
   try { localStorage.setItem("kw_uiLang", uiLang); } catch (e) { /* ignore */ }
   sfxToggle();
   applyUiLanguage();
