@@ -653,28 +653,14 @@
      whichever is active. Requalified with the settingsPanel ID (same
      specificity trick as the Conseils/Lore back buttons above) to beat the
      shared button rule's padding/background. */
-  /* 3 stops now (fr/en/zh, "Chinois fais" adding the 3rd) — widened to fit
-     an extra segment, same sliding-thumb idea as the original 2-way switch. */
-  #settingsPanel button#langToggle.langSwitch {
-    position: relative; display: flex; width: 176px; height: 34px; padding: 0;
-    background: rgba(20,16,12,.45); border: 1px solid #8a6d3b; border-radius: 17px;
-    overflow: hidden; box-sizing: border-box;
-  }
-  .langSwitchOption {
-    flex: 1 1 33.333%; display: flex; align-items: center; justify-content: center;
-    font-size: 12.5px; font-weight: 700; color: rgba(242,237,226,.75);
-    position: relative; z-index: 1; transition: color .28s ease;
-  }
-  .langSwitchThumb {
-    position: absolute; top: 2px; left: 2px; width: calc(33.333% - 2.7px); height: calc(100% - 4px);
-    background: linear-gradient(135deg, #fff3c4, #e8c468, #a97e2a);
-    border-radius: 14px; transition: transform .28s cubic-bezier(.34, 1.56, .64, 1);
-  }
-  #langToggle.lang-en .langSwitchThumb { transform: translateX(100%); }
-  #langToggle.lang-zh .langSwitchThumb { transform: translateX(200%); }
-  #langToggle.lang-en .langSwitchOption[data-lang="en"],
-  #langToggle.lang-zh .langSwitchOption[data-lang="zh"],
-  #langToggle:not(.lang-en):not(.lang-zh) .langSwitchOption[data-lang="fr"] { color: #2b1d10; }
+  /* "Le cadre de choix des langues doit être flex largeur page et on doit
+     pouvoir cliquer direct sans carousel de langue" — the old single-button
+     cycling switch (fr -> en -> zh -> fr) is gone; 3 real, independently
+     clickable buttons now, same .levelRow/.levelBtn row every other picker
+     in this panel already uses (full-width flex, equal shares, gold
+     .active highlight). "Met juste les drapeaux enlève fr en etc" — flag
+     emoji only, no FR/EN/中 text. */
+  #langLevels .levelBtn { font-size: 20px; padding: 4px 6px; }
   /* plain icon button, main HUD, left end of #bottomHudRow's now-two-button
      row (#gueuxBadge moved out to stand under #settingsBtn instead — see
      its own note) — same circular gold treatment as #settingsBtn now
@@ -1167,10 +1153,10 @@
       <div class="fieldGroup">
         <div class="fieldLabel">Difficulté</div>
         <div id="difficultyLevels" class="levelRow">
-          <button data-level="0" class="levelBtn"><span class="diffIcons"><img alt=""></span>Page</button>
-          <button data-level="1" class="levelBtn"><span class="diffIcons"><img alt=""></span>Écuyer</button>
-          <button data-level="2" class="levelBtn"><span class="diffIcons"><img alt=""></span>Chevalier</button>
-          <button data-level="3" class="levelBtn"><span class="diffIcons"><img alt=""></span>Seigneur</button>
+          <button data-level="0" class="levelBtn"><span class="diffIcons"><img alt=""></span>Gueux</button>
+          <button data-level="1" class="levelBtn"><span class="diffIcons"><img alt=""></span>Page</button>
+          <button data-level="2" class="levelBtn"><span class="diffIcons"><img alt=""></span>Écuyer</button>
+          <button data-level="3" class="levelBtn"><span class="diffIcons"><img alt=""></span>Chevalier</button>
           <!-- Hidden 5th tier — only shown once unlocked (4 full ocean
                rituals in one match at Seigneur, after the "parchemin
                crypté" hint has appeared — see recordCthulhuUnlock() and
@@ -1185,9 +1171,9 @@
       <div class="fieldGroup">
         <div class="fieldLabel">Taille de la carte</div>
         <div id="mapSizeLevels" class="levelRow">
-          <button data-mapsize="small" class="levelBtn">Joute</button>
-          <button data-mapsize="medium" class="levelBtn">Raid</button>
-          <button data-mapsize="large" class="levelBtn">Massacre</button>
+          <button data-mapsize="small" class="levelBtn">Basse-cour</button>
+          <button data-mapsize="medium" class="levelBtn">Quintaine</button>
+          <button data-mapsize="large" class="levelBtn">Raid</button>
           <button data-mapsize="huge" class="levelBtn">Croisade</button>
         </div>
       </div>
@@ -1216,14 +1202,18 @@
            bataille, Changer la carte, écran de fin, etc.), not the lore or
            flavor text yet. A plain toggle, not a full language picker with
            auto-detect — that's the bigger version still on the backlog.
-           "Chinois fais" added a 3rd stop (中文) on the same switch, same
-           minimal scope: only the ~10 core play/prepare buttons. -->
-      <button id="langToggle" class="langSwitch" style="margin-top:10px;">
-        <span class="langSwitchOption" data-lang="fr">🇫🇷 FR</span>
-        <span class="langSwitchOption" data-lang="en">🇬🇧 EN</span>
-        <span class="langSwitchOption" data-lang="zh">🇨🇳 中</span>
-        <span class="langSwitchThumb"></span>
-      </button>
+           "Chinois fais" added 中文 alongside, same minimal scope: only the
+           ~10 core play/prepare buttons. Was a single cycling button
+           (fr -> en -> zh -> fr); "le cadre doit être flex largeur page et
+           on doit pouvoir cliquer direct sans carousel" replaced it with 3
+           real independently-clickable buttons, same .levelRow/.levelBtn
+           row every other picker here already uses. "Met juste les
+           drapeaux enlève fr en etc" — flag emoji only, no text label. -->
+      <div id="langLevels" class="levelRow" style="margin-top:10px;">
+        <button data-lang="fr" class="levelBtn">🇫🇷</button>
+        <button data-lang="en" class="levelBtn">🇬🇧</button>
+        <button data-lang="zh" class="levelBtn">🇨🇳</button>
+      </div>
       <!-- "un mode accessible en option dans le menu ou les couleurs sont
            remplacés par hachure horizontales, verticale, diagonale droite et
            gauche" — four playable royaumes (ROYAUMES 0-3), four hatch
@@ -1459,9 +1449,9 @@ try {
 // only so a small map's still-meaningful 2-royaume identity (a tight 1v1
 // skirmish) reads at a glance in this table.
 const MAP_SIZES = {
-  small: { label: "Joute", territoryCount: 6, radius: 95, baseFactions: 2 },
-  medium: { label: "Raid", territoryCount: 26, radius: 230, baseFactions: 4 },
-  large: { label: "Massacre", territoryCount: 36, radius: 255, baseFactions: 4 },
+  small: { label: "Basse-cour", territoryCount: 6, radius: 95, baseFactions: 2 },
+  medium: { label: "Quintaine", territoryCount: 26, radius: 230, baseFactions: 4 },
+  large: { label: "Raid", territoryCount: 36, radius: 255, baseFactions: 4 },
   // biggest tier — genuinely fills ~95% of the available screen space
   // (resize()'s viewScale already fits whatever's generated tightly to the
   // viewport; this is just a bigger island/higher hex count than "Grande
@@ -1682,13 +1672,17 @@ function escalated(baseValue, hardValue) {
 // clamps it away (see its own note) — winning at Seigneur is meant to be
 // rare now, needing zero tactical mistakes ("il faut vraiment que le
 // niveau quatre... on arrive très difficilement à gagner").
+// "On renomme difficulté Gueux page écuyer et chevalier" — each tier
+// renamed down one social rank (Gueux/Page/Écuyer/Chevalier instead of
+// Page/Écuyer/Chevalier/Seigneur); the underlying `value` (AI aggression)
+// per tier is unchanged, only the label.
 const DIFFICULTY_LEVELS = [
-  { name: "Page",       value: 0 },
-  { name: "Écuyer",    value: 0.35 },
-  { name: "Chevalier", value: 0.91 }, // was 0.7 (×1.3)
-  { name: "Seigneur",  value: 1.3 },  // was 1 (×1.3)
+  { name: "Gueux",     value: 0 },
+  { name: "Page",      value: 0.35 },
+  { name: "Écuyer",    value: 0.91 }, // was 0.7 (×1.3)
+  { name: "Chevalier", value: 1.3 },  // was 1 (×1.3)
 ];
-let difficultyLevel = 0; // Page (le plus facile) par défaut sur une installation neuve/cache vidé
+let difficultyLevel = 0; // Gueux (le plus facile) par défaut sur une installation neuve/cache vidé
 try {
   const saved = localStorage.getItem("kw_difficultyLevel");
   if (saved !== null) difficultyLevel = Math.max(0, Math.min(DIFFICULTY_LEVELS.length - 1, Number(saved)));
@@ -1809,6 +1803,14 @@ const CERES_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAOoAAADqCAY
 const CERES_IMG = loadSprite(CERES_IMG_SRC);
 const NEPTUNE_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAOoAAADqCAYAAACslNlOAAAC2klEQVR4nO3cQW4CMRAAQYjy/y+TJyCsZHZ7UnVHa+Nt+TLweAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAwKTn1QvgrdfBZ5zrMl9XLwB4T6gQIFQIECoECBUChAoBQoUAoUKAUCFAqBAgVAgQKgQY3p51MmA/xbtwY25UCBAqBAgVAoQKAUKFAKFCgFAhQKgQIFQIECoECBUChAoBBrHPTf2D/bbncMCNCgFChQChQoBQIUCoECBUCBAqBAgVAoQKAUKFAKFCgFAhYONQ9bbhcvu5935GuFEhQKgQIFQIECoECBUChAoBQoUAoUKAUCFAqBAgVAgQKgTcfdj5ZIB7ytR3d+chduczxI0KAUKFAKFCgFAhQKgQIFQIECoECBUChAoBQoUAoUKAUCHge/BZU8Pl254zZdv3tup83KgQIFQIECoECBUChAoBQoUAoUKAUCFAqBAgVAgQKgQIFQImh/JvO/B8yH7ubdV+3KgQIFQIECoECBUChAoBQoUAoUKAUCFAqBAgVAgQKgQIFQKECgFChQChQoBQIUCoECBUCBAqBAgVAoQKAUKFAKFCgFAhQKgQIFQIECoECBUChAoBQoUAoUKAUCFAqBAgVAgQKgQIFQKECgFChYDn1Qv4A6+rF8Cv2/iefsSNCgFChQChQoBQIUCoECBUCBAqBAgVAoQKAUKFAKFCgFAh4N8POwec/MjAuS7jRoUAoUKAUCFAqBAgVAgQKgQIFQKECgFChQChQoBQIUCoECBUCBAqBAgVAoQKAUKFAKFCgFAhQKgQIFQIECoECBUChAoBQoUAoUKAUCFAqBAgVAgQKgQIFQKECgFChQChQoBQIUCoECBUCBAqBAgVAoQKAUKFAKFCgFAhQKgQIFQIECoECBUChAoBQoUAoUKAUCFAqBAgVAgQKgQIFQKECgFChQChQoBQIUCoECBUCBAqBAgVAoQKAAAAAAAAAAAAAADAXj8GhxSI6Dao7wAAAABJRU5ErkJggg==";
 const NEPTUNE_IMG = loadSprite(NEPTUNE_IMG_SRC);
+// Excalibur planted in the rock, and a hint scroll ("parchemin crypté") —
+// "Excalibur et parchemin sont affichés en trophées, on verra la mécanique
+// plus tard": both shown as real trophy slots below, unlock condition not
+// yet decided (earned:false for now, revisit once a mechanic is chosen).
+const EXCALIBUR_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAOoAAADqCAYAAACslNlOAAADb0lEQVR4nO3dwWlbQRhGUTm4JEPSUIoIZGlwEWkoAffkLARZxmjAv+aOz9mL95B0mc2np8sFAAAAAAAAAAAAAABY8nDvG+Bdbwuv8bke5su9bwB4n1AhQKgQIFQIECoECBUChAoBQoUAoUKAUCFAqBAgVAgQKgQIFQKECgFChQChQoBQIUCoECBUCBAqBAgVAoQKAUKFAKFCgCeqr1t5gv1pfH+GOFEhQKgQIFQIECoECBUChAoBQoUAoUKAUCFAqBAgVAgQKgQYVV+tDOyn3jv3hhMVCoQKAUKFAKFCgFAhQKgQIFQIECoECBUChAoBQoUAoUKAgfT+DN9xokKBUCFAqBAgVAgQKgQIFQKECgFChQChQoBQIUCoECBUCDDenrUysD+N79wCJyoECBUChAoBQoUAoUKAUCFAqBAgVAgQKgQIFQKECgFChQAD6auRsfyf3683v+brt6eR66xYubdFn/576kSFAKFCgFAhQKgQIFQIECoECBUChAoBQoUAoUKAUCFAqBDweO8b+AA3D+ynRuynmfqRwWXtRxNHDfmdqBAgVAgQKgQIFQKECgFChQChQoBQIUCoECBUCBAqBAgVAnYfLo88wX7KzuP/wafe72zbHpyoECBUCBAqBAgVAoQKAUKFAKFCgFAhQKgQIFQIECoECBUCjntS/svPXyPX+fH8feQ6O4/lp97rFVOfzxQnKgQIFQKECgFChQChQoBQIUCoECBUCBAqBAgVAoQKAUKFgONG+TtbGdjvPHyfctrAfoUTFQKECgFChQChQoBQIUCoECBUCBAqBAgVAoQKAUKFAKFCwMPgtd4mLrLziH1qXH7avwUMmuzhJk5UCBAqBAgVAoQKAUKFAKFCgFAhQKgQIFQIECoECBUChAoBqyPkTz+wn3La8P3AHwyMDPmdqBAgVAgQKgQIFQKECgFChQChQoBQIUCoECBUCBAqBAgVAsZG+Qb2c1YG6T6f5SG/UT5wJVQIECoECBUChAoBQoUAoUKAUCFAqBAgVAgQKgQIFQIe730D/N9pT8o/0Mq/Rtw85HeiQoBQIUCoECBUCBAqBAgVAoQKAUKFAKFCgFAhQKgQIFQIGHtSPvCPUT6cSKgQIFQIECoECBUChAoBQoUAoUKAUCFAqBAgVAgQKgAAAAAAAAAAAAAAAOf6CxxzPaK/nkXvAAAAAElFTkSuQmCC";
+const EXCALIBUR_IMG = loadSprite(EXCALIBUR_IMG_SRC);
+const PARCHEMIN_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAOoAAADqCAYAAACslNlOAAADWUlEQVR4nO3cQVLkQAwAwYGY/38ZDsQ+gF4QXZrMO2EPdoUucj8eAAAAAAAAAAAAAADAkbfBa30MXgtu9u3u3n/jLoCfJVQIECoECBUChAoBQoUAoUKAUCFAqBAgVAgQKgQIFQKeh393smA/9QHAzffGmZuf6cjHJiYqBAgVAoQKAUKFAKFCgFAhQKgQIFQIECoECBUChAoBQoWA06X8EzcvVp9w8v8+1z5TExUChAoBQoUAoUKAUCFAqBAgVAgQKgQIFQKECgFChQChQsDk0vu1C8+Hbv5gYJub352R98BEhQChQoBQIUCoECBUCBAqBAgVAoQKAUKFAKFCgFAhQKgQsHGxfNuJ/JxZ9R6YqBAgVAgQKgQIFQKECgFChQChQoBQIUCoECBUCBAqBAgVAp5/fQMv5uYT36ecLL6vWrA/YaJCgFAhQKgQIFQIECoECBUChAoBQoUAoUKAUCFAqBAgVAiwlP9laul71aI4c0xUCBAqBAgVAoQKAUKFAKFCgFAhQKgQIFQIECoECBUChAoBlsS/TC3lOyl/7p1bdbq+iQoBQoUAoUKAUCFAqBAgVAgQKgQIFQKECgFChQChQoBQIeDaJeT/MLX4vvF/d6tVC/YnTFQIECoECBUChAoBQoUAoUKAUCFAqBAgVAgQKgQIFQKECgHPv76BS9x8evs2q5blp5ioECBUCBAqBAgVAoQKAUKFAKFCgFAhQKgQIFQIECoECBUCNi5Iv/yp6uxjokKAUCFAqBAgVAgQKgQIFQKECgFChQChQoBQIUCoECBUCHBSPv9MneJ/8gHEy39oYaJCgFAhQKgQIFQIECoECBUChAoBQoUAoUKAUCFAqBAgVAiYXFyeWvqesmrpe5D34ICJCgFChQChQoBQIUCoECBUCBAqBAgVAoQKAUKFAKFCgFAh4HSh2Knq+5bLt7n5mX773kxUCBAqBAgVAoQKAUKFAKFCgFAhQKgQIFQIECoECBUChAoBz8FrbTtZftvvudm1y/KPoXszUSFAqBAgVAgQKgQIFQKECgFChQChQoBQIUCoECBUCBAqBEwult98svy1y9hcb6QhExUChAoBQoUAoUKAUCFAqBAgVAgQKgQIFQKECgFChQChAgAAAAAAAAAAAAAAsNcn5zcjpgT+/+wAAAAASUVORK5CYII=";
+const PARCHEMIN_IMG = loadSprite(PARCHEMIN_IMG_SRC);
 // "Un enfant qui porte un écu" — the Page difficulty tier's own dedicated
 // trophy sprite (user-supplied), replacing the plain white SWORD_IMG_SRC
 // placeholder used until now — see DIFF_TROPHY_IMG in refreshTrophyRoom().
@@ -1898,79 +1900,36 @@ try {
 let cthulhuHintShown = false;
 try { cthulhuHintShown = localStorage.getItem("kw_cthulhuHintShown") === "1"; } catch (e) { /* ignore */ }
 
-// Pins #wrap (and therefore everything inside it — canvas, HUD, all of it)
-// to whatever fixed pixel size it last had in portrait, instead of letting
-// it reflow/resize when the phone turns sideways — then, in landscape,
-// rotates that whole frozen portrait rectangle ±90° so it fills the
-// (now-landscape) viewport EXACTLY, corner to corner, with no cropping and
-// no scaling: a portrait phone's landscape dimensions are just its own
-// portrait dimensions transposed, so a 90°-rotated portrait box is always
-// a perfect pixel-for-pixel fit. Trades "readable without turning your
-// head" for "nothing is ever cut off" — proposed live as a deliberate
-// cheat once true OS-level orientation lock was confirmed impossible for
-// any web content on iPhone (see the manifest/screen.orientation.lock()
-// research): "si je tourne vers la droite, on ne peut pas tourner le jeu
-// vers la gauche ?" (reported after the previous frozen-but-unrotated
-// version left literally half the screen — bottom half, buttons included
-// — cut off past the shorter landscape viewport).
+// Landscape rotation feature REMOVED per explicit request ("Supprime
+// rotation possible totalement ça marche pas") — the whole freeze+rotate
+// idea (below is the history, kept for context) never worked reliably
+// enough in practice (its most recent bug: the iOS on-screen keyboard
+// shrinking visualViewport's height alone was enough to misfire it while
+// genuinely in portrait — see the "charger une carte" report) to be worth
+// continuing to patch. #wrap now always just fills the viewport at 100%,
+// unrotated, in every orientation; lastPortraitSize/wrapRotationDeg stay
+// as permanent constants (0 / null) purely because a few other call sites
+// (physicalToWrapLocal, mapNumberRotationRad, the landscapeHud body class,
+// the ocean-tap-ends-turn special case) already key off them and degrade
+// correctly on their own once they never change — no need to touch each
+// of those separately.
+//
+// (Original idea, for history: pin #wrap to its last portrait pixel size,
+// then in landscape rotate that frozen rectangle ±90° so a portrait
+// phone's transposed landscape dimensions still fill the screen corner to
+// corner with no cropping — proposed once true OS-level orientation lock
+// was confirmed impossible for web content on iPhone.)
 let portraitStageScale = 1;
-let lastPortraitSize = null; // {w, h} — the last size actually measured in portrait; landscape just keeps reusing it
-// 0 in portrait; ±90 in landscape (sign per screen.orientation.type, same
-// mapping confirmed correct live for the old per-digit rotation this
-// replaces) — every client-point-to-logical-space conversion below needs
-// to know this to correctly invert the rotation, not just a uniform scale
-// the way portraitStageScale (kept at a permanent 1 now) used to cover.
-let wrapRotationDeg = 0;
+let lastPortraitSize = null; // {w, h} — last measured size; kept for physicalToWrapLocal's fallback only, never updated to a "landscape" reading now
+let wrapRotationDeg = 0; // permanently 0 — see removal note above
 function lockPortraitStage(rawW, rawH) {
   const wrapEl = document.getElementById("wrap");
-  // Only phone-sized viewports ever get frozen+rotated (same 900px
-  // breakpoint .sideArt's own desktop-only media query uses) — a desktop
-  // browser window is landscape by default and was never "a phone turned
-  // sideways"; without this check, any ordinary wide desktop window
-  // rotated the WHOLE game (including the desktop-only side art!) 90° on
-  // every load, discovered live once rotate()+translate() actually landed
-  // it corner-to-corner instead of leaving it subtly off enough to miss.
-  const isPhoneSized = Math.max(rawW, rawH) < 900;
-  if (rawW <= rawH || !isPhoneSized) {
-    lastPortraitSize = { w: rawW, h: rawH };
-    wrapEl.style.width = "100%";
-    wrapEl.style.height = "100%";
-    wrapEl.style.transform = "";
-    wrapRotationDeg = 0;
-    mapNumberRotationRad = 0;
-    return { w: rawW, h: rawH };
-  }
-  // landscape: freeze at the last known portrait size, then rotate the
-  // whole thing ±90° about its own center — falls back to treating the
-  // current (landscape) reading as if it were portrait-shaped on the very
-  // first measurement, before any real portrait size has ever been
-  // recorded (e.g. the page happens to load with the phone already turned
-  // sideways).
-  const { w, h } = lastPortraitSize || { w: rawH, h: rawW };
-  wrapEl.style.width = w + "px";
-  wrapEl.style.height = h + "px";
-  const type = (window.screen && screen.orientation && screen.orientation.type) || "";
-  wrapRotationDeg = type === "landscape-secondary" ? 90 : -90;
-  // exact opposite angle — see mapNumberRotationRad's own note on why this
-  // cancels the CSS rotation out net-zero for every on-map numeric label
-  mapNumberRotationRad = -wrapRotationDeg * Math.PI / 180;
-  // rotate() alone isn't enough: it turns the box in place around its own
-  // center, but since w !== h (portrait is always taller than wide) that
-  // center isn't where the rotated box needs to sit to fill a viewport
-  // that starts at (0,0) — the whole frozen w×h rectangle (top-left
-  // pinned at 0,0 by #wrap's own CSS) drifts off to one side instead of
-  // covering the screen (reported live: map and every HUD button landing
-  // somewhere other than where they visually belong). A rotated w×h box's
-  // bounding box is h×w, still centered on the same point — translating
-  // by ((h-w)/2, (w-h)/2) *after* the rotation (i.e. listed first: CSS
-  // applies the rightmost transform function to the box first, then the
-  // next one over on the *already-rotated* result, along the parent's own
-  // unrotated axes) is exactly the shift that brings that bounding box's
-  // corner back to (0,0), filling the transposed h×w viewport corner to
-  // corner regardless of which way it rotated.
-  const tx = (h - w) / 2, ty = (w - h) / 2;
-  wrapEl.style.transform = `translate(${tx}px, ${ty}px) rotate(${wrapRotationDeg}deg)`;
-  return { w, h };
+  lastPortraitSize = { w: rawW, h: rawH };
+  wrapEl.style.width = "100%";
+  wrapEl.style.height = "100%";
+  wrapEl.style.transform = "";
+  mapNumberRotationRad = 0;
+  return { w: rawW, h: rawH };
 }
 // Converts a point in physical/viewport pixels (as e.clientX/clientY report)
 // into a rotated element's own pre-rotation logical coordinate space (0..w
@@ -3790,7 +3749,6 @@ const UI_STRINGS = {
   proposePeace: { fr: "🕊️ Proposer la paix", en: "🕊️ Propose peace", zh: "🕊️ 提议和平" },
   confirmSurrender: { fr: "Abandonner", en: "Surrender", zh: "投降" },
   continueSiege: { fr: "⚔ Continuer le combat", en: "⚔ Continue the fight", zh: "⚔ 继续战斗" },
-  langToggleLabel: { fr: "🇫🇷 Français", en: "🇬🇧 English", zh: "🇨🇳 中文" },
 };
 function t(key) {
   const entry = UI_STRINGS[key];
@@ -3931,17 +3889,34 @@ function playTone(freq, duration, opts = {}) {
     // sfxVictory()'s own reverbTailBoost:2 on its last note.
     const tailBoost = opts.reverbTailBoost || 1;
     if (reverbAmount > 0) {
-      // a short feedback delay standing in for a light reverb tail — cheap
-      // and dependency-free, no convolver/impulse-response asset needed
-      const delay = ac.createDelay(0.3);
-      delay.delayTime.value = 0.1 * tailBoost;
-      const feedback = ac.createGain();
-      feedback.gain.value = 0.32 * reverbAmount;
+      // Diffuse "reverb wash" via a small bank of short comb filters run in
+      // parallel — cheap and dependency-free, no convolver/impulse-response
+      // asset needed — instead of the single feedback-delay tap this used to
+      // be. One lone tap repeating every ~100-200ms reads unmistakably as an
+      // echo, not reverb ("la dernière note de musique victoire doit avoir
+      // reverb pas de delay"): several short, mutually-prime delay times
+      // smear the reflections close enough together that the ear fuses them
+      // into one continuous decaying tail instead of counting distinct
+      // repeats. tailBoost ("on double sa reverb et sa durée" on the last
+      // note) now lengthens the decay via more feedback, not a longer single
+      // gap between repeats — a bigger gap is what made the old version
+      // sound like slapback rather than reverb in the first place.
+      const combTimes = [0.017, 0.023, 0.029, 0.037, 0.041, 0.047]; // seconds
       const wet = ac.createGain();
-      wet.gain.value = 0.28 * reverbAmount * tailBoost;
-      gain.connect(delay);
-      delay.connect(feedback); feedback.connect(delay);
-      delay.connect(wet); wet.connect(ac.destination);
+      wet.gain.value = 0.18 * reverbAmount * (0.7 + 0.3 * tailBoost);
+      combTimes.forEach((baseTime) => {
+        const delay = ac.createDelay(0.5);
+        delay.delayTime.value = baseTime;
+        const damp = ac.createBiquadFilter(); // rolls off each pass so the tail darkens as it decays, like a real room
+        damp.type = "lowpass";
+        damp.frequency.value = 2200;
+        const feedback = ac.createGain();
+        feedback.gain.value = Math.min(0.62, 0.4 * reverbAmount * (0.75 + 0.5 * tailBoost));
+        gain.connect(delay);
+        delay.connect(damp); damp.connect(feedback); feedback.connect(delay);
+        damp.connect(wet);
+      });
+      wet.connect(ac.destination);
     }
     osc.start(t0);
     osc.stop(t0 + duration + (opts.underwater || reverbAmount > 0 ? 0.3 * tailBoost : 0.03));
@@ -8144,8 +8119,11 @@ function refreshTrophyRoom() {
   slots.push({ earned: cthulhuUnlocked, name: "Cthulhu", img: CTHULHU_IMG_SRC });
   slots.push({ earned: marsBlessingUnlocked, name: "Le pouvoir des 12", img: SWORD_DIAGONAL_IMG_SRC });
   // "Un enfant qui porte un écu" — Page's own dedicated sprite, replacing
-  // the plain white sword placeholder used until now.
-  const DIFF_TROPHY_IMG = [PAGE_IMG_SRC, FIGURE1_IMG_SRC, FIGURE2_IMG_SRC, CREATURE_IMG_SRC];
+  // the plain white sword placeholder used until now. Shifted from index 0
+  // to index 1 (and the gueux bust brought in at index 0) to match "on
+  // renomme difficulté Gueux page écuyer et chevalier" — see
+  // DIFF_ICON_SRCS's own note on the same rename-vs-icon mismatch.
+  const DIFF_TROPHY_IMG = [GUEUX_BUST_IMG_SRC, PAGE_IMG_SRC, FIGURE2_IMG_SRC, CREATURE_IMG_SRC];
   DIFFICULTY_LEVELS.forEach((lvl, i) => {
     slots.push({ earned: difficultyTierWon[i], name: `Victoire — ${lvl.name}`, img: DIFF_TROPHY_IMG[i] });
   });
@@ -8162,8 +8140,20 @@ function refreshTrophyRoom() {
   slots.push({ earned: allRoyaumesFullyBlessed(), name: "Toutes les familles, tous les bonus", img: YINYANG_IMG_SRC });
   // Le Graal — "100% de tout avoir débloqué, le dernier à débloquer" : a
   // meta-trophy earned only once every OTHER slot above is already earned
-  // (checked against the 17 preceding slots, never against itself).
+  // (checked against the preceding slots, never against itself — computed
+  // BEFORE the 3 still-undecided slots just below are pushed, on purpose:
+  // Excalibur/parchemin/épée blanche have no unlock mechanic yet, so
+  // counting them here would make Le Graal permanently unearnable by
+  // anyone until all three get a real condition).
   slots.push({ earned: slots.every((s) => s.earned), name: "Le Graal", img: GRAAL_IMG_SRC });
+  // "Excalibur et parchemin sont affichés en trophées, on verra la
+  // mécanique plus tard" — two new real slots, not yet unlockable
+  // (earned:false until an unlock condition is actually chosen).
+  slots.push({ earned: false, name: "Excalibur", img: EXCALIBUR_IMG_SRC });
+  slots.push({ earned: false, name: "Le parchemin", img: PARCHEMIN_IMG_SRC });
+  // "Il manque épée blanche dans les trophées" — same treatment, mécanique
+  // à définir plus tard.
+  slots.push({ earned: false, name: "L'épée blanche", img: SWORD_IMG_SRC });
   el.innerHTML = slots.map((s) => `
     <div class="trophySlot${s.earned ? " earned" : ""}" title="${s.name}">
       ${s.emoji ? `<span class="trophyEmoji">${s.emoji}</span>` : `<img src="${s.img}" alt="${s.name}">`}
@@ -8228,8 +8218,19 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "2.16";
+const GAME_VERSION = "2.17";
 const CHANGELOG = [
+  {
+    version: "2.17",
+    notes: [
+      "Renommé les 4 niveaux de difficulté : Gueux, Page, Écuyer, Chevalier (un rang social en moins qu'avant — le \"Seigneur\" le plus dur disparaît du nom, la difficulté elle-même est inchangée).",
+      "Renommé les 4 tailles de carte : Basse-cour, Quintaine, Raid, Croisade.",
+      "Sélecteur de langue refondu : les 3 drapeaux sont maintenant 3 boutons cliquables directement, sur toute la largeur, plus de bouton unique à faire défiler.",
+      "Salle des trophées : ajout d'Excalibur, du parchemin et de l'épée blanche (3 nouveaux emplacements réels — la mécanique de déblocage viendra plus tard).",
+      "Retiré complètement le mode paysage (rotation forcée à 90° téléphone tourné sur le côté) : trop peu fiable en pratique (dernier bug en date, ouvrir « charger une carte » pouvait déclencher une fausse rotation à cause du clavier). Le jeu reste maintenant toujours dans son orientation normale, quelle que soit la position du téléphone.",
+      "Musique de victoire : la traînée de réverbération sur chaque note (et surtout la dernière, doublée) est remplacée par une vraie réverb diffuse au lieu d'un simple écho à répétition unique.",
+    ],
+  },
   {
     version: "2.16",
     notes: [
@@ -9255,10 +9256,11 @@ function applyUiLanguage() {
   document.getElementById("proposePeaceBtn").textContent = t("proposePeace");
   document.getElementById("confirmSurrender").textContent = t("confirmSurrender");
   document.getElementById("continueSiege").textContent = t("continueSiege");
-  const langToggleEl = document.getElementById("langToggle");
-  langToggleEl.classList.toggle("lang-en", uiLang === "en");
-  langToggleEl.classList.toggle("lang-zh", uiLang === "zh");
-  langToggleEl.setAttribute("aria-label", t("langToggleLabel"));
+  const LANG_ARIA = { fr: "Français", en: "English", zh: "中文" };
+  document.querySelectorAll("#langLevels .levelBtn").forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.lang === uiLang);
+    btn.setAttribute("aria-label", LANG_ARIA[btn.dataset.lang]);
+  });
   const rerollBtnEl = document.getElementById("rerollBtn");
   rerollBtnEl.textContent = replaying ? "⏹" : t("rerollChangeMap");
   rerollBtnEl.setAttribute("aria-label", replaying ? t("rerollStopReplayAria") : t("rerollChangeMapAria"));
@@ -9273,12 +9275,15 @@ function applyUiLanguage() {
   // always well past that point.
 }
 applyUiLanguage();
-document.getElementById("langToggle").addEventListener("click", () => {
-  uiLang = uiLang === "fr" ? "en" : uiLang === "en" ? "zh" : "fr";
-  try { localStorage.setItem("kw_uiLang", uiLang); } catch (e) { /* ignore */ }
-  sfxToggle();
-  applyUiLanguage();
-  updateEndTurnButton();
+document.querySelectorAll("#langLevels .levelBtn").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    if (btn.dataset.lang === uiLang) return; // already selected, no-op
+    uiLang = btn.dataset.lang;
+    try { localStorage.setItem("kw_uiLang", uiLang); } catch (e) { /* ignore */ }
+    sfxToggle();
+    applyUiLanguage();
+    updateEndTurnButton();
+  });
 });
 
 const soundVolumeSlider = document.getElementById("soundVolumeSlider");
@@ -9326,13 +9331,15 @@ document.getElementById("royaumesList").innerHTML = ROYAUMES.slice(0, ROYAUME_CO
 `).join("");
 
 
-// One icon per difficulty button — "met le Page sur le bouton de difficulté
-// 1, le gueux en 2, chevalier à pied à 3" (Seigneur/4 unchanged, already the
-// mounted knight). Page and the gueux bust are each a distinct character
-// now, so the earlier "escalating gueux count" (1 icon on Page, 2 on
-// Écuyer) no longer tells a coherent story — back to 1 icon per tier, same
-// as tiers 3-4 already were.
-const DIFF_ICON_SRCS = [[PAGE_IMG_SRC], [GUEUX_BUST_IMG_SRC], [FIGURE2_IMG_SRC], [CREATURE_IMG_SRC]];
+// One icon per difficulty button — was "le Page sur le bouton de difficulté
+// 1, le gueux en 2, chevalier à pied à 3" back when tier 1 was still named
+// "Page". "On renomme difficulté Gueux page écuyer et chevalier" then
+// shifted every label down one social rank without touching this array,
+// which left tier 0 ("Gueux") showing the Page sprite and tier 1 ("Page")
+// showing the gueux bust — swapped here so each icon matches its own
+// tier's new name again (tiers 2-3, "chevalier à pied"/mounted knight,
+// were never part of that rename and are untouched).
+const DIFF_ICON_SRCS = [[GUEUX_BUST_IMG_SRC], [PAGE_IMG_SRC], [FIGURE2_IMG_SRC], [CREATURE_IMG_SRC]];
 // Scoped to [data-level] specifically — #cthulhuLevelBtn shares the same
 // #difficultyLevels/.levelBtn container (so it inherits the same button
 // styling) but isn't one of the 4 named/indexed tiers DIFF_ICON_SRCS or
