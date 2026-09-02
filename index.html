@@ -1812,6 +1812,21 @@ const PAGE_IMG = loadSprite(PAGE_IMG_SRC);
 // art arrives.
 const VULCAIN_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJAAAACQCAYAAADnRuK4AAACKElEQVR4nO3dMU4kMRBAUQYRkWyy9z8hCQkp3AAHX1bZw3spAprmq4JSu+fx/9/798svPj6/Hr99vZr+/dXq+lduv7+v5ZtBQCQCIhEQiYBIBEQiIJLH6XuY6eure55q9fdN3x8TiERAJAIiERCJgEgERCIgkrfpC1h59j1PNb2nM4FIBEQiIBIBkQiIREAkAiLJe6Dpc1Gn73Gm9zS7mUAkAiIREImASAREIiASAZFcfy7sdrv3YM6FcTQBkQiIREAkAiIREImASI4/Fzatvp9npe5xpt8fZAKRCIhEQCQCIhEQiYBIBESy/Xmg6Z9fPfv1VSYQiYBIBEQiIBIBkQiIREAkeQ80fS7pdrfviUwgEgGRCIhEQCQCIhEQiYBI8rkwe55m97mz3UwgEgGRCIhEQCQCIhEQiYBIBEQiIBIBkQiIREAkAiIREImASLa/J/r051me3e77bwKRCIhEQCQCIhEQiYBIBESyfQ90+7mnv271/zOBSAREIiASAZEIiERAJAIiGf/ceHuiWT43nlECIhEQiYBIBEQiIBIBkYzvgVZ2v4f69j3T9Hu6TSASAZEIiERAJAIiERCJgEiO3wPtdvrzSNN7nhUTiERAJAIiERCJgEgERCIgEgGRCIhEQCQCIhEQiYBIBEQiIJI//zzQ9PM+K6vrm35eyAQiERCJgEgERCIgEgGRCIjk+j3Q6Xuc3ab3RCYQiYBIBEQiIBIBkQiIREAkP/zSla48RLyzAAAAAElFTkSuQmCC";
 const VULCAIN_IMG = loadSprite(VULCAIN_IMG_SRC);
+// The ultimate trophy — "vaincre toutes les familles, chacune avec tout les
+// bonus débloqués" (echoes the Lore's own "le défi ultime ça sera de
+// réussir à débloquer les bonus de chaque famille" line): earned once
+// EVERY royaume has EVERY one of the 4 gods unlocked for itself
+// (godUnlockedRoyaume fully filled in, all 16 combinations), not tracked as
+// its own flag — computed live from that same matrix, see
+// allRoyaumesFullyBlessed() below.
+const YINYANG_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJAAAACQCAYAAADnRuK4AAACK0lEQVR4nO3cMU7EMBBAURZR0dBw/xNuQ0MLN9gUX5bt+L2WZhO+phg5fnx/ff69vfD8+X28+vvurp5/ttXf//vsH8DeBEQiIBIBkQiIREAkAiL5mP0DqtX3ONXo56t7JhOIREAkAiIREImASAREIiCS6Xuguue42mPcfU9U1fdjApEIiERAJAIiERCJgEgERDJ8DzT6u7PZe57df39lApEIiERAJAIiERCJgEgERDL9PNDqRt/Ps/t5JhOIREAkAiIREImASAREIiCSvAc6/Z7p05lAJAIiERCJgEgERCIgEgGROA904e7ftVUmEImASAREIiASAZEIiERAJI/R9zTPtvueZXUmEImASAREIiASAZEIiERAJLc/D7T7/TurM4FIBEQiIBIBkQiIREAkAiK5/R7oij1RYwKRCIhEQCQCIhEQiYBIBERy/B7oyujv3nbfM5lAJAIiERCJgEgERCIgEgGR2ANNtvt5JBOIREAkAiIREImASAREIiCSy3ui655i9Xukr6x+j/bsPZEJRCIgEgGRCIhEQCQCIhEQyfHngUbvUe6+JzOBSAREIiASAZEIiERAJAIiyXug088Lnc4EIhEQiYBIBEQiIBIBkQiI5PjzQKPv57n7nssEIhEQiYBIBEQiIBIBkQiIJN8PVI3+Lmv3Pczo/099/yYQiYBIBEQiIBIBkQiIREAk0/dA1e7ndWbf81yf3wQiERCJgEgERCIgEgGRCIjkH8bmfD6e7mfFAAAAAElFTkSuQmCC";
+const YINYANG_IMG = loadSprite(YINYANG_IMG_SRC);
+function allRoyaumesFullyBlessed() {
+  for (let r = 0; r < ROYAUME_COUNT - 1; r++) {
+    for (let g = 0; g < 4; g++) if (!godUnlockedRoyaume[r][g]) return false;
+  }
+  return true;
+}
 // Cross-match progress toward the permanent octopus unlock (3 separate
 // matches where the in-match reveal fired) — persisted, declared here
 // (well before settingsBtnImg's own init below reads it) rather than down
@@ -8106,6 +8121,9 @@ function refreshTrophyRoom() {
   ROYAUMES.slice(0, ROYAUME_COUNT - 1).forEach((roy) => {
     slots.push({ earned: royaumePlayed[roy.id], name: roy.name.replace("Millon de ", ""), img: recolorBlazonDiagonal(roy.color) || BLAZON_IMG_SRC });
   });
+  // "Trophée pour vaincre toutes les familles, chacune avec tous les bonus
+  // débloqués" — the ultimate one, computed live (see allRoyaumesFullyBlessed()).
+  slots.push({ earned: allRoyaumesFullyBlessed(), name: "Toutes les familles, tous les bonus", img: YINYANG_IMG_SRC });
   el.innerHTML = slots.map((s) => `
     <div class="trophySlot${s.earned ? " earned" : ""}" title="${s.name}">
       ${s.emoji ? `<span class="trophyEmoji">${s.emoji}</span>` : `<img src="${s.img}" alt="${s.name}">`}
@@ -8168,8 +8186,14 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "2.09";
+const GAME_VERSION = "2.10";
 const CHANGELOG = [
+  {
+    version: "2.10",
+    notes: [
+      "Nouveau trophée ultime dans la Salle des trophées (symbole yin-yang) : vaincre avec les quatre familles, chacune ayant débloqué les quatre dieux — le vrai défi final évoqué dans le Lore.",
+    ],
+  },
   {
     version: "2.09",
     notes: [

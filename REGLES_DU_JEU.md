@@ -68,7 +68,12 @@ Notes importantes :
 - ⚠️ **Capitale vs villages** : le joueur a décrit une mécanique où une province est composée de plusieurs villages, un seul affichant le chiffre de force ("la capitale"), et où un chemin d'attaque doit obligatoirement passer par le village le plus proche d'un adversaire plutôt que capitale à capitale — **PAS ENCORE IMPLÉMENTÉE**, le modèle actuel traite chaque hexagone comme un territoire indépendant sans notion de capitale/village. Voir Partie 3.
 
 ### 2.7 Salle des trophées (Le Lore)
-11 emplacements : 4 dieux (icônes emoji provisoires, cachées derrière un coffre tant que non débloqués), Pieuvre, Cthulhu (sprite dédié, `CTHULHU_IMG_SRC`), Pouvoir des 12, 4 victoires par palier de difficulté (Page/Écuyer/Chevalier/Seigneur). Tous les emplacements SAUF les 4 dieux ont déjà une vraie image et restent toujours visibles à pleine opacité ; seul l'anneau doré distingue un trophée gagné.
+16 emplacements, tous toujours visibles à pleine opacité (aucun coffre-mystère, idée essayée puis retirée) — seul l'anneau doré distingue un trophée gagné :
+- 4 dieux (Vulcain, Bellone et Page ont leur propre sprite ; Cérès/Neptune encore en emoji placeholder)
+- Pieuvre, Cthulhu (sprite dédié), Pouvoir des 12
+- 4 victoires par palier de difficulté (Page/Écuyer/Chevalier/Seigneur)
+- 4 blasons de famille (même condition/art que `#loreRoyaumesJoues`)
+- 1 trophée ultime (symbole yin-yang) : vaincre avec les 4 familles, chacune ayant débloqué les 4 dieux — calculé à la volée (`allRoyaumesFullyBlessed()`), pas persisté séparément.
 
 ### 2.8 Sauvegarde automatique et résilience
 - La partie en cours est sauvegardée en continu (`saveGameState()`) et reconstruite silencieusement au chargement suivant (`resumeSavedGame()`) si l'app a été fermée en plein match.
