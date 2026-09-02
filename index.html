@@ -28,7 +28,7 @@
        isn't a royaume's own color is water, one single shade of it,
        including the strip beside #wrap visible when the phone is turned
        sideways (see lockPortraitStage()). */
-    background: #3d5f80; font-family: -apple-system, system-ui, sans-serif;
+    background: #1f3238; font-family: -apple-system, system-ui, sans-serif;
     touch-action: manipulation; user-select: none;
   }
   /* Sized by lockPortraitStage() (called from resize()): 100%x100% in
@@ -47,7 +47,7 @@
      shifted from where they visually belong) the first time this shipped
      with rotate() alone and no compensating translate. */
   #wrap { position: fixed; top: 0; left: 0; width: 100%; height: 100%; }
-  canvas { display: block; background: #3d5f80; touch-action: none; } /* matches CANVAS_BG_COLOR/water — otherwise the browser can claim a one-finger drag as a pan/scroll gesture mid-way and never deliver pointerup */
+  canvas { display: block; background: #1f3238; touch-action: none; } /* matches CANVAS_BG_COLOR/water — otherwise the browser can claim a one-finger drag as a pan/scroll gesture mid-way and never deliver pointerup */
   /* landscape (see resize()'s own toggle): distraction-free, map only —
      every persistent HUD element hidden outright, !important so it wins
      over whatever display/visibility a button's own JS logic set it to
@@ -1434,7 +1434,7 @@ const HEX_SIZE = 26;          // was 20, +30% per request — bigger tap targets
 // backdrop and border seams included, not a separate "void" color —
 // reported live: "tout ce qui n'est pas des royaumes c'est de l'eau [...]
 // y a pas deux couleurs d'eau différente y en a qu'une".
-const CANVAS_BG_COLOR = "#3d5f80";
+const CANVAS_BG_COLOR = "#1f3238";
 // MAP_PIXEL_RADIUS/TERRITORY_COUNT are `let`, not `const`: applyMapSize()
 // below reassigns them per the chosen map-size setting. resize()'s viewScale
 // already fits whatever island generateHexGrid() produces to the actual
@@ -6626,7 +6626,7 @@ function render() {
       // l'eau [...] y a pas deux couleurs d'eau différente y en a qu'une".
       // waterCost still varies per hex under the hood (it drives the force
       // cost of a crossing), it just isn't color-coded any more.
-      ctx.fillStyle = "#3d5f80";
+      ctx.fillStyle = "#1f3238";
       ctx.fill();
       // No per-hex outline here any more — used to draw a faint hex grid
       // over every water tile, reported as still visibly showing "cases"
@@ -8233,8 +8233,14 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "2.12";
+const GAME_VERSION = "2.13";
 const CHANGELOG = [
+  {
+    version: "2.13",
+    notes: [
+      "Nouvelle couleur d'eau/fond unique : #1f3238 (un bleu-vert plus sombre), à la place du bleu #3d5f80 précédent — même principe qu'avant (une seule couleur partout où il n'y a pas de royaume), juste recolorée.",
+    ],
+  },
   {
     version: "2.12",
     notes: [
