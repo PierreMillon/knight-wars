@@ -537,7 +537,14 @@
      than the page. */
   #trophyRoom { display: grid; grid-template-columns: repeat(auto-fill, minmax(52px, 1fr)); gap: 10px; margin: 0 0 16px; }
   .trophySlot { display: flex; align-items: center; justify-content: center; width: 38px; height: 38px; border: 1px solid #000; }
-  .trophySlot img { width: 30px; height: 30px; object-fit: contain; }
+  /* "les images des trophées doivent toutes rentrer dans leurs cases" — every
+     trophy image was rendering at the generic #loreOverlay img size (64px,
+     centered with a 14px bottom margin) instead of this 30px/no-margin rule:
+     an ID selector (#loreOverlay img) always outranks a class selector
+     (.trophySlot img) no matter which is declared later, so it silently won
+     and every trophy overflowed its 38×38 case. Re-scoped under #loreOverlay
+     to out-specificity it instead. */
+  #loreOverlay .trophySlot img { width: 30px; height: 30px; object-fit: contain; margin: 0; }
   .trophySlot.earned img { box-shadow: 0 0 0 2px #e8c468; }
   .trophySlot .trophyEmoji { font-size: 26px; line-height: 1; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; }
   .trophySlot.earned .trophyEmoji { box-shadow: 0 0 0 2px #e8c468; }
@@ -1804,7 +1811,12 @@ const BELLONE_IMG = loadSprite(BELLONE_IMG_SRC);
 // "Un enfant qui porte un écu" — the Page difficulty tier's own dedicated
 // trophy sprite (user-supplied), replacing the plain white SWORD_IMG_SRC
 // placeholder used until now — see DIFF_TROPHY_IMG in refreshTrophyRoom().
-const PAGE_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADwAAACMCAYAAAAgNsoHAAAA80lEQVR4nO3cIRLCMBQA0RaJqemxOC7HwtRg4QoRhcL2Pf1Fdr5MJvM0aF2ur9HZIzy25zwyd/n0QX6N4DrBdYLrBNcJrhNcJ7hOcJ3gOsF1gusE1wmuE1wnuE5wneA6wXWC6wTXCa4TXCe4bvhF/N72fmF/2x5Dc6fbsOA6wXWC6wTXDf32OU1+Lv1bgusE1wmuE1wnuE5wneA6wXWC6wTXCa4TXCe4TnCd4DrBdYLrBNcJrjvsRfxRTrdhwXWC6wTXCa57A1gLEG+rm1keAAAAAElFTkSuQmCC";
+// re-extracted 2026-09-02: the previous string decoded to a corrupted/
+// truncated PNG (broken zlib stream) that browsers silently rendered as a
+// blank white square in the trophy slot — root cause of "l'icône de Page
+// est fausse". Re-derived from the same source screenshot's clean PREVIEW
+// thumbnail (child bearing a shield, per "un enfant qui porte un écu").
+const PAGE_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAKAAAACgCAYAAACLz2ctAAABX0lEQVR4nO3duw3CMABAwcACGSb7j8AwngAa6gTJQk/guz4f2U8uIsvZNgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA+H+3+gV+wHPyemN84l6/AGsTICkBkhIgKQGSEiApAZISICkBkhIgKQGSEiApAZISICkBkrJX7WK/32Pfv/rwY4yl58AKSEqApARISoCkBEhKgKQESEqApARISoCkBEhKgKQESEqApARISoCkBEhKgKQESEqApARISoCkBEhKgKQESEqApARISoCkBEhKgKQESGrps+nepv4HfHV+4DHG1S2WngMrICkBkhIgKQGSEiApAZISIKmlv0F9aOo74WaMT1kBSQmQlABJCZCUAEkJkJQASQmQlABJCZCUAEkJkJQASQmQlABJ2as2v99v1tJzYAUkJUBSAiQlQFICJCVAUgIEAAAAAOCrXh7EC5yJLM8tAAAAAElFTkSuQmCC";
 const PAGE_IMG = loadSprite(PAGE_IMG_SRC);
 // Vulcain's own dedicated sprite (user-supplied via dotpict — an anvil with
 // sparks) — replaces the 🔨 emoji placeholder for him specifically in the
@@ -1819,8 +1831,14 @@ const VULCAIN_IMG = loadSprite(VULCAIN_IMG_SRC);
 // (godUnlockedRoyaume fully filled in, all 16 combinations), not tracked as
 // its own flag — computed live from that same matrix, see
 // allRoyaumesFullyBlessed() below.
-const YINYANG_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJAAAACQCAYAAADnRuK4AAACK0lEQVR4nO3cMU7EMBBAURZR0dBw/xNuQ0MLN9gUX5bt+L2WZhO+phg5fnx/ff69vfD8+X28+vvurp5/ttXf//vsH8DeBEQiIBIBkQiIREAkAiL5mP0DqtX3ONXo56t7JhOIREAkAiIREImASAREIiCS6Xuguue42mPcfU9U1fdjApEIiERAJAIiERCJgEgERDJ8DzT6u7PZe57df39lApEIiERAJAIiERCJgEgERDL9PNDqRt/Ps/t5JhOIREAkAiIREImASAREIiCSvAc6/Z7p05lAJAIiERCJgEgERCIgEgGROA904e7ftVUmEImASAREIiASAZEIiERAJI/R9zTPtvueZXUmEImASAREIiASAZEIiERAJLc/D7T7/TurM4FIBEQiIBIBkQiIREAkAiK5/R7oij1RYwKRCIhEQCQCIhEQiYBIBERy/B7oyujv3nbfM5lAJAIiERCJgEgERCIgEgGR2ANNtvt5JBOIREAkAiIREImASAREIiCSy3ui655i9Xukr6x+j/bsPZEJRCIgEgGRCIhEQCQCIhEQyfHngUbvUe6+JzOBSAREIiASAZEIiERAJAIiyXug088Lnc4EIhEQiYBIBEQiIBIBkQiI5PjzQKPv57n7nssEIhEQiYBIBEQiIBIBkQiIJN8PVI3+Lmv3Pczo/099/yYQiYBIBEQiIBIBkQiIREAk0/dA1e7ndWbf81yf3wQiERCJgEgERCIgEgGRCIjkH8bmfD6e7mfFAAAAAElFTkSuQmCC";
+const YINYANG_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJAAAACQCAYAAADnRuK4AAACHElEQVR4nO3cMU7EMBBAUYKoaGi4/wm3oaGFI7j4shw7711go9XXFKNJrreb+/76/Fv9DHf2+vm9Vv7++8ofZ38CIhEQiYBIBEQiIBIBkUzfIdQ9zmjPYU801+j/N4FIBEQiIBIBkQiIREAkAiLJe6DRHqbeq6ze8+z+/LOZQCQCIhEQiYBIBEQiIBIBkXysfoDVZr9Xdfo9kwlEIiASAZEIiERAJAIiERCJgEgERCIgEgGRCIhEQCQCIhEQyfAeaPZ7X+zNBCIREImASAREIiASAZEIiOTx74Wd/n2j2UwgEgGRCIhEQCQCIhEQiYBIrt3vfU7fs9ydCUQiIBIBkQiIREAkAiIREMn290Cnf4f57kwgEgGRCIhEQCQCIhEQiYBItt8DjdgTzWUCkQiIREAkAiIREImASAREcvweaGT2e2+n75lMIBIBkQiIREAkAiIREImASB6/B5rt9HskE4hEQCQCIhEQiYBIBEQiIJLhLczu35EeqXuYp98TmUAkAiIREImASAREIiASAZEcfw80e49y+p5sxAQiERCJgEgERCIgEgGRCIhkuAeq7zWdvgd5OhOIREAkAiIREImASAREIiCS4++BZn+f5+l7LhOIREAkAiIREImASAREIiCS6TuM2e9l7b6HqfdUq/9fE4hEQCQCIhEQiYBIBEQiIJLb71B2v9dZvaeZzQQiERCJgEgERCIgEgGRCIjkH/6Da4bSJrzKAAAAAElFTkSuQmCC";
 const YINYANG_IMG = loadSprite(YINYANG_IMG_SRC);
+// "Graal pour 100% de tout avoir débloqué. Le dernier à débloquer" — a
+// 17th, meta-trophy (user-supplied sprite) earned only once every OTHER
+// slot in the Salle des trophées is already earned — computed live in
+// refreshTrophyRoom() itself (checked against the 16 preceding slots,
+// never against itself) rather than its own separate flag.
+const GRAAL_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMwAAADYCAYAAACnZQx/AAADu0lEQVR4nO3dIWtWURzA4U0sDoOIQQTDuh9AMFgEgwwGglHRoWngV/ArKEuKikbTQAyCxSDsA9gNA5MYNWpZEIP6m17fc7fnyYfL4b7nxyl/3ru8xKJ9i+uXJ9kFf+TIojcAcyIYCAQDgWAgEAwEgoFAMBAIBgLBQCAYCAQDgbmk35v7rNfc9z8UNwwEgoFAMBAIBgLBQCAYCAQDgWAgEAwEgoFAMAAAAAAAAAAAAADBcP9Btba1nv5H6+Xmdnr+vbe32/qLj9L61x9vpPWXzzwb6vlTv5+1rfW0/uXm9lBn1LQyBIKBQDAQCAYCwUAgGAgEA4FgIBAMBIKBQDAQDDWns6d+k5GDbagz6oaBQDAQCAYCwUAgGAgEA4FgIBAMBIKBQDAQCAaCoeZ09mnWs2dvzq2m9Zfef5hoJ//NrM+cGwYCwUAgGAgEA4FgIBAMBIKBQDAQCAYCwUAgGAhmPdezZ6hZsjobdvZY+6bk7tf2TckBZ89mfebcMBAIBgLBQCAYCAQDgWAgEAwEgoFAMBAIBgLBQDDruZ59mvXsmdmwxXLDQCAYCAQDgWAgEAwEgoFAMBAIBgLBQCAYCAQDwdFFb2AB6uzTULNn/8Ghmg2r3DAQCAYCwUAgGAgEA4FgIBAMBIKBQDAQCAYCwUCwvDT9rNTUs1tDzT6dv/Uq7X/n6ZX2/Juv0vqdJ1eGej9L483mpffjhoFAMBAIBgLBQCAYCAQDgWAgEAwEgoFAMBAIBoL9zJIdqtmwqV1/8SW9n+fXVkZ7P3P/fdP+3TAQCAYCwUAgGAgEA4FgIBAMBIKBQDAQCAYCwUBwGL9xOZQTq7uL3sLfGm22cNLnu2EgEAwEgoFAMBAIBgLBQCAYCAQDgWAgEAwEgoFgP7Nks54FGs3V08fT+gcT7eMvjPbNysr/ksFUBAOBYCAQDASCgUAwEAgGAsFAIBgIBAOBYCCY9RzWoEabrfIb/0NuGAgEA4FgIBAMBIKBQDAQCAYCwUAgGAgEA4FgIDBn9HujzYZNzZn4BTcMBIKBQDAQCAYCwUAgGAgEA4FgIBAMBIKBQDAQHIS5ocM26zV3sz5zbhgIBAOBYCAQDASCgUAwEAgGAsFAIBgIBAOBYCAYca7HbBg/GuqMumEgEAwEgoFAMBAIBgLBQCAYCAQDgWAgEAwEgoHg6KI38LNPdzfS+lP3H6f1nx/fSetPbjxM67+8e5vWr1y4ONTzp34/U/++U3PDQCAYCAQDgWAgEAwEgoFAMBAIBgLBQCAYCAQDwXe4Cliw01wllwAAAABJRU5ErkJggg==";
 function allRoyaumesFullyBlessed() {
   for (let r = 0; r < ROYAUME_COUNT - 1; r++) {
     for (let g = 0; g < 4; g++) if (!godUnlockedRoyaume[r][g]) return false;
@@ -3900,21 +3918,27 @@ function playTone(freq, duration, opts = {}) {
     // (see sfxVictory()'s own per-note ramp). true/underwater both mean
     // "full strength", same as before this option existed.
     const reverbAmount = opts.reverb === true || opts.underwater ? 1 : (opts.reverb || 0);
+    // "La dernière note de victoire, on double sa reverb et sa durée" — the
+    // amount is already maxed at 1 by that point (see sfxVictory()'s own
+    // linear ramp), so "doubler la reverb" here means the tail itself
+    // (delay time + feedback/wet gain), not the 0-1 amount — see
+    // sfxVictory()'s own reverbTailBoost:2 on its last note.
+    const tailBoost = opts.reverbTailBoost || 1;
     if (reverbAmount > 0) {
       // a short feedback delay standing in for a light reverb tail — cheap
       // and dependency-free, no convolver/impulse-response asset needed
       const delay = ac.createDelay(0.3);
-      delay.delayTime.value = 0.1;
+      delay.delayTime.value = 0.1 * tailBoost;
       const feedback = ac.createGain();
       feedback.gain.value = 0.32 * reverbAmount;
       const wet = ac.createGain();
-      wet.gain.value = 0.28 * reverbAmount;
+      wet.gain.value = 0.28 * reverbAmount * tailBoost;
       gain.connect(delay);
       delay.connect(feedback); feedback.connect(delay);
       delay.connect(wet); wet.connect(ac.destination);
     }
     osc.start(t0);
-    osc.stop(t0 + duration + (opts.underwater || reverbAmount > 0 ? 0.3 : 0.03));
+    osc.stop(t0 + duration + (opts.underwater || reverbAmount > 0 ? 0.3 * tailBoost : 0.03));
   };
   if (ac.state === "suspended") {
     // wait for the actual resume instead of scheduling against a context
@@ -4133,7 +4157,14 @@ function sfxVictory(royId = humanRoyId) {
     // [pleine intensité] sur la dernière, une progression linéaire entre
     // les deux" — was a flat `true` (full reverb) on every note.
     const reverbAmount = i / 7;
-    scheduleSound(() => playTone(freq, 0.22, { type: "triangle", cutoff: 1400, volume: 0.09, reverb: reverbAmount }), i * 130);
+    // "la dernière note de victoire on double sa reverb et sa durée, si
+    // c'était une blanche c'est une ronde" — the last note (already at full
+    // 0-1 reverb amount) also gets its tail doubled (reverbTailBoost, see
+    // playTone()) and its own duration doubled, like a half note becoming a
+    // whole note.
+    const isLast = i === 7;
+    const duration = isLast ? 0.44 : 0.22;
+    scheduleSound(() => playTone(freq, duration, { type: "triangle", cutoff: 1400, volume: 0.09, reverb: reverbAmount, reverbTailBoost: isLast ? 2 : 1 }), i * 130);
   }
 }
 // same chord shape and the human's own root, run in reverse — the fall
@@ -8124,6 +8155,10 @@ function refreshTrophyRoom() {
   // "Trophée pour vaincre toutes les familles, chacune avec tous les bonus
   // débloqués" — the ultimate one, computed live (see allRoyaumesFullyBlessed()).
   slots.push({ earned: allRoyaumesFullyBlessed(), name: "Toutes les familles, tous les bonus", img: YINYANG_IMG_SRC });
+  // Le Graal — "100% de tout avoir débloqué, le dernier à débloquer" : a
+  // meta-trophy earned only once every OTHER slot above is already earned
+  // (checked against the 17 preceding slots, never against itself).
+  slots.push({ earned: slots.every((s) => s.earned), name: "Le Graal", img: GRAAL_IMG_SRC });
   el.innerHTML = slots.map((s) => `
     <div class="trophySlot${s.earned ? " earned" : ""}" title="${s.name}">
       ${s.emoji ? `<span class="trophyEmoji">${s.emoji}</span>` : `<img src="${s.img}" alt="${s.name}">`}
@@ -8186,8 +8221,19 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "2.10";
+const GAME_VERSION = "2.11";
 const CHANGELOG = [
+  {
+    version: "2.11",
+    notes: [
+      "Corrigé : le symbole yin-yang du trophée « Toutes les familles, tous les bonus » était mal recadré (asymétrique) — recadrage refait, désormais un cercle propre et bien proportionné.",
+      "Corrigé un bug d'affichage plus large : les images de la Salle des trophées (et de la rangée d'outils du Lore) débordaient toutes de leur case carrée — une règle CSS générique du Lore (destinée au seul blason en haut de page) les forçait à 64px au lieu des 30px prévus. Corrigé en isolant la règle des trophées pour qu'elle l'emporte.",
+      "Corrigé au passage : le sprite du palier Page (l'enfant à l'écu) était corrompu depuis son intégration — un flux d'image tronqué que les navigateurs affichaient comme une case blanche vide. Ré-extrait proprement depuis l'image d'origine.",
+      "Ajouté le trophée du Graal, ultime récompense méta qui ne se débloque qu'une fois tous les autres trophées obtenus (100% de la Salle des trophées).",
+      "Le badge de gueux n'affiche plus que le chiffre, sans l'émoji paysan.",
+      "La toute dernière note de la fanfare de victoire a désormais une réverbération et une durée doublées (comme une ronde après une série de blanches), pour mieux marquer la fin.",
+    ],
+  },
   {
     version: "2.10",
     notes: [
@@ -9794,7 +9840,7 @@ function showForcedSwimToast(fromId = 0) {
 function refreshGueuxBadge() {
   const el = document.getElementById("gueuxBadge");
   el.classList.toggle("gueuxHidden", replaying);
-  el.textContent = `🧑‍🌾 ${gueuxCount}`;
+  el.textContent = `${gueuxCount}`;
   el.classList.toggle("gueuxArmed", placingGueux);
   el.style.opacity = gueuxCount > 0 ? "1" : ".5";
 }
