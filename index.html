@@ -171,18 +171,17 @@
   #groups {
     display: flex; flex-direction: column; align-items: flex-start; gap: 4px;
   }
-  /* standalone, centered at the very top — NOT nested inside #topBar any
-     more (that kept it stuck left-aligned above the faction stats). Same
-     top offset as #topBar and #settingsBtn so all three share one top
-     edge: centered title, left-aligned stats, right-aligned menu button. */
+  /* standalone, NOT nested inside #topBar any more (that kept it stuck
+     left-aligned above the faction stats). Same top offset as #topBar and
+     #settingsBtn so all three share one top edge: left-aligned stats,
+     right-aligned title, right-aligned menu button — the title sits
+     immediately to the left of #settingsBtn (34px wide, right:10px), right
+     side aligned so it reads as attached to the menu button rather than
+     floating mid-screen. */
   #gameTitleBlock {
-    /* nudged right of dead-center (58% not 50%) — the faction stats column
-       at top-left can run several lines wide (up to 4 royaumes, each up to
-       "24 ·13·22%"), and a perfectly centered title overlapped it on a
-       narrower phone screen */
-    position: absolute; top: calc(8px + env(safe-area-inset-top, 0px)); left: 58%;
-    transform: translateX(-50%);
-    display: flex; flex-direction: column; align-items: center; text-align: center;
+    position: absolute; top: calc(8px + env(safe-area-inset-top, 0px));
+    right: calc(10px + 34px + 8px); left: 14px;
+    display: flex; flex-direction: column; align-items: flex-end; text-align: right;
     pointer-events: none; color: #f2ede2; text-shadow: 0 1px 2px rgba(0,0,0,.6);
   }
   #gameTitle {
@@ -521,7 +520,25 @@
      fit on one row instead of spilling to a second ("faire rentrer tous les
      petits dessins sur une seule ligne"), even on a narrow phone width. */
   #loreWarTools { display: flex; justify-content: center; align-items: center; gap: 6px; margin: 16px 0 0; flex-wrap: nowrap; }
+  /* "les images au-dessus du titre trophée doivent être dans des cases" —
+     boxed the same way as .trophySlot just below, so the two rows read as
+     one consistent visual language, but without the gold "earned" ring:
+     these are decorative, not unlock-tracked. */
+  .loreToolSlot { display: flex; align-items: center; justify-content: center; width: 38px; height: 38px; border-radius: 6px; background: rgba(169,126,42,.12); box-shadow: 0 0 0 1px rgba(169,126,42,.35); flex: none; }
   #loreWarTools img { width: 26px; height: auto; margin: 0; flex: none; }
+  #trophyRoomLabel { margin: 18px 0 6px; text-align: center; }
+  /* real grid (wraps to as many rows as needed), unlike #loreRoyaumesJoues'
+     single fixed row up top — this one's meant to grow as more trophies get
+     added later. Same dimmed/full visual language as that row (opacity +
+     gold ring), just without a name label under each icon — a trophy slot
+     is small and square, a name would either wrap awkwardly or force the
+     grid wider than the page. */
+  #trophyRoom { display: grid; grid-template-columns: repeat(auto-fill, minmax(52px, 1fr)); gap: 10px; margin: 0 0 16px; }
+  .trophySlot { display: flex; align-items: center; justify-content: center; }
+  .trophySlot img { width: 30px; height: 30px; object-fit: contain; border-radius: 6px; }
+  .trophySlot.earned img { box-shadow: 0 0 0 1.5px #e8c468, 0 0 0 3px #a97e2a; }
+  .trophySlot .trophyEmoji { font-size: 26px; line-height: 1; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border-radius: 6px; }
+  .trophySlot.earned .trophyEmoji { box-shadow: 0 0 0 1.5px #e8c468, 0 0 0 3px #a97e2a; background: rgba(232,196,104,.15); }
   #loreWarTools img.bw { filter: grayscale(1); }
   /* SWORD_DIAGONAL_IMG_SRC is already drawn at an angle in the source art
      itself — no CSS rotate needed (a first version rotated SWORD_IMG
@@ -1060,13 +1077,24 @@
            (SWORD_DIAGONAL_IMG_SRC — a solid black blade, already drawn at
            an angle in the source art), not the first one rotated. -->
       <div id="loreWarTools">
-        <img id="loreChevalierImg" alt="">
-        <img id="loreBlazonBWImg" class="bw" alt="">
-        <img id="loreOctopusBWImg" class="bw" alt="">
-        <img id="loreBoatImg" alt="">
-        <img id="loreSwordImg" alt="">
-        <img id="loreSwordDiagonalImg" alt="">
+        <div class="loreToolSlot"><img id="loreChevalierImg" alt=""></div>
+        <div class="loreToolSlot"><img id="loreBlazonBWImg" class="bw" alt=""></div>
+        <div class="loreToolSlot"><img id="loreOctopusBWImg" class="bw" alt=""></div>
+        <div class="loreToolSlot"><img id="loreBoatImg" alt=""></div>
+        <div class="loreToolSlot"><img id="loreSwordImg" alt=""></div>
+        <div class="loreToolSlot"><img id="loreSwordDiagonalImg" alt=""></div>
       </div>
+      <!-- "Salle des trophées" — see refreshTrophyRoom() — one slot per
+           real unlock the game currently tracks, always shown (icon or
+           emoji placeholder, never a blank silhouette), dimmed until
+           actually earned, same visual language as #loreRoyaumesJoues just
+           without a name label under each icon — "pour l'instant je veux
+           toutes les voir... peut-être qu'elles sont un peu grisées tant
+           qu'on a pas activé". Distinct from #loreRoyaumesJoues (the maisons
+           jouées row up top, in the intro) — that one stays exactly where
+           it is, this is a separate, later addition at the very bottom. -->
+      <div class="fieldLabel" id="trophyRoomLabel">🏆 Salle des trophées</div>
+      <div id="trophyRoom"></div>
       <button id="closeLore">Fermer</button>
     </div>
   </div>
@@ -1741,6 +1769,12 @@ const OCTOPUS_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAKUAAAClC
 const OCTOPUS_IMG = loadSprite(OCTOPUS_IMG_SRC);
 const CREATURE_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAANAAAADQCAYAAAB2pO90AAAC2klEQVR4nO3dQWoDMRAAwd3g/39ZOeQHahgroupuvF7TzGWQ3rXWw4z3fUde9lrrnfiend8z9WxTfr79APCfCQgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAg+336AE5y85LnzbJY855hAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEFx3MqlTOe/7PSf/pyYQBAKCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAiCd62RG9559pYimbOzgGoCQSAgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAguO5kUvbsLFJOLcdOPdvOZ0wgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAElkkZNbUYOvU9JhAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJAQBAICILrlkldJb9namHzZK65h2ECgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgrFl0pOvRD/Zbe/ttqVVEwgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAgEBMF1J5My57bF0B0mEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgq1lUlfJW6TkjwkEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJg7GTSnUXKqaXVqcXQk6+styC8xwSCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUHwccLmHO/tvhNdTSAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEASfkxf1OJsTUE0gSAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEY9fcw/OcfcroDhMIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgl9clHexCa709wAAAABJRU5ErkJggg==";
 const CREATURE_IMG = loadSprite(CREATURE_IMG_SRC);
+// Locked-trophy placeholder ("Coffre" — pixel-art chest, user-supplied via
+// dotpict) — shown in the Salle des trophées for any slot not yet earned,
+// in place of the real icon (which only appears, ringed in gold, once
+// unlocked — see refreshTrophyRoom()'s own note on this design change).
+const CHEST_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAHgAAABoCAYAAAA6sjRJAAABVUlEQVR4nO3cMQrCQBBAUSNWNjbe/4Q2NrZ6A6cIuOT7Xqshgc8Uyy67nQb32/U9/Yd1Hs/X9u33868+hDUEjhM4TuA4geMEjhM4bpvWudM6i7WmfiY4TuA4geMEjhM4TuA4gePGdTDHZoLjBI4TOE7gOIHjBI4TOE7gOIHjBI4TOE7gOIHjBI4TOO6y+gP2ms5t7z33ffT9chMcJ3CcwHECxwkcJ3CcwHH5c9H1de7EBMcJHCdwnMBxAscJHCdwnP3g+DrZBMcJHCdwnMBxAscJHCdwXH4/+N+Z4DiB4wSOEzhO4DiB4wSOEzhO4DiB4wSOEzhO4DiB4wSOEzhO4DiB4wSOEzhO4DiB4wSOEzhO4DiB4wSOEzhO4DiB4wSOG+/JWn0Plef3PW+C4wSOEzhO4DiB4wSOEzhuXAevvkfL+/e93wTHCRwncJzAcQLHCRwncNwHgMdCNPinodwAAAAASUVORK5CYII=";
+const CHEST_IMG = loadSprite(CHEST_IMG_SRC);
 // Cross-match progress toward the permanent octopus unlock (3 separate
 // matches where the in-match reveal fired) — persisted, declared here
 // (well before settingsBtnImg's own init below reads it) rather than down
@@ -3531,6 +3565,26 @@ function checkGodUnlockOnWin(royId) {
   return GOD_NAMES[royId];
 }
 
+// Difficulty-tier win trophies (Salle des trophées) — "les niveaux de
+// difficulté" as their own trophy, one per tier actually WON at least once
+// (Page/Écuyer/Chevalier/Seigneur), separate from royaumePlayed (which only
+// needs having picked a house, not won) and from cthulhuUnlocked (a much
+// deeper condition than just winning at that tier, kept as its own trophy).
+let difficultyTierWon = [false, false, false, false];
+try {
+  for (let i = 0; i < 4; i++) difficultyTierWon[i] = localStorage.getItem(`kw_difficultyTierWon_${i}`) === "1";
+} catch (e) { /* ignore */ }
+function recordDifficultyTierWin(royId) {
+  if (replaying || truceEnded || royId !== humanRoyId) return;
+  // gameStartDifficulty (the tier THIS match was actually played at, not
+  // the live/possibly-since-changed DIFFICULTY setting) — same convention
+  // as lastMatchArchive/applyPendingDifficulty() elsewhere.
+  const idx = DIFFICULTY_LEVELS.findIndex((l) => l.value === gameStartDifficulty);
+  if (idx === -1 || difficultyTierWon[idx]) return;
+  difficultyTierWon[idx] = true;
+  try { localStorage.setItem(`kw_difficultyTierWon_${idx}`, "1"); } catch (e) { /* ignore */ }
+}
+
 // English support kicked off small on purpose — "fais l'anglais en premier
 // maintenant juste pour les boutons de jeu utiles au minimum": just the
 // core in-game action buttons, not the lore/flavor text or a real
@@ -4824,6 +4878,8 @@ function showWin(royId) {
   // "Dieux spéciaux par royaume" — see checkGodUnlockOnWin()'s own note;
   // guards truceEnded/replaying/royId internally, same as the Cthulhu hint.
   const newlyUnlockedGod = checkGodUnlockOnWin(royId);
+  // Salle des trophées — see recordDifficultyTierWin()'s own note.
+  recordDifficultyTierWin(royId);
   if (royId === humanRoyId) {
     sfxVictory(royId);
     if (metaProgressEnabled) {
@@ -7844,7 +7900,57 @@ function refreshLoreRoyaumesJoues() {
   `).join("");
 }
 refreshLoreRoyaumesJoues();
+// "Salle des trophées" — one slot per real unlock the game currently
+// tracks: the 4 per-royaume gods (placeholder emoji — "des smileys que tu
+// prends adaptés, réfléchis pas trop, c'est des placeholders"), pieuvre,
+// Cthulhu, le pouvoir des 12/Mars (the black diagonal sword, per direct
+// request), and the 4 difficulty tiers actually WON at least once (Page's
+// own trophy is the plain white sword, per direct request too — the other
+// three reuse the same icons already shown next to their name in Réglages,
+// for one consistent visual vocabulary instead of inventing new ones).
+// Always shows every slot, never a blank silhouette — but "toutes les voir
+// [...] grisées" (dimming the real icon) was superseded live: "Oublie le
+// côté opaque des trucs non débloqués. Entoure les juste quand ils sont
+// débloqués" — so a NOT-YET-earned slot shows the mystery chest (CHEST_IMG_SRC,
+// user-supplied pixel art) instead of the real icon, full opacity; the real
+// icon only appears, ringed in gold, once actually earned. Recomputed fresh
+// each time Le lore is opened (see its own click handler below) rather than
+// on every individual unlock event — nothing here needs to update live
+// mid-match.
+function refreshTrophyRoom() {
+  const el = document.getElementById("trophyRoom");
+  if (!el) return;
+  // The chest replaces the emoji placeholders specifically ("L'icône de
+  // coffre c'est pour remplacer le trophée emoticones") — the 4 gods are
+  // the only slots still using a throwaway emoji (real god sprites are
+  // still to be drawn); every other slot already has real dedicated art
+  // and always shows it (no dimming, per "Oublie le côté opaque... entoure
+  // les juste quand débloqués"), ring appearing only once earned.
+  const GOD_EMOJI = ["🔨", "⚔️", "🌾", "🔱"]; // Vulcain, Bellone, Cérès, Neptune — see GOD_NAMES's own order
+  const slots = GOD_NAMES.map((name, i) => ({
+    earned: godUnlocked[i], name, emoji: GOD_EMOJI[i], placeholder: true,
+  }));
+  slots.push({ earned: pieuvreUnlocked, name: "La pieuvre", img: OCTOPUS_IMG_SRC });
+  slots.push({ earned: cthulhuUnlocked, name: "Cthulhu", img: OCTOPUS_IMG_SRC, filter: "invert(1) hue-rotate(180deg) brightness(.7)" });
+  slots.push({ earned: marsBlessingUnlocked, name: "Le pouvoir des 12", img: SWORD_DIAGONAL_IMG_SRC });
+  const DIFF_TROPHY_IMG = [SWORD_IMG_SRC, FIGURE1_IMG_SRC, FIGURE2_IMG_SRC, CREATURE_IMG_SRC];
+  DIFFICULTY_LEVELS.forEach((lvl, i) => {
+    slots.push({ earned: difficultyTierWon[i], name: `Victoire — ${lvl.name}`, img: DIFF_TROPHY_IMG[i] });
+  });
+  el.innerHTML = slots.map((s) => {
+    if (s.placeholder && !s.earned) {
+      return `<div class="trophySlot" title="${s.name}"><img src="${CHEST_IMG_SRC}" alt="${s.name}"></div>`;
+    }
+    return `
+    <div class="trophySlot${s.earned ? " earned" : ""}" title="${s.name}">
+      ${s.emoji ? `<span class="trophyEmoji">${s.emoji}</span>` : `<img src="${s.img}" alt="${s.name}" style="${s.filter ? `filter:${s.filter}` : ""}">`}
+    </div>
+  `;
+  }).join("");
+}
+refreshTrophyRoom();
 document.getElementById("loreBtn").addEventListener("click", () => {
+  refreshTrophyRoom();
   // #loreOverlay and #settingsPanel share the same z-index (10); DOM order
   // alone would otherwise leave #settingsPanel (declared later) painted on
   // top, so opening Le lore from within Réglages showed nothing at all —
@@ -7898,8 +8004,16 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "2.05";
+const GAME_VERSION = "2.06";
 const CHANGELOG = [
+  {
+    version: "2.06",
+    notes: [
+      "Nouveau : Salle des trophées dans le Lore — 11 emplacements (4 dieux, Pieuvre, Cthulhu, Pouvoir des 12, 4 victoires par difficulté). Les 4 dieux (encore en icônes provisoires) restent cachés derrière un coffre à motif tant qu'ils ne sont pas débloqués ; tous les autres trophées ont déjà leur vraie image et sont toujours visibles, entourés d'or une fois gagnés.",
+      "La rangée d'icônes juste au-dessus (armes/outils du Lore) est maintenant présentée dans des cases, comme la Salle des trophées juste en dessous.",
+      "Titre du jeu aligné à droite, juste à gauche du bouton réglages, au lieu d'être centré en haut de l'écran.",
+    ],
+  },
   {
     version: "2.05",
     notes: [
