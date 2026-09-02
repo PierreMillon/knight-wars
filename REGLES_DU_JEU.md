@@ -16,7 +16,7 @@ Document de référence unique pour toutes les mécaniques de jeu, pour éviter 
 
 ---
 
-## Partie 2 — Les règles (état actuel du code, v2.07)
+## Partie 2 — Les règles (état actuel du code, v2.08)
 
 ### 2.1 Combat
 - Chaque territoire a une force entre 1 et 12 (`FORCE_CAP`), affichée sur sa "capitale" (voir §2.6 pour la distinction capitale/village — mécanique PAS encore implémentée, voir Partie 3).
@@ -43,11 +43,11 @@ Chaque dieu a une condition de déblocage réelle, vérifiée uniquement sur une
 |---|---|---|---|
 | **Vulcain** | Être redescendu à 1 seule province puis quand même gagner | +1 force en défense | -1 renfort par tour |
 | **Bellone** | Gagner sans jamais perdre une seule province | +1 force en attaque | -1 force en défense (partout, pas seulement contre l'attaquant du moment) |
-| **Cérès** | Avoir tenu ≥70% du territoire à un moment, **pendant qu'au moins 2 AUTRES royaumes étaient encore vivants** (sinon la condition est triviale — voir note ci-dessous) | +1 renfort par tour | Plafond de force abaissé à 11 (jamais 12) — plus jamais éligible au pouvoir des 12 (§2.3) |
+| **Cérès** | Ne jamais éliminer un seul rival avant le tout dernier instant, puis les éliminer TOUS d'un coup avec une seule attaque **en chaîne** qui laisse aussi le joueur maître de **100% de la carte** (barbares inclus) | +1 renfort par tour | Plafond de force abaissé à 11 (jamais 12) — plus jamais éligible au pouvoir des 12 (§2.3) |
 | **Neptune** | Gagner sur l'attaque finale elle-même portée par la mer | Traversées en mer -1 force (jamais sous 1) | -1 défense **côtière** — uniquement si l'attaque subie vient elle-même de la mer, pas en défense terrestre normale |
 
 Notes importantes :
-- **Pourquoi la garde des ≥2 rivaux pour Cérès** : gagner exige d'éliminer tous les rivaux, donc le territoire du vainqueur finit toujours proche de 100% — sans cette garde, ≥70% est atteint sur TOUTE victoire, rendant la condition triviale.
+- **Historique de la condition Cérès** : deux versions plus faciles ont été essayées et rejetées avant celle-ci, l'une après l'autre, en discussion directe — "70% du territoire à un moment" (trivial : toute victoire finit proche de 100%, donc toujours vrai), puis "70% pendant qu'au moins 2 rivaux vivent" (encore jugé pas assez exigeant). La version retenue exige de garder tout le monde vivant jusqu'au bout puis de tout renverser d'un coup, ce qui est un vrai exploit de timing et d'exécution.
 - **Double persistance** : chaque dieu débloqué l'est à la fois pour LA MAISON précise jouée à ce moment (`godUnlockedRoyaume[royId][godIdx]` — reste actif pour cette maison pour toujours, qu'elle soit ensuite jouée par vous ou par l'IA) ET pour LE JOUEUR (`godUnlockedPlayer[godIdx]` — reste actif pour vous quelle que soit la maison choisie ensuite). Logique : le joueur est un mercenaire (Partie 1) — la maison garde l'expérience transmise, le mercenaire garde le savoir-faire.
 - **Cumulatif, jamais exclusif** : tous les bonus/malus des 4 dieux se cumulent entre eux et avec toutes les autres mécaniques (pouvoir des 12, Cthulhu). Aucun n'en annule un autre.
 - Une IA au palier de difficulté le plus dur (Seigneur) ou à Cthulhu bénéficie de tous les bonus des 4 dieux gratuitement, même non gagnés — "elle connaît déjà tous les trucs".
@@ -68,7 +68,12 @@ Notes importantes :
 - ⚠️ **Capitale vs villages** : le joueur a décrit une mécanique où une province est composée de plusieurs villages, un seul affichant le chiffre de force ("la capitale"), et où un chemin d'attaque doit obligatoirement passer par le village le plus proche d'un adversaire plutôt que capitale à capitale — **PAS ENCORE IMPLÉMENTÉE**, le modèle actuel traite chaque hexagone comme un territoire indépendant sans notion de capitale/village. Voir Partie 3.
 
 ### 2.7 Salle des trophées (Le Lore)
-11 emplacements : 4 dieux (icônes emoji provisoires, cachées derrière un coffre tant que non débloqués), Pieuvre, Cthulhu, Pouvoir des 12, 4 victoires par palier de difficulté (Page/Écuyer/Chevalier/Seigneur). Tous les emplacements SAUF les 4 dieux ont déjà une vraie image et restent toujours visibles à pleine opacité ; seul l'anneau doré distingue un trophée gagné.
+11 emplacements : 4 dieux (icônes emoji provisoires, cachées derrière un coffre tant que non débloqués), Pieuvre, Cthulhu (sprite dédié, `CTHULHU_IMG_SRC`), Pouvoir des 12, 4 victoires par palier de difficulté (Page/Écuyer/Chevalier/Seigneur). Tous les emplacements SAUF les 4 dieux ont déjà une vraie image et restent toujours visibles à pleine opacité ; seul l'anneau doré distingue un trophée gagné.
+
+### 2.8 Sauvegarde automatique et résilience
+- La partie en cours est sauvegardée en continu (`saveGameState()`) et reconstruite silencieusement au chargement suivant (`resumeSavedGame()`) si l'app a été fermée en plein match.
+- Chaque sauvegarde porte un tampon de version (`savedVersion`) — une sauvegarde écrite par une version antérieure du jeu est rejetée d'office (nouvelle partie relancée) plutôt que rejouée à l'aveugle contre des règles qui ont changé depuis.
+- Toute erreur imprévue pendant une reconstruction (ou même au tout premier lancement d'une partie neuve) relance automatiquement une partie fraîche plutôt que de laisser un écran bloqué — **aucune manipulation manuelle (réinstallation, vidage de cache) ne devrait plus jamais être nécessaire** pour ce genre de blocage.
 
 ---
 
@@ -80,7 +85,7 @@ Notes importantes :
 - **IA qui se ligue ou cible le plus faible** : les royaumes IA pourraient parfois former une alliance informelle contre le royaume le plus fort, ou au contraire s'acharner sur le plus faible. Idée jugée positivement (casse la dynamique "toujours seul contre 3") mais non implémentée.
 - **5ᵉ palier "toutes les maisons se liguent"** : une fois les 4 dieux débloqués par le joueur (cumul des 4 bonus), un mode où toutes les maisons rivales s'allient sans pitié contre lui pour compenser sa puissance — idée émergente, à discuter avant tout développement.
 - **ARG / recherche externe** : un puzzle qui pousserait à chercher un indice HORS du jeu (code source, communautés type Reddit, recherche historique) — à l'état de brainstorm, terminologie et faisabilité non arrêtées.
-- **Chinois sur les boutons clés** : traduire au maximum 10 boutons essentiels (jouer/préparer une partie) en chinois — demandé, pas encore fait.
+- **Chinois sur les boutons clés** : traduire au maximum 10 boutons essentiels (jouer/préparer une partie) en chinois — demandé ("Chinois fais"), en cours.
 - **Chemin d'attaque par villages/capitale** (voir §2.6) : le chemin d'une attaque devrait obligatoirement passer par le village d'une province le plus proche d'un adversaire, pas capitale à capitale ; les troupes peuvent être stationnées n'importe où sur la province indépendamment de la position du chiffre de force. Demandé, pas encore conçu ni implémenté — nécessite de repenser le modèle territoire/hexagone actuel.
 - **Réinitialisation complète de la progression** + choix d'une maison fétiche, avec un bonus cachée pour qui débloque tout avec toutes les maisons — idée "éventuelle", non ferme.
 - **Grille de collection façon cartes à collectionner** dans le Lore — en partie déjà réalisée par la Salle des trophées (§2.7), mais l'idée d'origine (cases vides pour tout ce qu'on n'a jamais vu, curiosité/chasse au trésor) pourrait aller plus loin.
