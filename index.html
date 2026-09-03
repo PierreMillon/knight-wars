@@ -31,6 +31,39 @@
     background: #1f3238; font-family: -apple-system, system-ui, sans-serif;
     touch-action: manipulation; user-select: none;
   }
+  /* "la page d'attente ça sera une page dorée, le même doré que la carte" —
+     same parchment gradient as every menu overlay's own .box (see its
+     note) — chevalier au milieu, titre en haut, numéro de version en bas.
+     Visible by default (no JS needed to show it) so it covers the whole
+     boot sequence unconditionally; see revealGameWhenReady() near the
+     bottom of the script for how/when it's dismissed. */
+  #loadingScreen {
+    position: fixed; inset: 0; z-index: 1000;
+    background: linear-gradient(160deg, #f6ecd2, #e6d3a3);
+    /* the knight is the one flex child — a plain center/center truly
+       centers it in the viewport regardless of the title/version's own
+       height, unlike a 3-item space-between (tried first: the title and
+       version's own height unevenly ate into the two gaps, leaving the
+       knight sitting above center instead of "en plein milieu"). Title and
+       version are independently absolutely positioned top/bottom instead. */
+    display: flex; align-items: center; justify-content: center;
+    transition: opacity .2s ease;
+  }
+  #loadingScreen.loadingScreenHidden { opacity: 0; pointer-events: none; }
+  #loadingTitle {
+    position: absolute; top: calc(28px + env(safe-area-inset-top, 0px)); left: 16px; right: 16px;
+    font-family: Trattatello, "MedievalSharp", Georgia, "Iowan Old Style", Palatino, "Times New Roman", serif;
+    font-size: 30px; font-weight: 700; letter-spacing: .02em; color: #2b1d10; text-align: center;
+  }
+  #loadingKnight {
+    width: 38vw; max-width: 200px; height: auto; image-rendering: pixelated;
+    filter: drop-shadow(0 6px 14px rgba(0,0,0,.22));
+  }
+  #loadingVersion {
+    position: absolute; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); left: 16px; right: 16px;
+    font-size: 13px; color: rgba(43,29,16,.6); font-family: Georgia, "Iowan Old Style", Palatino, "Times New Roman", serif;
+    text-align: center;
+  }
   /* Sized by lockPortraitStage() (called from resize()): 100%x100% in
      portrait, as before. In landscape, #wrap freezes at its last-measured
      portrait pixel size and rotates ±90° about its own center — a
@@ -222,16 +255,6 @@
     right: calc(10px + 34px + 8px); left: 14px;
     display: flex; flex-direction: column; align-items: flex-end; text-align: right;
     pointer-events: none; color: #f2ede2; text-shadow: 0 1px 2px rgba(0,0,0,.6);
-  }
-  #gameTitle {
-    /* Trattatello (macOS-only system font) first, then MedievalSharp (a
-       real web font, loaded via the <link> in <head>, same "old manuscript"
-       feel) so it actually renders somewhere other than a Mac — the
-       previous attempt at this claimed to add Trattatello but never
-       actually landed in this rule, reported live as "tratello s'affiche
-       pas... alors que tu dis qu'elle est implémentée". */
-    font-family: Trattatello, "MedievalSharp", Georgia, "Iowan Old Style", Palatino, "Times New Roman", serif;
-    font-size: 20px; font-weight: 700; letter-spacing: .02em;
   }
   #versionBtn {
     pointer-events: auto; background: none; border: none; padding: 0; margin: 2px 0 0;
@@ -850,6 +873,18 @@
 </style>
 </head>
 <body>
+<!-- "J'ai encore eu le bug d'affichage à l'ouverture... on va créer une
+     première page qui va masquer ce qui se passe" — visible by default (no
+     JS needed to show it), hidden only once revealGameWhenReady() (see its
+     own note, near the bottom of the script) confirms resize() actually
+     produced a real, on-screen canvas — whatever the exact cause of a bad
+     first measurement turns out to be on a given device, the player never
+     sees a half-drawn HUD again. -->
+<div id="loadingScreen">
+  <div id="loadingTitle">Knight Wars</div>
+  <img id="loadingKnight" alt="">
+  <div id="loadingVersion"></div>
+</div>
 <div id="wrap">
   <canvas id="map"></canvas>
   <div id="sideGueux" class="sideArt sideArtLeft" aria-hidden="true"></div>
@@ -859,8 +894,11 @@
   <div id="topBar">
     <div id="groups"></div>
   </div>
+  <!-- "le nom du jeu" (le titre "Knight Wars") retiré d'ici — il s'affiche
+       maintenant une fois, sur #loadingScreen, avant que la carte n'arrive.
+       #versionBtn reste (pas "le nom du jeu" à proprement parler, et
+       toujours utile pour ouvrir les notes de version). -->
   <div id="gameTitleBlock">
-    <span id="gameTitle">Knight Wars</span>
     <button id="versionBtn" aria-label="Notes de version"></button>
   </div>
   <button id="settingsBtn" aria-label="Réglages"><img id="settingsBtnImg" alt=""></button>
@@ -2269,6 +2307,40 @@ if (document.fonts && document.fonts.ready) {
   document.fonts.ready.then(() => {
     requestAnimationFrame(() => requestAnimationFrame(resize));
   });
+}
+// "J'ai encore eu le bug d'affichage à l'ouverture... on va créer une
+// première page qui va masquer ce qui se passe et il faut quelque chose qui
+// vérifie si l'affichage est bon avant d'afficher" — the document.fonts.ready
+// fix above (v2.24) narrowed the window this could happen in, but evidently
+// didn't close it for good on every device ("j'ai encore eu le bug" — the
+// exact same live report, seen again). Rather than keep chasing the precise
+// cause of a bad first measurement, #loadingScreen (visible by default, see
+// its own CSS note) now covers the whole boot sequence unconditionally, and
+// this is what actually dismisses it — only once resize() has produced a
+// real, sane canvas size, checked and re-tried on a short poll rather than
+// trusted after one single attempt, with a hard cap so it can never get
+// stuck hiding the game forever even in some future case this doesn't
+// anticipate.
+function revealGameWhenReady(attempt) {
+  attempt = attempt || 0;
+  resize();
+  const sane = canvas.width > 100 && canvas.height > 100;
+  if (sane || attempt > 40) { // ~40 * 80ms = 3.2s hard cap
+    document.getElementById("loadingScreen").classList.add("loadingScreenHidden");
+    return;
+  }
+  setTimeout(() => revealGameWhenReady(attempt + 1), 80);
+}
+if (document.fonts && document.fonts.ready) {
+  document.fonts.ready.then(() => {
+    requestAnimationFrame(() => requestAnimationFrame(() => revealGameWhenReady()));
+  });
+} else {
+  // deferred (not called synchronously here) — resize() itself reads
+  // module-level state (e.g. `replaying`) declared further down this same
+  // script, so calling it this early, before the rest of the file has even
+  // run once, would hit it mid-declaration.
+  setTimeout(() => revealGameWhenReady(), 0);
 }
 
 /* ---------- HEX MATH ---------- */
@@ -8579,8 +8651,15 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "2.28";
+const GAME_VERSION = "2.29";
 const CHANGELOG = [
+  {
+    version: "2.29",
+    notes: [
+      "Ajouté un écran de chargement (fond doré, chevalier, titre, numéro de version) qui masque tout le démarrage — la carte n'apparaît qu'une fois sa taille effectivement vérifiée, plutôt que de parier sur un délai, pour le bug d'affichage vide au lancement signalé à nouveau malgré le correctif précédent.",
+      "Retiré le titre « Knight Wars » du haut de l'écran de jeu — affiché une seule fois maintenant, sur l'écran de chargement.",
+    ],
+  },
   {
     version: "2.28",
     notes: [
@@ -9616,6 +9695,12 @@ const CHANGELOG = [
   },
 ];
 document.getElementById("versionBtn").textContent = `v${GAME_VERSION}`;
+// #loadingScreen's own knight/version — same mounted-knight sprite as the
+// side-art/Templier icon ("l'image du chevalier"), plain black pixel art on
+// the parchment background (no mask/recolor needed here, unlike the side-art
+// — there's no royaume picked yet at this point in boot anyway).
+document.getElementById("loadingKnight").src = CREATURE_IMG_SRC;
+document.getElementById("loadingVersion").textContent = `v${GAME_VERSION}`;
 document.getElementById("changelogList").innerHTML = CHANGELOG.map((entry) => `
   <div class="changelogVersion">Version ${entry.version}</div>
   <ul>${entry.notes.map((n) => `<li>${n}</li>`).join("")}</ul>
