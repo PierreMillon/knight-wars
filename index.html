@@ -7544,7 +7544,19 @@ function handlePointer(clientX, clientY) {
           dove = true;
         }
       }
-      if (!dove) handleEndTurnTap();
+      if (!dove) {
+        // "Si je précharge une attaque et j'appuie sur l'océan ça doit
+        // annuler mon attaque, on l'avait déjà ça. Mais ça a été perdu avec
+        // le fait d'appuyer sur l'océan pour passer le tour. Faut dissocier
+        // les deux" — a selected/"préchargée" province (selected !== -1)
+        // means the tap actually failed to dive, not that the player meant
+        // to skip their whole turn: cancel just the selection, same as
+        // every OTHER invalid target already does below (tapping the same
+        // province again, or an unreachable one) — only a BARE water tap
+        // with nothing selected still ends the turn, unchanged.
+        if (selected !== -1) { selected = -1; render(); }
+        else handleEndTurnTap();
+      }
     }
     return;
   }
@@ -8338,6 +8350,7 @@ const CHANGELOG = [
       "Tracé d'attaque (glissement) pour un saut terrestre : repris entièrement — passe maintenant par chaque village traversé (le vrai plus court chemin de capitale à capitale, à travers les provinces elles-mêmes), au lieu d'une ligne droite ou d'un simple point de contact à la frontière, les deux ayant été signalés en jeu comme faisant des zigzags/coupes bizarres.",
       "Trait pointillé (prédiction + tracés en mer) : alterne maintenant noir et blanc en continu, au lieu du blanc seul qui devenait invisible sur les terres celtes (fond pâle).",
       "Les Barbares sont renommés les Celtes — polythéistes, par opposition aux Millon chrétiens.",
+      "Toucher l'océan avec une province déjà sélectionnée (en attente d'une cible) annule maintenant juste cette sélection au lieu de terminer le tour — un simple toucher sur l'eau sans rien de sélectionné continue de terminer le tour comme avant.",
     ],
   },
   {
