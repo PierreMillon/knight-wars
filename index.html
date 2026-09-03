@@ -123,18 +123,23 @@
      than pinned to the bottom, per live request. */
   .sideArt {
     /* width-driven, not height-driven: both sprites (GUEUX_IMG_SRC 144×144,
-       CREATURE_IMG_SRC 208×208) are square canvases, but the old
-       height:55vh + max-width:16vw pairing let max-width bind on desktop
-       viewports (16vw < 55vh in px there) — object-fit:contain then
-       letterboxed the actual square image within a box far taller than
-       wide, so % offsets below (meant to land relative to the image's OWN
-       rendered edges) were being measured against the wrong, taller box
-       instead. width:auto → height:auto here keeps the element's box
-       exactly equal to the image's own rendered size, no letterbox gap.
+       CREATURE_IMG_SRC 208×208) are square canvases — aspect-ratio:1/1
+       covers both, keeping the element's box exactly matched to the mask's
+       own rendered size (no letterboxing) at any width.
+       "Le gueux et le chevalier ont un drôle d'effet derrière, type ombre,
+       supprime — et passe leur couleur de noir à celle qu'on choisit en
+       choisissant la faction" — no longer plain <img>s: these are recolored
+       via a CSS mask (the source PNGs are opaque black on transparent, a
+       perfect mask shape) with background-color driving the actual color,
+       set by applyHudFactionColors() once a royaume is picked (black by
+       default below, before any pick). The old drop-shadow is gone entirely
+       per that same request, not merely dimmed.
     */
-    position: fixed; top: 50%; width: 14vw; max-width: 190px; height: auto;
+    position: fixed; top: 50%; width: 14vw; max-width: 190px; aspect-ratio: 1 / 1;
     pointer-events: none; display: none; image-rendering: pixelated;
-    opacity: .9; filter: drop-shadow(0 8px 14px rgba(0,0,0,.5));
+    opacity: .9; background-color: #000;
+    mask-repeat: no-repeat; mask-position: center; mask-size: contain;
+    -webkit-mask-repeat: no-repeat; -webkit-mask-position: center; -webkit-mask-size: contain;
   }
   /* "les deux personnages doivent être sur la même ligne de sol virtuelle
      invisible" — a plain translateY(-50%) centers each PADDED source canvas
@@ -835,8 +840,8 @@
 <body>
 <div id="wrap">
   <canvas id="map"></canvas>
-  <img id="sideGueux" class="sideArt sideArtLeft" alt="">
-  <img id="sideKnight" class="sideArt sideArtRight" alt="">
+  <div id="sideGueux" class="sideArt sideArtLeft" aria-hidden="true"></div>
+  <div id="sideKnight" class="sideArt sideArtRight" aria-hidden="true"></div>
   <div id="status">—</div>
   <div id="log"></div>
   <div id="topBar">
@@ -989,7 +994,7 @@
   <div id="premiumUnlockOverlay">
     <div class="box">
       <h2>🔒 Contenu avancé</h2>
-      <p id="premiumUnlockText">Le niveau Seigneur et la carte Croisade sont réservés.</p>
+      <p id="premiumUnlockText">Le niveau Templier et la carte Croisade sont réservés.</p>
       <p id="premiumUnlockNote">Aperçu — pas encore relié à une vraie régie publicitaire ni à un vrai paiement.</p>
       <div class="winButtons">
         <button id="premiumWatchAdBtn">🎬 Regarder une pub (30s) — 24h débloquées</button>
@@ -1192,7 +1197,7 @@
           <button data-level="0" class="levelBtn"><span class="diffIcons"><img alt=""></span>Gueux</button>
           <button data-level="1" class="levelBtn"><span class="diffIcons"><img alt=""></span>Page</button>
           <button data-level="2" class="levelBtn"><span class="diffIcons"><img alt=""></span>Écuyer</button>
-          <button data-level="3" class="levelBtn"><span class="diffIcons"><img alt=""></span>Chevalier</button>
+          <button data-level="3" class="levelBtn"><span class="diffIcons"><img alt=""></span>Templier</button>
           <!-- Hidden 5th tier — only shown once unlocked (4 full ocean
                rituals in one match at Seigneur, after the "parchemin
                crypté" hint has appeared — see recordCthulhuUnlock() and
@@ -1715,11 +1720,17 @@ function escalated(baseValue, hardValue) {
 // renamed down one social rank (Gueux/Page/Écuyer/Chevalier instead of
 // Page/Écuyer/Chevalier/Seigneur); the underlying `value` (AI aggression)
 // per tier is unchanged, only the label.
+// "Je veux que le chevalier à pied soit Chevalier et celui à cheval
+// Templier, on ajustera plus tard" — the hardest tier's icon is the
+// mounted-knight sprite (CREATURE_IMG_SRC), so it becomes "Templier" here,
+// freeing "Chevalier" for whichever tier ends up depicting an on-foot
+// knight later (no such sprite exists separately yet — Écuyer's own icon
+// is a squire, not a knight — left as-is for now, per "on ajustera").
 const DIFFICULTY_LEVELS = [
   { name: "Gueux",     value: 0 },
   { name: "Page",      value: 0.35 },
   { name: "Écuyer",    value: 0.91 }, // was 0.7 (×1.3)
-  { name: "Chevalier", value: 1.3 },  // was 1 (×1.3)
+  { name: "Templier", value: 1.3 },  // renommé (était "Chevalier") — was 1 (×1.3)
 ];
 let difficultyLevel = 0; // Gueux (le plus facile) par défaut sur une installation neuve/cache vidé
 try {
@@ -8088,13 +8099,18 @@ const settingsPanel = document.getElementById("settingsPanel");
 // sets it directly once ready, so this just needs a same-frame fallback.
 document.getElementById("settingsBtnImg").src =
   marsBlessingUnlocked && doubleSwordIconSrc ? doubleSwordIconSrc : pieuvreUnlocked ? OCTOPUS_IMG_SRC : BLAZON_IMG_SRC;
-document.getElementById("sideGueux").src = GUEUX_IMG_SRC;
 // "à droite le chevalier à cheval actuel pixel art noir, jette l'ancien
 // chevalier en couleur" — was the colored standing-knight sprite
 // (ARCHER_IMG_SRC); now the same black pixel-art mounted knight used for the
-// Seigneur difficulty icon (CREATURE_IMG_SRC), to match the gueux's own
-// black pixel-art style on the other side.
-document.getElementById("sideKnight").src = CREATURE_IMG_SRC;
+// hardest difficulty icon (CREATURE_IMG_SRC), to match the gueux's own
+// black pixel-art style on the other side. Both are now recolored via a
+// CSS mask (see .sideArt) rather than a plain <img src> — the actual
+// color comes from applyHudFactionColors(), this just supplies the shape.
+for (const [elId, src] of [["sideGueux", GUEUX_IMG_SRC], ["sideKnight", CREATURE_IMG_SRC]]) {
+  const el = document.getElementById(elId);
+  el.style.maskImage = `url(${src})`;
+  el.style.webkitMaskImage = `url(${src})`;
+}
 document.getElementById("settingsBtn").addEventListener("click", () => {
   settingsPanel.style.display = "flex";
   refreshMapCodeDisplay();
@@ -8455,8 +8471,15 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "2.26";
+const GAME_VERSION = "2.27";
 const CHANGELOG = [
+  {
+    version: "2.27",
+    notes: [
+      "Renommé le palier de difficulté le plus dur (chevalier à cheval) « Chevalier » en « Templier », pour le distinguer clairement à l'oral d'un futur palier « Chevalier » à pied.",
+      "Décor latéral (ordinateur uniquement) : plus d'ombre portée derrière le gueux et le chevalier à cheval, et leur silhouette noire prend maintenant la couleur du royaume choisi (au lieu de rester noire) une fois une faction sélectionnée.",
+    ],
+  },
   {
     version: "2.26",
     notes: [
@@ -9815,10 +9838,19 @@ function applyHudFactionColors() {
   const settingsEl = document.getElementById("settingsBtn");
   const gueuxEl = document.getElementById("gueuxBadge");
   const surrenderEl = document.getElementById("surrenderBtn");
+  // "passe leur couleur de noir à celle qu'on choisit en choisissant la
+  // faction" — the desktop-only side-art (gueux/chevalier) are plain black
+  // by default (see .sideArt's own background-color) and get recolored to
+  // the human royaume's color the same way/at the same moments as the
+  // other HUD elements below, via their CSS mask (see .sideArt's note).
+  const sideGueuxEl = document.getElementById("sideGueux");
+  const sideKnightEl = document.getElementById("sideKnight");
   if (awaitingFactionPick) {
     for (const el of [settingsEl, gueuxEl, surrenderEl]) el.style.background = "";
     gueuxEl.style.color = "";
     surrenderEl.querySelector("svg").style.color = "";
+    sideGueuxEl.style.backgroundColor = "";
+    sideKnightEl.style.backgroundColor = "";
     return;
   }
   const base = ROYAUMES[humanRoyId].color;
@@ -9827,6 +9859,8 @@ function applyHudFactionColors() {
   for (const el of [settingsEl, gueuxEl, surrenderEl]) el.style.background = grad;
   gueuxEl.style.color = textColor;
   surrenderEl.querySelector("svg").style.color = textColor;
+  sideGueuxEl.style.backgroundColor = base;
+  sideKnightEl.style.backgroundColor = base;
 }
 
 function updateEndTurnButton() {
