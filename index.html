@@ -1114,7 +1114,7 @@
         <p><strong>Le combat</strong> : la plus grande force gagne toujours, sauf tout près de l'égalité — à force égale, l'attaquant a une chance sur 3 de l'emporter quand même ; à un seul de moins que le défenseur, une chance sur 5. Sinon aucun hasard : c'est toujours la plus grande force qui gagne.</p>
         <p><strong>Le renfort de fin de tour</strong> dépend de votre part du territoire : au-dessus de la moyenne des royaumes encore debout, vous gagnez plus de renfort ; en dessous, moins (jamais zéro). Un très grand royaume gagne encore plus, en plus de sa part relative.</p>
         <p><strong>Le pouvoir des 12</strong> : quand toutes vos provinces sont au plafond en même temps, un contour doré se met à vibrer autour de tout votre royaume. Tant qu'il vibre, vous gagnez à coup sûr chaque attaque terrestre que vous lancez (autant que vous avez de provinces) — l'épée qui frappe devient la grande épée diagonale pour vous le rappeler. Il ne s'applique pas à la mer, qui a son propre bonus (voir la pieuvre/Cthulhu). Activez-le trois fois dans la même partie, puis trois parties différentes : vous débloquez une bénédiction permanente qui vous fait toujours gagner un combat terrestre à 12 contre 12.</p>
-        <p><strong>Les gueux</strong> sont une réserve d'un tour à l'autre : vous en gagnez un à chaque victoire, et pouvez en dépenser un en touchant le badge puis une de vos provinces, pour lui donner +1 de force sur-le-champ, avant même la bataille suivante.</p>
+        <p><strong>Les gueux</strong> sont une réserve d'une partie à l'autre : vous en gagnez un à chaque victoire, et pouvez en dépenser un en touchant le badge puis une de vos provinces, pour lui donner +1 de force sur-le-champ, avant même la bataille suivante. Attention : une défaite (conquête ou abandon) vide entièrement la réserve.</p>
       </div>
       <button id="closeConseils">Fermer</button>
     </div>
@@ -5085,6 +5085,16 @@ function showWin(royId) {
     sfxTruce();
   } else if (humanLost) {
     sfxDefeat(humanRoyId);
+    // "Quand on perd une partie, on doit perdre tous les gueux qu'on avait"
+    // — the reserve is a real stake now, not a one-way ratchet: a defeat
+    // (outright loss OR surrender, both covered by humanLost — see its own
+    // note above) wipes it out entirely, same metaProgressEnabled gate as
+    // earning one.
+    if (metaProgressEnabled && gueuxCount > 0) {
+      gueuxCount = 0;
+      try { localStorage.setItem("kw_gueuxCount", String(gueuxCount)); } catch (e) { /* ignore */ }
+      refreshGueuxBadge();
+    }
   }
   // royId is -1 on a truce (see declareStalemateTruce()/truceWinnerId) — every
   // branch below that actually names a royaume is built lazily, inside the
@@ -8232,8 +8242,14 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "2.20";
+const GAME_VERSION = "2.21";
 const CHANGELOG = [
+  {
+    version: "2.21",
+    notes: [
+      "Gueux : une défaite (conquête ou abandon) vide maintenant entièrement la réserve — ce n'était jusqu'ici qu'un compteur qui ne faisait que monter à chaque victoire.",
+    ],
+  },
   {
     version: "2.20",
     notes: [
