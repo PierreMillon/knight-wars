@@ -2909,6 +2909,42 @@ function landPathBetween(fromT, toT) {
   const pathB = reconstructTerritoryPath(bfsB.parent, toT.capitalKey, bestB).reverse();
   return pathA.concat(pathB);
 }
+// "Les épées suivent le même chemin [que le tracé prédictif]" — the combat
+// sword used to land on the plain straight-line midpoint between the two
+// territory centers, which visibly cut across water/unrelated hexes for any
+// multi-hex territory (exactly the "zigzag"/"coupe" complaint the prediction
+// line itself already got fixed for, see landPathBetween() above). Walks a
+// hex-key path (village centers, capital → ... → capital) and returns the
+// point at half its real on-screen length, plus the facing angle of the
+// segment it falls on — used to place the sword ON the actual march instead
+// of floating over whatever happens to sit at the geometric midpoint.
+function midpointAlongHexPath(pathKeys) {
+  const pts = [];
+  for (const k of pathKeys) { const h = hexes[k]; if (h) pts.push({ x: h.x, y: h.y }); }
+  if (pts.length < 2) return null;
+  const segLens = [];
+  let total = 0;
+  for (let i = 1; i < pts.length; i++) {
+    const len = Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y);
+    segLens.push(len);
+    total += len;
+  }
+  const target = total / 2;
+  let acc = 0;
+  for (let i = 0; i < segLens.length; i++) {
+    const isLast = i === segLens.length - 1;
+    if (acc + segLens[i] >= target || isLast) {
+      const frac = segLens[i] > 0 ? Math.min(1, (target - acc) / segLens[i]) : 0;
+      return {
+        x: pts[i].x + (pts[i + 1].x - pts[i].x) * frac,
+        y: pts[i].y + (pts[i + 1].y - pts[i].y) * frac,
+        angle: Math.atan2(pts[i + 1].y - pts[i].y, pts[i + 1].x - pts[i].x),
+      };
+    }
+    acc += segLens[i];
+  }
+  return null;
+}
 
 function assignRoyaumes() {
   const seeds = [];
@@ -7063,12 +7099,26 @@ function render() {
       if (fx.waterPath && fx.waterPath.length) {
         drawBoatsAlongPath({ x: fromT.cx, y: fromT.cy }, fx.waterPath, { x: toT.cx, y: toT.cy }, fadeAlpha);
       } else {
-        // Plain geometric midpoint between the two centers — a "point de
-        // contact" version (v2.22) was tried and reverted, see the drag-
-        // preview line's own note just above for why.
-        const midX = (fromT.cx + toT.cx) / 2, midY = (fromT.cy + toT.cy) / 2;
-        const angle = Math.atan2(toT.cy - fromT.cy, toT.cx - fromT.cx);
-        drawSwordAt(midX, midY, angle, fadeAlpha, fx.capBonus);
+        // "Il faut que les épées suivent le même chemin" que le tracé
+        // prédictif — the plain geometric midpoint between the two centers
+        // (a "point de contact" version was tried in v2.22 and reverted, see
+        // the drag-preview line's own note just above for why) visibly cut
+        // across water/unrelated hexes for any multi-hex territory, same
+        // complaint as the prediction line itself had before landPathBetween().
+        // Both a normal-strength hit and the "12" guaranteed-win flourish
+        // (fx.capBonus, see drawSwordAt()'s doubleSword branch) go through
+        // this exact call, so fixing the midpoint here covers both at once.
+        const lp = landPathBetween(fromT, toT);
+        const mid = lp ? midpointAlongHexPath(lp) : null;
+        if (mid) {
+          drawSwordAt(mid.x, mid.y, mid.angle, fadeAlpha, fx.capBonus);
+        } else {
+          // should never happen (fromT/toT are confirmed real neighbors by
+          // the time a combat FX exists) — straight-line fallback just in case
+          const midX = (fromT.cx + toT.cx) / 2, midY = (fromT.cy + toT.cy) / 2;
+          const angle = Math.atan2(toT.cy - fromT.cy, toT.cx - fromT.cx);
+          drawSwordAt(midX, midY, angle, fadeAlpha, fx.capBonus);
+        }
       }
     }
 
@@ -8367,8 +8417,14 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "2.24";
+const GAME_VERSION = "2.25";
 const CHANGELOG = [
+  {
+    version: "2.25",
+    notes: [
+      "L'épée de combat (attaque normale comme le coup assuré \"12\") suit maintenant le vrai chemin village-à-village entre les deux provinces, comme le trait pointillé de prédiction — avant, pour une province étalée sur plusieurs cases, elle pouvait retomber au milieu géométrique en ligne droite, à l'écart du vrai trajet.",
+    ],
+  },
   {
     version: "2.24",
     notes: [
