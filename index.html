@@ -726,8 +726,9 @@
      real settings buttons use), separated from "Partie en cours" by a thin
      rule above it: still clearly a tappable button, just quieter than
      everything above it. */
-  #supportLinkWrap { margin-top: 18px; padding-top: 14px; border-top: 1px solid rgba(43,29,16,.25); }
-  #supportLink {
+  #gameLinksWrap { margin-top: 18px; padding-top: 14px; border-top: 1px solid rgba(43,29,16,.25); display: flex; flex-direction: column; gap: 8px; }
+  #supportLinkWrap { margin-top: 8px; }
+  #supportLink, .gameLink {
     display: flex; align-items: center; justify-content: center; gap: 8px;
     text-align: center; text-decoration: none; cursor: pointer;
     padding: 10px 20px; border-radius: 8px; border: 1px solid rgba(43,29,16,.3);
@@ -1304,9 +1305,13 @@
         <button id="loadMapCode">Charger</button>
       </div>
 
-      <!-- Least essential of all — a support link, not a game action — a
-           calm, muted button below a divider (see #supportLink), not
-           another loud button competing with the real settings above. -->
+      <!-- Least essential of all, alongside the support link below — not
+           game actions, so the same calm/muted treatment below a divider,
+           not more loud buttons competing with the real settings above. -->
+      <div id="gameLinksWrap">
+        <a class="gameLink" href="https://pierremillon.github.io/bastion-orbit/">🏰 Bastion Orbit</a>
+        <a class="gameLink" href="https://pierremillon.github.io/forge-line/">🔥 Forge Line</a>
+      </div>
       <div id="supportLinkWrap">
         <a id="supportLink" href="https://ko-fi.com/knightwars" target="_blank" rel="noopener">❤️ Soutenir le jeu 😊</a>
       </div>
@@ -8471,8 +8476,14 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "2.27";
+const GAME_VERSION = "2.28";
 const CHANGELOG = [
+  {
+    version: "2.28",
+    notes: [
+      "Réglages : liens vers les deux autres prototypes (Bastion Orbit, Forge Line), juste au-dessus du lien de soutien.",
+    ],
+  },
   {
     version: "2.27",
     notes: [
