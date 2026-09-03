@@ -762,7 +762,8 @@
      ("un petit trait de séparation") — support link first, game links
      beneath it, not the other way around. */
   #supportLinkWrap { margin-top: 18px; padding-top: 14px; border-top: 1px solid rgba(43,29,16,.25); }
-  #gameLinksWrap { margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(43,29,16,.15); display: flex; flex-direction: column; gap: 8px; }
+  #gameLinksLabel { margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(43,29,16,.15); }
+  #gameLinksWrap { display: flex; flex-direction: column; gap: 8px; }
   #supportLink, .gameLink {
     display: flex; align-items: center; justify-content: center; gap: 8px;
     text-align: center; text-decoration: none; cursor: pointer;
@@ -1364,6 +1365,11 @@
       <div id="supportLinkWrap">
         <a id="supportLink" href="https://ko-fi.com/knightwars" target="_blank" rel="noopener">❤️ Soutenir le jeu 😊</a>
       </div>
+      <!-- "juste avant les jeux, un petit titre du style 'plus de jeux'" —
+           même classe .fieldLabel que toutes les autres petites étiquettes
+           de section du panneau (Difficulté, Taille de la carte...), pas un
+           style ad hoc. -->
+      <div class="fieldLabel" id="gameLinksLabel">Plus de jeux</div>
       <div id="gameLinksWrap">
         <a class="gameLink" href="https://pierremillon.github.io/bastion-orbit/">🏰 Bastion Orbit</a>
         <a class="gameLink" href="https://pierremillon.github.io/forge-line/">🔥 Forge Line</a>
