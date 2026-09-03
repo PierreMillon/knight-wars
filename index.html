@@ -2249,6 +2249,28 @@ let mapExtentX = 0, mapExtentY = 0; // actual generated island bounds, set by ge
 let territories = [];    // {id, hexKeys[], owner, force, cx, cy, neighbors:Set}
 let players = [];        // per-royaume runtime state
 let territoryBorderSegments = []; // [{p1,p2,terrA,terrB,px,py}] edges between two different territories, precomputed once — see generateHexGrid()
+// Same data as territoryBorderSegments, indexed for O(1) lookup by territory
+// pair — "les troupes vont aller au point de contact des deux villages
+// ennemis et vont passer par là" (attack line/sword should pass through the
+// real shared border, not cut a straight line between the two territories'
+// centroids/pixel centers, which can visually cross unrelated territory or
+// water even though the two ARE real neighbors). Rebuilt alongside
+// territoryBorderSegments itself, see generateHexGrid(). Each territory pair
+// borders along exactly one hex edge today (every territory is still a
+// single hex — see the "regroupement villages/capitale" note in
+// REGLES_DU_JEU.md §Partie 3), so one segment per pair is exhaustive; a
+// future multi-hex province would need this to store/pick among several.
+let territoryBorderSegmentByPair = new Map();
+function borderPairKey(idA, idB) { return idA < idB ? `${idA}|${idB}` : `${idB}|${idA}`; }
+// The actual point a land attack's line/sword should pass through: the
+// midpoint of the two territories' real shared hex edge, falling back to the
+// plain centroid-to-centroid midpoint on the (should-never-happen, given the
+// caller already checked realNeighbors) chance no segment is on file.
+function contactPointBetween(fromT, toT) {
+  const seg = territoryBorderSegmentByPair.get(borderPairKey(fromT.id, toT.id));
+  if (!seg) return { x: (fromT.cx + toT.cx) / 2, y: (fromT.cy + toT.cy) / 2 };
+  return { x: (seg.p1[0] + seg.p2[0]) / 2, y: (seg.p1[1] + seg.p2[1]) / 2 };
+}
 let currentSeed = 0;     // the seed this match was generated from — the whole match is reproducible from this + the human's move list
 // Seeds of every map rerolled past while still picking a camp, oldest
 // first — lets "◀ Précédente" step back through them one at a time
@@ -2594,6 +2616,7 @@ function generateTerritories() {
   // own fill (see render()) already reads as a coastline against land
   // without needing a tracked border segment.
   territoryBorderSegments = [];
+  territoryBorderSegmentByPair = new Map();
   const seenPairs = new Set();
   for (const key in hexes) {
     const h = hexes[key];
@@ -2620,7 +2643,9 @@ function generateTerritories() {
             let px = -dy / len, py = dx / len;
             const midX = (p1[0] + p2[0]) / 2, midY = (p1[1] + p2[1]) / 2;
             if ((h.x - midX) * px + (h.y - midY) * py < 0) { px = -px; py = -py; }
-            territoryBorderSegments.push({ p1, p2, terrA: h.territoryId, terrB: nh.territoryId, px, py });
+            const seg = { p1, p2, terrA: h.territoryId, terrB: nh.territoryId, px, py };
+            territoryBorderSegments.push(seg);
+            territoryBorderSegmentByPair.set(borderPairKey(h.territoryId, nh.territoryId), seg);
           }
         }
       }
@@ -6732,6 +6757,14 @@ function render() {
         // loop above.
         const wp = waterPathBetween(prev, p.id);
         if (wp) for (const hk of wp) { const wh = hexes[hk]; if (wh) ctx.lineTo(wh.x, wh.y); }
+      } else {
+        // land hop — same idea, but through the real shared border between
+        // the two villages (contactPointBetween()) instead of a straight
+        // line between their pixel centers, which — even for two genuine
+        // neighbors — can visually clip across unrelated territory or a
+        // stray water hex depending on how the two centers happen to sit.
+        const cp = contactPointBetween(prev, p);
+        ctx.lineTo(cp.x, cp.y);
       }
       ctx.lineTo(p.cx, p.cy);
     }
@@ -6943,15 +6976,22 @@ function render() {
     // territory's own color change and the gold "just conquered" outline
     // (see spotlightActive above) carry the story during replay now.
     if (!replaying && fromT && toT) {
-      const midX = (fromT.cx + toT.cx) / 2, midY = (fromT.cy + toT.cy) / 2;
       // The boat replaces the sword specifically for a water-crossing
       // attack (fx.waterPath set — see waterPathBetween()/attack()'s own
       // note just below) — a plain land hop still gets the sword.
       if (fx.waterPath && fx.waterPath.length) {
         drawBoatsAlongPath({ x: fromT.cx, y: fromT.cy }, fx.waterPath, { x: toT.cx, y: toT.cy }, fadeAlpha);
       } else {
+        // The sword lands at the real shared border between the two
+        // villages (contactPointBetween()) — "les troupes vont aller au
+        // point de contact des deux villages ennemis" — not at the plain
+        // geometric midpoint of their pixel centers, which used to put it
+        // wherever that math happened to fall regardless of where the two
+        // territories actually touch. Orientation (angle) still points
+        // straight from attacker to defender, unaffected by this.
         const angle = Math.atan2(toT.cy - fromT.cy, toT.cx - fromT.cx);
-        drawSwordAt(midX, midY, angle, fadeAlpha, fx.capBonus);
+        const cp = contactPointBetween(fromT, toT);
+        drawSwordAt(cp.x, cp.y, angle, fadeAlpha, fx.capBonus);
       }
     }
 
@@ -8242,8 +8282,14 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "2.21";
+const GAME_VERSION = "2.22";
 const CHANGELOG = [
+  {
+    version: "2.22",
+    notes: [
+      "Tracé d'attaque (épée + ligne de prédiction pendant le glissement) : passe maintenant par la vraie frontière entre les deux villages concernés au lieu d'une ligne droite entre les centres des deux provinces, qui pouvait visiblement couper à travers d'autres villages ou de l'eau pour une grande province.",
+    ],
+  },
   {
     version: "2.21",
     notes: [
