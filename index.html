@@ -118,12 +118,37 @@
   /* second, smaller line explaining the tap-to-fast-forward gesture — only
      shown while the AIs are playing (see updateEndTurnButton()) */
   #endturn .btnHint { display: block; font-size: .62em; font-weight: 400; font-style: normal; opacity: .85; margin-top: 2px; }
-  /* ambient decoration on wide (desktop) viewports only — never shown on phone */
+  /* ambient decoration on wide (desktop) viewports only — never shown on phone.
+     Vertically centered on the viewport ("centré dans l'espace vide") rather
+     than pinned to the bottom, per live request. */
   .sideArt {
-    position: fixed; bottom: 0; height: 55vh; max-height: 520px; width: auto; max-width: 16vw;
-    object-fit: contain; pointer-events: none; display: none; image-rendering: pixelated;
+    /* width-driven, not height-driven: both sprites (GUEUX_IMG_SRC 144×144,
+       CREATURE_IMG_SRC 208×208) are square canvases, but the old
+       height:55vh + max-width:16vw pairing let max-width bind on desktop
+       viewports (16vw < 55vh in px there) — object-fit:contain then
+       letterboxed the actual square image within a box far taller than
+       wide, so % offsets below (meant to land relative to the image's OWN
+       rendered edges) were being measured against the wrong, taller box
+       instead. width:auto → height:auto here keeps the element's box
+       exactly equal to the image's own rendered size, no letterbox gap.
+    */
+    position: fixed; top: 50%; width: 14vw; max-width: 190px; height: auto;
+    pointer-events: none; display: none; image-rendering: pixelated;
     opacity: .9; filter: drop-shadow(0 8px 14px rgba(0,0,0,.5));
   }
+  /* "les deux personnages doivent être sur la même ligne de sol virtuelle
+     invisible" — a plain translateY(-50%) centers each PADDED source canvas
+     as a whole, not the character actually drawn inside it, and the two
+     sprites don't carry the same amount of transparent margin below their
+     feet: the gueux canvas has ~5.6% of its own height as empty space below
+     its feet, while the creature (chevalier à cheval) sprite's hooves
+     already touch its canvas' bottom edge (0%) — so a shared center would
+     leave the gueux floating visibly higher than the horse. -100% + that
+     padding fraction reliably anchors each sprite's actual foot line — not
+     its canvas edge — to the same 50% mark, at any render size.
+  */
+  #sideGueux { transform: translateY(calc(-100% + 5.56%)); }
+  #sideKnight { transform: translateY(-100%); }
   .sideArtLeft { left: 2vw; }
   .sideArtRight { right: 2vw; }
   @media (min-width: 900px) {
@@ -293,6 +318,17 @@
   #settingsPanel h2 { margin: 0 0 16px; font-size: 19px; }
   #settingsPanel label { display: flex; align-items: center; gap: 8px; font-size: 14px; margin-bottom: 16px; }
   .fieldGroup { margin-bottom: 16px; }
+  /* "y'a overflow du bouton fermer fenêtre et l'icône difficulté Chevalier,
+     baisse tout le cadre difficulté pour éviter le chevauchement" — the ✕
+     was deliberately let overlap the corner above the short "Difficulté"
+     text label (see #closeSettings's own note), but the button ROW right
+     under that label reaches high enough to poke into the ✕'s own 30px
+     circle too, clipping the Chevalier button's lock icon in its top-right
+     corner (same side as the ✕). Pushes the WHOLE first field (label +
+     button row together, "tout le cadre") down clear of the ✕ instead of
+     shrinking or moving the ✕ itself.
+  */
+  #settingsScroll > .fieldGroup:first-child { margin-top: 26px; }
   .fieldLabel { font-size: 13px; opacity: .75; margin-bottom: 6px; }
   /* separates the persistent preferences above (difficulty, map size, sound,
      accessibility...) from the one-off actions on the current match below
@@ -8053,10 +8089,12 @@ const settingsPanel = document.getElementById("settingsPanel");
 document.getElementById("settingsBtnImg").src =
   marsBlessingUnlocked && doubleSwordIconSrc ? doubleSwordIconSrc : pieuvreUnlocked ? OCTOPUS_IMG_SRC : BLAZON_IMG_SRC;
 document.getElementById("sideGueux").src = GUEUX_IMG_SRC;
-// the mounted-knight sprite (CREATURE_IMG_SRC) is a wide landscape image not
-// suited to a tall side panel — the archer's standing portrait figure mirrors
-// the gueux's proportions much better here
-document.getElementById("sideKnight").src = ARCHER_IMG_SRC;
+// "à droite le chevalier à cheval actuel pixel art noir, jette l'ancien
+// chevalier en couleur" — was the colored standing-knight sprite
+// (ARCHER_IMG_SRC); now the same black pixel-art mounted knight used for the
+// Seigneur difficulty icon (CREATURE_IMG_SRC), to match the gueux's own
+// black pixel-art style on the other side.
+document.getElementById("sideKnight").src = CREATURE_IMG_SRC;
 document.getElementById("settingsBtn").addEventListener("click", () => {
   settingsPanel.style.display = "flex";
   refreshMapCodeDisplay();
@@ -8417,8 +8455,15 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "2.25";
+const GAME_VERSION = "2.26";
 const CHANGELOG = [
+  {
+    version: "2.26",
+    notes: [
+      "Décor latéral (ordinateur uniquement) : le gueux et le chevalier à cheval (dessin pixel art noir, plus le chevalier en couleur) sont maintenant centrés verticalement dans l'espace vide de chaque côté de la carte, au lieu d'être collés en bas — et alignés sur la même ligne de sol.",
+      "Corrigé un chevauchement dans le menu Réglages entre le bouton de fermeture et l'icône de la difficulté « Chevalier » (le cadenas était partiellement caché) — toute la rangée des paliers de difficulté est descendue pour laisser la place au bouton de fermeture.",
+    ],
+  },
   {
     version: "2.25",
     notes: [
