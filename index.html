@@ -8476,8 +8476,14 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "2.27";
+const GAME_VERSION = "2.28";
 const CHANGELOG = [
+  {
+    version: "2.28",
+    notes: [
+      "Réglages : liens vers les deux autres prototypes (Bastion Orbit, Forge Line), juste au-dessus du lien de soutien.",
+    ],
+  },
   {
     version: "2.27",
     notes: [
