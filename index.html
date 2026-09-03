@@ -2186,6 +2186,31 @@ window.addEventListener("pageshow", resize);
 document.addEventListener("visibilitychange", () => { if (!document.hidden) resize(); });
 setTimeout(resize, 300);
 setTimeout(resize, 1000);
+// "L'affichage il arrive directement sur l'endroit où on peut jouer, sinon
+// on a l'impression qu'il y a un bug" (live report + screenshot: the map
+// canvas blank on first load — HUD buttons/title fine, working, just no
+// map behind them — self-resolving a moment later, inconsistently).
+// resize() reserves room for the map by reading the title/buttons' live
+// offsetHeight, and that reads the WRONG box size if MedievalSharp (the
+// title's web font, loaded via the Google Fonts <link> in <head>) hasn't
+// actually swapped in yet — the two setTimeout()s just above are a blind
+// guess at how long that takes, which is exactly why the bug was
+// inconsistent (fine whenever a font arrives under 300ms, still broken
+// past that on a slower connection). document.fonts.ready is a real signal
+// instead of a guess — it resolves the instant every font the page's CSS
+// actually requested has finished loading (immediately if none were still
+// pending), so this fires as soon as it's truly safe to measure, never
+// later than necessary and never too early either. Doesn't replace the two
+// setTimeout()s above, which independently also cover Safari's own chrome/
+// visualViewport still settling after boot (see their own note) — this is
+// the deterministic fix for the font half specifically. The extra
+// requestAnimationFrame double-tick lets the browser actually finish the
+// layout pass the font swap just triggered before resize() reads it.
+if (document.fonts && document.fonts.ready) {
+  document.fonts.ready.then(() => {
+    requestAnimationFrame(() => requestAnimationFrame(resize));
+  });
+}
 
 /* ---------- HEX MATH ---------- */
 function axialToPixel(q, r) {
@@ -8342,8 +8367,14 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "2.23";
+const GAME_VERSION = "2.24";
 const CHANGELOG = [
+  {
+    version: "2.24",
+    notes: [
+      "Corrigé la carte parfois vide à l'ouverture (les boutons s'affichaient normalement, mais pas la carte, avant qu'elle apparaisse un instant plus tard) : le calcul de taille de la carte lisait la hauteur du titre avant que sa police se soit vraiment chargée. Attend maintenant un vrai signal (`document.fonts.ready`) au lieu de parier sur un délai fixe.",
+    ],
+  },
   {
     version: "2.23",
     notes: [
