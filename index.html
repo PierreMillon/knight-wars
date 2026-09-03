@@ -31,6 +31,39 @@
     background: #1f3238; font-family: -apple-system, system-ui, sans-serif;
     touch-action: manipulation; user-select: none;
   }
+  /* "la page d'attente ça sera une page dorée, le même doré que la carte" —
+     same parchment gradient as every menu overlay's own .box (see its
+     note) — chevalier au milieu, titre en haut, numéro de version en bas.
+     Visible by default (no JS needed to show it) so it covers the whole
+     boot sequence unconditionally; see revealGameWhenReady() near the
+     bottom of the script for how/when it's dismissed. */
+  #loadingScreen {
+    position: fixed; inset: 0; z-index: 1000;
+    background: linear-gradient(160deg, #f6ecd2, #e6d3a3);
+    /* the knight is the one flex child — a plain center/center truly
+       centers it in the viewport regardless of the title/version's own
+       height, unlike a 3-item space-between (tried first: the title and
+       version's own height unevenly ate into the two gaps, leaving the
+       knight sitting above center instead of "en plein milieu"). Title and
+       version are independently absolutely positioned top/bottom instead. */
+    display: flex; align-items: center; justify-content: center;
+    transition: opacity .2s ease;
+  }
+  #loadingScreen.loadingScreenHidden { opacity: 0; pointer-events: none; }
+  #loadingTitle {
+    position: absolute; top: calc(28px + env(safe-area-inset-top, 0px)); left: 16px; right: 16px;
+    font-family: Trattatello, "MedievalSharp", Georgia, "Iowan Old Style", Palatino, "Times New Roman", serif;
+    font-size: 30px; font-weight: 700; letter-spacing: .02em; color: #2b1d10; text-align: center;
+  }
+  #loadingKnight {
+    width: 38vw; max-width: 200px; height: auto; image-rendering: pixelated;
+    filter: drop-shadow(0 6px 14px rgba(0,0,0,.22));
+  }
+  #loadingVersion {
+    position: absolute; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); left: 16px; right: 16px;
+    font-size: 13px; color: rgba(43,29,16,.6); font-family: Georgia, "Iowan Old Style", Palatino, "Times New Roman", serif;
+    text-align: center;
+  }
   /* Sized by lockPortraitStage() (called from resize()): 100%x100% in
      portrait, as before. In landscape, #wrap freezes at its last-measured
      portrait pixel size and rotates ±90° about its own center — a
@@ -75,7 +108,13 @@
      own background rule below). */
   #settingsBtn, #endturn, #rerollBtn, #gueuxBadge, #surrenderBtn,
   #replayPauseBtn, #replayResumeHereBtn, #prevMapBtn {
-    border-radius: 10px;
+    /* "Je valide" — dégradé radial + clous dorés (velours clouté), la 3e
+       variante du preview HUD. Rayon des coins divisé par 3 (voir le
+       preview's own note) et position:relative/overflow:hidden pour
+       accueillir le <svg> des clous (layoutButtonStuds(), voir plus bas) —
+       overflow:hidden clippe l'svg (et le fond) au coin arrondi, sans
+       affecter le box-shadow qui peint toujours à l'extérieur. */
+    border-radius: 3.3px;
     border: 1.5px solid #e8c468;
     box-shadow:
       0 0 0 1px rgba(20,16,12,.75),
@@ -83,10 +122,13 @@
       inset 0 -2px 3px rgba(0,0,0,.3),
       0 2px 6px rgba(0,0,0,.45);
     font-family: Georgia, "Iowan Old Style", Palatino, "Times New Roman", serif;
+    position: relative;
+    overflow: hidden;
   }
+  .hudStudSvg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
   #settingsBtn {
     position: absolute; top: calc(8px + env(safe-area-inset-top, 0px)); right: 10px;
-    pointer-events: auto; background: linear-gradient(135deg, #fff3c4, #e8c468, #a97e2a);
+    pointer-events: auto; background: radial-gradient(circle at 35% 28%, #fff3c4, #e8c468 55%, #a97e2a 100%);
     width: 34px; height: 34px; padding: 3px;
   }
   #settingsBtn img { width: 100%; height: 100%; object-fit: contain; }
@@ -179,7 +221,7 @@
        right edge as #settingsBtn, stacked just below its 34px height. */
     position: absolute; top: calc(8px + 34px + 6px + env(safe-area-inset-top, 0px)); right: 10px;
     display: flex; align-items: center; justify-content: center; pointer-events: auto; cursor: pointer;
-    background: linear-gradient(135deg, #fff3c4, #e8c468, #a97e2a);
+    background: radial-gradient(circle at 35% 28%, #fff3c4, #e8c468 55%, #a97e2a 100%);
     color: #2b1d10; font-size: 12px; padding: 0 12px; font-weight: 700;
     min-height: 34px; box-sizing: border-box;
     transition: box-shadow .15s, opacity .15s;
@@ -213,16 +255,6 @@
     right: calc(10px + 34px + 8px); left: 14px;
     display: flex; flex-direction: column; align-items: flex-end; text-align: right;
     pointer-events: none; color: #f2ede2; text-shadow: 0 1px 2px rgba(0,0,0,.6);
-  }
-  #gameTitle {
-    /* Trattatello (macOS-only system font) first, then MedievalSharp (a
-       real web font, loaded via the <link> in <head>, same "old manuscript"
-       feel) so it actually renders somewhere other than a Mac — the
-       previous attempt at this claimed to add Trattatello but never
-       actually landed in this rule, reported live as "tratello s'affiche
-       pas... alors que tu dis qu'elle est implémentée". */
-    font-family: Trattatello, "MedievalSharp", Georgia, "Iowan Old Style", Palatino, "Times New Roman", serif;
-    font-size: 20px; font-weight: 700; letter-spacing: .02em;
   }
   #versionBtn {
     pointer-events: auto; background: none; border: none; padding: 0; margin: 2px 0 0;
@@ -416,7 +448,7 @@
   #winbanner .box { display: flex; flex-direction: column; align-items: center; gap: 14px; max-height: 88vh; overflow-y: auto; }
   #rerollBtn, #replayPauseBtn, #replayResumeHereBtn, #prevMapBtn {
     position: absolute; right: 14px; /* bottom is set in JS, stacked just above #endturn */
-    pointer-events: auto; background: linear-gradient(135deg, #fff3c4, #e8c468, #a97e2a); color: #2b1d10;
+    pointer-events: auto; background: radial-gradient(circle at 35% 28%, #fff3c4, #e8c468 55%, #a97e2a 100%); color: #2b1d10;
     padding: 8px 16px; font-size: 13px; white-space: nowrap; font-weight: 700;
     /* explicit shared floor — "les boutons du bas en replay doivent avoir
        la même hauteur" — same box-sizing/min-height convention as
@@ -710,7 +742,7 @@
      once every other button went gold — the button already requires an
      actual tap to trigger, no confirmation dialog needed either way). */
   #surrenderBtn {
-    pointer-events: auto; background: linear-gradient(135deg, #fff3c4, #e8c468, #a97e2a);
+    pointer-events: auto; background: radial-gradient(circle at 35% 28%, #fff3c4, #e8c468 55%, #a97e2a 100%);
     /* same floor as #endturn — the two remaining bottom buttons line up */
     width: 44px; height: 44px; min-height: 44px; padding: 6px; box-sizing: border-box;
     display: flex; align-items: center; justify-content: center; flex-shrink: 0;
@@ -721,13 +753,17 @@
      currentColor (the button's own text color) rather than baked into the
      SVG so it stays consistent if the HUD palette ever shifts. */
   #surrenderBtn svg { width: 24px; height: auto; color: #2b1d10; }
-  /* the least essential action in the panel — a support link, not a game
-     action — so it's a calm, muted button (not the loud gold gradient the
-     real settings buttons use), separated from "Partie en cours" by a thin
-     rule above it: still clearly a tappable button, just quieter than
-     everything above it. */
-  #gameLinksWrap { margin-top: 18px; padding-top: 14px; border-top: 1px solid rgba(43,29,16,.25); display: flex; flex-direction: column; gap: 8px; }
-  #supportLinkWrap { margin-top: 8px; }
+  /* the least essential actions in the panel — a support link and two links
+     to the author's other prototypes, neither a game action — so a calm,
+     muted button style (not the loud gold gradient the real settings
+     buttons use), separated from "Partie en cours" by a thin rule above the
+     support link: still clearly tappable, just quieter than everything
+     above. The game links get their own second, smaller divider below that
+     ("un petit trait de séparation") — support link first, game links
+     beneath it, not the other way around. */
+  #supportLinkWrap { margin-top: 18px; padding-top: 14px; border-top: 1px solid rgba(43,29,16,.25); }
+  #gameLinksLabel { margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(43,29,16,.15); }
+  #gameLinksWrap { display: flex; flex-direction: column; gap: 8px; }
   #supportLink, .gameLink {
     display: flex; align-items: center; justify-content: center; gap: 8px;
     text-align: center; text-decoration: none; cursor: pointer;
@@ -830,15 +866,30 @@
     pointer-events: none;
   }
   #reviewBackBtn, #reviewReplayBtn {
-    pointer-events: auto; background: linear-gradient(135deg, #fff3c4, #e8c468, #a97e2a);
+    /* same studded treatment as the rest of the persistent HUD chrome — see
+       the shared #settingsBtn/#endturn/... rule's own note. */
+    pointer-events: auto; background: radial-gradient(circle at 35% 28%, #fff3c4, #e8c468 55%, #a97e2a 100%);
     color: #2b1d10; font-size: 13px; font-weight: 700; white-space: nowrap;
-    padding: 8px 14px; border-radius: 10px; border: 1.5px solid #e8c468;
+    padding: 8px 14px; border-radius: 3.3px; border: 1.5px solid #e8c468;
+    position: relative; overflow: hidden;
     box-shadow: 0 0 0 1px rgba(20,16,12,.75), inset 0 1px 0 rgba(255,255,255,.6), inset 0 -2px 3px rgba(0,0,0,.3), 0 2px 6px rgba(0,0,0,.45);
     font-family: Georgia, "Iowan Old Style", Palatino, "Times New Roman", serif;
   }
 </style>
 </head>
 <body>
+<!-- "J'ai encore eu le bug d'affichage à l'ouverture... on va créer une
+     première page qui va masquer ce qui se passe" — visible by default (no
+     JS needed to show it), hidden only once revealGameWhenReady() (see its
+     own note, near the bottom of the script) confirms resize() actually
+     produced a real, on-screen canvas — whatever the exact cause of a bad
+     first measurement turns out to be on a given device, the player never
+     sees a half-drawn HUD again. -->
+<div id="loadingScreen">
+  <div id="loadingTitle">Knight Wars</div>
+  <img id="loadingKnight" alt="">
+  <div id="loadingVersion"></div>
+</div>
 <div id="wrap">
   <canvas id="map"></canvas>
   <div id="sideGueux" class="sideArt sideArtLeft" aria-hidden="true"></div>
@@ -848,8 +899,11 @@
   <div id="topBar">
     <div id="groups"></div>
   </div>
+  <!-- "le nom du jeu" (le titre "Knight Wars") retiré d'ici — il s'affiche
+       maintenant une fois, sur #loadingScreen, avant que la carte n'arrive.
+       #versionBtn reste (pas "le nom du jeu" à proprement parler, et
+       toujours utile pour ouvrir les notes de version). -->
   <div id="gameTitleBlock">
-    <span id="gameTitle">Knight Wars</span>
     <button id="versionBtn" aria-label="Notes de version"></button>
   </div>
   <button id="settingsBtn" aria-label="Réglages"><img id="settingsBtnImg" alt=""></button>
@@ -1305,15 +1359,20 @@
         <button id="loadMapCode">Charger</button>
       </div>
 
-      <!-- Least essential of all, alongside the support link below — not
-           game actions, so the same calm/muted treatment below a divider,
-           not more loud buttons competing with the real settings above. -->
+      <!-- "En dessous soutenez le jeu, un petit trait de séparation et
+           dessous les liens" — soutien d'abord, puis les deux autres
+           prototypes en dessous d'un second trait, plus discret ("petit"). -->
+      <div id="supportLinkWrap">
+        <a id="supportLink" href="https://ko-fi.com/knightwars" target="_blank" rel="noopener">❤️ Soutenir le jeu 😊</a>
+      </div>
+      <!-- "juste avant les jeux, un petit titre du style 'plus de jeux'" —
+           même classe .fieldLabel que toutes les autres petites étiquettes
+           de section du panneau (Difficulté, Taille de la carte...), pas un
+           style ad hoc. -->
+      <div class="fieldLabel" id="gameLinksLabel">Plus de jeux</div>
       <div id="gameLinksWrap">
         <a class="gameLink" href="https://pierremillon.github.io/bastion-orbit/">🏰 Bastion Orbit</a>
         <a class="gameLink" href="https://pierremillon.github.io/forge-line/">🔥 Forge Line</a>
-      </div>
-      <div id="supportLinkWrap">
-        <a id="supportLink" href="https://ko-fi.com/knightwars" target="_blank" rel="noopener">❤️ Soutenir le jeu 😊</a>
       </div>
       </div>
     </div>
@@ -2262,6 +2321,40 @@ if (document.fonts && document.fonts.ready) {
   document.fonts.ready.then(() => {
     requestAnimationFrame(() => requestAnimationFrame(resize));
   });
+}
+// "J'ai encore eu le bug d'affichage à l'ouverture... on va créer une
+// première page qui va masquer ce qui se passe et il faut quelque chose qui
+// vérifie si l'affichage est bon avant d'afficher" — the document.fonts.ready
+// fix above (v2.24) narrowed the window this could happen in, but evidently
+// didn't close it for good on every device ("j'ai encore eu le bug" — the
+// exact same live report, seen again). Rather than keep chasing the precise
+// cause of a bad first measurement, #loadingScreen (visible by default, see
+// its own CSS note) now covers the whole boot sequence unconditionally, and
+// this is what actually dismisses it — only once resize() has produced a
+// real, sane canvas size, checked and re-tried on a short poll rather than
+// trusted after one single attempt, with a hard cap so it can never get
+// stuck hiding the game forever even in some future case this doesn't
+// anticipate.
+function revealGameWhenReady(attempt) {
+  attempt = attempt || 0;
+  resize();
+  const sane = canvas.width > 100 && canvas.height > 100;
+  if (sane || attempt > 40) { // ~40 * 80ms = 3.2s hard cap
+    document.getElementById("loadingScreen").classList.add("loadingScreenHidden");
+    return;
+  }
+  setTimeout(() => revealGameWhenReady(attempt + 1), 80);
+}
+if (document.fonts && document.fonts.ready) {
+  document.fonts.ready.then(() => {
+    requestAnimationFrame(() => requestAnimationFrame(() => revealGameWhenReady()));
+  });
+} else {
+  // deferred (not called synchronously here) — resize() itself reads
+  // module-level state (e.g. `replaying`) declared further down this same
+  // script, so calling it this early, before the rest of the file has even
+  // run once, would hit it mid-declaration.
+  setTimeout(() => revealGameWhenReady(), 0);
 }
 
 /* ---------- HEX MATH ---------- */
@@ -8116,6 +8209,102 @@ for (const [elId, src] of [["sideGueux", GUEUX_IMG_SRC], ["sideKnight", CREATURE
   el.style.maskImage = `url(${src})`;
   el.style.webkitMaskImage = `url(${src})`;
 }
+// "Je valide" (le 3e style du preview HUD — dégradé radial + clous dorés,
+// https://claude.ai/code/artifact/75c23dab...) — applique le même anneau de
+// clous de tapissier, réparti tout le tour du bord, à chaque bouton HUD
+// permanent. Repris du preview (voir son BACKLOG pour l'historique des
+// deux bugs déjà corrigés là-bas : comptage asymétrique haut/bas-gauche/
+// droite, et dérive de rendu des radial-gradient() trop petits) — mais en
+// <svg><circle> directement ici aussi, pas en couches de background-image,
+// pour la même raison de précision de rendu.
+let hudStudIdCounter = 0;
+function apportionStuds(edgeLens, n) {
+  const perim = edgeLens.reduce((a, b) => a + b, 0);
+  const raw = edgeLens.map((len) => (len / perim) * n);
+  const counts = raw.map((r) => Math.max(1, Math.floor(r)));
+  let remaining = n - counts.reduce((a, b) => a + b, 0);
+  const order = raw.map((r, i) => [r - Math.floor(r), i]).sort((a, b) => b[0] - a[0]);
+  for (let k = 0; k < order.length && remaining > 0; k++) { counts[order[k][1]]++; remaining--; }
+  return counts;
+}
+// edgeLens has exactly 2 unique values (topBottomLen, leftRightLen) —
+// apportion across those 2 slots only, so top/bottom and left/right always
+// get the exact same count (a plain 4-way apportion could hand a leftover
+// +1 to only one of two identical-length edges, "les Klaus ne sont pas mis
+// à égale distance du bord" — see the preview's own BACKLOG note).
+function bestStudCounts(topBottomLen, leftRightLen, targetSpacing) {
+  const perim = 2 * topBottomLen + 2 * leftRightLen;
+  const idealN = Math.round(perim / targetSpacing);
+  let best = null;
+  for (let n = Math.max(4, idealN - 2); n <= idealN + 2; n++) {
+    const evenN = 2 * Math.round(n / 2);
+    const counts = apportionStuds([topBottomLen, leftRightLen], evenN / 2);
+    const spacings = [topBottomLen / counts[0], leftRightLen / counts[1]];
+    const spread = Math.max(...spacings) / Math.min(...spacings);
+    if (!best || spread < best.spread) best = { tb: counts[0], lr: counts[1], spread };
+  }
+  return best;
+}
+const HUD_STUD_RADIUS = 1.5, HUD_STUD_INSET = 5, HUD_STUD_SPACING = 9;
+function layoutButtonStuds(btn) {
+  const old = btn.querySelector(".hudStudSvg");
+  if (old) old.remove();
+  const w = btn.offsetWidth, h = btn.offsetHeight;
+  if (w < HUD_STUD_INSET * 2 + 1 || h < HUD_STUD_INSET * 2 + 1) return; // hidden (0×0) or too small — nothing to draw yet
+  const left = HUD_STUD_INSET, top = HUD_STUD_INSET, right = w - HUD_STUD_INSET, bottom = h - HUD_STUD_INSET;
+  const corners = [[left, top], [right, top], [right, bottom], [left, bottom]];
+  const topBottomLen = right - left, leftRightLen = bottom - top;
+  const best = bestStudCounts(topBottomLen, leftRightLen, HUD_STUD_SPACING);
+  const counts = [best.tb, best.lr, best.tb, best.lr];
+
+  const gradId = "hudStudGrad" + (hudStudIdCounter++);
+  const svgNS = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(svgNS, "svg");
+  svg.setAttribute("class", "hudStudSvg");
+  svg.setAttribute("viewBox", `0 0 ${w} ${h}`);
+  svg.setAttribute("preserveAspectRatio", "none");
+  const defs = document.createElementNS(svgNS, "defs");
+  defs.innerHTML =
+    `<radialGradient id="${gradId}" cx="35%" cy="35%" r="65%">` +
+    `<stop offset="0%" stop-color="#fff9df"/>` +
+    `<stop offset="55%" stop-color="#e8c468"/>` +
+    `<stop offset="100%" stop-color="#7a5518"/>` +
+    `</radialGradient>`;
+  svg.appendChild(defs);
+  for (let e = 0; e < 4; e++) {
+    const start = corners[e], end = corners[(e + 1) % 4];
+    const n = counts[e];
+    for (let i = 0; i < n; i++) {
+      const t = i / n; // i=0 is the corner itself; i=n (the next corner) is skipped — that's edge e+1's own i=0
+      const circle = document.createElementNS(svgNS, "circle");
+      circle.setAttribute("cx", start[0] + (end[0] - start[0]) * t);
+      circle.setAttribute("cy", start[1] + (end[1] - start[1]) * t);
+      circle.setAttribute("r", HUD_STUD_RADIUS);
+      circle.setAttribute("fill", `url(#${gradId})`);
+      svg.appendChild(circle);
+    }
+  }
+  btn.appendChild(svg);
+}
+// ResizeObserver instead of chasing every individual show/hide call site
+// (reroll/replay/prevMap/review buttons each toggle from several different
+// places) — it fires on the initial layout, on every real size change
+// (window resize, orientation change), AND when an element goes from
+// display:none (reported as 0×0) to visible, so a newly-shown button always
+// gets its studs without needing its own explicit call.
+// guarded — simulate.js runs this same file in a minimal (non-browser) DOM
+// stub with no ResizeObserver, purely for game-logic determinism checks; the
+// studs are a rendering-only concern with nothing to verify there.
+if (typeof ResizeObserver !== "undefined") {
+  const hudStudObserver = new ResizeObserver((entries) => {
+    for (const entry of entries) layoutButtonStuds(entry.target);
+  });
+  for (const id of ["settingsBtn", "endturn", "rerollBtn", "gueuxBadge", "surrenderBtn",
+    "replayPauseBtn", "replayResumeHereBtn", "prevMapBtn", "reviewBackBtn", "reviewReplayBtn"]) {
+    const el = document.getElementById(id);
+    if (el) hudStudObserver.observe(el);
+  }
+}
 document.getElementById("settingsBtn").addEventListener("click", () => {
   settingsPanel.style.display = "flex";
   refreshMapCodeDisplay();
@@ -8476,19 +8665,25 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "2.28";
+const GAME_VERSION = "2.30";
 const CHANGELOG = [
   {
-    version: "2.28",
+    version: "2.30",
     notes: [
-      "Réglages : liens vers les deux autres prototypes (Bastion Orbit, Forge Line), juste au-dessus du lien de soutien.",
+      "Ajouté un écran de chargement (fond doré, chevalier, titre, numéro de version) qui masque tout le démarrage — la carte n'apparaît qu'une fois sa taille effectivement vérifiée, plutôt que de parier sur un délai, pour le bug d'affichage vide au lancement signalé à nouveau malgré le correctif précédent.",
+      "Retiré le titre « Knight Wars » du haut de l'écran de jeu — affiché une seule fois maintenant, sur l'écran de chargement.",
     ],
   },
   {
-    version: "2.27",
+    version: "2.29",
     notes: [
-      "Renommé le palier de difficulté le plus dur (chevalier à cheval) « Chevalier » en « Templier », pour le distinguer clairement à l'oral d'un futur palier « Chevalier » à pied.",
-      "Décor latéral (ordinateur uniquement) : plus d'ombre portée derrière le gueux et le chevalier à cheval, et leur silhouette noire prend maintenant la couleur du royaume choisi (au lieu de rester noire) une fois une faction sélectionnée.",
+      "Boutons de l'interface (réglages, fin de tour, relance, gueux, abandon, replay, revoir la partie) : nouveau style « velours clouté » — coins nettement moins arrondis, dégradé radial au lieu de linéaire, et un anneau de petits clous dorés tout le tour du bord, choisi parmi 3 styles proposés en aperçu.",
+    ],
+  },
+  {
+    version: "2.28",
+    notes: [
+      "Réglages : liens vers les deux autres prototypes (Bastion Orbit, Forge Line), juste en dessous du lien de soutien.",
     ],
   },
   {
@@ -9520,6 +9715,12 @@ const CHANGELOG = [
   },
 ];
 document.getElementById("versionBtn").textContent = `v${GAME_VERSION}`;
+// #loadingScreen's own knight/version — same mounted-knight sprite as the
+// side-art/Templier icon ("l'image du chevalier"), plain black pixel art on
+// the parchment background (no mask/recolor needed here, unlike the side-art
+// — there's no royaume picked yet at this point in boot anyway).
+document.getElementById("loadingKnight").src = CREATURE_IMG_SRC;
+document.getElementById("loadingVersion").textContent = `v${GAME_VERSION}`;
 document.getElementById("changelogList").innerHTML = CHANGELOG.map((entry) => `
   <div class="changelogVersion">Version ${entry.version}</div>
   <ul>${entry.notes.map((n) => `<li>${n}</li>`).join("")}</ul>
@@ -9865,7 +10066,7 @@ function applyHudFactionColors() {
     return;
   }
   const base = ROYAUMES[humanRoyId].color;
-  const grad = `linear-gradient(135deg, ${shadeColor(base, 0.45)}, ${base}, ${shadeColor(base, -0.35)})`;
+  const grad = `radial-gradient(circle at 35% 28%, ${shadeColor(base, 0.45)}, ${base} 55%, ${shadeColor(base, -0.35)} 100%)`;
   const textColor = textColorFor(base);
   for (const el of [settingsEl, gueuxEl, surrenderEl]) el.style.background = grad;
   gueuxEl.style.color = textColor;
@@ -9924,9 +10125,9 @@ function updateEndTurnButton() {
   }
   btn.classList.toggle("aiTurn", !isHuman);
   const roy = ROYAUMES[humanRoyId];
-  // same light/mid/dark 3-stop gradient as the other HUD buttons now (was a
-  // flat fill) — see applyHudFactionColors(), which handles those other three
-  btn.style.background = `linear-gradient(135deg, ${shadeColor(roy.color, 0.45)}, ${roy.color}, ${shadeColor(roy.color, -0.35)})`;
+  // same light/mid/dark 3-stop gradient as the other HUD buttons now (radial,
+  // see applyHudFactionColors(), which handles those other three)
+  btn.style.background = `radial-gradient(circle at 35% 28%, ${shadeColor(roy.color, 0.45)}, ${roy.color} 55%, ${shadeColor(roy.color, -0.35)} 100%)`;
   btn.style.color = textColorFor(roy.color);
   applyHudFactionColors();
 }
