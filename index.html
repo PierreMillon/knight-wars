@@ -1399,6 +1399,23 @@
 <script>
 "use strict";
 
+// #loadingScreen's own knight sprite + version number, set as the very
+// FIRST thing this script does — "l'écran de chargement ne charge le
+// chevalier que après [le titre]... tout doit charger direct" (reported
+// live: the title showed instantly — plain markup, no JS needed — but the
+// knight only popped in after a visible gap). That gap was this exact
+// assignment sitting ~7800 lines further down, after everything else
+// (every sprite decode, every DOM listener, all of game setup) had already
+// run. CREATURE_IMG_SRC/GAME_VERSION are plain string literals with no
+// dependencies, so hoisting their declarations here — before any other
+// code — is safe; both consts are used again further down exactly as
+// before (CREATURE_IMG's own loadSprite() call, the changelog, etc.), not
+// redeclared.
+const CREATURE_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAANAAAADQCAYAAAB2pO90AAAC2klEQVR4nO3dQWoDMRAAwd3g/39ZOeQHahgroupuvF7TzGWQ3rXWw4z3fUde9lrrnfiend8z9WxTfr79APCfCQgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAg+336AE5y85LnzbJY855hAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEFx3MqlTOe/7PSf/pyYQBAKCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAiCd62RG9559pYimbOzgGoCQSAgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAguO5kUvbsLFJOLcdOPdvOZ0wgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAElkkZNbUYOvU9JhAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJAQBAICILrlkldJb9namHzZK65h2ECgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgrFl0pOvRD/Zbe/ttqVVEwgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAgEBMF1J5My57bF0B0mEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgq1lUlfJW6TkjwkEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJg7GTSnUXKqaXVqcXQk6+styC8xwSCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUHwccLmHO/tvhNdTSAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEASfkxf1OJsTUE0gSAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEY9fcw/OcfcroDhMIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgl9clHexCa709wAAAABJRU5ErkJggg==";
+const GAME_VERSION = "2.32";
+document.getElementById("loadingKnight").src = CREATURE_IMG_SRC;
+document.getElementById("loadingVersion").textContent = `v${GAME_VERSION}`;
+
 // Global safety net — installed as the very first thing this script does,
 // before any code that could throw. Without this, an uncaught exception
 // ANYWHERE below (however unlikely) silently aborts the rest of the script:
@@ -1915,7 +1932,8 @@ const FIGURE2_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJAAAACQC
 // icon and unlocks a paragraph in Le lore (see recordOctopusRevealAndCheckUnlock()).
 const OCTOPUS_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAKUAAAClCAYAAAA9Kz3aAAACc0lEQVR4nO3dMW7DMBAAwTDw/78sF+5ShcXBS2mmDgRGXrA5UFzXdf3c1VrrqH/uuq717TUU/H57AfCXKMkRJTmiJEeU5IiSHFGSI0pyREmOKMlZp40ZTxsdTpkaSe6836k12CnJESU5oiRHlOSIkhxRkiNKckRJjijJESU5r50/LoygduyMUNf6/3Knnluw87tN9WCnJEeU5IiSHFGSI0pyREmOKMkRJTmiJEeU5LxOGx1yf3ZKckRJjijJESU5oiRHlOSIkhxRkiNKckRJztZpxtNMnSSceq4x7oedkhxRkiNKckRJjijJESU5oiRHlOSIkhxRkrN1N+NpJx8L9zje+T24m5HHECU5oiRHlOSIkhxRkiNKckRJjijJESU5W2PGrQcHRluFMWPBaaNOOyU5oiRHlOSIkhxRkiNKckRJjijJESU5oiRnbMw45bTRYWHEN2XqdKudkhxRkiNKckRJjijJESU5oiRHlOSIkhxRkjN2N+PUCOrOpxlPW6+PpvIYoiRHlOSIkhxRkiNKckRJjijJESU5oiTnuLsZp9ZQGPHd+eTjDjslOaIkR5TkiJIcUZIjSnJESY4oyRElOaIkZ+w0I/sKY9wdPprKY4iSHFGSI0pyREmOKMkRJTmiJEeU5IiSnLG7GadOBzol2eGjqTyGKMkRJTmiJEeU5IiSHFGSI0pyREmOKMkZGzMWOB14JjslOaIkR5TkiJIcUZIjSnJESY4oyRElOaIkx92Mhyq8Bx9N5TFESY4oyRElOaIkR5TkiJIcUZIjSnJESY6Ppj7Aab+FnZIcUZIjSnJESY4oyRElOaIkR5TkiJIcUZLzBlVsrDHbDZ2PAAAAAElFTkSuQmCC";
 const OCTOPUS_IMG = loadSprite(OCTOPUS_IMG_SRC);
-const CREATURE_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAANAAAADQCAYAAAB2pO90AAAC2klEQVR4nO3dQWoDMRAAwd3g/39ZOeQHahgroupuvF7TzGWQ3rXWw4z3fUde9lrrnfiend8z9WxTfr79APCfCQgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAg+336AE5y85LnzbJY855hAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEFx3MqlTOe/7PSf/pyYQBAKCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAiCd62RG9559pYimbOzgGoCQSAgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAguO5kUvbsLFJOLcdOPdvOZ0wgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAElkkZNbUYOvU9JhAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJAQBAICILrlkldJb9namHzZK65h2ECgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgrFl0pOvRD/Zbe/ttqVVEwgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAgEBMF1J5My57bF0B0mEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgq1lUlfJW6TkjwkEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJg7GTSnUXKqaXVqcXQk6+styC8xwSCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUHwccLmHO/tvhNdTSAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEASfkxf1OJsTUE0gSAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEY9fcw/OcfcroDhMIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgl9clHexCa709wAAAABJRU5ErkJggg==";
+// CREATURE_IMG_SRC itself is declared at the very top of this script now
+// (see that note) — #loadingScreen needs it before anything else runs.
 const CREATURE_IMG = loadSprite(CREATURE_IMG_SRC);
 // Locked-trophy placeholder ("Coffre" — pixel-art chest, user-supplied via
 // dotpict) — shown in the Salle des trophées for any slot not yet earned,
@@ -8680,10 +8698,17 @@ document.getElementById("backConseilsToSettings").addEventListener("click", () =
 // behind it, nothing to restore here
 document.getElementById("supportLink").addEventListener("click", () => { sfxToggle(); });
 // Very synthetic — one entry per meaningful batch of changes, not one line
-// per commit. Newest first; bump GAME_VERSION and add a new entry at the
-// top whenever a future change is worth telling players about.
-const GAME_VERSION = "2.31";
+// per commit. Newest first; bump GAME_VERSION (declared at the very top of
+// this script now — #loadingScreen needs it before anything else runs) and
+// add a new entry at the top whenever a future change is worth telling
+// players about.
 const CHANGELOG = [
+  {
+    version: "2.32",
+    notes: [
+      "Écran de chargement : le chevalier et le numéro de version s'affichent désormais en même temps que le titre, au lieu d'apparaître avec un temps de retard visible après lui.",
+    ],
+  },
   {
     version: "2.31",
     notes: [
@@ -9741,12 +9766,8 @@ const CHANGELOG = [
   },
 ];
 document.getElementById("versionBtn").textContent = `v${GAME_VERSION}`;
-// #loadingScreen's own knight/version — same mounted-knight sprite as the
-// side-art/Templier icon ("l'image du chevalier"), plain black pixel art on
-// the parchment background (no mask/recolor needed here, unlike the side-art
-// — there's no royaume picked yet at this point in boot anyway).
-document.getElementById("loadingKnight").src = CREATURE_IMG_SRC;
-document.getElementById("loadingVersion").textContent = `v${GAME_VERSION}`;
+// #loadingScreen's own knight/version — set at the very top of this script
+// now (see that note), not here.
 document.getElementById("changelogList").innerHTML = CHANGELOG.map((entry) => `
   <div class="changelogVersion">Version ${entry.version}</div>
   <ul>${entry.notes.map((n) => `<li>${n}</li>`).join("")}</ul>
