@@ -1388,8 +1388,8 @@
            style ad hoc. -->
       <div class="fieldLabel" id="gameLinksLabel">Plus de jeux</div>
       <div id="gameLinksWrap">
-        <a class="gameLink" href="https://pierremillon.github.io/bastion-orbit/">🏰 Bastion Orbit</a>
-        <a class="gameLink" href="https://pierremillon.github.io/forge-line/">🔥 Forge Line</a>
+        <a class="gameLink" href="https://pierremillon.github.io/Bastion-Orbit/">🏰 Bastion Orbit</a>
+        <a class="gameLink" href="https://pierremillon.github.io/Forge-Line/">🔥 Forge Line</a>
       </div>
       </div>
     </div>
@@ -1412,7 +1412,7 @@
 // before (CREATURE_IMG's own loadSprite() call, the changelog, etc.), not
 // redeclared.
 const CREATURE_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAANAAAADQCAYAAAB2pO90AAAC2klEQVR4nO3dQWoDMRAAwd3g/39ZOeQHahgroupuvF7TzGWQ3rXWw4z3fUde9lrrnfiend8z9WxTfr79APCfCQgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAg+336AE5y85LnzbJY855hAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEFx3MqlTOe/7PSf/pyYQBAKCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAiCd62RG9559pYimbOzgGoCQSAgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAguO5kUvbsLFJOLcdOPdvOZ0wgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAElkkZNbUYOvU9JhAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJAQBAICILrlkldJb9namHzZK65h2ECgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgrFl0pOvRD/Zbe/ttqVVEwgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAgEBMF1J5My57bF0B0mEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgq1lUlfJW6TkjwkEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJg7GTSnUXKqaXVqcXQk6+styC8xwSCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUHwccLmHO/tvhNdTSAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEASfkxf1OJsTUE0gSAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEY9fcw/OcfcroDhMIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgl9clHexCa709wAAAABJRU5ErkJggg==";
-const GAME_VERSION = "2.32";
+const GAME_VERSION = "2.33";
 document.getElementById("loadingKnight").src = CREATURE_IMG_SRC;
 document.getElementById("loadingVersion").textContent = `v${GAME_VERSION}`;
 
@@ -8704,9 +8704,15 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // players about.
 const CHANGELOG = [
   {
-    version: "2.32",
+    version: "2.33",
     notes: [
       "Écran de chargement : le chevalier et le numéro de version s'affichent désormais en même temps que le titre, au lieu d'apparaître avec un temps de retard visible après lui.",
+    ],
+  },
+  {
+    version: "2.32",
+    notes: [
+      "Réglages : corrige les liens vers Bastion Orbit et Forge Line, qui pointaient vers une URL 404 (les deux dépôts ont été créés avec une majuscule).",
     ],
   },
   {
