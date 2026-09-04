@@ -225,6 +225,14 @@
     color: #2b1d10; font-size: 12px; padding: 0 12px; font-weight: 700;
     min-height: 34px; box-sizing: border-box;
     transition: box-shadow .15s, opacity .15s;
+    /* "le chiffre des gueux à ajouter doit avoir la même police que les
+       stats" — this button inherits the shared HUD serif (Georgia) from the
+       #settingsBtn/#endturn/... rule above, meant for button LABELS, but a
+       lone digit in that serif reads as the letter "O" rather than "0" —
+       overridden back to the same bold sans-serif the top-left force/
+       territory numbers (.chip .n) already use, so the same digit looks
+       like the same digit in both places. */
+    font-family: -apple-system, system-ui, sans-serif;
   }
   /* no longer needs to reserve a flex slot for a sibling now that it's
      standalone — a plain display:none is enough once it's not sharing a
@@ -752,7 +760,16 @@
      getting antialiased into mush at this small size; color is set via
      currentColor (the button's own text color) rather than baked into the
      SVG so it stays consistent if the HUD palette ever shifts. */
-  #surrenderBtn svg { width: 24px; height: auto; color: #2b1d10; }
+  /* :not(.hudStudSvg) — this generic "svg inside the button" selector used
+     to also match the gold-stud overlay <svg> (layoutButtonStuds() adds it
+     as a second, later svg child): an ID+tag selector beats the stud
+     overlay's own class rule (.hudStudSvg, lower specificity), squeezing
+     its width:100%/height:100% down to this icon's fixed 24px/auto — which
+     squashed the whole stud ring into a small square in the middle of the
+     button instead of tracing its actual edges ("la tête de mort a les
+     clous mal alignés", confirmed live: the right/bottom studs were being
+     rendered around the icon's own center instead of the button's border). */
+  #surrenderBtn svg:not(.hudStudSvg) { width: 24px; height: auto; color: #2b1d10; }
   /* the least essential actions in the panel — a support link and two links
      to the author's other prototypes, neither a game action — so a calm,
      muted button style (not the loud gold gradient the real settings
@@ -4008,7 +4025,7 @@ const UI_STRINGS = {
   settingsAria: { fr: "Réglages", en: "Settings" },
   surrenderAria: { fr: "Abandonner", en: "Surrender" },
   accelerateAria: { fr: "Accélérer les batailles", en: "Speed up battles" },
-  endturnMain: { fr: "Fin de bataille", en: "End battle", zh: "结束战斗" },
+  endturnMain: { fr: "À la soupe", en: "Chow time", zh: "开饭了" },
   chooseCamp: { fr: "Choisissez un camp", en: "Choose a side", zh: "选择阵营" },
   stalemateHint: { fr: "Statu quo dans", en: "Stalemate in" }, // + "{N} tour(s)" / "{N} turn(s)" appended separately, see updateEndTurnButton()
   turn: { fr: "tour", en: "turn" },
@@ -8665,8 +8682,17 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "2.30";
+const GAME_VERSION = "2.31";
 const CHANGELOG = [
+  {
+    version: "2.31",
+    notes: [
+      "« Fin de bataille » renommé « À la soupe ».",
+      "Changer la difficulté en cours de partie s'applique désormais tout de suite (comportement de l'IA), sans regénérer la carte ni la partie en cours.",
+      "Corrigé le chiffre des gueux à ajouter : police en italique gothique remplacée par la même police que les autres chiffres de l'interface, et les clous dorés du bouton qui disparaissaient parfois après un simple changement de ce chiffre.",
+      "Corrigé les clous dorés du bouton « Abandonner » (tête de mort) : une règle de style destinée à l'icône elle-même s'appliquait aussi par erreur aux clous, les écrasant tous au centre du bouton au lieu du contour.",
+    ],
+  },
   {
     version: "2.30",
     notes: [
@@ -9894,17 +9920,19 @@ function refreshLevelButtons() {
 }
 refreshLevelButtons();
 refreshCthulhuButton();
-// "Quand on clique sur un bouton des réglages... de la difficulté, ça ne
-// mette pas directement sur la carte" — applyDifficulty() itself only sets
-// plain globals (AI_AGGRESSION_THRESHOLD/AI_MISTAKE_RATE read live every AI
-// turn, NEUTRAL_FRACTION read at map generation), but that's still a real,
-// felt effect on the match already in progress, not just an inert setting.
-// The choice is now only persisted here (+ button highlight) — actually
-// applied via applyPendingDifficulty() at the next genuinely NEW game
-// (rerollBtn/randomGameBtn below), never mid-match. Deliberately NOT called
-// from `restart` ("rejouer la même carte") — that one must keep the
-// ORIGINAL match's own difficulty, or the same seed wouldn't reproduce the
-// same map (NEUTRAL_FRACTION differs by difficulty).
+// applyDifficulty() itself only sets plain globals
+// (AI_AGGRESSION_THRESHOLD/AI_MISTAKE_RATE read live every AI turn,
+// NEUTRAL_FRACTION read only at map generation) — so applying it right away
+// is safe mid-match: the AI's behavior shifts from the very next turn, but
+// nothing regenerates the board itself, since NEUTRAL_FRACTION simply isn't
+// consulted again until a genuinely new map is actually built.
+// Used to defer this entirely to the next new game instead ("ça ne mette
+// pas directement sur la carte") — reversed per a later, opposite request
+// ("si je change la difficulté durant une partie ça change direct en
+// gardant la même partie et carte"): apply it immediately below, while
+// still deliberately NOT touching gameStartDifficulty (`restart`/"rejouer
+// la même carte" keeps reading THAT instead of live DIFFICULTY, so the
+// original match's own seed still reproduces the same map).
 function applyPendingDifficulty() {
   applyDifficulty(cthulhuSelected ? CTHULHU_LEVEL.value : DIFFICULTY_LEVELS[difficultyLevel].value);
 }
@@ -9917,6 +9945,7 @@ document.querySelectorAll("#difficultyLevels .levelBtn[data-level]").forEach((bt
     try { localStorage.setItem("kw_difficultyLevel", String(i)); } catch (e) { /* ignore */ }
     refreshLevelButtons();
     sfxToggle();
+    applyPendingDifficulty();
   });
 });
 cthulhuLevelBtnEl.addEventListener("click", () => {
@@ -9925,6 +9954,7 @@ cthulhuLevelBtnEl.addEventListener("click", () => {
   try { localStorage.setItem("kw_cthulhuSelected", "1"); } catch (e) { /* ignore */ }
   refreshLevelButtons();
   sfxToggle();
+  applyPendingDifficulty();
 });
 
 function refreshMapSizeButtons() {
@@ -10432,7 +10462,16 @@ function showForcedSwimToast(fromId = 0) {
 function refreshGueuxBadge() {
   const el = document.getElementById("gueuxBadge");
   el.classList.toggle("gueuxHidden", replaying);
-  el.textContent = `${gueuxCount}`;
+  // `el.textContent = ...` used to wipe out ALL children, including the
+  // gold-stud <svg> layoutButtonStuds() adds as a sibling — every refresh
+  // (every turn) was silently deleting the studs, only ever redrawn again
+  // by coincidence if some LATER resize happened to refire the observer
+  // ("le bouton doit respecter le nouveau HUD", reported live: the badge
+  // sometimes showed a bare, stud-less box). A single persistent text node,
+  // updated in place, leaves the svg alone.
+  let numEl = el.querySelector(".gueuxNum");
+  if (!numEl) { numEl = document.createElement("span"); numEl.className = "gueuxNum"; el.appendChild(numEl); }
+  numEl.textContent = `${gueuxCount}`;
   el.classList.toggle("gueuxArmed", placingGueux);
   el.style.opacity = gueuxCount > 0 ? "1" : ".5";
 }
