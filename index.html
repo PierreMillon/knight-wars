@@ -1388,8 +1388,8 @@
            style ad hoc. -->
       <div class="fieldLabel" id="gameLinksLabel">Plus de jeux</div>
       <div id="gameLinksWrap">
-        <a class="gameLink" href="https://pierremillon.github.io/bastion-orbit/">🏰 Bastion Orbit</a>
-        <a class="gameLink" href="https://pierremillon.github.io/forge-line/">🔥 Forge Line</a>
+        <a class="gameLink" href="https://pierremillon.github.io/Bastion-Orbit/">🏰 Bastion Orbit</a>
+        <a class="gameLink" href="https://pierremillon.github.io/Forge-Line/">🔥 Forge Line</a>
       </div>
       </div>
     </div>
@@ -8682,8 +8682,14 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // Very synthetic — one entry per meaningful batch of changes, not one line
 // per commit. Newest first; bump GAME_VERSION and add a new entry at the
 // top whenever a future change is worth telling players about.
-const GAME_VERSION = "2.31";
+const GAME_VERSION = "2.32";
 const CHANGELOG = [
+  {
+    version: "2.32",
+    notes: [
+      "Réglages : corrige les liens vers Bastion Orbit et Forge Line, qui pointaient vers une URL 404 (les deux dépôts ont été créés avec une majuscule).",
+    ],
+  },
   {
     version: "2.31",
     notes: [
