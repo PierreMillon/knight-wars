@@ -542,6 +542,17 @@
   #premiumUnlockOverlay h2 { margin: 0 0 10px; font-size: 20px; }
   #premiumUnlockOverlay .winButtons { flex-direction: column; width: 100%; }
   #premiumUnlockNote { font-size: 11.5px; opacity: .7; margin: 0 0 4px; }
+  /* pas de vraie régie pub branchée : plutôt qu'accorder le bonus en
+     silence, on l'annonce comme un aléa technique (ce qui sera vrai un
+     jour, une vraie pub peut réellement échouer à charger) — au-dessus
+     de premiumUnlockOverlay, qui reste ouvert derrière */
+  #adErrorOverlay {
+    position: absolute; inset: 0; display: none;
+    align-items: center; justify-content: center;
+    background: rgba(10,8,6,.88); text-align: center; z-index: 12;
+  }
+  #adErrorOverlay p { margin: 0 0 14px; font-size: 13px; line-height: 1.5; }
+  #adErrorOverlay .winButtons { flex-direction: column; width: 100%; }
   /* Same illuminated-manuscript card as every other overlay — was a native
      confirm() (see the click handler's own note on why: a real guaranteed
      pause before an irreversible action, standalone PWA included), but that
@@ -722,7 +733,7 @@
      same gradient as the selected-territory outline on the map
      (OUTLINE_GRADIENTS.gold), so the two "this is the important thing"
      treatments actually match instead of one being gold and the other blue. */
-  #settingsPanel button, #winbanner button, #truceOverlay button, #loreOverlay button, #conseilsOverlay button, #surrenderConfirmOverlay button, #chartShareOverlay button, #premiumUnlockOverlay button {
+  #settingsPanel button, #winbanner button, #truceOverlay button, #loreOverlay button, #conseilsOverlay button, #surrenderConfirmOverlay button, #chartShareOverlay button, #premiumUnlockOverlay button, #adErrorOverlay button {
     background: linear-gradient(135deg, #fff3c4, #e8c468, #a97e2a);
     color: #2b1d10; border: 1px solid #8a6d3b; border-radius: 8px;
     padding: 10px 20px; font-size: 15px; font-weight: 700;
@@ -1072,6 +1083,14 @@
         <button id="premiumWatchAdBtn">🎬 Regarder une pub (30s) — 24h débloquées</button>
         <button id="premiumBuyBtn">💎 Débloquer à vie — 2€</button>
         <button id="premiumUnlockClose">Fermer</button>
+      </div>
+    </div>
+    <div id="adErrorOverlay">
+      <div class="box">
+        <p>⚠️ La vidéo n'a pas pu se charger — une erreur technique de notre côté. Pas d'inquiétude, tu reçois quand même ton déblocage.</p>
+        <div class="winButtons">
+          <button id="adErrorOk">Recevoir mon déblocage</button>
+        </div>
       </div>
     </div>
   </div>
@@ -10002,7 +10021,16 @@ document.getElementById("premiumUnlockClose").addEventListener("click", closePre
 document.getElementById("premiumUnlockOverlay").addEventListener("click", (e) => {
   if (e.target === document.getElementById("premiumUnlockOverlay")) closePremiumUnlockOverlay();
 });
+// pas de vraie régie pub branchée : plutôt qu'accorder le déblocage en
+// silence, on l'annonce honnêtement comme un aléa technique (compteur de
+// clics à ajouter plus tard, pour des statistiques) — le déblocage est
+// accordé quand même, juste après cette étape
 document.getElementById("premiumWatchAdBtn").addEventListener("click", () => {
+  document.getElementById("adErrorOverlay").style.display = "flex";
+  sfxMenuOpen();
+});
+document.getElementById("adErrorOk").addEventListener("click", () => {
+  document.getElementById("adErrorOverlay").style.display = "none";
   // Stub: a real integration would only grant this once an actual ad
   // network reports the 30s view completed — here it's granted immediately,
   // since there's no ad to actually watch yet.
