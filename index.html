@@ -523,6 +523,27 @@
   }
   #chartShareOverlay h2 { margin: 0 0 14px; font-size: 21px; }
   #chartShareImg { max-width: 100%; max-height: 45vh; border-radius: 6px; margin: 0 0 16px; display: block; }
+  /* Shown the instant any map-(re)generation button is tapped (see
+     withLoadingFeedback()) — a light backdrop over the map only (not the
+     HUD/buttons above it), so a still-real generation delay reads as
+     "working", not "did nothing happen?" ("il se passe quelque chose qui
+     nous fasse comprendre qu'il y a pas de bug"). Covers just #wrap (the
+     map's own stacking context), lower z-index than every real overlay
+     below — a settings/win/truce panel opening on top of it should still
+     read as on top, not buried under a spinner. */
+  #mapLoadingOverlay {
+    position: absolute; inset: 0; display: none;
+    align-items: center; justify-content: center;
+    background: rgba(20,16,12,.32); z-index: 3;
+    opacity: 0; transition: opacity .15s ease;
+  }
+  #mapLoadingOverlay.visible { display: flex; opacity: 1; }
+  .mapLoadingSpinner {
+    width: 42px; height: 42px; border-radius: 50%;
+    border: 4px solid rgba(232,196,104,.3); border-top-color: #e8c468;
+    animation: mapLoadingSpin .7s linear infinite;
+  }
+  @keyframes mapLoadingSpin { to { transform: rotate(360deg); } }
   #truceOverlay {
     position: absolute; inset: 0; display: none;
     align-items: center; justify-content: center;
@@ -920,6 +941,14 @@
 </div>
 <div id="wrap">
   <canvas id="map"></canvas>
+  <!-- "regénérer une carte a une demi seconde de délai... faut qu'on crée
+       une petite animation qui détourne l'attention et qui fasse comprendre
+       qu'on a bien appuyé sur le bouton" — a lightweight overlay shown the
+       instant any map-(re)generation button is tapped (see
+       withLoadingFeedback()), so the still-real remaining delay (map
+       generation itself was separately optimized, see computeWaterRoutes())
+       reads as "working" rather than "did nothing happen?". -->
+  <div id="mapLoadingOverlay" aria-hidden="true"><div class="mapLoadingSpinner"></div></div>
   <div id="sideGueux" class="sideArt sideArtLeft" aria-hidden="true"></div>
   <div id="sideKnight" class="sideArt sideArtRight" aria-hidden="true"></div>
   <div id="status">—</div>
@@ -1431,7 +1460,7 @@
 // before (CREATURE_IMG's own loadSprite() call, the changelog, etc.), not
 // redeclared.
 const CREATURE_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAANAAAADQCAYAAAB2pO90AAAC2klEQVR4nO3dQWoDMRAAwd3g/39ZOeQHahgroupuvF7TzGWQ3rXWw4z3fUde9lrrnfiend8z9WxTfr79APCfCQgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAg+336AE5y85LnzbJY855hAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEFx3MqlTOe/7PSf/pyYQBAKCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAiCd62RG9559pYimbOzgGoCQSAgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAguO5kUvbsLFJOLcdOPdvOZ0wgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAElkkZNbUYOvU9JhAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJAQBAICILrlkldJb9namHzZK65h2ECgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgrFl0pOvRD/Zbe/ttqVVEwgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAgEBMF1J5My57bF0B0mEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgq1lUlfJW6TkjwkEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJg7GTSnUXKqaXVqcXQk6+styC8xwSCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUHwccLmHO/tvhNdTSAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEASfkxf1OJsTUE0gSAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEY9fcw/OcfcroDhMIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgl9clHexCa709wAAAABJRU5ErkJggg==";
-const GAME_VERSION = "2.33";
+const GAME_VERSION = "2.34";
 document.getElementById("loadingKnight").src = CREATURE_IMG_SRC;
 document.getElementById("loadingVersion").textContent = `v${GAME_VERSION}`;
 
@@ -2936,14 +2965,68 @@ function pathStraightnessDeviation(path, x0, y0, x1, y1) {
   }
   return sum;
 }
+// Binary min-heap over [hop, cost, key] triples, ordered the same way the
+// old `frontier.sort((a,b) => a[0]-b[0] || a[1]-b[1])` + `.shift()` was —
+// that re-sorted the ENTIRE frontier array on every single pop (O(n log n)
+// per pop, O(n² log n) total), which turned out to be most of the measured
+// "regénère une carte a une demi seconde de délai" cost on anything past a
+// tiny map (medium/large/huge still took ~0.8-1.8s even after the early-exit
+// optimization in computeWaterRoutes() below, since a bigger water body
+// naturally grows a bigger frontier before every territory is found). A
+// proper heap does the identical Dijkstra — same costs, same optimal routes
+// — in O(log n) per push/pop instead; ties may settle in a different order
+// than the old stable sort, but computeWaterRoutes()'s own tie-break
+// (pathStraightnessDeviation) already handles that explicitly, and the pure
+// COSTS Dijkstra finds are unaffected by tie order either way.
+function heapLess(a, b) { return a[0] !== b[0] ? a[0] < b[0] : a[1] < b[1]; }
+function heapPush(heap, item) {
+  heap.push(item);
+  let i = heap.length - 1;
+  while (i > 0) {
+    const parent = (i - 1) >> 1;
+    if (!heapLess(heap[i], heap[parent])) break;
+    [heap[i], heap[parent]] = [heap[parent], heap[i]];
+    i = parent;
+  }
+}
+function heapPop(heap) {
+  const top = heap[0];
+  const last = heap.pop();
+  if (heap.length) {
+    heap[0] = last;
+    let i = 0;
+    for (;;) {
+      const l = i * 2 + 1, r = i * 2 + 2;
+      let smallest = i;
+      if (l < heap.length && heapLess(heap[l], heap[smallest])) smallest = l;
+      if (r < heap.length && heapLess(heap[r], heap[smallest])) smallest = r;
+      if (smallest === i) break;
+      [heap[i], heap[smallest]] = [heap[smallest], heap[i]];
+      i = smallest;
+    }
+  }
+  return top;
+}
 function computeWaterRoutes() {
   for (const t of territories) t.waterRoutes = new Map(); // targetTerritoryId -> { cost, path }
   const hasWater = Object.keys(hexes).some((k) => hexes[k].isWater);
   if (!hasWater) return;
   for (const startT of territories) {
     const dist = new Map(); // hexKey -> { hop, cost } of the best-ranked way reaching that water hex
-    const bestPath = new Map(); // hexKey -> the path (array of hex keys) achieving that rank
-    const frontier = []; // [hop, cost, key] — small maps, a plain array re-sorted each pop is plenty fast
+    // hexKey -> the PREVIOUS water hexKey on its own best-ranked path (absent
+    // for a first-hop hex) — a plain parent pointer instead of storing the
+    // whole path array at every single hex (reconstructPath() below walks it
+    // back only the rare times a path is actually needed: committing a new
+    // best route, or breaking an exact tie), which used to mean copying an
+    // ever-growing array on every single relaxation, the whole way across a
+    // big water body.
+    const parent = new Map();
+    const frontier = []; // [hop, cost, key] min-heap — see heapPush()/heapPop() above
+    function reconstructPath(key) {
+      const path = [key];
+      for (let cur = key; parent.has(cur); ) { cur = parent.get(cur); path.push(cur); }
+      return path.reverse();
+    }
     for (const hk of startT.hexKeys) {
       const h = hexes[hk];
       for (const nk of neighborsOf(h.q, h.r)) {
@@ -2960,20 +3043,33 @@ function computeWaterRoutes() {
         if (nh.isWater) {
           const c = nh.waterCost || 2; // void has no stored waterCost — defaults to open-sea cost, same fallback computeWaterTailDecay() already uses
           const d = dist.get(nk);
-          if (!d || betterRoute(1, c, d.hop, d.cost)) { dist.set(nk, { hop: 1, cost: c }); bestPath.set(nk, [nk]); frontier.push([1, c, nk]); }
+          if (!d || betterRoute(1, c, d.hop, d.cost)) { dist.set(nk, { hop: 1, cost: c }); heapPush(frontier, [1, c, nk]); }
         }
       }
     }
     const settled = new Set();
     let guard = 0;
+    // Every OTHER territory this search could possibly still find a route
+    // to — once every one of them has at least one recorded route, Dijkstra's
+    // own non-decreasing-cost order guarantees any hex popped from here on
+    // can only ever reach an ALREADY-found territory via a MORE expensive
+    // path (betterRoute() below would reject it as worse, a pure no-op) — so
+    // stopping right here is provably identical to running all the way to
+    // MAX_ROUTE_SEARCH_HEXES, just without the wasted work. This was the
+    // actual cost of "regénère une carte a une demi seconde de délai"
+    // (measured live: ~0.3-1.4s depending on map size, almost entirely THIS
+    // function) — the guard above almost never tripped early because the
+    // unbounded background void ("le vide compte comme mer ouverte", see the
+    // note above) always has thousands of reachable-but-useless hexes to
+    // keep exploring long after every real territory was already found.
+    const otherTerritoryCount = territories.length - 1;
     while (frontier.length) {
+      if (startT.waterRoutes.size >= otherTerritoryCount) break;
       if (++guard > MAX_ROUTE_SEARCH_HEXES) break; // open background water with nothing to reach — stop searching this territory rather than loop forever
-      frontier.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
-      const [hop, cost, key] = frontier.shift();
+      const [hop, cost, key] = heapPop(frontier);
       const d = dist.get(key);
       if (settled.has(key) || betterRoute(d.hop, d.cost, hop, cost)) continue; // already settled, or a stale (superseded) entry
       settled.add(key);
-      const path = bestPath.get(key);
       const [q, r] = key.split(",").map(Number);
       for (const nk of neighborsOf(q, r)) {
         const [nq, nr] = nk.split(",").map(Number);
@@ -2983,22 +3079,28 @@ function computeWaterRoutes() {
           const nd = dist.get(nk);
           if (!nd || betterRoute(nhop, nc, nd.hop, nd.cost)) {
             dist.set(nk, { hop: nhop, cost: nc });
-            bestPath.set(nk, [...path, nk]);
-            frontier.push([nhop, nc, nk]);
+            parent.set(nk, key);
+            heapPush(frontier, [nhop, nc, nk]);
           }
         } else if (nh.territoryId !== startT.id) {
           const destId = nh.territoryId;
           const existing = startT.waterRoutes.get(destId);
-          let better = existing === undefined || betterRoute(hop, cost, existing.path.length, existing.cost);
+          const takeIt = existing === undefined || betterRoute(hop, cost, existing.path.length, existing.cost);
           // hop/cost tied exactly — break it by which one hugs the direct
           // line between the two territories more closely, instead of just
-          // keeping whichever got settled first.
-          if (!better && existing !== undefined && hop === existing.path.length && cost === existing.cost) {
+          // keeping whichever got settled first. Path only reconstructed
+          // here (and just below), never eagerly per hex — see the note
+          // above `parent`.
+          if (!takeIt && hop === existing.path.length && cost === existing.cost) {
+            const path = reconstructPath(key);
             const destT = territories[destId];
-            better = pathStraightnessDeviation(path, startT.cx, startT.cy, destT.cx, destT.cy) <
-              pathStraightnessDeviation(existing.path, startT.cx, startT.cy, destT.cx, destT.cy);
+            if (pathStraightnessDeviation(path, startT.cx, startT.cy, destT.cx, destT.cy) <
+                pathStraightnessDeviation(existing.path, startT.cx, startT.cy, destT.cx, destT.cy)) {
+              startT.waterRoutes.set(destId, { cost, path });
+            }
+          } else if (takeIt) {
+            startT.waterRoutes.set(destId, { cost, path: reconstructPath(key) });
           }
-          if (better) startT.waterRoutes.set(destId, { cost, path });
         }
       }
     }
@@ -3446,6 +3548,13 @@ const FASTFORWARD_MIN_DELAY_MS = 90;
 // entirely instead of just switching to the smaller floor. Reset back to
 // false the moment control returns to the human (see updateStatus()).
 let forceInstantSkip = false;
+// endTurn() delays advanceTurn() by REINFORCE_PAUSE_MS so the reinforcement
+// pulse/chime is actually visible before the turn hands off — this holds the
+// pending setTimeout handle while that short gap is in progress, null the
+// rest of the time. See handleEndTurnTap()'s own note on why a second tap
+// landing inside that gap needs to check this instead of just calling
+// endTurn() again.
+let pendingAdvanceTurnTimer = null;
 // forceInstantSkip dispatches via queueMicrotask(), not setTimeout(fn, 0):
 // browsers clamp a *chain* of nested zero-delay setTimeout calls to a real
 // ~4ms floor each (the HTML spec's timer-nesting throttle) — invisible for
@@ -4990,7 +5099,7 @@ function endTurn() {
     // cascade still added up to several unwanted reinforcement pauses.
     advanceTurn();
   } else {
-    setTimeout(advanceTurn, REINFORCE_PAUSE_MS);
+    pendingAdvanceTurnTimer = setTimeout(() => { pendingAdvanceTurnTimer = null; advanceTurn(); }, REINFORCE_PAUSE_MS);
   }
 }
 
@@ -6406,7 +6515,7 @@ document.getElementById("loadMapCode").addEventListener("click", () => {
   try { localStorage.setItem("kw_opponentCount", String(opponentCount)); } catch (e) { /* ignore */ }
   refreshOpponentCountButtons();
   applyMapSize(parsed.mapSize);
-  if (!reloadIfUpdateAvailable()) startGame(parsed.seed);
+  if (!reloadIfUpdateAvailable()) withLoadingFeedback(() => startGame(parsed.seed));
 });
 function tryParseSharedReplay() {
   try {
@@ -8158,6 +8267,23 @@ function handleEndTurnTap() {
   const now = performance.now();
   const isDoubleTap = now - lastEndTurnTapAt < END_TURN_DOUBLE_TAP_MS;
   lastEndTurnTapAt = now;
+  if (pendingAdvanceTurnTimer) {
+    // The human's own turn already ended and is just waiting out endTurn()'s
+    // short REINFORCE_PAUSE_MS gap before handing off — calling endTurn()
+    // again here (the branch below) would silently give the human a SECOND
+    // helping of reinforcement for the same turn, since currentPlayer hasn't
+    // actually moved on yet. Reported live, repeatedly, as a fast second tap
+    // on the ocean not producing the expected instant skip ("on appuie une
+    // fois ça passe au tour, deux fois ça doit faire le tour immédiat") — a
+    // tap this fast means "hurry up", not "end another turn": skip the wait
+    // and hand off right now instead.
+    clearTimeout(pendingAdvanceTurnTimer);
+    pendingAdvanceTurnTimer = null;
+    fastForward = true;
+    forceInstantSkip = true;
+    advanceTurn();
+    return;
+  }
   if (currentPlayer === humanRoyId) {
     if (aiRunning) return;
     if (isDoubleTap) { fastForward = true; forceInstantSkip = true; }
@@ -8175,6 +8301,29 @@ function handleEndTurnTap() {
   }
 }
 document.getElementById("endturn").addEventListener("click", handleEndTurnTap);
+// "Quand j'appuie sur régénérer une carte, il y a une demi seconde de délai
+// ... faut qu'on crée une petite animation qui détourne l'attention et qui
+// fasse comprendre qu'on a bien appuyé sur le bouton" — wraps every
+// map-(re)generation button's handler below (restart/randomGameBtn/
+// rerollBtn/prevMapBtn/loadMapCode). Shows the spinner overlay, waits for it
+// to actually PAINT (a single requestAnimationFrame often fires BEFORE the
+// browser paints the frame it was scheduled from — nesting a second one
+// guarantees the callback runs on the frame AFTER that paint), then runs the
+// real (synchronous, and still genuinely not-instant on a big map — see
+// computeWaterRoutes()'s own note on the other half of this fix) generation
+// work, and hides the overlay again once it's done.
+// startGame() itself deliberately stays untouched/synchronous — simulate.js
+// and the replay code both call it directly and depend on it completing
+// before the very next line runs, neither ever goes through these button
+// handlers at all.
+function withLoadingFeedback(fn) {
+  const el = document.getElementById("mapLoadingOverlay");
+  el.classList.add("visible");
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    fn();
+    el.classList.remove("visible");
+  }));
+}
 document.getElementById("restart").addEventListener("click", () => {
   if (reloadIfUpdateAvailable()) return;
   // "Rejouer" replays the exact same map the just-finished match was played
@@ -8196,9 +8345,11 @@ document.getElementById("restart").addEventListener("click", () => {
   try { localStorage.setItem("kw_opponentCount", String(opponentCount)); } catch (e) { /* ignore */ }
   refreshOpponentCountButtons();
   applyMapSize(gameStartMapSize);
-  startGame(currentSeed);
+  withLoadingFeedback(() => startGame(currentSeed));
 });
-document.getElementById("randomGameBtn").addEventListener("click", () => { if (!reloadIfUpdateAvailable()) { applyPendingDifficulty(); startGame(); } });
+document.getElementById("randomGameBtn").addEventListener("click", () => {
+  if (!reloadIfUpdateAvailable()) { applyPendingDifficulty(); withLoadingFeedback(() => startGame()); }
+});
 document.getElementById("watchReplay").addEventListener("click", () => startReplay());
 document.getElementById("rerollBtn").addEventListener("click", () => {
   if (replaying) {
@@ -8220,16 +8371,14 @@ document.getElementById("rerollBtn").addEventListener("click", () => {
     while (mapHistory.length > 2) mapHistory.shift();
     sfxRerollMap();
     applyPendingDifficulty(); // pick up any difficulty change made in settings since this match started
-    startGame();
-    refreshPrevMapBtn();
+    withLoadingFeedback(() => { startGame(); refreshPrevMapBtn(); });
   }
 });
 document.getElementById("prevMapBtn").addEventListener("click", () => {
   if (!mapHistory.length) return;
   const prevSeed = mapHistory.pop();
   sfxRerollMap();
-  startGame(prevSeed);
-  refreshPrevMapBtn();
+  withLoadingFeedback(() => { startGame(prevSeed); refreshPrevMapBtn(); });
 });
 function refreshPrevMapBtn() {
   const el = document.getElementById("prevMapBtn");
@@ -8304,7 +8453,15 @@ function layoutButtonStuds(btn) {
   const old = btn.querySelector(".hudStudSvg");
   if (old) old.remove();
   const w = btn.offsetWidth, h = btn.offsetHeight;
-  if (w < HUD_STUD_INSET * 2 + 1 || h < HUD_STUD_INSET * 2 + 1) return; // hidden (0×0) or too small — nothing to draw yet
+  // `w < N` (rather than `!(w >= N)`) silently let through a NaN/undefined
+  // width instead of bailing out — every ordinary `<` comparison against
+  // NaN is false, so a stub/test DOM element with no real offsetWidth at
+  // all fell straight through this guard instead of being caught by it,
+  // then crashed deep inside bestStudCounts() (a NaN-driven loop range that
+  // never actually iterates, leaving `best` null). Real browsers always
+  // give a real, finite offsetWidth/offsetHeight, so this only ever bit a
+  // headless test harness in practice — still worth being correct either way.
+  if (!(w >= HUD_STUD_INSET * 2 + 1) || !(h >= HUD_STUD_INSET * 2 + 1)) return; // hidden (0×0), too small, or not a real size yet — nothing to draw
   const left = HUD_STUD_INSET, top = HUD_STUD_INSET, right = w - HUD_STUD_INSET, bottom = h - HUD_STUD_INSET;
   const corners = [[left, top], [right, top], [right, bottom], [left, bottom]];
   const topBottomLen = right - left, leftRightLen = bottom - top;
@@ -8722,6 +8879,14 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // add a new entry at the top whenever a future change is worth telling
 // players about.
 const CHANGELOG = [
+  {
+    version: "2.34",
+    notes: [
+      "Corrigé le bouton « Fin de bataille »/accélérer qui perdait ses clous dorés à chaque changement de tour.",
+      "Un appui rapide sur l'océan (ou sur le bouton) juste après le premier ne double plus le renfort du tour en cours — il fait maintenant bien passer directement au tour suivant, comme prévu.",
+      "Génération de carte nettement plus rapide (jusqu'à 100× sur une petite carte, plusieurs fois plus vite sur les grandes) — et une petite animation de chargement le temps que la carte arrive, pour que le délai restant se voie clairement comme un chargement, pas comme un bug.",
+    ],
+  },
   {
     version: "2.33",
     notes: [
@@ -10180,6 +10345,7 @@ function updateEndTurnButton() {
   document.getElementById("surrenderBtn").style.display = (gameOver || replaying || awaitingFactionPick) ? "none" : "";
   if (awaitingFactionPick) {
     btn.textContent = t("chooseCamp");
+    layoutButtonStuds(btn); // textContent wipes the gold-stud <svg> too — see the note below
     btn.classList.remove("aiTurn");
     btn.style.background = "";
     btn.style.color = "";
@@ -10208,6 +10374,16 @@ function updateEndTurnButton() {
     // as "touch to push forward" on its own, no text or emoji needed.
     btn.innerHTML = `<img src="${SWORD_IMG_SRC}" alt="${t("accelerateAria")}" style="width:24px;height:24px;display:block;transform:rotate(90deg);">`;
   }
+  // `btn.innerHTML = ...` above (called every single time this function
+  // runs — every turn change, every AI move) wipes ALL of #endturn's
+  // children, including the gold-stud <svg> layoutButtonStuds() had added
+  // as a sibling — same class of bug already fixed once for #gueuxBadge's
+  // own textContent wipe ("il manque les clous sur le bouton quand on veut
+  // accélérer le tour suivant", reported live: missing specifically during
+  // the AI-turn/fast-forward state, i.e. exactly the innerHTML branch just
+  // above). Redraw them right here instead of hoping a later resize
+  // happens to refire the observer.
+  layoutButtonStuds(btn);
   btn.classList.toggle("aiTurn", !isHuman);
   const roy = ROYAUMES[humanRoyId];
   // same light/mid/dark 3-stop gradient as the other HUD buttons now (radial,
@@ -10655,6 +10831,10 @@ function startGame(seed) {
   document.getElementById("truceOverlay").style.display = "none";
   document.getElementById("endturn").disabled = false;
   gameOver = false; selected = -1; aiRunning = false;
+  // a still-pending endTurn()->advanceTurn() handoff from whatever match was
+  // just abandoned (reroll mid-turn, say) must never fire into this new
+  // match's fresh state.
+  if (pendingAdvanceTurnTimer) { clearTimeout(pendingAdvanceTurnTimer); pendingAdvanceTurnTimer = null; }
   oceanTapCount = 0; // fresh running gag for a fresh match — see showOceanTapEasterEgg()
   ritualCountThisMatch = 0; octopusRevealedThisMatch = false; octopusRevealFX = null; cthulhuRevealFX = null;
   capBonusBudget = {}; capBonusActivations = 0; capBonusRevealedThisMatch = false; capBonusRevealFX = null;
