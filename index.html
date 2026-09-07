@@ -129,7 +129,13 @@
   #settingsBtn {
     position: absolute; top: calc(8px + env(safe-area-inset-top, 0px)); right: 10px;
     pointer-events: auto; background: radial-gradient(circle at 35% 28%, #fff3c4, #e8c468 55%, #a97e2a 100%);
-    width: 34px; height: 34px; padding: 3px;
+    /* "les clous du menu débordent sur le blason, ils doivent être plus au
+       bord" — the blazon image fills the button's own content box exactly
+       (34×34), so with only 3px of padding its edge sat barely inside the
+       gold stud ring (inset 5px from the OUTER box) — visually touching.
+       More padding pushes the studs further out from the image itself
+       without changing the image's own rendered size. */
+    width: 34px; height: 34px; padding: 6px;
   }
   #settingsBtn img { width: 100%; height: 100%; object-fit: contain; }
   #endturn {
@@ -615,6 +621,13 @@
      epigraph, not just another paragraph of the "Les Millon" account right
      below it — a left rule + slightly dimmer tone, same idea as a pull-quote. */
   #loreChronique { border-left: 3px solid #a97e2a; padding-left: 12px; opacity: .88; }
+  /* the 4 dieux paragraphs stay visible even before being earned (see the
+     markup's own note) — dimmed and with a small "pas encore obtenue" note
+     appended until then, same "real content always shown, gold ring only
+     once earned" spirit as the trophy grid. */
+  .loreGodEntry.loreGodLocked { opacity: .5; }
+  .loreGodLockedNote { display: none; font-style: italic; opacity: .85; }
+  .loreGodEntry.loreGodLocked .loreGodLockedNote { display: inline; }
   #loreOverlay img { display: block; width: 64px; height: auto; margin: 0 auto 14px; image-rendering: pixelated; }
   /* dedicated Cthulhu sprite (CTHULHU_IMG_SRC), no filter needed any more —
      it used to reuse/tint the octopus sprite before its own art existed */
@@ -1186,20 +1199,31 @@
            mercenaire engagé par les familles, à la fois l'expérience est
            gardée par la famille, et à la fois on retient qu'on a cette
            compétence-là, avec les hommes qu'on a, en tout cas." -->
-      <div id="loreGodsExplainer" style="display:none;">
+      <!-- "Ajout lore dieux manquant et explication obtention" — les 4 gods
+           étaient entièrement invisibles tant qu'on ne les avait pas
+           obtenus, alors même que chaque paragraphe raconte déjà, en
+           filigrane, exactement comment les mériter (le seul endroit où
+           cette condition est expliquée en clair, hors des commentaires du
+           code) — un cercle vicieux, impossible de savoir comment obtenir
+           un dieu sans déjà l'avoir. Toujours affichés désormais (même
+           logique que la Salle des trophées : le vrai contenu reste
+           visible, pas caché derrière un coffre) ; `.loreGodLocked` (voir
+           refreshLoreGods()) grise le paragraphe et révèle une note "pas
+           encore obtenu" tant que ce n'est pas fait. -->
+      <div id="loreGodsExplainer">
         <p>Un mercenaire ne sert jamais une seule maison. Le savoir-faire qu'il enseigne à celle qui l'engage aujourd'hui, la maison le garde pour de bon — que ce soit encore lui qui la commande demain, ou un autre. Mais lui aussi retient la leçon : où qu'il porte son épée ensuite, quelle que soit la bannière, il n'oublie jamais un tour qu'il a un jour appris. Un général assez habile pour avoir servi les quatre maisons finit par porter en lui les quatre dieux à la fois — et leur prix avec.</p>
       </div>
-      <div id="loreGodVulcain" style="display:none;">
-        <p><strong>Vulcain</strong>, dieu de la forge, s'incline devant quiconque l'a vue redescendre à sa dernière province avant de renverser le siège — peu importe la bannière. Depuis, ses murailles ne tombent plus tout à fait comme les autres : une force de plus veille toujours derrière chaque rempart, invisible sur le parchemin. Mais sa forge a un prix : elle dévore un renfort à chaque fin de tour.</p>
+      <div id="loreGodVulcain" class="loreGodEntry">
+        <p><strong>Vulcain</strong>, dieu de la forge, s'incline devant quiconque l'a vue redescendre à sa dernière province avant de renverser le siège — peu importe la bannière. Depuis, ses murailles ne tombent plus tout à fait comme les autres : une force de plus veille toujours derrière chaque rempart, invisible sur le parchemin. Mais sa forge a un prix : elle dévore un renfort à chaque fin de tour. <em class="loreGodLockedNote">— faveur pas encore obtenue.</em></p>
       </div>
-      <div id="loreGodBellone" style="display:none;">
-        <p><strong>Bellone</strong>, déesse romaine de la guerre, honore quiconque a remporté un siège entier sans jamais céder une seule province, quelle que soit la maison. Sa fureur reste depuis dans chaque lance levée : une force de plus à l'assaut, toujours. Mais ses remparts, distraits par la bataille, en gardent une de moins en défense.</p>
+      <div id="loreGodBellone" class="loreGodEntry">
+        <p><strong>Bellone</strong>, déesse romaine de la guerre, honore quiconque a remporté un siège entier sans jamais céder une seule province, quelle que soit la maison. Sa fureur reste depuis dans chaque lance levée : une force de plus à l'assaut, toujours. Mais ses remparts, distraits par la bataille, en gardent une de moins en défense. <em class="loreGodLockedNote">— faveur pas encore obtenue.</em></p>
       </div>
-      <div id="loreGodCeres" style="display:none;">
-        <p><strong>Cérès</strong>, déesse des moissons, sourit à qui a laissé chaque maison rivale vivre jusqu'au bout, pour ensuite toutes les faucher d'un seul geste, en une charge continue qui ne laisse pas même un arpent aux Celtes. Ses greniers ne se vident plus jamais tout à fait : un renfort de plus arrive à chaque fin de tour. Mais l'abondance amollit : plus jamais une seule province ne dépassera onze soldats.</p>
+      <div id="loreGodCeres" class="loreGodEntry">
+        <p><strong>Cérès</strong>, déesse des moissons, sourit à qui a laissé chaque maison rivale vivre jusqu'au bout, pour ensuite toutes les faucher d'un seul geste, en une charge continue qui ne laisse pas même un arpent aux Celtes. Ses greniers ne se vident plus jamais tout à fait : un renfort de plus arrive à chaque fin de tour. Mais l'abondance amollit : plus jamais une seule province ne dépassera onze soldats. <em class="loreGodLockedNote">— faveur pas encore obtenue.</em></p>
       </div>
-      <div id="loreGodNeptune" style="display:none;">
-        <p><strong>Neptune</strong>, dieu de la mer, répond à qui a scellé un siège entier par une dernière charge venue des flots. L'onde s'écarte un peu plus vite depuis : chaque traversée coûte une force de moins. Mais ses côtes restent tournées vers le large, une force de moins pour qui l'attaque depuis la mer.</p>
+      <div id="loreGodNeptune" class="loreGodEntry">
+        <p><strong>Neptune</strong>, dieu de la mer, répond à qui a scellé un siège entier par une dernière charge venue des flots. L'onde s'écarte un peu plus vite depuis : chaque traversée coûte une force de moins. Mais ses côtes restent tournées vers le large, une force de moins pour qui l'attaque depuis la mer. <em class="loreGodLockedNote">— faveur pas encore obtenue.</em></p>
       </div>
       <!-- #loreWarTools (chevalier/blason/pieuvre/bateau/épées row) removed —
            "les images au-dessus du titre salle des trophées sont déplacées
@@ -1439,7 +1463,7 @@
 // before (CREATURE_IMG's own loadSprite() call, the changelog, etc.), not
 // redeclared.
 const CREATURE_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAANAAAADQCAYAAAB2pO90AAAC2klEQVR4nO3dQWoDMRAAwd3g/39ZOeQHahgroupuvF7TzGWQ3rXWw4z3fUde9lrrnfiend8z9WxTfr79APCfCQgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAg+336AE5y85LnzbJY855hAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEFx3MqlTOe/7PSf/pyYQBAKCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAiCd62RG9559pYimbOzgGoCQSAgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAguO5kUvbsLFJOLcdOPdvOZ0wgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAElkkZNbUYOvU9JhAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJAQBAICILrlkldJb9namHzZK65h2ECgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgrFl0pOvRD/Zbe/ttqVVEwgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAgEBMF1J5My57bF0B0mEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgq1lUlfJW6TkjwkEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJg7GTSnUXKqaXVqcXQk6+styC8xwSCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUHwccLmHO/tvhNdTSAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEASfkxf1OJsTUE0gSAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEY9fcw/OcfcroDhMIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgl9clHexCa709wAAAABJRU5ErkJggg==";
-const GAME_VERSION = "2.35";
+const GAME_VERSION = "2.36";
 document.getElementById("loadingKnight").src = CREATURE_IMG_SRC;
 document.getElementById("loadingVersion").textContent = `v${GAME_VERSION}`;
 
@@ -2403,6 +2427,24 @@ function revealGameWhenReady(attempt) {
   const sane = canvas.width > 100 && canvas.height > 100;
   if (sane || attempt > 40) { // ~40 * 80ms = 3.2s hard cap
     document.getElementById("loadingScreen").classList.add("loadingScreenHidden");
+    // Belt-and-braces re-layout of every studded HUD button's gold-stud ring
+    // right as the game actually becomes visible, on top of the reactive
+    // ResizeObserver pass each one already got — "changer la carte n'a pas
+    // les clous" reported live on a real phone despite rendering fine here
+    // in every local/Playwright check: a button sized from its own text
+    // (rerollBtn: "🔀 Changer la carte") can rasterize its FIRST layout pass
+    // at a subtly different width on some devices than the one the observer
+    // captured, especially this early in boot, and nothing ever retriggers
+    // the observer again afterward if the box's reported size doesn't
+    // change from that first (possibly premature) reading. Re-running once
+    // more here, against whatever width has now actually settled, costs
+    // nothing (layoutButtonStuds() is idempotent) and closes that gap.
+    if (typeof HUD_STUD_BUTTON_IDS !== "undefined" && typeof layoutButtonStuds === "function") {
+      for (const id of HUD_STUD_BUTTON_IDS) {
+        const el = document.getElementById(id);
+        if (el) layoutButtonStuds(el);
+      }
+    }
     return;
   }
   setTimeout(() => revealGameWhenReady(attempt + 1), 80);
@@ -8483,12 +8525,13 @@ function layoutButtonStuds(btn) {
 // guarded — simulate.js runs this same file in a minimal (non-browser) DOM
 // stub with no ResizeObserver, purely for game-logic determinism checks; the
 // studs are a rendering-only concern with nothing to verify there.
+const HUD_STUD_BUTTON_IDS = ["settingsBtn", "endturn", "rerollBtn", "gueuxBadge", "surrenderBtn",
+  "replayPauseBtn", "replayResumeHereBtn", "prevMapBtn", "reviewBackBtn", "reviewReplayBtn"];
 if (typeof ResizeObserver !== "undefined") {
   const hudStudObserver = new ResizeObserver((entries) => {
     for (const entry of entries) layoutButtonStuds(entry.target);
   });
-  for (const id of ["settingsBtn", "endturn", "rerollBtn", "gueuxBadge", "surrenderBtn",
-    "replayPauseBtn", "replayResumeHereBtn", "prevMapBtn", "reviewBackBtn", "reviewReplayBtn"]) {
+  for (const id of HUD_STUD_BUTTON_IDS) {
     const el = document.getElementById(id);
     if (el) hudStudObserver.observe(el);
   }
@@ -8850,6 +8893,15 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // add a new entry at the top whenever a future change is worth telling
 // players about.
 const CHANGELOG = [
+  {
+    version: "2.36",
+    notes: [
+      "Corrigé un chevauchement de boutons en bas de l'écran quand on chargeait un code de carte juste après avoir dévoilé la carte finale d'une partie gagnée.",
+      "Le blason en haut à droite : les clous dorés ne touchent plus l'image.",
+      "Renforcé l'affichage des clous dorés des boutons contre un cas où certains pouvaient rester mal positionnés sur certains téléphones (« Changer la carte » notamment).",
+      "Le Lore raconte maintenant les 4 dieux spéciaux dès le début (grisés et non détaillés tant qu'ils ne sont pas obtenus), au lieu de rester invisibles avant de les avoir déjà mérités.",
+    ],
+  },
   {
     version: "2.35",
     notes: [
@@ -10562,11 +10614,14 @@ function refreshLoreMars() {
 // this is player-facing lore text, not a per-royaume stat.
 const LORE_GOD_EL_IDS = ["loreGodVulcain", "loreGodBellone", "loreGodCeres", "loreGodNeptune"];
 function refreshLoreGods() {
-  const explainerEl = document.getElementById("loreGodsExplainer");
-  if (explainerEl) explainerEl.style.display = godUnlockedPlayer.some(Boolean) ? "" : "none";
+  // Always shown now (see the markup's own note — "explication obtention"):
+  // each paragraph is the only place the unlock condition is spelled out in
+  // plain language at all, so hiding it entirely until earned was a genuine
+  // catch-22. Dimmed + a "pas encore obtenue" note instead, toggled via
+  // .loreGodLocked, until it's actually earned.
   for (let i = 0; i < LORE_GOD_EL_IDS.length; i++) {
     const el = document.getElementById(LORE_GOD_EL_IDS[i]);
-    if (el) el.style.display = godUnlockedPlayer[i] ? "" : "none";
+    if (el) el.classList.toggle("loreGodLocked", !godUnlockedPlayer[i]);
   }
 }
 refreshLoreGods();
@@ -10809,6 +10864,15 @@ function endturnVisible() {
 function startGame(seed) {
   document.getElementById("winbanner").style.display = "none";
   document.getElementById("truceOverlay").style.display = "none";
+  // revealFinalBoard()'s own "swipe down to see the board" row — left
+  // showing (and #bottomHudRow left hidden under it) if a brand new game
+  // starts straight from there without ever tapping reviewBackBtn/
+  // reviewReplayBtn first (e.g. pasting and loading a map code right after
+  // swiping down on a just-won match) — reported live with a screenshot:
+  // the freshly-shown rerollBtn/prevMapBtn of the NEW game peeking out from
+  // behind this still-visible row, reading as two overlapping buttons.
+  document.getElementById("reviewRow").style.display = "none";
+  document.getElementById("bottomHudRow").style.visibility = "";
   document.getElementById("endturn").disabled = false;
   gameOver = false; selected = -1; aiRunning = false;
   // a still-pending endTurn()->advanceTurn() handoff from whatever match was
