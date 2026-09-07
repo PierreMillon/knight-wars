@@ -315,6 +315,12 @@
      updateGroups()'s own note on why an absolute number wasn't pulling its
      weight next to the sort order already conveying the same thing. */
   .chip .n { display: inline-block; text-align: left; font-weight: 700; min-width: 2.3em; }
+  /* one small icon per god currently active for this royaume — see
+     updateGroups()'s own note. Empty (no width) when none are active, so a
+     row with no bonuses yet doesn't leave a visible gap. */
+  .chipGods { display: inline-flex; gap: 2px; margin-left: 2px; }
+  .chipGods img { width: 12px; height: 12px; image-rendering: pixelated; flex: none; }
+  @media (min-width: 900px) { .chipGods img { width: 20px; height: 20px; } }
   #settingsPanel {
     position: absolute; inset: 0; display: none;
     align-items: center; justify-content: center;
@@ -516,13 +522,6 @@
   }
   #shareIntro h2 { margin: 0 0 14px; font-size: 21px; }
   #shareIntro p { font-size: 14px; opacity: .85; margin: 0 0 18px; }
-  #chartShareOverlay {
-    position: absolute; inset: 0; display: none;
-    align-items: center; justify-content: center;
-    background: rgba(10,8,6,.88); text-align: center; z-index: 11; /* above #winbanner (10) — this opens from a button inside it */
-  }
-  #chartShareOverlay h2 { margin: 0 0 14px; font-size: 21px; }
-  #chartShareImg { max-width: 100%; max-height: 45vh; border-radius: 6px; margin: 0 0 16px; display: block; }
   /* Shown the instant any map-(re)generation button is tapped (see
      withLoadingFeedback()) — a light backdrop over the map only (not the
      HUD/buttons above it), so a still-real generation delay reads as
@@ -558,7 +557,7 @@
   #premiumUnlockOverlay {
     position: absolute; inset: 0; display: none;
     align-items: center; justify-content: center;
-    background: rgba(10,8,6,.88); text-align: center; z-index: 11; /* above #settingsPanel (10) — this opens from a button inside it, same reasoning as #chartShareOverlay's own z-index */
+    background: rgba(10,8,6,.88); text-align: center; z-index: 11; /* above #settingsPanel (10) — this opens from a button inside it */
   }
   #premiumUnlockOverlay h2 { margin: 0 0 10px; font-size: 20px; }
   #premiumUnlockOverlay .winButtons { flex-direction: column; width: 100%; }
@@ -754,7 +753,7 @@
      same gradient as the selected-territory outline on the map
      (OUTLINE_GRADIENTS.gold), so the two "this is the important thing"
      treatments actually match instead of one being gold and the other blue. */
-  #settingsPanel button, #winbanner button, #truceOverlay button, #loreOverlay button, #conseilsOverlay button, #surrenderConfirmOverlay button, #chartShareOverlay button, #premiumUnlockOverlay button, #adErrorOverlay button {
+  #settingsPanel button, #winbanner button, #truceOverlay button, #loreOverlay button, #conseilsOverlay button, #surrenderConfirmOverlay button, #premiumUnlockOverlay button, #adErrorOverlay button {
     background: linear-gradient(135deg, #fff3c4, #e8c468, #a97e2a);
     color: #2b1d10; border: 1px solid #8a6d3b; border-radius: 8px;
     padding: 10px 20px; font-size: 15px; font-weight: 700;
@@ -1066,26 +1065,6 @@
       <div class="winButtons">
         <button id="watchSharedReplay">▶ Voir sa partie</button>
         <button id="playInstead">⚔ Jouer maintenant</button>
-      </div>
-    </div>
-  </div>
-  <!-- iOS Safari's own share sheet often shows a generic file icon instead
-       of a real thumbnail for an in-memory generated image (a WebKit
-       quirk on File objects built fresh in JS, not something the page can
-       fix from here — reported live, repeatedly: "un truc dégueu... on
-       sache ce qu'on enregistre"). Rather than keep fighting an opaque
-       native rendering behavior, this shows OUR OWN preview of the exact
-       image first — the "Partager" button here is itself a direct,
-       synchronous click (not a callback from something async), so it
-       still satisfies iOS's own "must call navigator.share() from inside
-       a real user gesture" requirement. -->
-  <div id="chartShareOverlay">
-    <div class="box">
-      <h2>💾 Graphique</h2>
-      <img id="chartShareImg" alt="Aperçu du graphique de fin">
-      <div class="winButtons">
-        <button id="chartShareSend">📤 Partager</button>
-        <button id="chartShareClose">Fermer</button>
       </div>
     </div>
   </div>
@@ -1460,7 +1439,7 @@
 // before (CREATURE_IMG's own loadSprite() call, the changelog, etc.), not
 // redeclared.
 const CREATURE_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAANAAAADQCAYAAAB2pO90AAAC2klEQVR4nO3dQWoDMRAAwd3g/39ZOeQHahgroupuvF7TzGWQ3rXWw4z3fUde9lrrnfiend8z9WxTfr79APCfCQgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAg+336AE5y85LnzbJY855hAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEFx3MqlTOe/7PSf/pyYQBAKCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAiCd62RG9559pYimbOzgGoCQSAgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAguO5kUvbsLFJOLcdOPdvOZ0wgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAElkkZNbUYOvU9JhAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJAQBAICILrlkldJb9namHzZK65h2ECgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgrFl0pOvRD/Zbe/ttqVVEwgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAgEBMF1J5My57bF0B0mEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgq1lUlfJW6TkjwkEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJg7GTSnUXKqaXVqcXQk6+styC8xwSCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUHwccLmHO/tvhNdTSAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEASfkxf1OJsTUE0gSAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEY9fcw/OcfcroDhMIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgl9clHexCa709wAAAABJRU5ErkJggg==";
-const GAME_VERSION = "2.34";
+const GAME_VERSION = "2.35";
 document.getElementById("loadingKnight").src = CREATURE_IMG_SRC;
 document.getElementById("loadingVersion").textContent = `v${GAME_VERSION}`;
 
@@ -4026,6 +4005,15 @@ function isPremiumUnlocked() {
 //     faut pouvoir combiner les bonus... l'intérêt c'est un jeu hyper
 //     complexe à la fin", jamais qu'un bonus en efface un autre.
 const GOD_NAMES = ["Vulcain", "Bellone", "Cérès", "Neptune"];
+// Same 4 sprites Le Lore's trophy room already uses — shared here so
+// updateGroups() can show which gods are CURRENTLY ACTIVE for each royaume
+// right in the HUD (see its own note): "il faut que moi en tant que joueur
+// ça soit affiché quelque part que je sache quelles icônes j'ai et quels
+// bonus ça m'affiche" — the trophy room only ever showed the PLAYER's
+// all-time earned set (godUnlockedPlayer), never which bonuses are actually
+// live for a given royaume THIS match (which also includes godUnlockedRoyaume
+// and the hardest-difficulty AI freebie — see isGodActiveFor()).
+const GOD_ICON_SRCS = [VULCAIN_IMG_SRC, BELLONE_IMG_SRC, CERES_IMG_SRC, NEPTUNE_IMG_SRC];
 let godUnlockedRoyaume = [[false, false, false, false], [false, false, false, false], [false, false, false, false], [false, false, false, false]];
 let godUnlockedPlayer = [false, false, false, false];
 try {
@@ -4993,32 +4981,20 @@ function attack(fromId, toId, chainIndex = -1, forcedGuaranteed = null) {
   return win;
 }
 
-// AI seats stack their reinforcements on their attacking frontier instead of
-// spreading them randomly across the kingdom — a territory bordering a
-// weaker enemy scores higher, so the AI arrives at its own turn with a
-// stronger stack ready to swing rather than points wasted deep in its own
-// territory. The human's own reinforcement stays uniformly random, same as
-// before (it was never something the player controlled anyway).
+// Used to stack AI reinforcements on their own attacking frontier instead of
+// spreading them randomly across the kingdom, ramping in with difficulty —
+// reverted per direct request ("vérifie la répartition des points des
+// ennemis soient bien aléatoires... j'ai l'impression qu'à chaque fois ils
+// ont toutes leurs forces qui apparaissent à côté de moi"): the smart
+// targeting was never actually aimed at the human specifically (it just
+// favors whichever neighbor is weakest, human or AI alike), but at Templier
+// it fired on essentially every reinforcement point (DIFFICULTY there
+// exceeds 1, so the `rngFloat() > DIFFICULTY` gate was never true) and the
+// human is often, in practice, the softest border on the map — reading as
+// "the AI always piles up against me". Every royaume's reinforcement is now
+// uniformly random, same as the human's always was.
 function pickReinforceTarget(royId, owned) {
-  if (royId === humanRoyId) return pick(owned);
-  // The smart frontier-stacking below only ramps in with difficulty — at
-  // Page (DIFFICULTY 0) the AI places reinforcements just as randomly as
-  // the player, so it can't quietly field a much more effective army
-  // through better logistics alone while still "feeling" passive in its
-  // attack decisions.
-  if (rngFloat() > DIFFICULTY) return pick(owned);
-  let best = null, bestScore = -Infinity;
-  for (const t of owned) {
-    let score = -1;
-    for (const nId of t.neighbors) {
-      const n = territories[nId];
-      if (n.owner === royId) continue;
-      score = Math.max(score, t.force - n.force + 3);
-    }
-    score += rngFloat() * 0.5; // light tie-breaking randomization
-    if (score > bestScore) { bestScore = score; best = t; }
-  }
-  return best || pick(owned);
+  return pick(owned);
 }
 
 function endTurn() {
@@ -6386,10 +6362,15 @@ function dataURLToBlobSync(dataURL) {
   for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
   return new Blob([bytes], { type: mime });
 }
-// Kept around between building the preview and the "Partager" tap that
-// actually shares it — see saveChartImage()'s own note on why this is a
-// two-step flow now.
-let pendingChartShare = null; // { blob, file }
+// "J'avais dit qu'il fallait enlever l'écran intermédiaire... et qu'il
+// fallait mettre un petit message qui disait que l'image était
+// sauvegardée" — l'aperçu OWN-PREVIEW-avant-partage (deux temps: aperçu,
+// puis un second tap sur "Partager") a été retiré : navigator.share() est
+// appelé directement au premier tap, un simple toast confirme l'envoi.
+// L'aperçu avait été ajouté pour une raison réelle (iOS Safari affiche
+// souvent une icône de fichier générique, pas une vraie miniature, pour un
+// File généré en mémoire — jamais corrigé côté rendu natif) mais le joueur
+// préfère explicitement le flux direct malgré ça.
 function saveChartImage() {
   sfxShare();
   const canvas = buildChartWallpaperImage();
@@ -6398,20 +6379,14 @@ function saveChartImage() {
   // sent to someone else) says on its own what it's from.
   const file = new File([blob], `knight-wars-v${GAME_VERSION}-${buildMapCode()}.png`, { type: "image/png" });
   if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-    // Shows OUR OWN preview of the exact image first, instead of handing
-    // it straight to navigator.share() — iOS Safari's own share sheet
-    // often renders an in-memory generated image as a generic file icon
-    // rather than a real thumbnail (a WebKit quirk on File objects built
-    // fresh in JS, nothing this page can fix about that specific
-    // rendering) — reported live, repeatedly, as "un truc dégueu... on
-    // sache ce qu'on enregistre". The "Partager" button in this preview
-    // (see chartShareSend's own click handler) is itself the direct user
-    // gesture navigator.share() actually fires from, so this still
-    // satisfies iOS's "must be called synchronously from a real user
-    // gesture" requirement — nothing async happens in between.
-    pendingChartShare = { blob, file };
-    document.getElementById("chartShareImg").src = URL.createObjectURL(blob);
-    document.getElementById("chartShareOverlay").style.display = "flex";
+    navigator.share({ files: [file] }).then(() => {
+      showToast("Image enregistrée !");
+    }).catch(() => {
+      // cancelled, or share failed — fall back to opening it in its own tab
+      // so it can still be long-pressed/saved manually.
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank");
+    });
     return;
   }
   const url = URL.createObjectURL(blob);
@@ -6419,26 +6394,6 @@ function saveChartImage() {
   showToast("Image ouverte dans un nouvel onglet — appui long pour l'enregistrer.");
 }
 document.getElementById("saveChartImage").addEventListener("click", () => { saveChartImage(); });
-document.getElementById("chartShareSend").addEventListener("click", () => {
-  if (!pendingChartShare) return;
-  const { blob, file } = pendingChartShare;
-  navigator.share({ files: [file] }).then(() => {
-    document.getElementById("chartShareOverlay").style.display = "none";
-    showToast("Graphique enregistré !");
-  }).catch(() => {
-    // cancelled, or share failed after all — leave the preview open (still
-    // showing the exact image) rather than silently closing on a failure;
-    // fall back to opening it in its own tab so it can still be
-    // long-pressed/saved manually.
-    const url = URL.createObjectURL(blob);
-    window.open(url, "_blank");
-  });
-});
-document.getElementById("chartShareClose").addEventListener("click", () => {
-  document.getElementById("chartShareOverlay").style.display = "none";
-  pendingChartShare = null;
-  sfxMenuClose();
-});
 
 const MAP_SIZE_BY_LETTER = { s: "small", m: "medium", l: "large", h: "huge" };
 // A short, portable map code — just enough (seed + map size + difficulty +
@@ -6643,7 +6598,12 @@ function runAI() {
         const n = territories[nId];
         if (n.owner === royId || !canAffordWaterRoute(t, nId)) continue;
         if (isPage && n.owner === humanRoyId) continue; // see isPage's own note above
-        const attackingForce = t.force - route.cost;
+        // effectiveWaterCost(), not the route's own raw .cost — Neptune's
+        // discount (id3) wasn't being applied to the AI's OWN scoring here,
+        // despite this comment's claim of matching attack()'s math exactly:
+        // an AI royaume with Neptune active underrated its own water
+        // attacks, and would pass on some it could actually afford/win.
+        const attackingForce = t.force - effectiveWaterCost(t, route);
         const adv = attackingForce - n.force;
         if (!capActive && (adv < MIN_VIABLE_ADV || adv < escalated(AI_AGGRESSION_THRESHOLD, -1) + pers.aggressionDelta)) continue;
         let score = adv + (territoryCount[n.owner] <= 2 ? pers.finishOffBonus : 0);
@@ -7637,7 +7597,7 @@ function updateGroups() {
     if (!rowEl) {
       rowEl = document.createElement("span");
       rowEl.className = "chip";
-      rowEl.innerHTML = `<span class="swatch"></span><span class="n"></span>`;
+      rowEl.innerHTML = `<span class="swatch"></span><span class="n"></span><span class="chipGods"></span>`;
       groupRowEls[r.roy.id] = rowEl;
     }
     // "un cercle de couleurs... la coloration à l'intérieur fonctionne
@@ -7660,6 +7620,23 @@ function updateGroups() {
     // ("supprime (nous)"), same cleanup as the chart legend's own "Nous,"
     // just above (see recolorBlazonDiagonal()'s neighboring note).
     rowEl.querySelector(".n").textContent = r.force;
+    // "Il faut qu'il y ait une miniature de l'icône qui s'affiche sous le
+    // blason de la maison... que moi en tant que joueur ça soit affiché
+    // quelque part que je sache quelles icônes j'ai et quels bonus ça
+    // m'affiche" — one small icon per god CURRENTLY active for this
+    // royaume (see isGodActiveFor()'s own note: player-earned, family-
+    // earned, or the hardest-difficulty AI freebie all count). Rebuilt
+    // only when the actual active set changes, not on every render() —
+    // updateGroups() runs every frame.
+    const activeGods = [];
+    for (let g = 0; g < 4; g++) if (isGodActiveFor(r.roy.id, g)) activeGods.push(g);
+    const godsKey = activeGods.join(",");
+    if (rowEl.dataset.godsKey !== godsKey) {
+      rowEl.dataset.godsKey = godsKey;
+      rowEl.querySelector(".chipGods").innerHTML = activeGods
+        .map((g) => `<img src="${GOD_ICON_SRCS[g]}" alt="${GOD_NAMES[g]}" title="${GOD_NAMES[g]}">`)
+        .join("");
+    }
     // exactly one row emphasized at a time, including our own when it's
     // our turn — see the CSS's own note on the transition itself
     rowEl.classList.toggle("activeTurn", r.roy.id === currentPlayer);
@@ -8761,13 +8738,7 @@ function refreshTrophyRoom() {
   // appearing only once earned, no exceptions. All 4 gods now have their
   // own dedicated sprite — Cérès (wheat stalk) and Neptune (trident) were
   // the last two still on emoji placeholders.
-  const GOD_ICON = [
-    { img: VULCAIN_IMG_SRC },      // Vulcain
-    { img: BELLONE_IMG_SRC },      // Bellone
-    { img: CERES_IMG_SRC },        // Cérès
-    { img: NEPTUNE_IMG_SRC },      // Neptune
-  ];
-  const slots = GOD_NAMES.map((name, i) => ({ earned: godUnlockedPlayer[i], name, ...GOD_ICON[i] }));
+  const slots = GOD_NAMES.map((name, i) => ({ earned: godUnlockedPlayer[i], name, img: GOD_ICON_SRCS[i] }));
   // The boat used to sit in its own decorative row above this title
   // (#loreWarTools, now removed — "déplacée en dessous dans un carré"); it
   // was never gated by any unlock before, so it stays always-earned here
@@ -8879,6 +8850,15 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // add a new entry at the top whenever a future change is worth telling
 // players about.
 const CHANGELOG = [
+  {
+    version: "2.35",
+    notes: [
+      "Icônes des dieux : chaque royaume affiche maintenant, sous son blason en haut de l'écran, les icônes des bonus divins qu'il a actuellement.",
+      "Répartition des renforts des ennemis rendue entièrement aléatoire à toutes les difficultés (plus de ciblage intelligent de la frontière la plus favorable).",
+      "Corrigé un cas où le bonus de Neptune (traversée en mer moins coûteuse) n'était pas pris en compte dans les calculs d'une IA qui l'avait pourtant débloqué.",
+      "Enregistrer le graphique de fin de partie envoie maintenant directement l'image (un message confirme l'enregistrement), sans écran de prévisualisation intermédiaire.",
+    ],
+  },
   {
     version: "2.34",
     notes: [
