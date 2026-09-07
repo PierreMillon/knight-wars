@@ -952,6 +952,17 @@
   <div id="loadingVersion"></div>
 </div>
 <div id="wrap">
+  <!-- "Musique en fond et bouton mute en menu" — a real file (bg-music.mp3,
+       ~3.5MB), not a base64 data URI baked into this script like every
+       other asset in the game: at this size, inlining it would nearly 10×
+       the whole page's download weight on first load, working directly
+       against everything else fixed this same session about perceived
+       load latency. A separate file the browser fetches/caches on its own
+       (only once autoplay is actually allowed — see the click/pointerdown
+       listener near musicEnabled below) is the one asset in this project
+       that's genuinely better off NOT inlined. preload="none": don't even
+       start the download until music is actually about to play. -->
+  <audio id="bgMusic" src="bg-music.mp3" loop preload="none"></audio>
   <canvas id="map"></canvas>
   <!-- "regénérer une carte a une demi seconde de délai... faut qu'on crée
        une petite animation qui détourne l'attention et qui fasse comprendre
@@ -1360,6 +1371,13 @@
       <label class="fieldLabel" style="margin-bottom:2px;">Bruitages</label>
       <input type="range" id="soundVolumeSlider" min="0" max="100" step="5" style="width:100%;">
       <div style="height:8px;"></div>
+      <!-- "Musique en fond et bouton mute en menu" — a bare on/off toggle,
+           not a slider like Bruitages above: only asked for a mute button,
+           the music itself plays at one fixed, unobtrusive volume. -->
+      <div class="fieldGroup">
+        <div class="fieldLabel">Musique</div>
+        <button id="musicMuteBtn" class="levelBtn" style="width:100%;"></button>
+      </div>
       <!-- English support kicked off small on purpose ("fais l'anglais en
            premier maintenant juste pour les boutons de jeu utiles au
            minimum") — just the core in-game action buttons (Fin de
@@ -1463,7 +1481,7 @@
 // before (CREATURE_IMG's own loadSprite() call, the changelog, etc.), not
 // redeclared.
 const CREATURE_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAANAAAADQCAYAAAB2pO90AAAC2klEQVR4nO3dQWoDMRAAwd3g/39ZOeQHahgroupuvF7TzGWQ3rXWw4z3fUde9lrrnfiend8z9WxTfr79APCfCQgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAg+336AE5y85LnzbJY855hAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEFx3MqlTOe/7PSf/pyYQBAKCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAiCd62RG9559pYimbOzgGoCQSAgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAguO5kUvbsLFJOLcdOPdvOZ0wgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAElkkZNbUYOvU9JhAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJAQBAICILrlkldJb9namHzZK65h2ECgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgrFl0pOvRD/Zbe/ttqVVEwgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAgEBMF1J5My57bF0B0mEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgq1lUlfJW6TkjwkEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJg7GTSnUXKqaXVqcXQk6+styC8xwSCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUHwccLmHO/tvhNdTSAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEASfkxf1OJsTUE0gSAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEY9fcw/OcfcroDhMIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgl9clHexCa709wAAAABJRU5ErkJggg==";
-const GAME_VERSION = "2.36";
+const GAME_VERSION = "2.37";
 document.getElementById("loadingKnight").src = CREATURE_IMG_SRC;
 document.getElementById("loadingVersion").textContent = `v${GAME_VERSION}`;
 
@@ -3974,6 +3992,42 @@ try {
   if (savedVolume !== null) soundVolume = Math.max(0, Math.min(100, parseInt(savedVolume, 10) || 0));
 } catch (e) { /* ignore */ }
 if (soundVolume === 0) soundEnabled = false;
+// "Musique en fond et bouton mute en menu" — a real audio file (see
+// #bgMusic's own note), separate from the synthesized SFX above (its own
+// soundEnabled/soundVolume, untouched by this). musicEnabled just persists
+// the player's own choice; whether it's actually PLAYING right now also
+// depends on the browser having allowed it at all — see
+// tryStartBackgroundMusic() below.
+let musicEnabled = true;
+try {
+  const savedMusic = localStorage.getItem("kw_musicEnabled");
+  if (savedMusic !== null) musicEnabled = savedMusic !== "0";
+} catch (e) { /* ignore */ }
+const BG_MUSIC_VOLUME = 0.35; // fixed, unobtrusive — no slider was asked for, just a mute button
+function tryStartBackgroundMusic() {
+  if (!musicEnabled) return;
+  const el = document.getElementById("bgMusic");
+  if (!el || !el.paused) return;
+  el.volume = BG_MUSIC_VOLUME;
+  // Autoplay-with-sound is blocked by every browser until a real user
+  // gesture has happened on the page — .play() returns a rejected promise
+  // in that case rather than throwing, so this is safe to call speculatively
+  // any time (see the first-gesture listener and musicMuteBtn's own click
+  // handler below) without needing to track "has the user interacted yet"
+  // state separately.
+  el.play().catch(() => { /* not allowed yet — the next gesture will retry */ });
+}
+function stopBackgroundMusic() {
+  const el = document.getElementById("bgMusic");
+  if (el) el.pause();
+}
+// One-time: the very first tap/click ANYWHERE on the page (picking a
+// faction, opening settings, whatever comes first) is a real user gesture,
+// exactly what autoplay-with-sound is waiting for.
+document.addEventListener("pointerdown", function firstGestureStartsMusic() {
+  document.removeEventListener("pointerdown", firstGestureStartsMusic);
+  tryStartBackgroundMusic();
+}, { once: true });
 // Colorblind-accessible mode — "un mode accessible en option dans le menu ou
 // les couleurs sont remplacés par hachure horizontales, verticale, diagonale
 // droite et gauche": one hatch pattern per playable royaume (ROYAUMES 0-3),
@@ -8894,6 +8948,12 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // players about.
 const CHANGELOG = [
   {
+    version: "2.37",
+    notes: [
+      "Ajouté une musique de fond, avec un bouton pour la couper dans les réglages.",
+    ],
+  },
+  {
     version: "2.36",
     notes: [
       "Corrigé un chevauchement de boutons en bas de l'écran quand on chargeait un code de carte juste après avoir dévoilé la carte finale d'une partie gagnée.",
@@ -10096,6 +10156,24 @@ soundVolumeSlider.addEventListener("input", () => {
     localStorage.setItem("kw_soundVolume", String(soundVolume));
     localStorage.setItem("kw_soundEnabled", soundEnabled ? "1" : "0");
   } catch (e) { /* ignore */ }
+});
+
+const musicMuteBtn = document.getElementById("musicMuteBtn");
+function refreshMusicMuteBtn() {
+  musicMuteBtn.textContent = musicEnabled ? "🔊 Musique activée" : "🔇 Musique coupée";
+  musicMuteBtn.classList.toggle("active", musicEnabled);
+}
+refreshMusicMuteBtn();
+musicMuteBtn.addEventListener("click", () => {
+  musicEnabled = !musicEnabled;
+  try { localStorage.setItem("kw_musicEnabled", musicEnabled ? "1" : "0"); } catch (e) { /* ignore */ }
+  refreshMusicMuteBtn();
+  // this click is itself a real user gesture, so re-enabling music from
+  // here can always actually start playback immediately, not just wait for
+  // some later tap to retry it.
+  if (musicEnabled) tryStartBackgroundMusic();
+  else stopBackgroundMusic();
+  sfxToggle();
 });
 // only on release (not every drag tick) — a quick audible taste of the new
 // level, same click cue the old checkbox gave on every toggle
