@@ -1572,7 +1572,7 @@
 // before (CREATURE_IMG's own loadSprite() call, the changelog, etc.), not
 // redeclared.
 const CREATURE_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAANAAAADQCAYAAAB2pO90AAAC2klEQVR4nO3dQWoDMRAAwd3g/39ZOeQHahgroupuvF7TzGWQ3rXWw4z3fUde9lrrnfiend8z9WxTfr79APCfCQgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAg+336AE5y85LnzbJY855hAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEFx3MqlTOe/7PSf/pyYQBAKCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAiCd62RG9559pYimbOzgGoCQSAgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAguO5kUvbsLFJOLcdOPdvOZ0wgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAElkkZNbUYOvU9JhAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJAQBAICILrlkldJb9namHzZK65h2ECgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgrFl0pOvRD/Zbe/ttqVVEwgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAgEBMF1J5My57bF0B0mEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgq1lUlfJW6TkjwkEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJg7GTSnUXKqaXVqcXQk6+styC8xwSCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUHwccLmHO/tvhNdTSAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEASfkxf1OJsTUE0gSAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEY9fcw/OcfcroDhMIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgl9clHexCa709wAAAABJRU5ErkJggg==";
-const GAME_VERSION = "2.41";
+const GAME_VERSION = "2.42";
 document.getElementById("loadingKnight").src = CREATURE_IMG_SRC;
 document.getElementById("loadingVersion").textContent = `v${GAME_VERSION}`;
 document.getElementById("splashKnight").src = CREATURE_IMG_SRC;
@@ -1962,7 +1962,15 @@ function applyDifficulty(d) {
   // still never risks force it can't afford to lose ("laisse-moi toujours
   // de quoi revenir").
   if (levelIdx === 0) AI_AGGRESSION_THRESHOLD = 0;
-  AI_MISTAKE_RATE = lerp(0.85, 0, DIFFICULTY); // goes negative past DIFFICULTY=1 — harmless, already clamped to >=0 at every point-of-use (see runAI())
+  // Hard endpoint raised from 0 to 0.22 (v2.42, "chantier difficulté" —
+  // see TIER_WIN_RATE_TARGETS in simulate.js) — a win-rate measurement
+  // (see AI_BONUS's own note on the same retune) found the top tiers
+  // landing far harder than Pierre's own validated targets: Écuyer's AI
+  // mistake rate worked out to ~7.6%, Templier's to a flat 0% (perfect
+  // play, no margin for error at all) — a "correct" player lost nearly
+  // every measured Templier/Cthulhu game. Even a genuinely skilled AI
+  // should occasionally blunder; 0% never did.
+  AI_MISTAKE_RATE = lerp(0.85, 0.22, DIFFICULTY); // still clamped to >=0 at every point-of-use (see runAI()) — matters past DIFFICULTY≈1.35, between Templier's 1.3 and Cthulhu's 1.6
 }
 
 // Safety valve: at the easy end, 3 very passive AIs can coexist without
@@ -3549,10 +3557,21 @@ function balanceStartingForces() {
   }
 
   // Harder difficulty = bigger AI starting-force edge, on top of the AI's
-  // already-higher aggression/lower mistake rate. At Page (0) it's an equal
-  // split among the AI seats (no edge); at Seigneur (1) each AI's target is
-  // 80% above that equal split.
-  const AI_BONUS = lerp(0, 0.8, DIFFICULTY);
+  // already-higher aggression/lower mistake rate. Endpoints lowered from
+  // (0, 0.8) to (-0.6, 0.15) — v2.42, "chantier difficulté", see
+  // TIER_WIN_RATE_TARGETS in simulate.js. Retuned in two passes against a
+  // `node simulate.js --tune`-style win-rate measurement (a "correct",
+  // competent-but-not-expert reference player, ~25 games/tier): the first
+  // pass (-0.3/0.55) barely moved anything — with how small starting totals
+  // already are at this map size (single digits per royaume) BALANCE_
+  // STRENGTH's own 65% blend plus Math.round() absorbs a modest bonus
+  // change almost entirely. Pushed further (-0.6/0.4) got Gueux right on
+  // target (measured 88%, target ~85%) but left every harder tier still
+  // well short. Rather than push the low end further (Gueux was already
+  // there), flattened the slope instead — top end lowered again to 0.15 —
+  // so Page/Écuyer/Templier/Cthulhu each land further down the same curve
+  // without moving Gueux off its already-correct spot.
+  const AI_BONUS = lerp(-0.6, 0.15, DIFFICULTY);
   // The "fair share" reference is the map-wide average across ALL real
   // royaumes (every AI seat plus the human's own), not just an average of
   // whichever seats happen to end up AI. Averaging over the AI seats alone
@@ -9895,6 +9914,13 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // add a new entry at the top whenever a future change is worth telling
 // players about.
 const CHANGELOG = [
+  {
+    version: "2.42",
+    notes: [
+      "Rééquilibrage des niveaux de difficulté pour se rapprocher des taux de victoire visés à chaque palier, mesuré cette fois par simulation plutôt qu'au ressenti — Gueux et Page notamment donnaient une vraie résistance à l'IA au lieu d'être une formalité.",
+      "Le simulateur de parties utilisé pour les tests internes (`simulate.js`) sert maintenant aussi de garde-fou permanent contre une régression future de la courbe de difficulté.",
+    ],
+  },
   {
     version: "2.41",
     notes: [
