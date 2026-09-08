@@ -15,7 +15,22 @@
      on every device — "police web proche, style manuscrit médiéval". -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=MedievalSharp&display=swap" rel="stylesheet">
+<!-- "Ça freeze au démarrage" (live report + screenshot: just the title,
+     nothing else, forever) — a plain <link rel="stylesheet"> here is
+     render-blocking, and worse, blocks every parser-inserted <script> that
+     follows it in the document (this page's entire game logic) until the
+     request settles either way; a network that can't reach Google Fonts at
+     all (filtered/captive, a connection that resets instead of failing
+     fast) left the whole page hung waiting on it — reproduced here as a
+     ~13s freeze before the fetch even failed, and a genuinely dead
+     connection wouldn't fail at all. media="print" makes Chrome/Safari
+     fetch it WITHOUT blocking rendering or script execution (it doesn't
+     match the current media, so nothing waits on it); the onload flips it
+     to media="all" once it actually arrives so MedievalSharp still applies
+     exactly as before on a normal connection. <noscript> keeps the simple
+     blocking behavior for the (here, irrelevant) no-JS case. -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=MedievalSharp&display=swap" media="print" onload="this.media='all'">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=MedievalSharp&display=swap"></noscript>
 <style>
   * {
     -webkit-user-select: none; user-select: none;
@@ -963,6 +978,26 @@
        that's genuinely better off NOT inlined. preload="none": don't even
        start the download until music is actually about to play. -->
   <audio id="bgMusic" src="bg-music.mp3" loop preload="none"></audio>
+  <!-- "Prémédiation Obstination" — the defeat theme, plays once (no loop)
+       on any loss (elimination or surrender, same humanLost condition as
+       showWin()'s own gueux-wipe). Same separate-file reasoning as bgMusic
+       (much smaller here, ~1.3MB — the direct upload was already a plain
+       MP3, no re-encoding needed), but preloaded DURING the match instead
+       of lazily on first play: "il faut précharger durant la partie" — a
+       loss can land on the very next tap, no good moment left to start a
+       fetch once it happens. See preloadLossMusic() (called from
+       pickFaction(), once a match actually starts — no point loading it
+       before that). -->
+  <audio id="lossMusic" src="loss-music.mp3" preload="none"></audio>
+  <!-- "Marchons N2" — the pre-game theme: "en intro dès le début du
+       chargement, qui continue jusqu'au choix d'une faction". Autoplay-
+       with-sound needs a real gesture regardless of intent (see
+       tryStartIntroMusic()'s own note) — the first gesture on the whole
+       page starts this instead of bgMusic now; pickFaction() itself is
+       what actually swaps over to bgMusic once a camp is chosen. Looped:
+       there's no telling how long someone lingers on the faction-pick
+       screen. -->
+  <audio id="introMusic" src="intro-music.mp3" loop preload="none"></audio>
   <canvas id="map"></canvas>
   <!-- "regénérer une carte a une demi seconde de délai... faut qu'on crée
        une petite animation qui détourne l'attention et qui fasse comprendre
@@ -1371,13 +1406,16 @@
       <label class="fieldLabel" style="margin-bottom:2px;">Bruitages</label>
       <input type="range" id="soundVolumeSlider" min="0" max="100" step="5" style="width:100%;">
       <div style="height:8px;"></div>
-      <!-- "Musique en fond et bouton mute en menu" — a bare on/off toggle,
-           not a slider like Bruitages above: only asked for a mute button,
-           the music itself plays at one fixed, unobtrusive volume. -->
-      <div class="fieldGroup">
-        <div class="fieldLabel">Musique</div>
-        <button id="musicMuteBtn" class="levelBtn" style="width:100%;"></button>
-      </div>
+      <!-- "Jen'étends plus les bruitages. Ajoute slider volume pour musique
+           aussi" — was a bare mute button playing music at one fixed
+           volume (0.35) loud enough to bury the deliberately quiet, matte
+           bruitages under it; a real slider like Bruitages above lets the
+           player bring music down (or off) without losing it entirely, the
+           same 0 = off convention as soundVolumeSlider. Default lowered to
+           50 (was the equivalent of a fixed 100) so the out-of-the-box
+           balance doesn't drown the SFX in the first place. -->
+      <label class="fieldLabel" style="margin-bottom:2px;">Musique</label>
+      <input type="range" id="musicVolumeSlider" min="0" max="100" step="5" style="width:100%;">
       <!-- English support kicked off small on purpose ("fais l'anglais en
            premier maintenant juste pour les boutons de jeu utiles au
            minimum") — just the core in-game action buttons (Fin de
@@ -1481,7 +1519,7 @@
 // before (CREATURE_IMG's own loadSprite() call, the changelog, etc.), not
 // redeclared.
 const CREATURE_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAANAAAADQCAYAAAB2pO90AAAC2klEQVR4nO3dQWoDMRAAwd3g/39ZOeQHahgroupuvF7TzGWQ3rXWw4z3fUde9lrrnfiend8z9WxTfr79APCfCQgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAg+336AE5y85LnzbJY855hAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEFx3MqlTOe/7PSf/pyYQBAKCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAiCd62RG9559pYimbOzgGoCQSAgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAguO5kUvbsLFJOLcdOPdvOZ0wgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAElkkZNbUYOvU9JhAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJAQBAICILrlkldJb9namHzZK65h2ECgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgrFl0pOvRD/Zbe/ttqVVEwgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAgEBMF1J5My57bF0B0mEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgq1lUlfJW6TkjwkEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJg7GTSnUXKqaXVqcXQk6+styC8xwSCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUHwccLmHO/tvhNdTSAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEASfkxf1OJsTUE0gSAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEY9fcw/OcfcroDhMIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgl9clHexCa709wAAAABJRU5ErkJggg==";
-const GAME_VERSION = "2.37";
+const GAME_VERSION = "2.38";
 document.getElementById("loadingKnight").src = CREATURE_IMG_SRC;
 document.getElementById("loadingVersion").textContent = `v${GAME_VERSION}`;
 
@@ -2421,10 +2459,62 @@ setTimeout(resize, 1000);
 // the deterministic fix for the font half specifically. The extra
 // requestAnimationFrame double-tick lets the browser actually finish the
 // layout pass the font swap just triggered before resize() reads it.
-if (document.fonts && document.fonts.ready) {
-  document.fonts.ready.then(() => {
-    requestAnimationFrame(() => requestAnimationFrame(resize));
-  });
+// "Ça freeze au démarrage" (live report + screenshot: title showing, knight
+// and everything else never appearing — stuck forever, not just briefly) —
+// document.fonts.ready was trusted as an always-eventually-resolves signal,
+// but it only resolves once every font the page's CSS requested has settled,
+// and MedievalSharp's request never even reaches that point on a
+// connection that can't complete the Google Fonts fetch at all (a filtered/
+// captive network, a flaky mobile connection reset mid-request — confirmed
+// reproducible here as an ERR_CONNECTION_RESET on that exact request): the
+// promise then simply never resolves, and EVERYTHING downstream of it
+// (resize(), and revealGameWhenReady() below with its own "hard cap" that
+// was supposed to be the safety net) never runs at all. Racing it against a
+// fixed timeout closes that hole for good — the game boots on whichever
+// comes first, a real font-ready signal or this ceiling, so a blocked font
+// fetch degrades to "boots on the fallback font a beat later" instead of
+// "frozen forever".
+const FONTS_READY_TIMEOUT_MS = 1500;
+function fontsReadyOrTimeout() {
+  const ready = (document.fonts && document.fonts.ready) ? document.fonts.ready : Promise.resolve();
+  const timeout = new Promise((resolve) => setTimeout(resolve, FONTS_READY_TIMEOUT_MS));
+  return Promise.race([ready, timeout]);
+}
+fontsReadyOrTimeout().then(() => {
+  requestAnimationFrame(() => requestAnimationFrame(resize));
+});
+// "il faut qui dure au moins une seconde... je dois avoir pendant une
+// seconde le nom, le chevalier, le numéro de version avec la musique qui
+// commence" — the knight/title/version were already all painted together
+// (see CREATURE_IMG_SRC's own note, hoisted to the very top of this script
+// for exactly that reason), but the loading screen itself could still be
+// dismissed within a handful of milliseconds whenever resize() happened to
+// produce a sane canvas size on its very first try, too fast for any of it
+// to actually register. LOADING_SCREEN_MIN_MS is a floor under
+// hideLoadingScreen() below, independent of how fast the canvas itself
+// turns out to be ready.
+const loadingScreenShownAt = performance.now();
+const LOADING_SCREEN_MIN_MS = 1000;
+function hideLoadingScreen() {
+  document.getElementById("loadingScreen").classList.add("loadingScreenHidden");
+  // Belt-and-braces re-layout of every studded HUD button's gold-stud ring
+  // right as the game actually becomes visible, on top of the reactive
+  // ResizeObserver pass each one already got — "changer la carte n'a pas
+  // les clous" reported live on a real phone despite rendering fine here
+  // in every local/Playwright check: a button sized from its own text
+  // (rerollBtn: "🔀 Changer la carte") can rasterize its FIRST layout pass
+  // at a subtly different width on some devices than the one the observer
+  // captured, especially this early in boot, and nothing ever retriggers
+  // the observer again afterward if the box's reported size doesn't
+  // change from that first (possibly premature) reading. Re-running once
+  // more here, against whatever width has now actually settled, costs
+  // nothing (layoutButtonStuds() is idempotent) and closes that gap.
+  if (typeof HUD_STUD_BUTTON_IDS !== "undefined" && typeof layoutButtonStuds === "function") {
+    for (const id of HUD_STUD_BUTTON_IDS) {
+      const el = document.getElementById(id);
+      if (el) layoutButtonStuds(el);
+    }
+  }
 }
 // "J'ai encore eu le bug d'affichage à l'ouverture... on va créer une
 // première page qui va masquer ce qui se passe et il faut quelque chose qui
@@ -2441,43 +2531,24 @@ if (document.fonts && document.fonts.ready) {
 // anticipate.
 function revealGameWhenReady(attempt) {
   attempt = attempt || 0;
+  if (attempt === 0) tryStartIntroMusic(); // best-effort — see its own note on autoplay needing a real gesture; retried on the first actual tap either way
   resize();
   const sane = canvas.width > 100 && canvas.height > 100;
   if (sane || attempt > 40) { // ~40 * 80ms = 3.2s hard cap
-    document.getElementById("loadingScreen").classList.add("loadingScreenHidden");
-    // Belt-and-braces re-layout of every studded HUD button's gold-stud ring
-    // right as the game actually becomes visible, on top of the reactive
-    // ResizeObserver pass each one already got — "changer la carte n'a pas
-    // les clous" reported live on a real phone despite rendering fine here
-    // in every local/Playwright check: a button sized from its own text
-    // (rerollBtn: "🔀 Changer la carte") can rasterize its FIRST layout pass
-    // at a subtly different width on some devices than the one the observer
-    // captured, especially this early in boot, and nothing ever retriggers
-    // the observer again afterward if the box's reported size doesn't
-    // change from that first (possibly premature) reading. Re-running once
-    // more here, against whatever width has now actually settled, costs
-    // nothing (layoutButtonStuds() is idempotent) and closes that gap.
-    if (typeof HUD_STUD_BUTTON_IDS !== "undefined" && typeof layoutButtonStuds === "function") {
-      for (const id of HUD_STUD_BUTTON_IDS) {
-        const el = document.getElementById(id);
-        if (el) layoutButtonStuds(el);
-      }
-    }
+    const remaining = LOADING_SCREEN_MIN_MS - (performance.now() - loadingScreenShownAt);
+    // canvas turned out sane comfortably inside the 1s floor — wait out the
+    // rest of it rather than cutting the intro short; a genuinely slow
+    // canvas (hit the hard cap instead, already ≥1s in on its own) shouldn't
+    // be delayed any further on top of that.
+    if (remaining > 0 && attempt <= 40) setTimeout(hideLoadingScreen, remaining);
+    else hideLoadingScreen();
     return;
   }
   setTimeout(() => revealGameWhenReady(attempt + 1), 80);
 }
-if (document.fonts && document.fonts.ready) {
-  document.fonts.ready.then(() => {
-    requestAnimationFrame(() => requestAnimationFrame(() => revealGameWhenReady()));
-  });
-} else {
-  // deferred (not called synchronously here) — resize() itself reads
-  // module-level state (e.g. `replaying`) declared further down this same
-  // script, so calling it this early, before the rest of the file has even
-  // run once, would hit it mid-declaration.
-  setTimeout(() => revealGameWhenReady(), 0);
-}
+fontsReadyOrTimeout().then(() => {
+  requestAnimationFrame(() => requestAnimationFrame(() => revealGameWhenReady()));
+});
 
 /* ---------- HEX MATH ---------- */
 function axialToPixel(q, r) {
@@ -3992,41 +4063,127 @@ try {
   if (savedVolume !== null) soundVolume = Math.max(0, Math.min(100, parseInt(savedVolume, 10) || 0));
 } catch (e) { /* ignore */ }
 if (soundVolume === 0) soundEnabled = false;
-// "Musique en fond et bouton mute en menu" — a real audio file (see
-// #bgMusic's own note), separate from the synthesized SFX above (its own
-// soundEnabled/soundVolume, untouched by this). musicEnabled just persists
-// the player's own choice; whether it's actually PLAYING right now also
-// depends on the browser having allowed it at all — see
-// tryStartBackgroundMusic() below.
-let musicEnabled = true;
+// "Jen'étends plus les bruitages. Ajoute slider volume pour musique aussi" —
+// a real audio file (see #bgMusic's own note), separate from the synthesized
+// SFX above (its own soundEnabled/soundVolume, untouched by this). Was a
+// bare on/off flag playing at one fixed volume (0.35) — loud enough next to
+// the deliberately quiet, matte bruitages to bury them outright. Now a
+// slider, same 0-100/0=off convention as soundVolume above: musicVolume is
+// the master (persisted), musicEnabled just derived from it so every
+// existing "is music actually wanted right now" check below stays a plain
+// boolean. Default lowered to the equivalent of a fixed 50 (was 100) so the
+// out-of-the-box balance doesn't drown the SFX in the first place.
+let musicVolume = 50;
 try {
-  const savedMusic = localStorage.getItem("kw_musicEnabled");
-  if (savedMusic !== null) musicEnabled = savedMusic !== "0";
+  const savedMusicVolume = localStorage.getItem("kw_musicVolume");
+  if (savedMusicVolume !== null) {
+    musicVolume = Math.max(0, Math.min(100, parseInt(savedMusicVolume, 10) || 0));
+  } else {
+    // migrate the old mute-button flag, if any — a player who'd muted music
+    // before this slider existed shouldn't have it silently come back on
+    const savedMusicEnabled = localStorage.getItem("kw_musicEnabled");
+    if (savedMusicEnabled === "0") musicVolume = 0;
+  }
 } catch (e) { /* ignore */ }
-const BG_MUSIC_VOLUME = 0.35; // fixed, unobtrusive — no slider was asked for, just a mute button
+let musicEnabled = musicVolume > 0;
+const MUSIC_VOLUME_MAX = 0.35; // the level a full 100 slider reaches — same ceiling the old fixed volume used
+function musicVolumeLevel() { return MUSIC_VOLUME_MAX * (musicVolume / 100); }
 function tryStartBackgroundMusic() {
   if (!musicEnabled) return;
   const el = document.getElementById("bgMusic");
   if (!el || !el.paused) return;
-  el.volume = BG_MUSIC_VOLUME;
+  el.volume = musicVolumeLevel();
   // Autoplay-with-sound is blocked by every browser until a real user
   // gesture has happened on the page — .play() returns a rejected promise
   // in that case rather than throwing, so this is safe to call speculatively
-  // any time (see the first-gesture listener and musicMuteBtn's own click
-  // handler below) without needing to track "has the user interacted yet"
-  // state separately.
+  // any time (see the first-gesture listener and musicVolumeSlider's own
+  // input handler below) without needing to track "has the user interacted
+  // yet" state separately.
   el.play().catch(() => { /* not allowed yet — the next gesture will retry */ });
 }
 function stopBackgroundMusic() {
   const el = document.getElementById("bgMusic");
   if (el) el.pause();
 }
-// One-time: the very first tap/click ANYWHERE on the page (picking a
-// faction, opening settings, whatever comes first) is a real user gesture,
-// exactly what autoplay-with-sound is waiting for.
+// "Prémédiation Obstination" — see #lossMusic's own note. Loaded (not just
+// referenced) once a real match actually starts, so it's already sitting in
+// the browser's cache well before it could possibly be needed — a defeat
+// can land on literally the next tap, no good moment left to start a fetch
+// once it happens.
+let lossMusicPreloaded = false;
+function preloadLossMusic() {
+  if (lossMusicPreloaded) return;
+  lossMusicPreloaded = true;
+  const el = document.getElementById("lossMusic");
+  el.preload = "auto";
+  el.load();
+}
+// Plays once, no loop (unlike bgMusic) — see showWin()'s own humanLost
+// branch. Cuts bgMusic outright rather than crossfading INTO the loss
+// theme: the moment of defeat itself is meant to land hard, not ease in —
+// only the reverse transition (back to bgMusic once the loss track ends,
+// or immediately if a new game starts — see crossfadeToBackgroundMusic())
+// gets the "tout petit fond enchaîné" softness the player actually asked for.
+function playLossMusic() {
+  stopBackgroundMusic();
+  if (!musicEnabled) return;
+  const el = document.getElementById("lossMusic");
+  el.currentTime = 0;
+  el.volume = musicVolumeLevel();
+  el.play().catch(() => { /* ignore — same autoplay-gesture caveat as bgMusic, though a loss is never the very first tap on the page */ });
+}
+// "On lance le replay, la musique continue sans s'arrêter" — watching a
+// replay from the loss screen deliberately does NOT touch either track,
+// so this only ever fires from two places: the loss theme finishing on its
+// own (a player who just sits on the loss screen), or startGame() itself
+// ("si on fait une nouvelle partie ça coupe la musique direct avec un tout
+// petit fond enchaîné" — cut instantly, but chained back in with a brief
+// fade rather than a jarring hard cut into silence-then-bgMusic).
+function crossfadeToBackgroundMusic(target) {
+  const resumeTarget = target || tryStartBackgroundMusic;
+  const loss = document.getElementById("lossMusic");
+  if (loss.paused) { resumeTarget(); return; }
+  const startVol = loss.volume || musicVolumeLevel();
+  const STEPS = 6, STEP_MS = 50; // ~300ms total — "tout petit fond", not a real multi-second crossfade
+  let i = 0;
+  const fade = setInterval(() => {
+    i++;
+    loss.volume = Math.max(0, startVol * (1 - i / STEPS));
+    if (i >= STEPS) {
+      clearInterval(fade);
+      loss.pause();
+      loss.currentTime = 0;
+      loss.volume = startVol; // restored for the next time playLossMusic() uses it
+      resumeTarget();
+    }
+  }, STEP_MS);
+}
+document.getElementById("lossMusic").addEventListener("ended", () => crossfadeToBackgroundMusic());
+// "Marchons N2" — the pre-game theme, see #introMusic's own note: "en intro
+// dès le début du chargement, qui continue jusqu'au choix d'une faction".
+function tryStartIntroMusic() {
+  if (!musicEnabled) return;
+  const el = document.getElementById("introMusic");
+  if (!el || !el.paused) return;
+  el.volume = musicVolumeLevel();
+  el.play().catch(() => { /* not allowed yet — the next gesture will retry */ });
+}
+function stopIntroMusic() {
+  const el = document.getElementById("introMusic");
+  if (el) el.pause();
+}
+// One-time: the very first tap/click ANYWHERE on the page — before a camp
+// is ever picked, the only thing there IS to tap is a territory on the
+// pre-game map, so in practice this fires on that very same gesture, a
+// beat before pickFaction() itself runs (pointerdown fires before the
+// click/pointerup pickFaction() resolves from) and swaps over to bgMusic —
+// still a real, if brief, "intro plays first" moment rather than no
+// distinction at all. Whichever gesture actually turns out to be first
+// (this screen, or opening settings before picking) is a real user
+// gesture, exactly what autoplay-with-sound is waiting for.
 document.addEventListener("pointerdown", function firstGestureStartsMusic() {
   document.removeEventListener("pointerdown", firstGestureStartsMusic);
-  tryStartBackgroundMusic();
+  tryStartIntroMusic();
 }, { once: true });
 // Colorblind-accessible mode — "un mode accessible en option dans le menu ou
 // les couleurs sont remplacés par hachure horizontales, verticale, diagonale
@@ -5590,6 +5747,7 @@ function showWin(royId) {
     sfxTruce();
   } else if (humanLost) {
     sfxDefeat(humanRoyId);
+    playLossMusic(); // "peu importe les conditions... si on abandonne ou si on perd" — same humanLost condition covers both already
     // "Quand on perd une partie, on doit perdre tous les gueux qu'on avait"
     // — the reserve is a real stake now, not a one-way ratchet: a defeat
     // (outright loss OR surrender, both covered by humanLost — see its own
@@ -7915,6 +8073,9 @@ function pickFaction(royId) {
   humanRoyId = royId;
   currentPlayer = royId; // whichever royaume is picked always plays first, not whatever seat happened to be numbered 0
   awaitingFactionPick = false;
+  preloadLossMusic(); // a real match is actually starting now — see its own note
+  stopIntroMusic();
+  tryStartBackgroundMusic(); // "jusqu'au choix d'une faction" — this is that moment
   mapHistory = []; // this picking phase is over — its reroll history is no longer relevant to the match that just started
   refreshPrevMapBtn();
   // "Choisissez un camp" only shows for the first CAMP_PROMPT_MAX times a
@@ -8947,6 +9108,15 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // add a new entry at the top whenever a future change is worth telling
 // players about.
 const CHANGELOG = [
+  {
+    version: "2.38",
+    notes: [
+      "Corrigé un gel possible au tout début du chargement sur une connexion lente ou filtrée (l'écran de titre restait bloqué indéfiniment).",
+      "L'écran de chargement (chevalier, titre, numéro de version) reste maintenant affiché au moins une seconde.",
+      "Ajouté une musique d'intro (avant le choix du camp) et une musique de défaite (jouée une fois, quelles que soient les conditions de la défaite), en plus de la musique de fond déjà en place.",
+      "Remplacé le bouton muet de la musique par un curseur de volume, comme pour les bruitages — la musique était trop forte par rapport aux bruitages.",
+    ],
+  },
   {
     version: "2.37",
     notes: [
@@ -10158,23 +10328,39 @@ soundVolumeSlider.addEventListener("input", () => {
   } catch (e) { /* ignore */ }
 });
 
-const musicMuteBtn = document.getElementById("musicMuteBtn");
-function refreshMusicMuteBtn() {
-  musicMuteBtn.textContent = musicEnabled ? "🔊 Musique activée" : "🔇 Musique coupée";
-  musicMuteBtn.classList.toggle("active", musicEnabled);
-}
-refreshMusicMuteBtn();
-musicMuteBtn.addEventListener("click", () => {
-  musicEnabled = !musicEnabled;
-  try { localStorage.setItem("kw_musicEnabled", musicEnabled ? "1" : "0"); } catch (e) { /* ignore */ }
-  refreshMusicMuteBtn();
-  // this click is itself a real user gesture, so re-enabling music from
-  // here can always actually start playback immediately, not just wait for
-  // some later tap to retry it.
-  if (musicEnabled) tryStartBackgroundMusic();
-  else stopBackgroundMusic();
-  sfxToggle();
+const musicVolumeSlider = document.getElementById("musicVolumeSlider");
+musicVolumeSlider.value = musicVolume;
+musicVolumeSlider.addEventListener("input", () => {
+  const wasEnabled = musicEnabled;
+  musicVolume = Number(musicVolumeSlider.value);
+  musicEnabled = musicVolume > 0;
+  try {
+    localStorage.setItem("kw_musicVolume", String(musicVolume));
+  } catch (e) { /* ignore */ }
+  // Three tracks now (intro/bg/loss), only ever one actually meant to be
+  // audible at a time. Dragging the slider just retunes whichever one is
+  // currently playing (harmless no-op on the other two, already paused);
+  // 0 pauses it the same way the old mute button did, and coming back up
+  // from 0 resumes THAT SAME one right where it left off (a still-in-
+  // progress loss theme, say) rather than guessing from the current game
+  // phase, which would restart the wrong track if the player had muted
+  // mid-defeat-theme.
+  const tracks = ["introMusic", "bgMusic", "lossMusic"].map((id) => document.getElementById(id));
+  if (musicEnabled) {
+    tracks.forEach((el) => { if (!el.paused) el.volume = musicVolumeLevel(); });
+    if (!wasEnabled) {
+      const wasPlaying = tracks.find((el) => el.currentTime > 0 && !el.ended) ||
+        (awaitingFactionPick ? tracks[0] : tracks[1]);
+      wasPlaying.volume = musicVolumeLevel();
+      wasPlaying.play().catch(() => { /* ignore */ });
+    }
+  } else {
+    tracks.forEach((el) => el.pause());
+  }
 });
+// only on release (not every drag tick) — a quick audible taste of the new
+// level, same click cue soundVolumeSlider's own "change" gives
+musicVolumeSlider.addEventListener("change", () => { sfxToggle(); });
 // only on release (not every drag tick) — a quick audible taste of the new
 // level, same click cue the old checkbox gave on every toggle
 soundVolumeSlider.addEventListener("change", () => { sfxToggle(); });
@@ -10951,6 +11137,14 @@ function startGame(seed) {
   // behind this still-visible row, reading as two overlapping buttons.
   document.getElementById("reviewRow").style.display = "none";
   document.getElementById("bottomHudRow").style.visibility = "";
+  // A new game starting straight off a loss screen (rather than the loss
+  // theme finishing on its own) is the other trigger crossfadeToBackgroundMusic()
+  // exists for — see its own comment. Which track it resumes into depends on
+  // whether this new game goes back through faction-pick (a real "Nouvelle
+  // partie"/reroll: intro plays again) or drops straight into a reproduced
+  // match (a replay/resumed autosave, `replaying` already set by the caller
+  // before this call: no faction-pick screen, bgMusic is correct).
+  crossfadeToBackgroundMusic(replaying ? tryStartBackgroundMusic : tryStartIntroMusic);
   document.getElementById("endturn").disabled = false;
   gameOver = false; selected = -1; aiRunning = false;
   // a still-pending endTurn()->advanceTurn() handoff from whatever match was

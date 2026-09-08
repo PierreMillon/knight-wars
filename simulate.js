@@ -48,6 +48,9 @@ function makeStubEl() {
     setAttribute() {}, getAttribute() { return null; }, removeAttribute() {},
     getContext() { return new Proxy({}, { get: (t, p) => (p === "createLinearGradient" || p === "createRadialGradient") ? () => ({ addColorStop() {} }) : () => {} }); },
     getBoundingClientRect() { return { left: 0, top: 0 }; }, clientWidth: 800, clientHeight: 600, offsetHeight: 40,
+    // <audio> stub — bgMusic/lossMusic/introMusic call these; simulate.js
+    // never actually needs sound, just needs them to not throw.
+    load() {}, play() { return Promise.resolve(); }, pause() {}, paused: true, currentTime: 0, ended: false, volume: 1,
   };
 }
 function buildSandbox() {
