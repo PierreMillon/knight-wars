@@ -79,6 +79,27 @@
     font-size: 13px; color: rgba(43,29,16,.6); font-family: Georgia, "Iowan Old Style", Palatino, "Times New Roman", serif;
     text-align: center;
   }
+  /* Same parchment look as #loadingScreen (and every menu .box), one
+     z-index below it (999 vs 1000) — see the HTML comment above
+     #splashScreen for why that ordering is the whole trick. */
+  #splashScreen {
+    position: fixed; inset: 0; z-index: 999;
+    background: linear-gradient(160deg, #f6ecd2, #e6d3a3);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 28px;
+    padding: 20px; padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px)); box-sizing: border-box;
+    transition: opacity .2s ease;
+  }
+  #splashScreen.splashScreenHidden { opacity: 0; pointer-events: none; }
+  #splashTitle {
+    font-family: Trattatello, "MedievalSharp", Georgia, "Iowan Old Style", Palatino, "Times New Roman", serif;
+    font-size: 34px; font-weight: 700; letter-spacing: .02em; color: #2b1d10; text-align: center;
+  }
+  #splashKnight {
+    width: 38vw; max-width: 200px; height: auto; image-rendering: pixelated;
+    filter: drop-shadow(0 6px 14px rgba(0,0,0,.22));
+  }
+  #splashButtons { display: flex; flex-direction: column; gap: 12px; width: 100%; max-width: 280px; }
+  #splashButtons button { width: 100%; box-sizing: border-box; font-size: 17px; padding: 14px 20px; }
   /* Sized by lockPortraitStage() (called from resize()): 100%x100% in
      portrait, as before. In landscape, #wrap freezes at its last-measured
      portrait pixel size and rotates ±90° about its own center — a
@@ -781,7 +802,7 @@
      same gradient as the selected-territory outline on the map
      (OUTLINE_GRADIENTS.gold), so the two "this is the important thing"
      treatments actually match instead of one being gold and the other blue. */
-  #settingsPanel button, #winbanner button, #truceOverlay button, #loreOverlay button, #conseilsOverlay button, #surrenderConfirmOverlay button, #premiumUnlockOverlay button, #adErrorOverlay button {
+  #settingsPanel button, #winbanner button, #truceOverlay button, #loreOverlay button, #conseilsOverlay button, #surrenderConfirmOverlay button, #premiumUnlockOverlay button, #adErrorOverlay button, #splashScreen button {
     background: linear-gradient(135deg, #fff3c4, #e8c468, #a97e2a);
     color: #2b1d10; border: 1px solid #8a6d3b; border-radius: 8px;
     padding: 10px 20px; font-size: 15px; font-weight: 700;
@@ -974,6 +995,35 @@
   <div id="loadingTitle">Knight Wars</div>
   <img id="loadingKnight" alt="">
   <div id="loadingVersion"></div>
+</div>
+<!-- "toujours aucune musique audible... ajouter un véritable écran de
+     démarrage (splash), qui reste affiché tant qu'on n'a pas interagi" —
+     a real, deliberate button tap is the one thing every browser's
+     autoplay-with-sound policy actually requires; relying on "whatever the
+     player's first tap happens to land on" (a territory, the settings
+     icon...) left it too easy for that first real gesture to slip by
+     without music ever actually starting, no matter how early the code
+     tried to hook it (see tryStartIntroMusic()'s own history this same
+     session). Sits at z-index 999, one below #loadingScreen's own 1000:
+     both are visible/opaque from the very start, so #loadingScreen simply
+     fading out (its normal job, unrelated to this) reveals this SAME
+     always-already-there screen underneath instead of the live game —
+     nothing new to "show" at the right moment, no extra race to get wrong.
+     Also the point where startGame()/resumeSavedGame() actually begin —
+     see the very bottom of this script: neither runs until one of this
+     screen's own buttons is tapped. -->
+<div id="splashScreen">
+  <div id="splashTitle">Knight Wars</div>
+  <img id="splashKnight" alt="">
+  <div id="splashButtons">
+    <button id="splashAttackBtn"></button>
+    <!-- "si une partie est déjà en cours (sauvegardée), remplacé par
+         Reprendre la partie + un second bouton Commencer une nouvelle
+         partie" — toggled once at boot by showSplashScreen(), see its own
+         note near the bottom of this script. -->
+    <button id="splashResumeBtn" style="display:none;"></button>
+    <button id="splashNewGameBtn" style="display:none;"></button>
+  </div>
 </div>
 <div id="wrap">
   <!-- "Musique en fond et bouton mute en menu" — a real file (bg-music.mp3,
@@ -1522,9 +1572,10 @@
 // before (CREATURE_IMG's own loadSprite() call, the changelog, etc.), not
 // redeclared.
 const CREATURE_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAANAAAADQCAYAAAB2pO90AAAC2klEQVR4nO3dQWoDMRAAwd3g/39ZOeQHahgroupuvF7TzGWQ3rXWw4z3fUde9lrrnfiend8z9WxTfr79APCfCQgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAg+336AE5y85LnzbJY855hAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEFx3MqlTOe/7PSf/pyYQBAKCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAiCd62RG9559pYimbOzgGoCQSAgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAguO5kUvbsLFJOLcdOPdvOZ0wgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAElkkZNbUYOvU9JhAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJAQBAICILrlkldJb9namHzZK65h2ECgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgrFl0pOvRD/Zbe/ttqVVEwgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAgEBMF1J5My57bF0B0mEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgq1lUlfJW6TkjwkEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJg7GTSnUXKqaXVqcXQk6+styC8xwSCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUHwccLmHO/tvhNdTSAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEASfkxf1OJsTUE0gSAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEY9fcw/OcfcroDhMIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgl9clHexCa709wAAAABJRU5ErkJggg==";
-const GAME_VERSION = "2.40";
+const GAME_VERSION = "2.41";
 document.getElementById("loadingKnight").src = CREATURE_IMG_SRC;
 document.getElementById("loadingVersion").textContent = `v${GAME_VERSION}`;
+document.getElementById("splashKnight").src = CREATURE_IMG_SRC;
 
 // Global safety net — installed as the very first thing this script does,
 // before any code that could throw. Without this, an uncaught exception
@@ -4903,6 +4954,11 @@ const UI_STRINGS = {
     de: "Zieht sich die Schlacht in die Länge? Schlage Frieden vor (Unentschieden, ein Bettler pro noch bestehendem gegnerischem Königreich) oder gib die Partie auf — diese letzte Handlung ist endgültig.",
   },
   preGameSurrenderResumeBtn: { fr: "Reprendre", en: "Resume", zh: "继续", es: "Reanudar", de: "Fortsetzen" },
+  // Splash screen — the one deliberate tap every browser's autoplay-with-
+  // sound policy actually requires (see #splashScreen's own HTML comment).
+  splashAttackBtn: { fr: "⚔️ À l'attaque !", en: "⚔️ Attack!", zh: "⚔️ 进攻！", es: "⚔️ ¡Al ataque!", de: "⚔️ Zum Angriff!" },
+  splashResumeBtn: { fr: "Reprendre la partie", en: "Resume the match", zh: "继续游戏", es: "Reanudar la partida", de: "Partie fortsetzen" },
+  splashNewGameBtn: { fr: "Commencer une nouvelle partie", en: "Start a new game", zh: "开始新游戏", es: "Comenzar una nueva partida", de: "Neues Spiel beginnen" },
   mercyOffer: {
     fr: "🏳️ {name} demande votre clémence",
     en: "🏳️ {name} begs for your mercy",
@@ -9840,6 +9896,13 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // players about.
 const CHANGELOG = [
   {
+    version: "2.41",
+    notes: [
+      "Ajouté un véritable écran de démarrage avec un bouton « À l'attaque ! » (ou « Reprendre la partie » / « Commencer une nouvelle partie » si une partie était en cours) : la partie ne se lance plus toute seule au chargement.",
+      "Ce clic étant un vrai geste de l'utilisateur, il sert aussi à débloquer le son de manière fiable et à lancer la musique dès cet écran — corrige le bug persistant où aucune musique ne se faisait entendre sur certains appareils.",
+    ],
+  },
+  {
     version: "2.40",
     notes: [
       "Traduction complète en espagnol et en allemand, en plus du français, de l'anglais et du chinois déjà présents.",
@@ -11160,6 +11223,9 @@ function applyUiLanguage() {
   document.getElementById("surrenderConfirmTitleH2").textContent = t("surrenderConfirmTitle");
   document.getElementById("surrenderConfirmTextP").textContent = t("surrenderConfirmText");
   document.getElementById("preGameSurrenderClose").textContent = t("preGameSurrenderResumeBtn");
+  document.getElementById("splashAttackBtn").textContent = t("splashAttackBtn");
+  document.getElementById("splashResumeBtn").textContent = t("splashResumeBtn");
+  document.getElementById("splashNewGameBtn").textContent = t("splashNewGameBtn");
   // NOT calling updateEndTurnButton() here: this same applyUiLanguage() runs
   // once at boot, this early in the script, before campPromptCount (a `let`
   // declared later) is initialized — updateEndTurnButton() reads it, so
@@ -12322,28 +12388,63 @@ function tryLoadSavedGame() {
   } catch (e) { return reject(); } // corrupted/old-format entry — treat as no save rather than crash
 }
 
-const pendingSharedReplay = tryParseSharedReplay();
-const pendingSavedGame = pendingSharedReplay ? null : tryLoadSavedGame(); // a shared link takes priority over resuming your own match
-if (pendingSharedReplay) {
-  // clean the URL so a reload/rewatch doesn't re-trigger this same intro
-  history.replaceState(null, "", location.pathname);
-  document.getElementById("shareIntroText").textContent = t("shareIntroText");
-  document.getElementById("shareIntro").style.display = "flex";
-} else if (pendingSavedGame) {
-  resumeSavedGame(pendingSavedGame);
-} else {
-  // Belt-and-suspenders alongside resumeSavedGame()'s own try/catch above:
-  // a genuinely fresh game should never be able to throw (verified across
-  // hundreds of random seeds/map sizes/opponent counts), but if some future
-  // change ever makes it possible, retry once with a brand new random seed
-  // (bypassing whatever specific seed/localStorage state caused it) rather
-  // than leaving a blank map behind the HUD with no way out at all.
+// Belt-and-suspenders alongside resumeSavedGame()'s own try/catch above:
+// a genuinely fresh game should never be able to throw (verified across
+// hundreds of random seeds/map sizes/opponent counts), but if some future
+// change ever makes it possible, retry once with a brand new random seed
+// (bypassing whatever specific seed/localStorage state caused it) rather
+// than leaving a blank map behind the HUD with no way out at all.
+function startFreshGameSafely() {
   try {
     startGame();
   } catch (e) {
     try { localStorage.removeItem(SAVED_GAME_KEY); } catch (e2) { /* ignore */ }
     try { startGame(randomSeed()); } catch (e3) { /* truly out of options — at least the HUD still shows "Changer la carte" to retry by hand */ }
   }
+}
+// "Un véritable écran de démarrage (splash), qui reste affiché tant qu'on
+// n'a pas interagi" — startGame()/resumeSavedGame() themselves now only
+// ever run from one of these 3 taps, never automatically at boot; each is
+// itself the one real, deliberate user gesture every browser's autoplay-
+// with-sound policy actually requires, used here to both unlock audio and
+// kick off the correct track for whichever screen comes next (see
+// #splashScreen's own HTML comment for why "whatever the very first tap
+// happened to land on" wasn't reliable enough already).
+function beginFromSplash(startFn) {
+  document.getElementById("splashScreen").classList.add("splashScreenHidden");
+  startFn();
+}
+document.getElementById("splashAttackBtn").addEventListener("click", () => {
+  tryStartIntroMusic(); // awaitingFactionPick stays true from here — the intro track, not bgMusic, is the right one until pickFaction()
+  beginFromSplash(startFreshGameSafely);
+});
+document.getElementById("splashNewGameBtn").addEventListener("click", () => {
+  tryStartIntroMusic(); // same as above — abandonSavedGameAndStartFresh() also lands on awaitingFactionPick
+  beginFromSplash(abandonSavedGameAndStartFresh);
+});
+document.getElementById("splashResumeBtn").addEventListener("click", () => {
+  tryStartBackgroundMusic(); // a resumed match is already mid-siege, past its own faction pick — bgMusic is the right track, not the intro
+  beginFromSplash(() => resumeSavedGame(pendingSavedGame));
+});
+function showSplashScreen(hasSavedGame) {
+  document.getElementById("splashAttackBtn").style.display = hasSavedGame ? "none" : "";
+  document.getElementById("splashResumeBtn").style.display = hasSavedGame ? "" : "none";
+  document.getElementById("splashNewGameBtn").style.display = hasSavedGame ? "" : "none";
+}
+const pendingSharedReplay = tryParseSharedReplay();
+const pendingSavedGame = pendingSharedReplay ? null : tryLoadSavedGame(); // a shared link takes priority over resuming your own match
+if (pendingSharedReplay) {
+  // Already its own gesture-gated screen ("▶ Voir sa partie" / "⚔ Jouer
+  // maintenant", both real taps) — #splashScreen would otherwise sit right
+  // on top of it (see its own z-index note) since it defaults to visible;
+  // hide it outright rather than doubling up on splash screens.
+  document.getElementById("splashScreen").classList.add("splashScreenHidden");
+  // clean the URL so a reload/rewatch doesn't re-trigger this same intro
+  history.replaceState(null, "", location.pathname);
+  document.getElementById("shareIntroText").textContent = t("shareIntroText");
+  document.getElementById("shareIntro").style.display = "flex";
+} else {
+  showSplashScreen(!!pendingSavedGame);
 }
 </script>
 </body>
