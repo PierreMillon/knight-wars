@@ -800,7 +800,16 @@
      in this panel already uses (full-width flex, equal shares, gold
      .active highlight). "Met juste les drapeaux enlève fr en etc" — flag
      emoji only, no FR/EN/中 text. */
-  #langLevels .levelBtn { font-size: 20px; padding: 4px 6px; }
+  /* Was flag-only emoji buttons (font-size:20px suited that); now flag +
+     language name text ("avec drapeau + nom de la langue"), sized like
+     every other .levelBtn text instead, wrapping onto 2 rows for 5 entries.
+     flex:0 0 auto (not the base rule's flex:1 1 0 + min-width:0, tuned for
+     ellipsizing a single overlong label) — that combination lets every
+     button shrink to near-nothing instead of ever actually wrapping, since
+     a flex item willing to shrink to 0 always "fits" one line as far as
+     flex-wrap is concerned. Natural/auto width instead, same fix
+     #mapSizeLevels.levelBtn already uses for the same reason. */
+  #langLevels .levelBtn { font-size: 13px; padding: 6px 10px; white-space: nowrap; flex: 0 0 auto; min-width: auto; }
   /* plain icon button, main HUD, left end of #bottomHudRow's now-two-button
      row (#gueuxBadge moved out to stand under #settingsBtn instead — see
      its own note) — same circular gold treatment as #settingsBtn now
@@ -1114,22 +1123,22 @@
            ever picking a camp. There's no real match to report on (no
            chart, no replay, no share), just the joke line + gueux penalty
            and a way back into the game. -->
-      <button id="preGameSurrenderClose" style="display:none;">Reprendre</button>
+      <button id="preGameSurrenderClose" style="display:none;"></button>
     </div>
   </div>
   <div id="shareIntro">
     <div class="box">
-      <h2>⚔️ Défi Knight Wars</h2>
+      <h2 id="shareIntroTitleH2"></h2>
       <p id="shareIntroText"></p>
       <div class="winButtons">
-        <button id="watchSharedReplay">▶ Voir sa partie</button>
-        <button id="playInstead">⚔ Jouer maintenant</button>
+        <button id="watchSharedReplay"></button>
+        <button id="playInstead"></button>
       </div>
     </div>
   </div>
   <div id="truceOverlay">
     <div class="box">
-      <h2>🕊️ Trêve</h2>
+      <h2 id="truceTitleH2"></h2>
       <p id="truceText"></p>
       <p id="continueSiegeQuote"></p>
       <div class="winButtons">
@@ -1143,20 +1152,20 @@
        Seigneur difficulty or Croisade map-size button while locked. -->
   <div id="premiumUnlockOverlay">
     <div class="box">
-      <h2>🔒 Contenu avancé</h2>
-      <p id="premiumUnlockText">Le niveau Templier et la carte Croisade sont réservés.</p>
-      <p id="premiumUnlockNote">Aperçu — pas encore relié à une vraie régie publicitaire ni à un vrai paiement.</p>
+      <h2 id="premiumTitleH2"></h2>
+      <p id="premiumUnlockText"></p>
+      <p id="premiumUnlockNote"></p>
       <div class="winButtons">
-        <button id="premiumWatchAdBtn">🎬 Regarder une pub (30s) — 24h débloquées</button>
-        <button id="premiumBuyBtn">💎 Débloquer à vie — 2€</button>
-        <button id="premiumUnlockClose">Fermer</button>
+        <button id="premiumWatchAdBtn"></button>
+        <button id="premiumBuyBtn"></button>
+        <button id="premiumUnlockClose"></button>
       </div>
     </div>
     <div id="adErrorOverlay">
       <div class="box">
-        <p>⚠️ La vidéo n'a pas pu se charger — une erreur technique de notre côté. Pas d'inquiétude, tu reçois quand même ton déblocage.</p>
+        <p id="adErrorTextP"></p>
         <div class="winButtons">
-          <button id="adErrorOk">Recevoir mon déblocage</button>
+          <button id="adErrorOk"></button>
         </div>
       </div>
     </div>
@@ -1169,8 +1178,8 @@
        entre offrir la trêve/paix et se rendre." -->
   <div id="surrenderConfirmOverlay">
     <div class="box">
-      <h2>💀 Abandonner ou proposer la paix</h2>
-      <p>La bataille traîne en longueur ? Proposez la paix (match nul, un gueux gagné par royaume adverse encore debout) ou abandonnez la partie — cette dernière action est définitive.</p>
+      <h2 id="surrenderConfirmTitleH2"></h2>
+      <p id="surrenderConfirmTextP"></p>
       <div class="winButtons">
         <button id="cancelSurrender">Annuler</button>
         <button id="proposePeaceBtn">🕊️ Proposer la paix</button>
@@ -1191,12 +1200,15 @@
            Millon" existante, pas à sa place — celle-ci reste le récit
            complet, ceci n'en est que le condensé qui laisse deviner les
            dieux/pouvoirs sans les nommer en clair comme les paragraphes de
-           déblocage le font déjà chacun de leur côté. -->
-      <p id="loreChronique"><em>La Bretagne se divise en quatre maisons, toutes du même sang Millon que la haine a désuni. Chacune a son dieu propre, et chaque dieu son prix. Châteauvieux faillit tomber, se releva d'une seule province, et depuis Vulcain veille sur chacun de ses remparts. Villiers n'a jamais cédé un pouce de terre en un siège entier ; Bellone arme sa lance d'une force qu'aucune autre maison ne connaît. Montherlant laissa vivre chaque maison rivale jusqu'au bout, puis les faucha toutes d'une seule charge, sans laisser un arpent aux Celtes ; les greniers de Cérès depuis ne se vident plus jamais tout à fait. Beaumanoir seul acheva un siège par la mer ; Neptune, depuis, lui écarte les flots. On dit aussi qu'une maison dont les douze provinces atteignent ensemble leur plein effectif ne perd plus une seule bataille, le temps que cela dure — et qu'à la troisième fois, dans trois guerres séparées, un dieu plus ancien que les autres, romain celui-là, ne quitte plus jamais son camp. Sous la mer que Beaumanoir traverse sans perdre un homme, les pêcheurs jurent qu'autre chose regarde, plus vieux que Neptune, et que personne n'a encore osé nommer.</em></p>
-      <h2>Les Millon</h2>
-      <p>En cet an de grâce 1183, la Bretagne n'a plus de duc, et quatre châtelains se disputent son héritage — Châteauvieux, Villiers, Montherlant, Beaumanoir. Quatre noms de fief, mais un seul sang : tous portent le même blason, celui d'un aïeul commun, les Millon, dont le domaine fut fracturé entre ses héritiers il y a plus d'un siècle.</p>
-      <p>Chaque bataille livrée ici n'oppose pas des étrangers, mais des cousins — une querelle de famille qui ne connaît ni trêve ni pardon, jusqu'à ce qu'un seul Millon reste debout pour reformer sous une seule bannière la terre que leurs pères ont laissée en morceaux.</p>
-      <p>Un siècle de guerre a forgé le caractère de chaque branche — et à la table de jeu, ce caractère se traduit en habitudes de commandement bien réelles, pas seulement en surnom :</p>
+           déblocage le font déjà chacun de leur côté. Content set by
+           applyUiLanguage() now (see UI_STRINGS.loreChronique etc.), not
+           hardcoded here — same for every other lore/Conseils paragraph
+           below, per "traduis cette fois le lore et les textes de combat". -->
+      <p id="loreChronique"></p>
+      <h2 id="loreTitle"></h2>
+      <p id="loreIntro1P"></p>
+      <p id="loreIntro2P"></p>
+      <p id="loreIntro3P"></p>
       <!-- "enlever les deux perso et met juste le cavalier" — was two soldier
            sketches (FIGURE1/FIGURE2), replaced by a single mounted knight
            (CREATURE_IMG_SRC, same sprite as the Seigneur difficulty icon)
@@ -1209,12 +1221,12 @@
       <!-- see refreshLoreRoyaumesJoues() — one slot per maison, marks which
            ones you've actually taken up arms for at least once. -->
       <div id="loreRoyaumesJoues"></div>
-      <p>Il reste, aux confins des quatre fiefs, des terres qu'aucun Millon ne songe à conquérir : celles des Celtes, polythéistes pacifistes là où les Millon prient un seul Dieu. Une tribu inutile qui refuse de forger la moindre arme, préférant passer ses journées à compter des cailloux et tracer des figures dans la terre — quand elle ne se passionne pas pour la poterie de terre cuite ou le travail du verre. Une coiffure sophistiquée et un nuage de parfum leur importent bien plus que le noble art de la guerre : un peuple aussi inoffensif que pathétique, que même les Millon jugent indigne d'un vrai siège.</p>
+      <p id="loreCeltesP"></p>
       <!-- unlocked after 3 separate matches each with a 3-full-ritual octopus
            reveal (Seigneur only) — see recordOctopusRevealAndCheckUnlock() -->
       <div id="lorePieuvre" style="display:none;">
         <img id="loreOctopusImg" alt="">
-        <p>Ceux qui ont livré à la mer trois navires entiers, à trois reprises, ont vu autre chose répondre — quelque chose qui n'a jamais porté le nom des Millon. Les pêcheurs racontent qu'elle regarde les sièges les plus désespérés depuis les profondeurs, et qu'elle n'oublie aucun de ceux qui la nourrissent.</p>
+        <p id="lorePieuvreP"></p>
       </div>
       <!-- unlocked after a 4th full ritual (one past the octopus' own 3rd)
            in a match where the "parchemin crypté" hint had already
@@ -1224,7 +1236,7 @@
            from deeper down, not the same creature. -->
       <div id="loreCthulhu" style="display:none;">
         <img id="loreCthulhuImg" alt="">
-        <p>Le parchemin ne mentait pas. Ce que la pieuvre annonçait depuis les profondeurs n'était qu'un serviteur — au-delà d'elle dort quelque chose de bien plus vieux que la querelle des Millon, quelque chose que même les prêtres refusent de nommer. Ceux qui l'ont réveillé racontent qu'on peut désormais traverser n'importe quelle mer sans y perdre un seul homme — l'onde elle-même s'écarte devant vous, comme si elle craignait davantage ce qui vous suit que vous.</p>
+        <p id="loreCthulhuP"></p>
       </div>
       <!-- "le pouvoir des 12" / Merlin, unlocked after 3 activations across
            3 separate matches (see recordCapBonusRevealAndCheckUnlock()) —
@@ -1232,7 +1244,7 @@
            runtime (see doubleSwordIconSrc's own note). -->
       <div id="loreMars" style="display:none;">
         <div id="loreMarsSwords"><img alt=""><img alt=""></div>
-        <p>Un vieil enchanteur errant — Merlin, disent les paysans, sans trop y croire — vient s'incliner devant quiconque tient ses douze provinces à leur plein effectif à la fois. Il ne demande rien, ne promet rien, et repart aussitôt son signe fait. Mais ceux qui l'ont vu passer trois fois racontent qu'un dieu bien plus ancien, romain celui-là, prend ensuite le relais : jamais plus une bataille à douze contre douze ne se perdra sous cette bannière. Un tel don a un prix, chuchotent les vieilles branches — mais lequel, nul ne l'a encore découvert.</p>
+        <p id="loreMarsP"></p>
       </div>
       <!-- "Dieux spéciaux" — each unlocked independently the first time ITS
            OWN condition is met on a real win, quelle que soit la maison
@@ -1257,19 +1269,19 @@
            refreshLoreGods()) grise le paragraphe et révèle une note "pas
            encore obtenu" tant que ce n'est pas fait. -->
       <div id="loreGodsExplainer">
-        <p>Un mercenaire ne sert jamais une seule maison. Le savoir-faire qu'il enseigne à celle qui l'engage aujourd'hui, la maison le garde pour de bon — que ce soit encore lui qui la commande demain, ou un autre. Mais lui aussi retient la leçon : où qu'il porte son épée ensuite, quelle que soit la bannière, il n'oublie jamais un tour qu'il a un jour appris. Un général assez habile pour avoir servi les quatre maisons finit par porter en lui les quatre dieux à la fois — et leur prix avec.</p>
+        <p id="loreGodsExplainerP"></p>
       </div>
       <div id="loreGodVulcain" class="loreGodEntry">
-        <p><strong>Vulcain</strong>, dieu de la forge, s'incline devant quiconque l'a vue redescendre à sa dernière province avant de renverser le siège — peu importe la bannière. Depuis, ses murailles ne tombent plus tout à fait comme les autres : une force de plus veille toujours derrière chaque rempart, invisible sur le parchemin. Mais sa forge a un prix : elle dévore un renfort à chaque fin de tour. <em class="loreGodLockedNote">— faveur pas encore obtenue.</em></p>
+        <p id="loreGodVulcainP"></p>
       </div>
       <div id="loreGodBellone" class="loreGodEntry">
-        <p><strong>Bellone</strong>, déesse romaine de la guerre, honore quiconque a remporté un siège entier sans jamais céder une seule province, quelle que soit la maison. Sa fureur reste depuis dans chaque lance levée : une force de plus à l'assaut, toujours. Mais ses remparts, distraits par la bataille, en gardent une de moins en défense. <em class="loreGodLockedNote">— faveur pas encore obtenue.</em></p>
+        <p id="loreGodBelloneP"></p>
       </div>
       <div id="loreGodCeres" class="loreGodEntry">
-        <p><strong>Cérès</strong>, déesse des moissons, sourit à qui a laissé chaque maison rivale vivre jusqu'au bout, pour ensuite toutes les faucher d'un seul geste, en une charge continue qui ne laisse pas même un arpent aux Celtes. Ses greniers ne se vident plus jamais tout à fait : un renfort de plus arrive à chaque fin de tour. Mais l'abondance amollit : plus jamais une seule province ne dépassera onze soldats. <em class="loreGodLockedNote">— faveur pas encore obtenue.</em></p>
+        <p id="loreGodCeresP"></p>
       </div>
       <div id="loreGodNeptune" class="loreGodEntry">
-        <p><strong>Neptune</strong>, dieu de la mer, répond à qui a scellé un siège entier par une dernière charge venue des flots. L'onde s'écarte un peu plus vite depuis : chaque traversée coûte une force de moins. Mais ses côtes restent tournées vers le large, une force de moins pour qui l'attaque depuis la mer. <em class="loreGodLockedNote">— faveur pas encore obtenue.</em></p>
+        <p id="loreGodNeptuneP"></p>
       </div>
       <!-- #loreWarTools (chevalier/blason/pieuvre/bateau/épées row) removed —
            "les images au-dessus du titre salle des trophées sont déplacées
@@ -1295,47 +1307,47 @@
       <!-- "Un compteur de complétion visible — genre '14/18 débloqués'" —
            a plain completion count, set by refreshTrophyRoom() alongside
            the grid itself. -->
-      <div class="fieldLabel" id="trophyRoomLabel">🏆 Salle des trophées <span id="trophyRoomCount"></span></div>
+      <div class="fieldLabel" id="trophyRoomLabel"><span id="trophyRoomLabelText"></span> <span id="trophyRoomCount"></span></div>
       <div id="trophyRoom"></div>
-      <button id="closeLore">Fermer</button>
+      <button id="closeLore"></button>
     </div>
   </div>
   <div id="conseilsOverlay">
     <div class="box" id="conseilsBox">
       <button id="backConseilsToSettings" aria-label="Retour aux réglages">‹</button>
-      <h2>🎓 Conseils</h2>
-      <p class="conseilsIntro">Ce que le jeu ne vous dit jamais franchement — les règles qui décident vraiment de chaque bataille.</p>
+      <h2 id="conseilsTitleH2"></h2>
+      <p class="conseilsIntro" id="conseilsIntro1P"></p>
       <div id="conseilsHierarchy">
-        <div class="hLevel hVillage"><span class="hName">Village</span><span class="hDesc">une case hexagonale — le chiffre affiché est celui de sa capitale, le château local</span></div>
-        <div class="hLevel hProvince"><span class="hName">Province</span><span class="hDesc">un groupe de villages voisins de même couleur, contour marqué</span></div>
-        <div class="hLevel hRoyaume"><span class="hName">Royaume</span><span class="hDesc">toutes les provinces d'une même couleur — l'ensemble des territoires d'un même seigneur</span></div>
-        <div class="hLevel hPays"><span class="hName">Pays</span><span class="hDesc">l'enceinte de toute la carte, quel que soit le nombre de royaumes qui s'y trouvent</span></div>
+        <div class="hLevel hVillage"><span class="hName" id="hVillageName"></span><span class="hDesc" id="hVillageDesc"></span></div>
+        <div class="hLevel hProvince"><span class="hName" id="hProvinceName"></span><span class="hDesc" id="hProvinceDesc"></span></div>
+        <div class="hLevel hRoyaume"><span class="hName" id="hRoyaumeName"></span><span class="hDesc" id="hRoyaumeDesc"></span></div>
+        <div class="hLevel hPays"><span class="hName" id="hPaysName"></span><span class="hDesc" id="hPaysDesc"></span></div>
       </div>
-      <p class="conseilsIntro">Le but du jeu, c'est l'équilibre que <em>vous</em> souhaitez — partager le pays entre plusieurs royaumes, ou bien le dominer entièrement, selon l'envie du moment. Dans ce dernier cas : chaque village doit appartenir au même royaume. Un village, des villages, pour un seul royaume. Un pays, un royaume, un seigneur.</p>
+      <p class="conseilsIntro" id="conseilsIntro2P"></p>
       <!-- color/name reference, right where "Royaume" was just explained
            above — moved here from the settings panel per request: a quick
            glance mid-match belongs with the rest of the rules reference,
            not the persistent-preferences panel. -->
       <div class="fieldGroup">
-        <div class="fieldLabel">Les royaumes</div>
+        <div class="fieldLabel" id="royaumesListLabel"></div>
         <div id="royaumesList"></div>
       </div>
       <div id="conseilsMechanics">
-        <p><strong>Le combat</strong> : la plus grande force gagne toujours, sauf tout près de l'égalité — à force égale, l'attaquant a une chance sur 3 de l'emporter quand même ; à un seul de moins que le défenseur, une chance sur 5. Sinon aucun hasard : c'est toujours la plus grande force qui gagne.</p>
-        <p><strong>Le renfort de fin de tour</strong> dépend de votre part du territoire : au-dessus de la moyenne des royaumes encore debout, vous gagnez plus de renfort ; en dessous, moins (jamais zéro). Un très grand royaume gagne encore plus, en plus de sa part relative.</p>
-        <p><strong>Le pouvoir des 12</strong> : quand toutes vos provinces sont au plafond en même temps, un contour doré se met à vibrer autour de tout votre royaume. Tant qu'il vibre, vous gagnez à coup sûr chaque attaque terrestre que vous lancez (autant que vous avez de provinces) — l'épée qui frappe devient la grande épée diagonale pour vous le rappeler. Il ne s'applique pas à la mer, qui a son propre bonus (voir la pieuvre/Cthulhu). Activez-le trois fois dans la même partie, puis trois parties différentes : vous débloquez une bénédiction permanente qui vous fait toujours gagner un combat terrestre à 12 contre 12.</p>
-        <p><strong>Les gueux</strong> sont une réserve d'une partie à l'autre : vous en gagnez un à chaque victoire, et pouvez en dépenser un en touchant le badge puis une de vos provinces, pour lui donner +1 de force sur-le-champ, avant même la bataille suivante. Attention : une défaite (conquête ou abandon) vide entièrement la réserve.</p>
+        <p id="conseilsCombatP"></p>
+        <p id="conseilsReinforceP"></p>
+        <p id="conseilsPower12P"></p>
+        <p id="conseilsGueuxP"></p>
       </div>
-      <button id="closeConseils">Fermer</button>
+      <button id="closeConseils"></button>
     </div>
   </div>
   <div id="changelogOverlay">
     <div class="box">
       <button id="closeChangelog" aria-label="Fermer">✕</button>
-      <h2>📜 Notes de version</h2>
-      <p id="changelogThanks">Un ÉNORME MERCI à nos testeuses,<br><strong>Magaly</strong> et <strong>Joëlle</strong> !</p>
+      <h2 id="changelogTitleH2"></h2>
+      <p id="changelogThanks"></p>
       <div id="changelogList"></div>
-      <button id="scrollTopChangelog">⬆ Remonter en haut</button>
+      <button id="scrollTopChangelog"></button>
     </div>
   </div>
   <div id="settingsPanel">
@@ -1361,12 +1373,12 @@
            :first-of-type rule below that drops its own top border/padding
            now that it's first). -->
       <div class="fieldGroup">
-        <div class="fieldLabel">Difficulté</div>
+        <div class="fieldLabel" id="difficultyFieldLabel"></div>
         <div id="difficultyLevels" class="levelRow">
-          <button data-level="0" class="levelBtn"><span class="diffIcons"><img alt=""></span>Gueux</button>
-          <button data-level="1" class="levelBtn"><span class="diffIcons"><img alt=""></span>Page</button>
-          <button data-level="2" class="levelBtn"><span class="diffIcons"><img alt=""></span>Écuyer</button>
-          <button data-level="3" class="levelBtn"><span class="diffIcons"><img alt=""></span>Templier</button>
+          <button data-level="0" class="levelBtn"><span class="diffIcons"><img alt=""></span><span class="levelBtnText"></span></button>
+          <button data-level="1" class="levelBtn"><span class="diffIcons"><img alt=""></span><span class="levelBtnText"></span></button>
+          <button data-level="2" class="levelBtn"><span class="diffIcons"><img alt=""></span><span class="levelBtnText"></span></button>
+          <button data-level="3" class="levelBtn"><span class="diffIcons"><img alt=""></span><span class="levelBtnText"></span></button>
           <!-- Hidden 5th tier — only shown once unlocked (4 full ocean
                rituals in one match at Seigneur, after the "parchemin
                crypté" hint has appeared — see recordCthulhuUnlock() and
@@ -1375,16 +1387,16 @@
                array (see CTHULHU_LEVEL's own note) — its own dedicated
                click handler below sets DIFFICULTY straight to
                CTHULHU_LEVEL.value instead. -->
-          <button id="cthulhuLevelBtn" class="levelBtn" style="display:none;"><span class="diffIcons"><img alt=""></span>Cthulhu</button>
+          <button id="cthulhuLevelBtn" class="levelBtn" style="display:none;"><span class="diffIcons"><img alt=""></span><span class="levelBtnText"></span></button>
         </div>
       </div>
       <div class="fieldGroup">
-        <div class="fieldLabel">Taille de la carte</div>
+        <div class="fieldLabel" id="mapSizeFieldLabel"></div>
         <div id="mapSizeLevels" class="levelRow">
-          <button data-mapsize="small" class="levelBtn">Basse-cour</button>
-          <button data-mapsize="medium" class="levelBtn">Quintaine</button>
-          <button data-mapsize="large" class="levelBtn">Raid</button>
-          <button data-mapsize="huge" class="levelBtn">Croisade</button>
+          <button data-mapsize="small" class="levelBtn"></button>
+          <button data-mapsize="medium" class="levelBtn"></button>
+          <button data-mapsize="large" class="levelBtn"></button>
+          <button data-mapsize="huge" class="levelBtn"></button>
         </div>
       </div>
       <!-- independent of map size — any combination is possible (a small
@@ -1392,7 +1404,7 @@
            territory count scales to fit whichever is picked (see
            applyMapSize()). -->
       <div class="fieldGroup">
-        <div class="fieldLabel">Nombre d'adversaires</div>
+        <div class="fieldLabel" id="opponentCountFieldLabel"></div>
         <div id="opponentCountLevels" class="levelRow">
           <button data-opponents="1" class="levelBtn">1</button>
           <button data-opponents="2" class="levelBtn">2</button>
@@ -1403,7 +1415,7 @@
            devient bruitage" — a real slider now, 0 doubling as "off" so
            soundEnabled (checked all over playTone()'s call sites) stays
            the same simple boolean everything else already relies on. -->
-      <label class="fieldLabel" style="margin-bottom:2px;">Bruitages</label>
+      <label class="fieldLabel" id="soundFieldLabel" style="margin-bottom:2px;"></label>
       <input type="range" id="soundVolumeSlider" min="0" max="100" step="5" style="width:100%;">
       <div style="height:8px;"></div>
       <!-- "Jen'étends plus les bruitages. Ajoute slider volume pour musique
@@ -1414,31 +1426,22 @@
            same 0 = off convention as soundVolumeSlider. Default lowered to
            50 (was the equivalent of a fixed 100) so the out-of-the-box
            balance doesn't drown the SFX in the first place. -->
-      <label class="fieldLabel" style="margin-bottom:2px;">Musique</label>
+      <label class="fieldLabel" id="musicFieldLabel" style="margin-bottom:2px;"></label>
       <input type="range" id="musicVolumeSlider" min="0" max="100" step="5" style="width:100%;">
-      <!-- English support kicked off small on purpose ("fais l'anglais en
-           premier maintenant juste pour les boutons de jeu utiles au
-           minimum") — just the core in-game action buttons (Fin de
-           bataille, Changer la carte, écran de fin, etc.), not the lore or
-           flavor text yet. A plain toggle, not a full language picker with
-           auto-detect — that's the bigger version still on the backlog.
-           "Chinois fais" added 中文 alongside, same minimal scope: only the
-           ~10 core play/prepare buttons. Was a single cycling button
-           (fr -> en -> zh -> fr); "le cadre doit être flex largeur page et
-           on doit pouvoir cliquer direct sans carousel" replaced it with 3
-           real independently-clickable buttons, same .levelRow/.levelBtn
-           row every other picker here already uses. "Met juste les
-           drapeaux enlève fr en etc" — flag emoji only, no text label. -->
-      <div id="langLevels" class="levelRow" style="margin-top:10px;">
-        <button data-lang="fr" class="levelBtn">🇫🇷</button>
-        <button data-lang="en" class="levelBtn">🇬🇧</button>
-        <button data-lang="zh" class="levelBtn">🇨🇳</button>
-      </div>
+      <!-- "Termine la traduction... ajoute le sélecteur de langue dans les
+           réglages avec drapeau + nom de la langue, l'auto-détection de la
+           langue du joueur à la première ouverture" — was flag-only,
+           fr/en/zh; now 5 languages, flag AND name (LANGUAGES, built here
+           instead of hardcoded per language so a 6th language later is one
+           array entry, not a repeat of this whole block). Same
+           .levelRow/.levelBtn row every other picker here already uses,
+           just wraps to 2 lines now with 5 wider (flag+text) entries. -->
+      <div id="langLevels" class="levelRow" style="margin-top:10px; flex-wrap:wrap;"></div>
       <!-- "un mode accessible en option dans le menu ou les couleurs sont
            remplacés par hachure horizontales, verticale, diagonale droite et
            gauche" — four playable royaumes (ROYAUMES 0-3), four hatch
            patterns, one each; see buildHatchPatterns()/render()'s own note. -->
-      <label style="display:block; margin-top:10px;"><input type="checkbox" id="colorblindToggle"> Mode daltonien (hachures)</label>
+      <label style="display:block; margin-top:10px;"><input type="checkbox" id="colorblindToggle"> <span id="colorblindLabelText"></span></label>
 
       <!-- Tier 2 used to be here: an "Affichage" section holding only the
            royaume-sort-order control (Villages/Soldats/Ordre de jeu). Removed
@@ -1451,10 +1454,10 @@
            Same row (reusing .winButtons' flex row) since both are the same
            kind of thing and the panel doesn't need two separate full rows
            for two short button labels. -->
-      <div class="settingsSectionLabel">Aide</div>
+      <div class="settingsSectionLabel" id="helpSectionLabelDiv"></div>
       <div class="winButtons">
-        <button id="conseilsBtn">🎓 Conseils</button>
-        <button id="loreBtn">📜 Le lore</button>
+        <button id="conseilsBtn"></button>
+        <button id="loreBtn"></button>
       </div>
 
       <!-- a short, portable code for the exact map in play — not a full
@@ -1467,7 +1470,7 @@
         <!-- tap the code itself to copy it (no separate copy button) — a
            small clipboard icon inside the field hints that it's tappable,
            and the field briefly shows "Copié !" as confirmation -->
-        <div class="fieldLabel">Code de cette carte — touchez pour copier</div>
+        <div class="fieldLabel" id="mapCodeFieldLabel"></div>
         <div id="mapCodeRow">
           <input id="mapCodeDisplay" type="text" readonly>
           <span class="mapCodeIcon">📋</span>
@@ -1475,25 +1478,25 @@
         <!-- tap the input to try pasting the clipboard automatically; if
            there's nothing to paste (or no permission), it just focuses for
            manual typing like any other text field -->
-        <div class="fieldLabel" style="margin-top:10px;">Charger une carte par son code — touchez pour coller</div>
+        <div class="fieldLabel" id="mapCodeLoadFieldLabel" style="margin-top:10px;"></div>
         <div id="mapCodeLoadRow">
-          <input id="mapCodeInput" type="text" placeholder="ex. kf12oim1">
+          <input id="mapCodeInput" type="text">
           <span class="mapCodeIcon">📥</span>
         </div>
-        <button id="loadMapCode">Charger</button>
+        <button id="loadMapCode"></button>
       </div>
 
       <!-- "En dessous soutenez le jeu, un petit trait de séparation et
            dessous les liens" — soutien d'abord, puis les deux autres
            prototypes en dessous d'un second trait, plus discret ("petit"). -->
       <div id="supportLinkWrap">
-        <a id="supportLink" href="https://ko-fi.com/knightwars" target="_blank" rel="noopener">❤️ Soutenir le jeu 😊</a>
+        <a id="supportLink" href="https://ko-fi.com/knightwars" target="_blank" rel="noopener"></a>
       </div>
       <!-- "juste avant les jeux, un petit titre du style 'plus de jeux'" —
            même classe .fieldLabel que toutes les autres petites étiquettes
            de section du panneau (Difficulté, Taille de la carte...), pas un
            style ad hoc. -->
-      <div class="fieldLabel" id="gameLinksLabel">Plus de jeux</div>
+      <div class="fieldLabel" id="gameLinksLabel"></div>
       <div id="gameLinksWrap">
         <a class="gameLink" href="https://pierremillon.github.io/Bastion-Orbit/">🏰 Bastion Orbit</a>
         <a class="gameLink" href="https://pierremillon.github.io/Forge-Line/">🔥 Forge Line</a>
@@ -1519,7 +1522,7 @@
 // before (CREATURE_IMG's own loadSprite() call, the changelog, etc.), not
 // redeclared.
 const CREATURE_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAANAAAADQCAYAAAB2pO90AAAC2klEQVR4nO3dQWoDMRAAwd3g/39ZOeQHahgroupuvF7TzGWQ3rXWw4z3fUde9lrrnfiend8z9WxTfr79APCfCQgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAg+336AE5y85LnzbJY855hAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEFx3MqlTOe/7PSf/pyYQBAKCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAiCd62RG9559pYimbOzgGoCQSAgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAguO5kUvbsLFJOLcdOPdvOZ0wgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAElkkZNbUYOvU9JhAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJAQBAICILrlkldJb9namHzZK65h2ECgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgrFl0pOvRD/Zbe/ttqVVEwgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAgEBMF1J5My57bF0B0mEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgq1lUlfJW6TkjwkEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJg7GTSnUXKqaXVqcXQk6+styC8xwSCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUHwccLmHO/tvhNdTSAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEASfkxf1OJsTUE0gSAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEY9fcw/OcfcroDhMIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgl9clHexCa709wAAAABJRU5ErkJggg==";
-const GAME_VERSION = "2.39";
+const GAME_VERSION = "2.40";
 document.getElementById("loadingKnight").src = CREATURE_IMG_SRC;
 document.getElementById("loadingVersion").textContent = `v${GAME_VERSION}`;
 
@@ -1797,25 +1800,57 @@ const ROYAUMES = [
 // royaume list and the "Le lore" overlay — same data driving both the AI's
 // actual decisions and what the player is told to expect from it, so the
 // two can't drift apart the way separately-written flavor text would.
+// epithet/lore now {fr,en,zh,es,de} — see "termine la traduction... traduis
+// cette fois le lore" — rendered via tLang() at every call site
+// (lorePersonalities/royaumesList builders below), same as everything else
+// this localization pass touches.
 const AI_PERSONALITIES = [
-  { epithet: "les Prudents",  aggressionDelta: +0.6, mistakeDelta: -0.03, exposureWeight: 1.0, finishOffBonus: 2.0,
-    lore: "n'attaquent qu'à coup sûr et ne dégarnissent jamais un flanc — face à eux, une avance de justesse ne suffit pas." }, // Châteauvieux — cautious, rarely overextends
+  { epithet: { fr: "les Prudents", en: "the Cautious", zh: "谨慎者", es: "los Prudentes", de: "die Vorsichtigen" },
+    aggressionDelta: +0.6, mistakeDelta: -0.03, exposureWeight: 1.0, finishOffBonus: 2.0,
+    lore: {
+      fr: "n'attaquent qu'à coup sûr et ne dégarnissent jamais un flanc — face à eux, une avance de justesse ne suffit pas.",
+      en: "attack only when certain and never leave a flank exposed — against them, a narrow edge isn't enough.",
+      zh: "只在必胜时出击，绝不使侧翼空虚——面对他们，些微的优势并不够。",
+      es: "solo atacan sobre seguro y nunca dejan un flanco desguarnecido — frente a ellos, una ventaja ajustada no basta.",
+      de: "greifen nur an, wenn sie sich sicher sind, und lassen nie eine Flanke offen — gegen sie reicht ein knapper Vorsprung nicht.",
+    } }, // Châteauvieux — cautious, rarely overextends
   // Villiers ("les Enragés") reported as not reading as meaningfully more
   // aggressive than the others in actual play — aggressionDelta pushed much
   // further down (attacks the instant it has ANY edge, even a slight one,
   // regardless of difficulty) and mistakeDelta flipped from slightly worse
   // to sharply better (almost never lets a spotted opening go to waste) —
   // "sans pitié" was the point of this personality, not just "reckless".
-  { epithet: "les Enragés",   aggressionDelta: -2.0, mistakeDelta: -0.4,  exposureWeight: 0.2, finishOffBonus: 2.5,
-    lore: "chargent à la moindre ouverture, sans une once d'hésitation ni de pitié — dès qu'une victoire s'offre à eux, ils la prennent, quitte à s'exposer ensuite." }, // Villiers — merciless, attacks the instant it can win
+  { epithet: { fr: "les Enragés", en: "the Merciless", zh: "狂怒者", es: "los Despiadados", de: "die Erbarmungslosen" },
+    aggressionDelta: -2.0, mistakeDelta: -0.4, exposureWeight: 0.2, finishOffBonus: 2.5,
+    lore: {
+      fr: "chargent à la moindre ouverture, sans une once d'hésitation ni de pitié — dès qu'une victoire s'offre à eux, ils la prennent, quitte à s'exposer ensuite.",
+      en: "charge at the slightest opening, without an ounce of hesitation or mercy — the instant a victory is on offer, they take it, even if it exposes them afterward.",
+      zh: "只要出现一丝破绽便立刻冲锋，毫不犹豫、毫不留情——只要有胜利可取，他们便会立刻夺取，哪怕事后因此暴露破绽。",
+      es: "cargan ante la más mínima abertura, sin una pizca de vacilación ni piedad — en cuanto se les presenta una victoria, la toman, aunque eso los exponga después.",
+      de: "stürmen bei der kleinsten Lücke los, ohne eine Spur von Zögern oder Gnade — sobald sich ihnen ein Sieg bietet, ergreifen sie ihn, selbst wenn sie sich danach exponieren.",
+    } }, // Villiers — merciless, attacks the instant it can win
   // Montherlant also pushed more aggressive (per "un ou deux joueurs") so
   // the personalities split more starkly into two clearly aggressive and
   // two clearly cautious royaumes, instead of one outlier among three
   // similar ones.
-  { epithet: "les Marchands", aggressionDelta: -0.8, mistakeDelta: -0.1, exposureWeight: 0.8, finishOffBonus: 3.5,
-    lore: "comptent leurs coups et achèvent sans pitié quiconque est déjà à terre — un royaume affaibli attire leurs armées comme le sang attire les loups." }, // Montherlant — opportunistic, hunts weak royaumes down
-  { epithet: "les Stratèges", aggressionDelta: +0.2, mistakeDelta: -0.05, exposureWeight: 1.6, finishOffBonus: 2.0,
-    lore: "jouent la longue partie, ne laissent jamais un flanc découvert et ne se pressent jamais — patients, mais rarement pris en défaut." }, // Beaumanoir — calculating, plays the long game
+  { epithet: { fr: "les Marchands", en: "the Merchants", zh: "商人", es: "los Mercaderes", de: "die Händler" },
+    aggressionDelta: -0.8, mistakeDelta: -0.1, exposureWeight: 0.8, finishOffBonus: 3.5,
+    lore: {
+      fr: "comptent leurs coups et achèvent sans pitié quiconque est déjà à terre — un royaume affaibli attire leurs armées comme le sang attire les loups.",
+      en: "count their moves and finish off without mercy whoever is already down — a weakened kingdom draws their armies the way blood draws wolves.",
+      zh: "精打细算，对已经倒下的对手绝不留情——一个衰弱的王国吸引他们的军队，正如血腥吸引群狼。",
+      es: "cuentan sus golpes y rematan sin piedad a quien ya está por los suelos — un reino debilitado atrae a sus ejércitos como la sangre atrae a los lobos.",
+      de: "zählen ihre Schläge und machen gnadenlos jedem den Garaus, der bereits am Boden liegt — ein geschwächtes Königreich zieht ihre Heere an wie Blut die Wölfe.",
+    } }, // Montherlant — opportunistic, hunts weak royaumes down
+  { epithet: { fr: "les Stratèges", en: "the Strategists", zh: "谋略家", es: "los Estrategas", de: "die Strategen" },
+    aggressionDelta: +0.2, mistakeDelta: -0.05, exposureWeight: 1.6, finishOffBonus: 2.0,
+    lore: {
+      fr: "jouent la longue partie, ne laissent jamais un flanc découvert et ne se pressent jamais — patients, mais rarement pris en défaut.",
+      en: "play the long game, never leave a flank uncovered, and are never in a hurry — patient, but rarely caught off guard.",
+      zh: "着眼长远，绝不使侧翼失守，也从不急躁——耐心十足，却极少露出破绽。",
+      es: "juegan a largo plazo, nunca dejan un flanco descubierto y jamás se apresuran — pacientes, pero raramente sorprendidos en falta.",
+      de: "spielen auf lange Sicht, lassen nie eine Flanke ungedeckt und haben es nie eilig — geduldig, aber selten auf dem falschen Fuß erwischt.",
+    } }, // Beaumanoir — calculating, plays the long game
 ];
 
 // Difficulty: still a continuous value under the hood (driving AI traits
@@ -1931,12 +1966,16 @@ function escalated(baseValue, hardValue) {
 // freeing "Chevalier" for whichever tier ends up depicting an on-foot
 // knight later (no such sprite exists separately yet — Écuyer's own icon
 // is a squire, not a knight — left as-is for now, per "on ajustera").
+// `.name` stays these fixed French internal labels for good — displayed
+// text goes through DIFFICULTY_DISPLAY_KEYS/UI_STRINGS instead (showForceAdaptToast(),
+// refreshTrophyRoom(), the settings buttons), same split as GOD_NAMES/GOD_DISPLAY_KEYS.
 const DIFFICULTY_LEVELS = [
   { name: "Gueux",     value: 0 },
   { name: "Page",      value: 0.35 },
   { name: "Écuyer",    value: 0.91 }, // was 0.7 (×1.3)
   { name: "Templier", value: 1.3 },  // renommé (était "Chevalier") — was 1 (×1.3)
 ];
+const DIFFICULTY_DISPLAY_KEYS = ["diffGueux", "diffPage", "diffEcuyer", "diffTemplier"];
 let difficultyLevel = 0; // Gueux (le plus facile) par défaut sur une installation neuve/cache vidé
 try {
   const saved = localStorage.getItem("kw_difficultyLevel");
@@ -3623,7 +3662,7 @@ function updateEnemySurrenderOffer() {
   const due = mercyOfferShownAtRound === null || roundNumber - mercyOfferShownAtRound >= ENEMY_SURRENDER_REOFFER_ROUNDS;
   if (due) {
     mercyOfferShownAtRound = roundNumber;
-    btn.textContent = `🏳️ ${ROYAUMES[rivalId].name} demande votre clémence`;
+    btn.textContent = tf("mercyOffer", { name: ROYAUMES[rivalId].name });
     btn.style.display = "";
   } else {
     btn.style.display = "none";
@@ -4351,6 +4390,11 @@ function isPremiumUnlocked() {
 //     faut pouvoir combiner les bonus... l'intérêt c'est un jeu hyper
 //     complexe à la fin", jamais qu'un bonus en efface un autre.
 const GOD_NAMES = ["Vulcain", "Bellone", "Cérès", "Neptune"];
+// UI_STRINGS keys for each god's TRANSLATED display name — GOD_NAMES itself
+// stays these fixed French strings for good (used as object keys elsewhere:
+// GOD_UNLOCK_LINES, localStorage suffixes indirectly via index g), only
+// what's actually shown to the player (trophy alt/title) goes through this.
+const GOD_DISPLAY_KEYS = ["godVulcain", "godBellone", "godCeres", "godNeptune"];
 // Same 4 sprites Le Lore's trophy room already uses — shared here so
 // updateGroups() can show which gods are CURRENTLY ACTIVE for each royaume
 // right in the HUD (see its own note): "il faut que moi en tant que joueur
@@ -4488,52 +4532,549 @@ function recordDifficultyTierWin(royId) {
 
 // English support kicked off small on purpose — "fais l'anglais en premier
 // maintenant juste pour les boutons de jeu utiles au minimum": just the
-// core in-game action buttons, not the lore/flavor text or a real
-// language-picker-with-flag-and-auto-detect yet (that's the bigger version
-// still on the backlog). A plain FR/EN toggle in Réglages for now.
-// "Chinois fais" ("Chinois sur les boutons clés... traduire au maximum 10
-// boutons essentiels") added a 3rd stop (fr → en → zh → fr) on the same
-// switch — deliberately only the ~10 core play/prepare buttons below carry
-// a `zh` field, not the whole UI_STRINGS table; t() falls back to `fr` for
-// every key that has none, same as it always has for a missing `en`.
+// core in-game action buttons at first, not the lore/flavor text. "Chinois
+// fais" added a 3rd stop (fr → en → zh → fr) on the same cycling switch,
+// still just the core buttons. "Termine la traduction dans toutes les
+// langues déjà évoquées — chinois, espagnol, allemand... traduis cette fois
+// le lore et les textes de combat en plus des boutons d'action" is what
+// this whole block now is: full coverage (lore overlay, Conseils, AI
+// personalities, difficulty/map names, combat log, onboarding, toasts,
+// win/loss/truce/share/premium text) across 5 languages, a real
+// flag+name selector (see #langLevels), and browser-language auto-detect
+// on first launch (see LANG_AUTODETECT_MAP below). Deliberate scope
+// boundary: ROYAUMES[].name (Millon de Châteauvieux, etc.) stays untranslated
+// in every language, same as most games never translate proper nouns/place
+// names — only what's said ABOUT them (epithets, lore, log lines) is
+// localized. The dev-facing CHANGELOG history is also left French-only —
+// it's a commit log, not player-facing lore/rules content.
+const LANGUAGES = [
+  { code: "fr", flag: "🇫🇷", name: "Français" },
+  { code: "en", flag: "🇬🇧", name: "English" },
+  { code: "zh", flag: "🇨🇳", name: "中文" },
+  { code: "es", flag: "🇪🇸", name: "Español" },
+  { code: "de", flag: "🇩🇪", name: "Deutsch" },
+];
+const LANGUAGE_CODES = LANGUAGES.map((l) => l.code);
+// Browser-language auto-detection, first launch only — never overrides an
+// explicit choice already saved (see below). navigator.language is often a
+// full locale ("en-US", "zh-CN", "pt-BR") — only the 2-letter prefix is
+// matched against what this game actually supports; anything else (a
+// Portuguese, Italian, Japanese... browser) falls back to French, the
+// game's own native/default language, rather than guessing a "closest"
+// unsupported language.
+function detectBrowserLang() {
+  try {
+    const raw = (navigator.language || (navigator.languages && navigator.languages[0]) || "fr").toLowerCase();
+    const prefix = raw.split("-")[0];
+    if (LANGUAGE_CODES.includes(prefix)) return prefix;
+  } catch (e) { /* ignore */ }
+  return "fr";
+}
 let uiLang = "fr";
 try {
   const savedLang = localStorage.getItem("kw_uiLang");
-  if (savedLang === "en" || savedLang === "fr" || savedLang === "zh") uiLang = savedLang;
+  if (savedLang && LANGUAGE_CODES.includes(savedLang)) uiLang = savedLang;
+  else if (savedLang === null) uiLang = detectBrowserLang(); // never touched before — first real launch
 } catch (e) { /* ignore */ }
+// Every {fr,en,zh,es,de} object below is looked up the same way — pulled
+// out once here so UI_STRINGS/AI_PERSONALITIES/the flavor-line pools can
+// all share it instead of repeating entry[uiLang] || entry.fr everywhere.
+function tLang(entry) { return entry[uiLang] || entry.fr; }
+// Picks the SAME index across every language for a pool of alternative
+// flavor lines (VICTORY_LINES, LOSS_OPENERS, etc.) — the seed-derived index
+// callers already compute doesn't change with uiLang, so a replay/shared
+// match shows the matching joke in whichever language the VIEWER (not the
+// original player) has selected, never a mismatched one from switching
+// languages mid-array.
+function pickLine(pool, index) { return tLang(pool[((index % pool.length) + pool.length) % pool.length]); }
+// Same as pickLine(), plus {placeholder} substitution (ROYAUMES names,
+// hobby, etc.) — the win/loss/truce flavor-line pools in showWin() all need
+// both at once.
+function pickLineF(pool, index, vars) {
+  return pickLine(pool, index).replace(/\{(\w+)\}/g, (_, k) => (vars && vars[k] !== undefined ? vars[k] : `{${k}}`));
+}
 const UI_STRINGS = {
-  settingsAria: { fr: "Réglages", en: "Settings" },
-  surrenderAria: { fr: "Abandonner", en: "Surrender" },
-  accelerateAria: { fr: "Accélérer les batailles", en: "Speed up battles" },
-  endturnMain: { fr: "À la soupe", en: "Chow time", zh: "开饭了" },
-  chooseCamp: { fr: "Choisissez un camp", en: "Choose a side", zh: "选择阵营" },
-  stalemateHint: { fr: "Statu quo dans", en: "Stalemate in" }, // + "{N} tour(s)" / "{N} turn(s)" appended separately, see updateEndTurnButton()
-  turn: { fr: "tour", en: "turn" },
-  turns: { fr: "tours", en: "turns" },
-  rerollChangeMap: { fr: "🔀 Changer la carte", en: "🔀 New map", zh: "🔀 更换地图" },
-  rerollStopReplayAria: { fr: "Arrêter le replay", en: "Stop replay" },
-  rerollChangeMapAria: { fr: "Changer la carte", en: "New map" },
+  settingsAria: { fr: "Réglages", en: "Settings", zh: "设置", es: "Ajustes", de: "Einstellungen" },
+  surrenderAria: { fr: "Abandonner", en: "Surrender", zh: "投降", es: "Rendirse", de: "Aufgeben" },
+  accelerateAria: { fr: "Accélérer les batailles", en: "Speed up battles", zh: "加速战斗", es: "Acelerar las batallas", de: "Kämpfe beschleunigen" },
+  versionAria: { fr: "Notes de version", en: "Release notes", zh: "版本说明", es: "Notas de versión", de: "Versionshinweise" },
+  backToSettingsAria: { fr: "Retour aux réglages", en: "Back to settings", zh: "返回设置", es: "Volver a ajustes", de: "Zurück zu den Einstellungen" },
+  closeAria: { fr: "Fermer", en: "Close", zh: "关闭", es: "Cerrar", de: "Schließen" },
+  closeBtn: { fr: "Fermer", en: "Close", zh: "关闭", es: "Cerrar", de: "Schließen" },
+  replayPlayAria: { fr: "Lire", en: "Play", zh: "播放", es: "Reproducir", de: "Abspielen" },
+  replayPauseAria: { fr: "Pause", en: "Pause", zh: "暂停", es: "Pausar", de: "Pause" },
+  endturnMain: { fr: "À la soupe", en: "Chow time", zh: "开饭了", es: "¡A comer!", de: "Zum Essen antreten!" },
+  chooseCamp: { fr: "Choisissez un camp", en: "Choose a side", zh: "选择阵营", es: "Elige un bando", de: "Wählt eine Seite" },
+  // + "{N} tour(s)" / "{N} turn(s)" appended separately, see updateEndTurnButton() —
+  // turn/turns must stay grammatically correct standing right after a bare
+  // number in that exact word order for every language below.
+  stalemateHint: { fr: "Statu quo dans", en: "Stalemate in", zh: "距离僵局还剩", es: "Empate en", de: "Patt in" },
+  turn: { fr: "tour", en: "turn", zh: "回合", es: "turno", de: "Zug" },
+  turns: { fr: "tours", en: "turns", zh: "回合", es: "turnos", de: "Zügen" },
+  rerollChangeMap: { fr: "🔀 Changer la carte", en: "🔀 New map", zh: "🔀 更换地图", es: "🔀 Cambiar mapa", de: "🔀 Karte wechseln" },
+  rerollStopReplayAria: { fr: "Arrêter le replay", en: "Stop replay", zh: "停止回放", es: "Detener la repetición", de: "Wiederholung stoppen" },
+  rerollChangeMapAria: { fr: "Changer la carte", en: "New map", zh: "更换地图", es: "Cambiar mapa", de: "Karte wechseln" },
   // Just the arrow now, no label text — "ça doit être une simple flèche
   // vers la gauche" — aria-label carries the meaning for screen readers instead.
-  prevMap: { fr: "◀", en: "◀" },
-  prevMapAria: { fr: "Carte précédente", en: "Previous map" },
-  replayResumeHere: { fr: "Jouer depuis là", en: "Play from here" },
-  restart: { fr: "⬅️ Rejouer la même carte", en: "⬅️ Replay same map", zh: "⬅️ 重玩同张地图" },
-  watchReplay: { fr: "🎬 Revoir la partie", en: "🎬 Watch replay", zh: "🎬 观看回放" },
-  shareVictory: { fr: "📤 Partager ma victoire", en: "📤 Share my victory" },
-  shareTruce: { fr: "📜 Partager ce match nul", en: "📜 Share this draw" },
-  randomGame: { fr: "🔀 Nouvelle partie aléatoire", en: "🔀 New random game", zh: "🔀 新的随机对局" },
-  saveChart: { fr: "💾 Enregistrer le graphique", en: "💾 Save the chart" },
-  reviewBack: { fr: "🔙 Retour", en: "🔙 Back" },
-  acceptTruce: { fr: "J'accepte la trêve", en: "I accept the truce", zh: "我接受停战" },
-  cancelSurrender: { fr: "Annuler", en: "Cancel" },
-  proposePeace: { fr: "🕊️ Proposer la paix", en: "🕊️ Propose peace", zh: "🕊️ 提议和平" },
-  confirmSurrender: { fr: "Abandonner", en: "Surrender", zh: "投降" },
-  continueSiege: { fr: "⚔ Continuer le combat", en: "⚔ Continue the fight", zh: "⚔ 继续战斗" },
+  prevMap: { fr: "◀", en: "◀", zh: "◀", es: "◀", de: "◀" },
+  prevMapAria: { fr: "Carte précédente", en: "Previous map", zh: "上一张地图", es: "Mapa anterior", de: "Vorherige Karte" },
+  replayResumeHere: { fr: "Jouer depuis là", en: "Play from here", zh: "从这里开始玩", es: "Jugar desde aquí", de: "Von hier aus spielen" },
+  restart: { fr: "⬅️ Rejouer la même carte", en: "⬅️ Replay same map", zh: "⬅️ 重玩同张地图", es: "⬅️ Repetir el mismo mapa", de: "⬅️ Gleiche Karte erneut spielen" },
+  watchReplay: { fr: "🎬 Revoir la partie", en: "🎬 Watch replay", zh: "🎬 观看回放", es: "🎬 Ver la repetición", de: "🎬 Wiederholung ansehen" },
+  shareVictory: { fr: "📤 Partager ma victoire", en: "📤 Share my victory", zh: "📤 分享我的胜利", es: "📤 Compartir mi victoria", de: "📤 Meinen Sieg teilen" },
+  shareTruce: { fr: "📜 Partager ce match nul", en: "📜 Share this draw", zh: "📜 分享这场平局", es: "📜 Compartir este empate", de: "📜 Dieses Unentschieden teilen" },
+  randomGame: { fr: "🔀 Nouvelle partie aléatoire", en: "🔀 New random game", zh: "🔀 新的随机对局", es: "🔀 Nueva partida aleatoria", de: "🔀 Neues Zufallsspiel" },
+  saveChart: { fr: "💾 Enregistrer le graphique", en: "💾 Save the chart", zh: "💾 保存图表", es: "💾 Guardar el gráfico", de: "💾 Diagramm speichern" },
+  reviewBack: { fr: "🔙 Retour", en: "🔙 Back", zh: "🔙 返回", es: "🔙 Volver", de: "🔙 Zurück" },
+  acceptTruce: { fr: "J'accepte la trêve", en: "I accept the truce", zh: "我接受停战", es: "Acepto la tregua", de: "Ich nehme den Waffenstillstand an" },
+  cancelSurrender: { fr: "Annuler", en: "Cancel", zh: "取消", es: "Cancelar", de: "Abbrechen" },
+  proposePeace: { fr: "🕊️ Proposer la paix", en: "🕊️ Propose peace", zh: "🕊️ 提议和平", es: "🕊️ Proponer la paz", de: "🕊️ Frieden vorschlagen" },
+  confirmSurrender: { fr: "Abandonner", en: "Surrender", zh: "投降", es: "Rendirse", de: "Aufgeben" },
+  continueSiege: { fr: "⚔ Continuer le combat", en: "⚔ Continue the fight", zh: "⚔ 继续战斗", es: "⚔ Continuar el combate", de: "⚔ Kampf fortsetzen" },
+  // Settings panel section labels/fields.
+  difficultyLabel: { fr: "Difficulté", en: "Difficulty", zh: "难度", es: "Dificultad", de: "Schwierigkeit" },
+  diffGueux: { fr: "Gueux", en: "Beggar", zh: "乞丐", es: "Mendigo", de: "Bettler" },
+  diffPage: { fr: "Page", en: "Page", zh: "侍从", es: "Paje", de: "Page" },
+  diffEcuyer: { fr: "Écuyer", en: "Squire", zh: "扈从", es: "Escudero", de: "Knappe" },
+  diffTemplier: { fr: "Templier", en: "Templar", zh: "圣殿骑士", es: "Templario", de: "Templer" },
+  diffCthulhu: { fr: "Cthulhu", en: "Cthulhu", zh: "克苏鲁", es: "Cthulhu", de: "Cthulhu" },
+  mapSizeLabel: { fr: "Taille de la carte", en: "Map size", zh: "地图大小", es: "Tamaño del mapa", de: "Kartengröße" },
+  mapSmall: { fr: "Basse-cour", en: "Backyard", zh: "后院", es: "Corral", de: "Hinterhof" },
+  mapMedium: { fr: "Quintaine", en: "Quintain", zh: "比武场", es: "Quintana", de: "Quintane" },
+  mapLarge: { fr: "Raid", en: "Raid", zh: "突袭", es: "Incursión", de: "Überfall" },
+  mapHuge: { fr: "Croisade", en: "Crusade", zh: "十字军东征", es: "Cruzada", de: "Kreuzzug" },
+  opponentCountLabel: { fr: "Nombre d'adversaires", en: "Number of opponents", zh: "对手数量", es: "Número de rivales", de: "Anzahl der Gegner" },
+  soundLabel: { fr: "Bruitages", en: "Sound effects", zh: "音效", es: "Efectos de sonido", de: "Soundeffekte" },
+  musicLabel: { fr: "Musique", en: "Music", zh: "音乐", es: "Música", de: "Musik" },
+  langLabel: { fr: "Langue", en: "Language", zh: "语言", es: "Idioma", de: "Sprache" },
+  colorblindLabel: { fr: "Mode daltonien (hachures)", en: "Colorblind mode (hatching)", zh: "色盲模式（纹理填充）", es: "Modo daltónico (tramas)", de: "Farbenblind-Modus (Schraffur)" },
+  helpSectionLabel: { fr: "Aide", en: "Help", zh: "帮助", es: "Ayuda", de: "Hilfe" },
+  conseilsBtnLabel: { fr: "🎓 Conseils", en: "🎓 Tips", zh: "🎓 提示", es: "🎓 Consejos", de: "🎓 Tipps" },
+  loreBtnLabel: { fr: "📜 Le lore", en: "📜 Lore", zh: "📜 背景故事", es: "📜 Trasfondo", de: "📜 Hintergrundgeschichte" },
+  mapCodeLabel: { fr: "Code de cette carte — touchez pour copier", en: "Code for this map — tap to copy", zh: "本地图代码——点击复制", es: "Código de este mapa — toca para copiar", de: "Code dieser Karte — zum Kopieren tippen" },
+  mapCodeCopied: { fr: "Copié !", en: "Copied!", zh: "已复制！", es: "¡Copiado!", de: "Kopiert!" },
+  mapCodeLoadLabel: { fr: "Charger une carte par son code — touchez pour coller", en: "Load a map by its code — tap to paste", zh: "通过代码加载地图——点击粘贴", es: "Cargar un mapa por su código — toca para pegar", de: "Karte per Code laden — zum Einfügen tippen" },
+  mapCodeInputPlaceholder: { fr: "ex. kf12oim1", en: "e.g. kf12oim1", zh: "例如 kf12oim1", es: "p. ej. kf12oim1", de: "z. B. kf12oim1" },
+  loadMapCodeBtn: { fr: "Charger", en: "Load", zh: "加载", es: "Cargar", de: "Laden" },
+  supportLinkLabel: { fr: "❤️ Soutenir le jeu 😊", en: "❤️ Support the game 😊", zh: "❤️ 支持游戏 😊", es: "❤️ Apoyar el juego 😊", de: "❤️ Das Spiel unterstützen 😊" },
+  gameLinksLabel: { fr: "Plus de jeux", en: "More games", zh: "更多游戏", es: "Más juegos", de: "Weitere Spiele" },
+  changelogTitle: { fr: "📜 Notes de version", en: "📜 Release notes", zh: "📜 版本说明", es: "📜 Notas de versión", de: "📜 Versionshinweise" },
+  changelogThanks: {
+    fr: "Un ÉNORME MERCI à nos testeuses,<br><strong>Magaly</strong> et <strong>Joëlle</strong> !",
+    en: "A HUGE THANK YOU to our testers,<br><strong>Magaly</strong> and <strong>Joëlle</strong>!",
+    zh: "特别感谢我们的测试员，<br><strong>Magaly</strong> 和 <strong>Joëlle</strong>！",
+    es: "Un ENORME GRACIAS a nuestras probadoras,<br><strong>Magaly</strong> y <strong>Joëlle</strong>!",
+    de: "Ein RIESIGES DANKESCHÖN an unsere Testerinnen,<br><strong>Magaly</strong> und <strong>Joëlle</strong>!",
+  },
+  changelogScrollTop: { fr: "⬆ Remonter en haut", en: "⬆ Back to top", zh: "⬆ 回到顶部", es: "⬆ Volver arriba", de: "⬆ Nach oben" },
+  // "Le lore" overlay.
+  loreChronique: {
+    fr: "<em>La Bretagne se divise en quatre maisons, toutes du même sang Millon que la haine a désuni. Chacune a son dieu propre, et chaque dieu son prix. Châteauvieux faillit tomber, se releva d'une seule province, et depuis Vulcain veille sur chacun de ses remparts. Villiers n'a jamais cédé un pouce de terre en un siège entier ; Bellone arme sa lance d'une force qu'aucune autre maison ne connaît. Montherlant laissa vivre chaque maison rivale jusqu'au bout, puis les faucha toutes d'une seule charge, sans laisser un arpent aux Celtes ; les greniers de Cérès depuis ne se vident plus jamais tout à fait. Beaumanoir seul acheva un siège par la mer ; Neptune, depuis, lui écarte les flots. On dit aussi qu'une maison dont les douze provinces atteignent ensemble leur plein effectif ne perd plus une seule bataille, le temps que cela dure — et qu'à la troisième fois, dans trois guerres séparées, un dieu plus ancien que les autres, romain celui-là, ne quitte plus jamais son camp. Sous la mer que Beaumanoir traverse sans perdre un homme, les pêcheurs jurent qu'autre chose regarde, plus vieux que Neptune, et que personne n'a encore osé nommer.</em>",
+    en: "<em>Brittany is split into four houses, all of the same Millon blood that hatred has torn apart. Each has its own god, and each god its price. Châteauvieux nearly fell, rose again from a single province, and ever since Vulcan watches over every one of its walls. Villiers never gave up an inch of land in an entire siege; Bellona arms its spear with a strength no other house knows. Montherlant let every rival house live to the very end, then cut them all down in a single charge, leaving not one acre to the Celts; Ceres' granaries have never quite emptied since. Beaumanoir alone ended a siege by sea; Neptune, ever since, parts the waves for it. They also say a house whose twelve provinces all reach full strength together loses no battle for as long as it lasts — and that on the third such occasion, across three separate wars, a god older than the rest, a Roman one this time, never again leaves its camp. Beneath the sea Beaumanoir crosses without losing a single man, the fishermen swear something else is watching, older than Neptune, that no one has yet dared to name.</em>",
+    zh: "<em>布列塔尼分裂为四个家族，皆流着同样的米隆血脉，却被仇恨撕裂。每个家族都有自己的神，每位神也都有自己的代价。旧堡几近覆灭，仅凭一省之地东山再起，自此瓦肯神便守护着它的每一道城墙。维利耶在整整一场围城中从未让出一寸土地；贝罗娜赋予它的长枪一种其他家族都不曾拥有的力量。蒙泰朗放任每个敌对家族存活到最后，再以一次冲锋将它们尽数斩杀，不给凯尔特人留下一寸土地；自此刻瑞斯的粮仓便再未真正空过。唯有博马诺曾以海路结束一场围城；自此涅普顿便为它分开波涛。据说一个家族若十二个省同时达到满编，便能在这段时间里战无不胜——若在三场不同的战争中三度做到，一位比其他神祇更古老的罗马神祇，便再也不会离开它的阵营。在博马诺得以毫发无损穿越的那片海底，渔夫们发誓还有别的东西在注视着，比涅普顿更古老，至今无人敢说出它的名字。</em>",
+    es: "<em>Bretaña se divide en cuatro casas, todas de la misma sangre Millon a la que el odio ha separado. Cada una tiene su propio dios, y cada dios su precio. Châteauvieux estuvo a punto de caer, se recuperó desde una sola provincia, y desde entonces Vulcano vela por cada una de sus murallas. Villiers nunca cedió ni un palmo de tierra en un asedio entero; Belona arma su lanza con una fuerza que ninguna otra casa conoce. Montherlant dejó vivir a cada casa rival hasta el final, para luego segarlas todas de una sola carga, sin dejar ni una parcela a los celtas; los graneros de Ceres, desde entonces, nunca vuelven a vaciarse del todo. Solo Beaumanoir puso fin a un asedio por mar; Neptuno, desde entonces, le aparta las olas. También se dice que una casa cuyas doce provincias alcanzan juntas su pleno efectivo no pierde una sola batalla mientras eso dure — y que a la tercera vez, en tres guerras distintas, un dios más antiguo que los demás, romano este, no abandona jamás su campamento. Bajo el mar que Beaumanoir cruza sin perder un solo hombre, los pescadores juran que algo más observa, más viejo que Neptuno, que nadie se ha atrevido aún a nombrar.</em>",
+    de: "<em>Die Bretagne ist in vier Häuser gespalten, alle vom selben Millon-Blut, das der Hass entzweit hat. Jedes hat seinen eigenen Gott, und jeder Gott seinen Preis. Châteauvieux wäre beinahe gefallen, erhob sich wieder aus einer einzigen Provinz, und seither wacht Vulkan über jede seiner Mauern. Villiers gab in einer ganzen Belagerung nie einen Fußbreit Land auf; Bellona bewaffnet seinen Speer mit einer Kraft, die kein anderes Haus kennt. Montherlant ließ jedes rivalisierende Haus bis zum Ende leben, um sie dann alle mit einem einzigen Sturmangriff niederzumähen, ohne den Kelten auch nur einen Morgen Land zu lassen; die Speicher der Ceres leeren sich seither nie mehr ganz. Beaumanoir allein beendete eine Belagerung über das Meer; Neptun teilt ihm seither die Wellen. Man sagt auch, ein Haus, dessen zwölf Provinzen gemeinsam ihre volle Stärke erreichen, verliere keine einzige Schlacht mehr, solange das anhält — und dass beim dritten Mal, in drei getrennten Kriegen, ein Gott, älter als die anderen, ein römischer diesmal, sein Lager nie wieder verlässt. Unter dem Meer, das Beaumanoir überquert, ohne einen einzigen Mann zu verlieren, schwören die Fischer, dass etwas anderes zusieht, älter als Neptun, das noch niemand zu nennen gewagt hat.</em>",
+  },
+  loreTitle: { fr: "Les Millon", en: "The Millons", zh: "米隆家族", es: "Los Millon", de: "Die Millons" },
+  loreIntro1: {
+    fr: "En cet an de grâce 1183, la Bretagne n'a plus de duc, et quatre châtelains se disputent son héritage — Châteauvieux, Villiers, Montherlant, Beaumanoir. Quatre noms de fief, mais un seul sang : tous portent le même blason, celui d'un aïeul commun, les Millon, dont le domaine fut fracturé entre ses héritiers il y a plus d'un siècle.",
+    en: "In this year of grace 1183, Brittany has no duke, and four castellans dispute its inheritance — Châteauvieux, Villiers, Montherlant, Beaumanoir. Four fief names, but a single blood: all bear the same coat of arms, that of a common ancestor, the Millons, whose domain was fractured between his heirs over a century ago.",
+    zh: "公元1183年，布列塔尼已无公爵，四位城主争夺其遗产——旧堡、维利耶、蒙泰朗、博马诺。四个领地之名，却是同一血脉：他们都佩戴着同一个纹章，那是共同祖先米隆家族的纹章，其领地在一个多世纪前被诸位继承人瓜分。",
+    es: "En este año de gracia de 1183, Bretaña ya no tiene duque, y cuatro castellanos se disputan su herencia — Châteauvieux, Villiers, Montherlant, Beaumanoir. Cuatro nombres de feudo, pero una sola sangre: todos llevan el mismo blasón, el de un antepasado común, los Millon, cuyo dominio fue fracturado entre sus herederos hace más de un siglo.",
+    de: "Im Jahr des Herrn 1183 hat die Bretagne keinen Herzog mehr, und vier Burgherren streiten um ihr Erbe — Châteauvieux, Villiers, Montherlant, Beaumanoir. Vier Lehensnamen, aber ein einziges Blut: Alle tragen dasselbe Wappen, das eines gemeinsamen Ahnen, der Millons, deren Herrschaftsgebiet vor über einem Jahrhundert unter seinen Erben zerbrach.",
+  },
+  loreIntro2: {
+    fr: "Chaque bataille livrée ici n'oppose pas des étrangers, mais des cousins — une querelle de famille qui ne connaît ni trêve ni pardon, jusqu'à ce qu'un seul Millon reste debout pour reformer sous une seule bannière la terre que leurs pères ont laissée en morceaux.",
+    en: "Every battle fought here pits not strangers against each other, but cousins — a family quarrel that knows neither truce nor forgiveness, until a single Millon remains standing to reunite under one banner the land their fathers left in pieces.",
+    zh: "在此进行的每一场战斗，交战的并非陌生人，而是同族兄弟——一场既无休战也无宽恕的家族恩怨，直到唯有一位米隆家族成员屹立不倒，将祖辈留下的支离破碎之地重新统一于同一面旗帜之下。",
+    es: "Cada batalla librada aquí no enfrenta a extraños, sino a primos — una disputa familiar que no conoce tregua ni perdón, hasta que un único Millon quede en pie para reunir bajo un solo estandarte la tierra que sus padres dejaron hecha pedazos.",
+    de: "Jede hier ausgetragene Schlacht stellt keine Fremden gegeneinander, sondern Cousins — ein Familienstreit, der weder Waffenstillstand noch Vergebung kennt, bis ein einziger Millon übrig bleibt, um unter einem einzigen Banner das Land wiederzuvereinen, das ihre Väter in Stücke gerissen zurückließen.",
+  },
+  loreIntro3: {
+    fr: "Un siècle de guerre a forgé le caractère de chaque branche — et à la table de jeu, ce caractère se traduit en habitudes de commandement bien réelles, pas seulement en surnom :",
+    en: "A century of war has forged the character of each branch — and at the gaming table, that character translates into very real command habits, not just a nickname:",
+    zh: "一个世纪的战争锻造了每个分支的性格——而在牌桌上，这种性格转化为真实的用兵习惯，而不仅仅是一个绰号：",
+    es: "Un siglo de guerra ha forjado el carácter de cada rama — y en la mesa de juego, ese carácter se traduce en hábitos de mando muy reales, no solo en un apodo:",
+    de: "Ein Jahrhundert Krieg hat den Charakter jedes Zweigs geformt — und am Spieltisch übersetzt sich dieser Charakter in ganz reale Führungsgewohnheiten, nicht nur in einen Spitznamen:",
+  },
+  loreCeltes: {
+    fr: "Il reste, aux confins des quatre fiefs, des terres qu'aucun Millon ne songe à conquérir : celles des Celtes, polythéistes pacifistes là où les Millon prient un seul Dieu. Une tribu inutile qui refuse de forger la moindre arme, préférant passer ses journées à compter des cailloux et tracer des figures dans la terre — quand elle ne se passionne pas pour la poterie de terre cuite ou le travail du verre. Une coiffure sophistiquée et un nuage de parfum leur importent bien plus que le noble art de la guerre : un peuple aussi inoffensif que pathétique, que même les Millon jugent indigne d'un vrai siège.",
+    en: "At the edges of the four fiefs remain lands no Millon dreams of conquering: those of the Celts, peaceful polytheists where the Millons pray to a single God. A useless tribe that refuses to forge the slightest weapon, preferring to spend its days counting pebbles and tracing figures in the dirt — when it isn't obsessing over terracotta pottery or glasswork. An elaborate hairstyle and a cloud of perfume matter far more to them than the noble art of war: a people as harmless as they are pathetic, whom even the Millons judge unworthy of a real siege.",
+    zh: "在四大领地的边陲，还留有一些无人问津的土地：那是凯尔特人的领地，他们是崇拜多神的和平主义者，而米隆家族只信奉唯一真神。这是一个毫无用处的部族，拒绝锻造任何武器，宁愿整日数着石子、在泥地上比划图案——不然就是痴迷于陶器和玻璃制作。精致的发型与一身香气，对他们而言远比高贵的战争艺术重要：一个既无害又可悲的民族，就连米隆家族都认为不值得对其发动一场真正的围城。",
+    es: "Quedan, en los confines de los cuatro feudos, tierras que ningún Millon sueña con conquistar: las de los celtas, politeístas pacíficos allí donde los Millon rezan a un único Dios. Una tribu inútil que se niega a forjar la más mínima arma, prefiriendo pasar sus días contando piedrecitas y trazando figuras en la tierra — cuando no se apasiona por la alfarería de terracota o el trabajo del vidrio. Un peinado sofisticado y una nube de perfume les importan mucho más que el noble arte de la guerra: un pueblo tan inofensivo como patético, al que hasta los Millon consideran indigno de un verdadero asedio.",
+    de: "An den Rändern der vier Lehen bleiben Länder, die kein Millon zu erobern träumt: die der Kelten, friedlicher Polytheisten, wo die Millons zu einem einzigen Gott beten. Ein nutzloser Stamm, der sich weigert, auch nur die kleinste Waffe zu schmieden, und lieber seine Tage damit verbringt, Steinchen zu zählen und Figuren in die Erde zu zeichnen — wenn er sich nicht gerade der Terrakotta-Töpferei oder der Glasarbeit widmet. Eine kunstvolle Frisur und eine Wolke Parfüm sind ihnen weit wichtiger als die edle Kunst des Krieges: ein Volk, so harmlos wie erbärmlich, das selbst die Millons einer echten Belagerung für unwürdig halten.",
+  },
+  lorePieuvreP: {
+    fr: "Ceux qui ont livré à la mer trois navires entiers, à trois reprises, ont vu autre chose répondre — quelque chose qui n'a jamais porté le nom des Millon. Les pêcheurs racontent qu'elle regarde les sièges les plus désespérés depuis les profondeurs, et qu'elle n'oublie aucun de ceux qui la nourrissent.",
+    en: "Those who have offered three entire shiploads to the sea, three times over, have seen something else answer — something that never bore the Millon name. The fishermen tell that it watches the most desperate sieges from the depths, and that it forgets none of those who feed it.",
+    zh: "那些三次将整整一船人献给大海的人，见到了另一种回应——某种从未冠以米隆之名的东西。渔夫们说，它自深渊注视着最绝望的围城，且从不遗忘任何一个曾供奉过它的人。",
+    es: "Quienes han entregado al mar tres barcos enteros, en tres ocasiones, han visto responder a otra cosa — algo que nunca llevó el nombre de los Millon. Los pescadores cuentan que observa los asedios más desesperados desde las profundidades, y que no olvida a ninguno de los que la alimentan.",
+    de: "Wer dem Meer drei ganze Schiffsladungen geopfert hat, dreimal in Folge, hat etwas anderes antworten sehen — etwas, das nie den Namen Millon trug. Die Fischer erzählen, dass es aus der Tiefe auf die verzweifeltsten Belagerungen blickt und keinen vergisst, der es nährt.",
+  },
+  loreCthulhuP: {
+    fr: "Le parchemin ne mentait pas. Ce que la pieuvre annonçait depuis les profondeurs n'était qu'un serviteur — au-delà d'elle dort quelque chose de bien plus vieux que la querelle des Millon, quelque chose que même les prêtres refusent de nommer. Ceux qui l'ont réveillé racontent qu'on peut désormais traverser n'importe quelle mer sans y perdre un seul homme — l'onde elle-même s'écarte devant vous, comme si elle craignait davantage ce qui vous suit que vous.",
+    en: "The scroll did not lie. What the octopus announced from the depths was only a servant — beyond it slumbers something far older than the Millon quarrel, something even the priests refuse to name. Those who woke it tell that any sea can now be crossed without losing a single man — the water itself parts before you, as if it feared what follows you more than you yourself.",
+    zh: "那卷羊皮纸没有说谎。那只巨章鱼从深渊中所预示的，不过是一位仆从——在它之外，沉睡着某种远比米隆家族的恩怨更古老的存在，连祭司都不愿说出它的名字。唤醒它的人说，如今可以横渡任何海域而不损一兵一卒——海水本身会在你面前分开，仿佛它畏惧的不是你，而是紧随你身后之物。",
+    es: "El pergamino no mentía. Lo que el pulpo anunciaba desde las profundidades no era más que un sirviente — más allá de él duerme algo mucho más viejo que la disputa de los Millon, algo que ni siquiera los sacerdotes se atreven a nombrar. Quienes lo despertaron cuentan que ahora se puede cruzar cualquier mar sin perder un solo hombre — el agua misma se aparta ante ti, como si temiera más a lo que te sigue que a ti mismo.",
+    de: "Die Schriftrolle log nicht. Was der Oktopus aus der Tiefe ankündigte, war nur ein Diener — jenseits von ihm schlummert etwas weit Älteres als der Millon-Streit, etwas, das selbst die Priester sich weigern zu nennen. Wer es erweckt hat, erzählt, dass man nun jedes Meer überqueren kann, ohne einen einzigen Mann zu verlieren — das Wasser selbst weicht vor einem zurück, als fürchte es mehr das, was einem folgt, als einen selbst.",
+  },
+  loreMarsP: {
+    fr: "Un vieil enchanteur errant — Merlin, disent les paysans, sans trop y croire — vient s'incliner devant quiconque tient ses douze provinces à leur plein effectif à la fois. Il ne demande rien, ne promet rien, et repart aussitôt son signe fait. Mais ceux qui l'ont vu passer trois fois racontent qu'un dieu bien plus ancien, romain celui-là, prend ensuite le relais : jamais plus une bataille à douze contre douze ne se perdra sous cette bannière. Un tel don a un prix, chuchotent les vieilles branches — mais lequel, nul ne l'a encore découvert.",
+    en: "An old wandering enchanter — Merlin, the peasants say, without quite believing it — comes to bow before whoever holds all twelve of their provinces at full strength at once. He asks nothing, promises nothing, and leaves as soon as his sign is made. But those who have seen him pass three times tell that a far older god, a Roman one this time, then takes over: never again will a twelve-against-twelve battle be lost under that banner. Such a gift has a price, the old branches whisper — but which one, no one has yet discovered.",
+    zh: "一位游荡的老法师——农人们说那是梅林，虽然自己也将信将疑——会向同时让十二个省都达到满编的人躬身致意。他一无所求，也不作任何承诺，做完手势便即刻离去。但那些三次目睹他现身的人说，此后会有一位远为古老的神祇接手，那是一位罗马神祇：在此旗帜之下，十二对十二的战斗将再也不会落败。老一辈人低声说，这样的馈赠是有代价的——但究竟是什么代价，至今无人知晓。",
+    es: "Un viejo hechicero errante — Merlín, dicen los campesinos, sin creérselo del todo — viene a inclinarse ante quien mantenga sus doce provincias a pleno efectivo a la vez. No pide nada, no promete nada, y se marcha en cuanto hace su gesto. Pero quienes lo han visto pasar tres veces cuentan que un dios mucho más antiguo, romano este, toma entonces el relevo: nunca más se perderá una batalla de doce contra doce bajo ese estandarte. Semejante don tiene un precio, susurran las viejas ramas — pero cuál, nadie lo ha descubierto todavía.",
+    de: "Ein alter umherziehender Zauberer — Merlin, sagen die Bauern, ohne recht daran zu glauben — kommt, um sich vor jedem zu verneigen, der seine zwölf Provinzen gleichzeitig auf voller Stärke hält. Er verlangt nichts, verspricht nichts und zieht weiter, sobald sein Zeichen gemacht ist. Doch wer ihn dreimal vorbeiziehen sah, erzählt, dass danach ein weit älterer Gott, diesmal ein römischer, die Sache übernimmt: Nie wieder wird unter diesem Banner eine Schlacht zwölf gegen zwölf verloren. Eine solche Gabe hat ihren Preis, flüstern die alten Zweige — doch welchen, hat noch niemand herausgefunden.",
+  },
+  loreGodsExplainer: {
+    fr: "Un mercenaire ne sert jamais une seule maison. Le savoir-faire qu'il enseigne à celle qui l'engage aujourd'hui, la maison le garde pour de bon — que ce soit encore lui qui la commande demain, ou un autre. Mais lui aussi retient la leçon : où qu'il porte son épée ensuite, quelle que soit la bannière, il n'oublie jamais un tour qu'il a un jour appris. Un général assez habile pour avoir servi les quatre maisons finit par porter en lui les quatre dieux à la fois — et leur prix avec.",
+    en: "A mercenary never serves a single house. The know-how he teaches the one that hires him today, that house keeps for good — whether he still commands it tomorrow, or another does. But he too remembers the lesson: wherever he carries his sword next, under whatever banner, he never forgets a trick he once learned. A general skilled enough to have served all four houses ends up carrying all four gods within him at once — and their price along with them.",
+    zh: "雇佣兵从不只效忠一个家族。他今日传授给雇主的本领，那个家族会永远保留——无论明日统率他们的还是他，或是另有其人。但他自己也谨记这教训：日后无论他将剑带往何处，无论效忠哪面旗帜，他都不会忘记曾学过的招数。一位足够精湛、曾为四大家族效力的将领，最终会将四位神祇的恩赐同时纳于己身——连同它们的代价。",
+    es: "Un mercenario nunca sirve a una sola casa. El saber que enseña a quien lo contrata hoy, esa casa lo conserva para siempre — ya sea él quien la comande mañana, u otro. Pero él también retiene la lección: dondequiera que lleve su espada después, cualquiera que sea el estandarte, nunca olvida un truco que aprendió alguna vez. Un general lo bastante hábil como para haber servido a las cuatro casas termina llevando en sí los cuatro dioses a la vez — y su precio con ellos.",
+    de: "Ein Söldner dient nie nur einem einzigen Haus. Das Können, das er dem beibringt, der ihn heute anheuert, behält jenes Haus für immer — ob nun er es morgen noch befehligt oder ein anderer. Aber auch er behält die Lehre: Wohin auch immer er sein Schwert als Nächstes trägt, unter welchem Banner auch immer, er vergisst nie einen Kniff, den er einst gelernt hat. Ein General, geschickt genug, um allen vier Häusern gedient zu haben, trägt am Ende alle vier Götter zugleich in sich — und ihren Preis dazu.",
+  },
+  loreGodLockedNote: { fr: "— faveur pas encore obtenue.", en: "— favor not yet earned.", zh: "——尚未获得此恩宠。", es: "— favor aún no obtenido.", de: "— Gunst noch nicht erlangt." },
+  godVulcain: { fr: "Vulcain", en: "Vulcan", zh: "瓦肯", es: "Vulcano", de: "Vulkan" },
+  godBellone: { fr: "Bellone", en: "Bellona", zh: "贝罗娜", es: "Belona", de: "Bellona" },
+  godCeres: { fr: "Cérès", en: "Ceres", zh: "刻瑞斯", es: "Ceres", de: "Ceres" },
+  godNeptune: { fr: "Neptune", en: "Neptune", zh: "涅普顿", es: "Neptuno", de: "Neptun" },
+  loreGodVulcainP: {
+    fr: "<strong>Vulcain</strong>, dieu de la forge, s'incline devant quiconque l'a vue redescendre à sa dernière province avant de renverser le siège — peu importe la bannière. Depuis, ses murailles ne tombent plus tout à fait comme les autres : une force de plus veille toujours derrière chaque rempart, invisible sur le parchemin. Mais sa forge a un prix : elle dévore un renfort à chaque fin de tour.",
+    en: "<strong>Vulcan</strong>, god of the forge, bows before whoever he saw fall back to their very last province before turning the siege around — whatever the banner. Since then, their walls no longer fall quite like the others: one extra strength always stands watch behind every rampart, invisible on the parchment. But his forge has a price: it devours one reinforcement at the end of every turn.",
+    zh: "<strong>瓦肯</strong>，锻造之神，会向那位在退守至最后一省后仍能扭转围城局势的人俯首——无论旗帜为何。自此以后，他的城墙不再像其他人的那样轻易陷落：每道城墙背后总有一份额外的力量在守卫，卷轴上看不见它的存在。但他的熔炉是有代价的：每回合结束时都会吞噬一份援军。",
+    es: "<strong>Vulcano</strong>, dios de la forja, se inclina ante quien lo vio retroceder hasta su última provincia antes de revertir el asedio — sea cual sea el estandarte. Desde entonces, sus murallas ya no caen del todo como las demás: una fuerza más vela siempre tras cada muralla, invisible en el pergamino. Pero su forja tiene un precio: devora un refuerzo al final de cada turno.",
+    de: "<strong>Vulkan</strong>, Gott der Schmiede, verneigt sich vor jedem, den er bis zu seiner letzten Provinz zurückweichen und dann die Belagerung wenden sah — gleich unter welchem Banner. Seither fallen dessen Mauern nicht mehr ganz wie die anderer: Eine zusätzliche Stärke wacht stets hinter jeder Mauer, unsichtbar auf der Karte. Doch seine Schmiede hat ihren Preis: Sie verschlingt am Ende jedes Zuges eine Verstärkung.",
+  },
+  loreGodBelloneP: {
+    fr: "<strong>Bellone</strong>, déesse romaine de la guerre, honore quiconque a remporté un siège entier sans jamais céder une seule province, quelle que soit la maison. Sa fureur reste depuis dans chaque lance levée : une force de plus à l'assaut, toujours. Mais ses remparts, distraits par la bataille, en gardent une de moins en défense.",
+    en: "<strong>Bellona</strong>, Roman goddess of war, honors whoever has won an entire siege without ever giving up a single province, whatever the house. Her fury has stayed in every raised spear since: one extra strength on the attack, always. But her ramparts, distracted by battle, keep one fewer on defense.",
+    zh: "<strong>贝罗娜</strong>，罗马战争女神，会礼赞那位打赢整场围城而未曾放弃哪怕一个省的人，无论所属家族。自此，她的怒火便留驻于每一杆举起的长枪之中：进攻时总能多得一份力量。但她的城墙因专注于战事而分神，防御时便会少一份力量。",
+    es: "<strong>Belona</strong>, diosa romana de la guerra, honra a quien ha ganado un asedio entero sin ceder jamás ni una sola provincia, sea cual sea la casa. Su furia permanece desde entonces en cada lanza alzada: una fuerza más al ataque, siempre. Pero sus murallas, distraídas por la batalla, guardan una menos en defensa.",
+    de: "<strong>Bellona</strong>, römische Kriegsgöttin, ehrt jeden, der eine ganze Belagerung gewonnen hat, ohne je auch nur eine Provinz aufzugeben, gleich welches Haus. Ihr Zorn bleibt seither in jedem erhobenen Speer: immer eine Stärke mehr im Angriff. Doch ihre Mauern, vom Kampf abgelenkt, behalten eine weniger in der Verteidigung.",
+  },
+  loreGodCeresP: {
+    fr: "<strong>Cérès</strong>, déesse des moissons, sourit à qui a laissé chaque maison rivale vivre jusqu'au bout, pour ensuite toutes les faucher d'un seul geste, en une charge continue qui ne laisse pas même un arpent aux Celtes. Ses greniers ne se vident plus jamais tout à fait : un renfort de plus arrive à chaque fin de tour. Mais l'abondance amollit : plus jamais une seule province ne dépassera onze soldats.",
+    en: "<strong>Ceres</strong>, goddess of the harvest, smiles upon whoever let every rival house live to the very end, only to cut them all down in a single gesture, in one continuous charge that leaves not even an acre to the Celts. Her granaries never quite empty again: one extra reinforcement arrives at the end of every turn. But abundance softens: never again will a single province exceed eleven soldiers.",
+    zh: "<strong>刻瑞斯</strong>，丰收女神，会对那位放任每个敌对家族存活到最后、再以一次连续冲锋将它们尽数斩杀、不给凯尔特人留下一寸土地的人报以微笑。她的粮仓自此再未真正空过：每回合结束都会多得一份援军。但富足使人怠惰：任何一个省从此再也无法超过十一名士兵。",
+    es: "<strong>Ceres</strong>, diosa de las cosechas, sonríe a quien dejó vivir a cada casa rival hasta el final, para luego segarlas todas de un solo gesto, en una carga continua que no deja ni una parcela a los celtas. Sus graneros ya no vuelven a vaciarse del todo: llega un refuerzo más al final de cada turno. Pero la abundancia ablanda: nunca más una sola provincia superará los once soldados.",
+    de: "<strong>Ceres</strong>, Göttin der Ernte, lächelt jedem zu, der jedes rivalisierende Haus bis zum Ende leben ließ, um sie dann alle mit einer einzigen Geste niederzumähen, in einem durchgehenden Sturmangriff, der den Kelten nicht einmal einen Morgen Land lässt. Ihre Speicher leeren sich seither nie mehr ganz: Am Ende jedes Zuges kommt eine zusätzliche Verstärkung hinzu. Doch Überfluss macht weich: Nie wieder wird eine einzelne Provinz elf Soldaten überschreiten.",
+  },
+  loreGodNeptuneP: {
+    fr: "<strong>Neptune</strong>, dieu de la mer, répond à qui a scellé un siège entier par une dernière charge venue des flots. L'onde s'écarte un peu plus vite depuis : chaque traversée coûte une force de moins. Mais ses côtes restent tournées vers le large, une force de moins pour qui l'attaque depuis la mer.",
+    en: "<strong>Neptune</strong>, god of the sea, answers whoever sealed an entire siege with one final charge out of the waves. The water parts a little faster since: every crossing costs one less strength. But his coasts stay turned toward the open sea, one less strength for whoever attacks from the sea.",
+    zh: "<strong>涅普顿</strong>，海洋之神，会回应那位以一次源自海浪的最后冲锋来终结整场围城的人。自此海水分开得更快一些：每次渡海所需的力量都会减少一份。但他的海岸线始终面向大海，从海上发起攻击时会因此损失一份力量。",
+    es: "<strong>Neptuno</strong>, dios del mar, responde a quien selló un asedio entero con una última carga surgida de las olas. Las aguas se apartan algo más rápido desde entonces: cada travesía cuesta una fuerza menos. Pero sus costas siguen vueltas hacia mar abierto, una fuerza menos para quien ataca desde el mar.",
+    de: "<strong>Neptun</strong>, Gott des Meeres, antwortet jedem, der eine ganze Belagerung mit einem letzten Sturmangriff aus den Wellen besiegelt hat. Das Wasser weicht seither etwas schneller zurück: Jede Überquerung kostet eine Stärke weniger. Doch seine Küsten bleiben zur offenen See gewandt, eine Stärke weniger für den, der vom Meer aus angreift.",
+  },
+  // "Conseils" (tips) overlay.
+  conseilsTitle: { fr: "🎓 Conseils", en: "🎓 Tips", zh: "🎓 提示", es: "🎓 Consejos", de: "🎓 Tipps" },
+  conseilsIntro1: {
+    fr: "Ce que le jeu ne vous dit jamais franchement — les règles qui décident vraiment de chaque bataille.",
+    en: "What the game never tells you outright — the rules that actually decide every battle.",
+    zh: "游戏从不明说的事——真正决定每场战斗胜负的规则。",
+    es: "Lo que el juego nunca te dice claramente — las reglas que realmente deciden cada batalla.",
+    de: "Was das Spiel dir nie offen sagt — die Regeln, die jede Schlacht wirklich entscheiden.",
+  },
+  hLevelVillageName: { fr: "Village", en: "Village", zh: "村庄", es: "Aldea", de: "Dorf" },
+  hLevelVillageDesc: {
+    fr: "une case hexagonale — le chiffre affiché est celui de sa capitale, le château local",
+    en: "one hexagonal tile — the number shown is that of its capital, the local castle",
+    zh: "一个六边形地块——显示的数字是其首府（当地城堡）的兵力",
+    es: "una casilla hexagonal — el número mostrado es el de su capital, el castillo local",
+    de: "ein sechseckiges Feld — die angezeigte Zahl ist die seiner Hauptstadt, der örtlichen Burg",
+  },
+  hLevelProvinceName: { fr: "Province", en: "Province", zh: "行省", es: "Provincia", de: "Provinz" },
+  hLevelProvinceDesc: {
+    fr: "un groupe de villages voisins de même couleur, contour marqué",
+    en: "a group of neighboring same-color villages, with a marked outline",
+    zh: "一组同色相邻的村庄，带有明显的轮廓线",
+    es: "un grupo de aldeas vecinas del mismo color, con un contorno marcado",
+    de: "eine Gruppe benachbarter gleichfarbiger Dörfer mit markierter Umrandung",
+  },
+  hLevelRoyaumeName: { fr: "Royaume", en: "Kingdom", zh: "王国", es: "Reino", de: "Königreich" },
+  hLevelRoyaumeDesc: {
+    fr: "toutes les provinces d'une même couleur — l'ensemble des territoires d'un même seigneur",
+    en: "every province of the same color — the whole territory of a single lord",
+    zh: "所有同色的行省——某位领主的全部领地",
+    es: "todas las provincias del mismo color — el conjunto de territorios de un mismo señor",
+    de: "alle Provinzen derselben Farbe — das gesamte Gebiet eines einzigen Lehnsherrn",
+  },
+  hLevelPaysName: { fr: "Pays", en: "Land", zh: "国土", es: "País", de: "Land" },
+  hLevelPaysDesc: {
+    fr: "l'enceinte de toute la carte, quel que soit le nombre de royaumes qui s'y trouvent",
+    en: "the whole map's boundary, whatever the number of kingdoms found in it",
+    zh: "整张地图的边界，无论其中有多少个王国",
+    es: "el perímetro de todo el mapa, sea cual sea el número de reinos que se encuentren en él",
+    de: "die Umgrenzung der gesamten Karte, unabhängig von der Anzahl der darin befindlichen Königreiche",
+  },
+  conseilsIntro2: {
+    fr: "Le but du jeu, c'est l'équilibre que <em>vous</em> souhaitez — partager le pays entre plusieurs royaumes, ou bien le dominer entièrement, selon l'envie du moment. Dans ce dernier cas : chaque village doit appartenir au même royaume. Un village, des villages, pour un seul royaume. Un pays, un royaume, un seigneur.",
+    en: "The goal of the game is whatever balance <em>you</em> want — share the land between several kingdoms, or dominate it entirely, depending on the mood. In this last case: every village must belong to the same kingdom. One village, many villages, for a single kingdom. One land, one kingdom, one lord.",
+    zh: "游戏的目标是<em>你</em>所期望的那种平衡——将国土分给多个王国，或是彻底统治它，全凭当下心意。若选择后者：每个村庄都必须归属同一个王国。一村，多村，皆归一国。一国，一君，一主。",
+    es: "El objetivo del juego es el equilibrio que <em>tú</em> desees — repartir el país entre varios reinos, o dominarlo por completo, según el momento. En este último caso: cada aldea debe pertenecer al mismo reino. Una aldea, varias aldeas, para un solo reino. Un país, un reino, un señor.",
+    de: "Das Ziel des Spiels ist das Gleichgewicht, das <em>du</em> willst — das Land unter mehreren Königreichen aufteilen oder es vollständig beherrschen, je nach Lust und Laune. Im letzteren Fall: Jedes Dorf muss demselben Königreich gehören. Ein Dorf, mehrere Dörfer, für ein einziges Königreich. Ein Land, ein Königreich, ein Lehnsherr.",
+  },
+  royaumesListLabel: { fr: "Les royaumes", en: "The kingdoms", zh: "各王国", es: "Los reinos", de: "Die Königreiche" },
+  conseilsCombatP: {
+    fr: "<strong>Le combat</strong> : la plus grande force gagne toujours, sauf tout près de l'égalité — à force égale, l'attaquant a une chance sur 3 de l'emporter quand même ; à un seul de moins que le défenseur, une chance sur 5. Sinon aucun hasard : c'est toujours la plus grande force qui gagne.",
+    en: "<strong>Combat</strong>: the greater strength always wins, except very close to a tie — at equal strength, the attacker still has a 1-in-3 chance of winning; one less than the defender, a 1-in-5 chance. Otherwise no randomness at all: the greater strength always wins.",
+    zh: "<strong>战斗</strong>：兵力较大的一方总是获胜，除非双方非常接近——兵力相同时，进攻方仍有三分之一的机会获胜；比防守方少一时，则有五分之一的机会。除此之外没有任何随机性：兵力更大的一方永远获胜。",
+    es: "<strong>El combate</strong>: la mayor fuerza gana siempre, salvo muy cerca de la igualdad — con fuerzas iguales, el atacante aún tiene una probabilidad entre 3 de ganar; con una menos que el defensor, una entre 5. Fuera de eso, ningún azar: siempre gana la mayor fuerza.",
+    de: "<strong>Der Kampf</strong>: Die größere Stärke gewinnt immer, außer ganz knapp bei Gleichstand — bei gleicher Stärke hat der Angreifer trotzdem eine 1-zu-3-Chance zu gewinnen; mit einer weniger als der Verteidiger, eine 1-zu-5-Chance. Ansonsten kein Zufall: Es gewinnt immer die größere Stärke.",
+  },
+  conseilsReinforceP: {
+    fr: "<strong>Le renfort de fin de tour</strong> dépend de votre part du territoire : au-dessus de la moyenne des royaumes encore debout, vous gagnez plus de renfort ; en dessous, moins (jamais zéro). Un très grand royaume gagne encore plus, en plus de sa part relative.",
+    en: "<strong>The end-of-turn reinforcement</strong> depends on your share of the territory: above the average of the kingdoms still standing, you gain more reinforcement; below it, less (never zero). A very large kingdom gains even more, on top of its relative share.",
+    zh: "<strong>回合结束时的援军</strong>取决于你所占领土的比例：高于现存王国的平均水平，你能获得更多援军；低于平均水平，则获得更少（但永远不会为零）。一个极大的王国除了其相对份额外，还能获得更多。",
+    es: "<strong>El refuerzo de fin de turno</strong> depende de tu parte del territorio: por encima de la media de los reinos que aún quedan en pie, ganas más refuerzo; por debajo, menos (nunca cero). Un reino muy grande gana aún más, además de su parte relativa.",
+    de: "<strong>Die Verstärkung am Zugende</strong> hängt von deinem Gebietsanteil ab: über dem Durchschnitt der noch bestehenden Königreiche erhältst du mehr Verstärkung; darunter weniger (nie null). Ein sehr großes Königreich erhält zusätzlich zu seinem relativen Anteil noch mehr.",
+  },
+  conseilsPower12P: {
+    fr: "<strong>Le pouvoir des 12</strong> : quand toutes vos provinces sont au plafond en même temps, un contour doré se met à vibrer autour de tout votre royaume. Tant qu'il vibre, vous gagnez à coup sûr chaque attaque terrestre que vous lancez (autant que vous avez de provinces) — l'épée qui frappe devient la grande épée diagonale pour vous le rappeler. Il ne s'applique pas à la mer, qui a son propre bonus (voir la pieuvre/Cthulhu). Activez-le trois fois dans la même partie, puis trois parties différentes : vous débloquez une bénédiction permanente qui vous fait toujours gagner un combat terrestre à 12 contre 12.",
+    en: "<strong>The power of 12</strong>: when all your provinces are at the cap at the same time, a golden outline starts pulsing around your entire kingdom. While it pulses, you're guaranteed to win every land attack you launch (as many as you have provinces) — the striking sword turns into the big diagonal sword to remind you. It doesn't apply at sea, which has its own bonus (see the octopus/Cthulhu). Trigger it three times in the same match, then across three different matches: you unlock a permanent blessing that always wins you a twelve-on-twelve land battle.",
+    zh: "<strong>十二之力</strong>：当你所有省份同时达到上限时，一圈金色轮廓便会开始在你整个王国周围闪动。只要它在闪动，你发起的每一次陆地进攻都必胜（次数等同于你的省份数）——为提醒这一点，劈砍的剑会变成那把巨大的斜剑。此效果不适用于海战，海战有其自己的加成（见章鱼/克苏鲁）。在同一局中触发三次，再在三局不同的对局中各触发一次：你将解锁一项永久祝福，令你在十二对十二的陆战中永远获胜。",
+    es: "<strong>El poder de los 12</strong>: cuando todas tus provincias están al máximo al mismo tiempo, un contorno dorado empieza a vibrar alrededor de todo tu reino. Mientras vibra, tienes garantizado ganar cada ataque terrestre que lances (tantos como provincias tengas) — la espada que golpea se convierte en la gran espada diagonal para recordártelo. No se aplica al mar, que tiene su propia bonificación (ver el pulpo/Cthulhu). Actívalo tres veces en la misma partida, y luego en tres partidas distintas: desbloqueas una bendición permanente que te hace ganar siempre un combate terrestre de doce contra doce.",
+    de: "<strong>Die Macht der 12</strong>: Wenn alle deine Provinzen gleichzeitig ihr Maximum erreichen, beginnt ein goldener Umriss um dein gesamtes Königreich zu pulsieren. Solange er pulsiert, gewinnst du garantiert jeden Landangriff, den du startest (so viele wie du Provinzen hast) — das zuschlagende Schwert wird zur Erinnerung zum großen diagonalen Schwert. Es gilt nicht auf See, die ihren eigenen Bonus hat (siehe Oktopus/Cthulhu). Löse es dreimal in derselben Partie aus, dann in drei verschiedenen Partien: Du schaltest einen dauerhaften Segen frei, der dir eine Zwölf-gegen-Zwölf-Landschlacht immer gewinnen lässt.",
+  },
+  conseilsGueuxP: {
+    fr: "<strong>Les gueux</strong> sont une réserve d'une partie à l'autre : vous en gagnez un à chaque victoire, et pouvez en dépenser un en touchant le badge puis une de vos provinces, pour lui donner +1 de force sur-le-champ, avant même la bataille suivante. Attention : une défaite (conquête ou abandon) vide entièrement la réserve.",
+    en: "<strong>Beggars</strong> are a reserve carried from one match to the next: you gain one on every victory, and can spend one by tapping the badge then one of your provinces, giving it +1 strength on the spot, even before the next battle. Careful: a defeat (conquest or surrender) empties the reserve entirely.",
+    zh: "<strong>乞丐</strong>是跨局累积的储备：每次获胜你都会获得一个，可以先点击徽章、再点击你的一个省份来使用一个，令其立刻获得+1兵力，甚至在下一场战斗开始之前就能生效。注意：一次失败（被征服或投降）会将储备清空。",
+    es: "<strong>Los mendigos</strong> son una reserva que se mantiene de una partida a otra: ganas uno con cada victoria, y puedes gastar uno tocando la insignia y luego una de tus provincias, para darle +1 de fuerza al instante, incluso antes de la siguiente batalla. Cuidado: una derrota (conquista o rendición) vacía la reserva por completo.",
+    de: "<strong>Bettler</strong> sind eine Reserve, die von einer Partie zur nächsten mitgenommen wird: Du erhältst einen bei jedem Sieg und kannst einen ausgeben, indem du auf das Abzeichen und dann auf eine deiner Provinzen tippst, um ihr sofort +1 Stärke zu geben, noch vor der nächsten Schlacht. Achtung: Eine Niederlage (Eroberung oder Kapitulation) leert die Reserve vollständig.",
+  },
+  // Win/loss/truce/share/premium overlays.
+  shareIntroTitle: { fr: "⚔️ Défi Knight Wars", en: "⚔️ Knight Wars challenge", zh: "⚔️ 骑士战争挑战", es: "⚔️ Desafío de Knight Wars", de: "⚔️ Knight-Wars-Herausforderung" },
+  shareIntroText: {
+    fr: "Un ami a remporté une bataille sur Knight Wars et te met au défi de faire aussi bien !",
+    en: "A friend won a battle on Knight Wars and challenges you to do just as well!",
+    zh: "一位朋友在《骑士战争》中赢得了一场战斗，向你发起挑战，看你能否做得同样出色！",
+    es: "¡Un amigo ganó una batalla en Knight Wars y te reta a hacerlo igual de bien!",
+    de: "Ein Freund hat eine Schlacht in Knight Wars gewonnen und fordert dich heraus, es ihm gleichzutun!",
+  },
+  watchSharedReplayBtn: { fr: "▶ Voir sa partie", en: "▶ Watch their match", zh: "▶ 观看对局", es: "▶ Ver su partida", de: "▶ Sein Spiel ansehen" },
+  playInsteadBtn: { fr: "⚔ Jouer maintenant", en: "⚔ Play now", zh: "⚔ 立即游戏", es: "⚔ Jugar ahora", de: "⚔ Jetzt spielen" },
+  truceTitle: { fr: "🕊️ Trêve", en: "🕊️ Truce", zh: "🕊️ 停战", es: "🕊️ Tregua", de: "🕊️ Waffenstillstand" },
+  truceText: {
+    fr: "Sire, aucun camp ne parvient à forcer la décision par les armes. Seuls les faibles réclament la paix, dit-on — et pourtant, à bout de souffle, tous l'acceptent. Match nul : la trêve, l'affaire des gueux.",
+    en: "Sire, neither side can force a decision by arms. Only the weak call for peace, they say — and yet, out of breath, everyone accepts it in the end. A draw: the truce, the beggars' affair.",
+    zh: "陛下，双方都无法凭武力决出胜负。人们说只有弱者才会求和——然而到了力竭之时，人人都会接受它。平局：停战，乞丐们的事。",
+    es: "Señor, ningún bando logra forzar la decisión por las armas. Dicen que solo los débiles piden la paz — y sin embargo, sin aliento, todos terminan aceptándola. Empate: la tregua, asunto de mendigos.",
+    de: "Herr, keine Seite kann eine Entscheidung mit Waffengewalt erzwingen. Nur die Schwachen verlangen Frieden, heißt es — und doch, außer Atem, akzeptieren ihn am Ende alle. Unentschieden: der Waffenstillstand, Sache der Bettler.",
+  },
+  premiumTitle: { fr: "🔒 Contenu avancé", en: "🔒 Advanced content", zh: "🔒 高级内容", es: "🔒 Contenido avanzado", de: "🔒 Erweiterter Inhalt" },
+  premiumText: {
+    fr: "Le niveau Templier et la carte Croisade sont réservés.",
+    en: "The Templar tier and the Crusade map are reserved.",
+    zh: "圣殿骑士难度与十字军东征地图为限定内容。",
+    es: "El nivel Templario y el mapa Cruzada están reservados.",
+    de: "Die Stufe Templer und die Karte Kreuzzug sind gesperrt.",
+  },
+  premiumNote: {
+    fr: "Aperçu — pas encore relié à une vraie régie publicitaire ni à un vrai paiement.",
+    en: "Preview — not yet connected to a real ad network or real payment.",
+    zh: "预览——尚未接入真实的广告网络或真实支付。",
+    es: "Vista previa — aún no conectada a una red publicitaria real ni a un pago real.",
+    de: "Vorschau — noch nicht mit einem echten Werbenetzwerk oder einer echten Zahlung verbunden.",
+  },
+  premiumWatchAdBtn: { fr: "🎬 Regarder une pub (30s) — 24h débloquées", en: "🎬 Watch an ad (30s) — 24h unlocked", zh: "🎬 观看广告（30秒）——解锁24小时", es: "🎬 Ver un anuncio (30s) — 24h desbloqueadas", de: "🎬 Werbung ansehen (30s) — 24 Std. freigeschaltet" },
+  premiumBuyBtn: { fr: "💎 Débloquer à vie — 2€", en: "💎 Unlock for life — €2", zh: "💎 永久解锁——2欧元", es: "💎 Desbloquear de por vida — 2€", de: "💎 Dauerhaft freischalten — 2 €" },
+  premiumUnlockCloseBtn: { fr: "Fermer", en: "Close", zh: "关闭", es: "Cerrar", de: "Schließen" },
+  adErrorText: {
+    fr: "⚠️ La vidéo n'a pas pu se charger — une erreur technique de notre côté. Pas d'inquiétude, tu reçois quand même ton déblocage.",
+    en: "⚠️ The video failed to load — a technical error on our end. Don't worry, you still get your unlock.",
+    zh: "⚠️ 视频加载失败——是我们这边的技术问题。别担心，你仍然会获得解锁。",
+    es: "⚠️ El vídeo no pudo cargarse — un error técnico de nuestra parte. No te preocupes, igualmente recibes tu desbloqueo.",
+    de: "⚠️ Das Video konnte nicht geladen werden — ein technischer Fehler unsererseits. Keine Sorge, du erhältst deine Freischaltung trotzdem.",
+  },
+  adErrorOkBtn: { fr: "Recevoir mon déblocage", en: "Receive my unlock", zh: "领取我的解锁", es: "Recibir mi desbloqueo", de: "Meine Freischaltung erhalten" },
+  surrenderConfirmTitle: { fr: "💀 Abandonner ou proposer la paix", en: "💀 Surrender or propose peace", zh: "💀 投降或提议和平", es: "💀 Rendirse o proponer la paz", de: "💀 Aufgeben oder Frieden vorschlagen" },
+  surrenderConfirmText: {
+    fr: "La bataille traîne en longueur ? Proposez la paix (match nul, un gueux gagné par royaume adverse encore debout) ou abandonnez la partie — cette dernière action est définitive.",
+    en: "Battle dragging on? Propose peace (a draw, one beggar earned per rival kingdom still standing) or surrender the match — this last action is final.",
+    zh: "战事拖延不决？可以提议和平（平局，每个仍存在的敌对王国可获得一个乞丐），或直接投降——投降是不可撤销的。",
+    es: "¿La batalla se alarga demasiado? Propón la paz (empate, un mendigo ganado por cada reino rival aún en pie) o ríndete — esta última acción es definitiva.",
+    de: "Zieht sich die Schlacht in die Länge? Schlage Frieden vor (Unentschieden, ein Bettler pro noch bestehendem gegnerischem Königreich) oder gib die Partie auf — diese letzte Handlung ist endgültig.",
+  },
+  preGameSurrenderResumeBtn: { fr: "Reprendre", en: "Resume", zh: "继续", es: "Reanudar", de: "Fortsetzen" },
+  mercyOffer: {
+    fr: "🏳️ {name} demande votre clémence",
+    en: "🏳️ {name} begs for your mercy",
+    zh: "🏳️ {name} 恳求你的宽恕",
+    es: "🏳️ {name} suplica tu clemencia",
+    de: "🏳️ {name} fleht um Gnade",
+  },
+  // Onboarding hints.
+  onboardHint1: { fr: "Touchez une de vos provinces pour la sélectionner.", en: "Tap one of your provinces to select it.", zh: "点击你的一个省份以选中它。", es: "Toca una de tus provincias para seleccionarla.", de: "Tippe auf eine deiner Provinzen, um sie auszuwählen." },
+  onboardHint2: { fr: "<b>Touchez une province</b> ennemie adjacente (contour doré) pour l'attaquer.", en: "<b>Tap an adjacent</b> enemy province (golden outline) to attack it.", zh: "<b>点击相邻的</b>敌方省份（金色轮廓）以发起进攻。", es: "<b>Toca una provincia</b> enemiga adyacente (contorno dorado) para atacarla.", de: "<b>Tippe auf eine angrenzende</b> feindliche Provinz (goldene Umrandung), um sie anzugreifen." },
+  onboardHint3: { fr: "Touchez « Fin de bataille » quand vous avez terminé vos attaques.", en: "Tap \"End battle\" once you're done attacking.", zh: "完成进攻后，点击“结束战斗”。", es: "Toca «Fin de la batalla» cuando hayas terminado tus ataques.", de: "Tippe auf „Kampfende“, sobald du mit deinen Angriffen fertig bist." },
+  onboardHintFactionPick: {
+    fr: "Mon général, la maison Millon se déchire. <b>Touchez une province</b> pour mettre votre épée au service d'une famille.",
+    en: "My general, the house of Millon is tearing itself apart. <b>Tap a province</b> to put your sword at a family's service.",
+    zh: "我的将军，米隆家族正在自相残杀。<b>点击一个省份</b>，将你的剑效忠于某一家族。",
+    es: "Mi general, la casa Millon se desgarra. <b>Toca una provincia</b> para poner tu espada al servicio de una familia.",
+    de: "Mein General, das Haus Millon zerreißt sich selbst. <b>Tippe auf eine Provinz</b>, um dein Schwert in den Dienst einer Familie zu stellen.",
+  },
+  // Toasts.
+  toastForceAdapt: {
+    fr: "Adaptation de la force des adversaires selon la difficulté : {name}",
+    en: "Opponent strength adapted to the difficulty: {name}",
+    zh: "已根据难度调整对手兵力：{name}",
+    es: "Fuerza de los adversarios adaptada a la dificultad: {name}",
+    de: "Gegnerstärke an den Schwierigkeitsgrad angepasst: {name}",
+  },
+  trophyRoomLabel: { fr: "🏆 Salle des trophées", en: "🏆 Trophy room", zh: "🏆 荣誉殿堂", es: "🏆 Sala de trofeos", de: "🏆 Trophäenraum" },
+  toastOctopusUnlocked: {
+    fr: "🐙 La pieuvre est débloquée pour de bon — voir Le lore.",
+    en: "🐙 The octopus is unlocked for good — see the Lore.",
+    zh: "🐙 章鱼已永久解锁——详见背景故事。",
+    es: "🐙 El pulpo está desbloqueado para siempre — ver el Trasfondo.",
+    de: "🐙 Der Oktopus ist dauerhaft freigeschaltet — siehe Hintergrundgeschichte.",
+  },
+  // Combat log messages (logMsg) — templates filled via tf().
+  logSeaLoss: { fr: "{name} perd des soldats en mer.", en: "{name} loses soldiers at sea.", zh: "{name} 在海上损失了士兵。", es: "{name} pierde soldados en el mar.", de: "{name} verliert Soldaten auf See." },
+  logSeaAttackFail: {
+    fr: "{from} attaque {to} — noyés en chemin, aucune troupe n'arrive — échec",
+    en: "{from} attacks {to} — drowned along the way, no troops arrive — failed",
+    zh: "{from} 进攻 {to}——途中全部溺亡，无一兵一卒抵达——失败",
+    es: "{from} ataca a {to} — ahogados en el camino, no llega ninguna tropa — fracaso",
+    de: "{from} greift {to} an — unterwegs ertrunken, es kommen keine Truppen an — gescheitert",
+  },
+  logAttackResult: { fr: "{from} attaque {to} — {atk} vs {def} — {result}", en: "{from} attacks {to} — {atk} vs {def} — {result}", zh: "{from} 进攻 {to} —— {atk} 对 {def} —— {result}", es: "{from} ataca a {to} — {atk} vs {def} — {result}", de: "{from} greift {to} an — {atk} gegen {def} — {result}" },
+  logVictory: { fr: "victoire", en: "victory", zh: "胜利", es: "victoria", de: "Sieg" },
+  logDefeatWord: { fr: "échec", en: "defeat", zh: "失败", es: "fracaso", de: "Niederlage" },
+  logReinforce: { fr: "{name} reçoit {n} renfort(s).", en: "{name} receives {n} reinforcement(s).", zh: "{name} 获得了 {n} 份援军。", es: "{name} recibe {n} refuerzo(s).", de: "{name} erhält {n} Verstärkung(en)." },
+  logDefection: { fr: "Une province isolée de {name} fait défection vers les Celtes.", en: "An isolated province of {name} defects to the Celts.", zh: "{name} 的一个孤立省份倒戈投向凯尔特人。", es: "Una provincia aislada de {name} se pasa a los celtas.", de: "Eine isolierte Provinz von {name} läuft zu den Kelten über." },
+  logYouPlay: { fr: "Vous jouez {name}.", en: "You are playing {name}.", zh: "你正在扮演 {name}。", es: "Juegas con {name}.", de: "Du spielst {name}." },
+  logChooseCampPrompt: { fr: "Choisissez votre camp : touchez une province.", en: "Choose your side: tap a province.", zh: "选择你的阵营：点击一个省份。", es: "Elige tu bando: toca una provincia.", de: "Wähle deine Seite: Tippe auf eine Provinz." },
+  logNewGame: { fr: "Nouvelle partie.", en: "New game.", zh: "新的一局。", es: "Nueva partida.", de: "Neues Spiel." },
+  gueuxNoteGain: { fr: "Vous gagnez un gueux.", en: "You gain a beggar.", zh: "你获得了一个乞丐。", es: "Ganas un mendigo.", de: "Du erhältst einen Bettler." },
+  gueuxNoteLose: { fr: "Vous perdez un gueux.", en: "You lose a beggar.", zh: "你失去了一个乞丐。", es: "Pierdes un mendigo.", de: "Du verlierst einen Bettler." },
+  gueuxNoteGainN: { fr: "Vous gagnez {n} gueux.", en: "You gain {n} beggars.", zh: "你获得了 {n} 个乞丐。", es: "Ganas {n} mendigos.", de: "Du erhältst {n} Bettler." },
+  // showWin() one-off flavor lines (mercy/truce/grind) — the pick-one-of-N
+  // pools (VICTORY_LINES, LOSS_OPENERS, SURRENDER_LINES, HOBBIES) live as
+  // their own arrays right where showWin() uses them, not in this table —
+  // see pickLine()/pickLineF()'s own note on why.
+  mercyLine: {
+    fr: "Votre clémence vous honore, seigneur, ou bien est-ce de la faiblesse ? Seul le temps le dira — espérons qu'ils ne fomentent pas de rébellion.",
+    en: "Your mercy honors you, my lord, or is it weakness? Only time will tell — let's hope they don't plot a rebellion.",
+    zh: "阁下的仁慈令您增光，抑或那不过是软弱？唯有时间能给出答案——但愿他们不会图谋叛乱。",
+    es: "Vuestra clemencia os honra, señor, ¿o acaso es debilidad? Solo el tiempo lo dirá — esperemos que no tramen una rebelión.",
+    de: "Eure Gnade ehrt Euch, mein Herr, oder ist es Schwäche? Nur die Zeit wird es zeigen — hoffen wir, dass sie keine Rebellion planen.",
+  },
+  truceMatchNulLine: {
+    fr: "Match nul — la paix, l'affaire des gueux.",
+    en: "A draw — peace, the business of beggars.",
+    zh: "平局——和平，乞丐们的营生。",
+    es: "Empate — la paz, asunto de mendigos.",
+    de: "Unentschieden — der Frieden, Sache der Bettler.",
+  },
+  hopeEnding: {
+    fr: " Mais un seigneur déchu n'est pas un seigneur mort — quelque part, vous rêvez déjà de lever une nouvelle armée, ou de trouver des alliés assez généreux pour vous aider à vous relever.",
+    en: " But a fallen lord is not a dead lord — somewhere, you're already dreaming of raising a new army, or finding allies generous enough to help you rise again.",
+    zh: "但一位陨落的领主并非死去的领主——在心底深处，您已经在梦想着重整一支新军，或是寻找足够慷慨的盟友助您东山再起。",
+    es: " Pero un señor caído no es un señor muerto — en algún lugar, ya soñáis con levantar un nuevo ejército, o encontrar aliados lo bastante generosos para ayudaros a alzaros de nuevo.",
+    de: " Doch ein gestürzter Lehnsherr ist kein toter Lehnsherr — irgendwo träumt Ihr bereits davon, ein neues Heer aufzustellen oder Verbündete zu finden, die großzügig genug sind, Euch wieder aufzuhelfen.",
+  },
+  grindLine: {
+    fr: "Bravo seigneur, vous avez guerroyé férocement aujourd'hui, la dernière bataille était dure !",
+    en: "Well done, my lord, you fought fiercely today — that last battle was a tough one!",
+    zh: "干得好，阁下，您今天奋战得如此凶猛，最后那一战着实艰难！",
+    es: "¡Bien hecho, señor, habéis guerreado ferozmente hoy, la última batalla fue dura!",
+    de: "Gut gemacht, mein Herr, Ihr habt heute erbittert gekämpft — die letzte Schlacht war hart!",
+  },
+  cthulhuHintLine: {
+    fr: "Le Seigneur {name} vous remet un parchemin crypté, persuadé de vous donner un secret crucial sur les mystères de l'océan…",
+    en: "Lord {name} hands you an encrypted scroll, convinced he's giving you a crucial secret about the mysteries of the ocean…",
+    zh: "{name}领主交给你一卷加密的羊皮卷，深信自己正把关于海洋奥秘的重要秘密托付于你……",
+    es: "El Señor {name} os entrega un pergamino cifrado, convencido de daros un secreto crucial sobre los misterios del océano…",
+    de: "Lehnsherr {name} überreicht dir eine verschlüsselte Schriftrolle, überzeugt, dir ein entscheidendes Geheimnis über die Mysterien des Ozeans zu geben…",
+  },
+  godUnlockVulcain: {
+    fr: "🔨 Vulcain vous accorde sa forge : +1 force en défense, pour toujours — mais sa forge coûte cher, -1 renfort à chaque fin de tour.",
+    en: "🔨 Vulcan grants you his forge: +1 strength in defense, forever — but his forge comes at a price, -1 reinforcement at the end of every turn.",
+    zh: "🔨 瓦肯赐予你他的熔炉：防御力永久+1——但熔炉的代价高昂，每回合结束时援军-1。",
+    es: "🔨 Vulcano te concede su forja: +1 de fuerza en defensa, para siempre — pero su forja tiene un precio, -1 refuerzo al final de cada turno.",
+    de: "🔨 Vulkan gewährt dir seine Schmiede: +1 Stärke in der Verteidigung, für immer — doch seine Schmiede hat ihren Preis, -1 Verstärkung am Ende jedes Zuges.",
+  },
+  godUnlockBellone: {
+    fr: "⚔ Bellone vous accorde sa fureur : +1 force en attaque, pour toujours — mais elle laisse vos remparts nus, -1 force en défense.",
+    en: "⚔ Bellona grants you her fury: +1 strength in attack, forever — but she leaves your ramparts bare, -1 strength in defense.",
+    zh: "⚔ 贝罗娜赐予你她的怒火：进攻力永久+1——但她让你的城墙门户大开，防御力-1。",
+    es: "⚔ Belona te concede su furia: +1 de fuerza en ataque, para siempre — pero deja tus murallas desnudas, -1 de fuerza en defensa.",
+    de: "⚔ Bellona gewährt dir ihren Zorn: +1 Stärke im Angriff, für immer — doch sie lässt deine Mauern bloß, -1 Stärke in der Verteidigung.",
+  },
+  godUnlockCeres: {
+    fr: "🌾 Cérès vous accorde son abondance : +1 renfort à chaque fin de tour, pour toujours — mais votre force plafonne désormais à 11, pas 12 (plus jamais éligible au pouvoir des 12).",
+    en: "🌾 Ceres grants you her abundance: +1 reinforcement at the end of every turn, forever — but your strength now caps at 11, not 12 (never again eligible for the power of 12).",
+    zh: "🌾 刻瑞斯赐予你她的丰饶：每回合结束时援军永久+1——但你的兵力上限自此变为11而非12（将永远无法触发十二之力）。",
+    es: "🌾 Ceres te concede su abundancia: +1 refuerzo al final de cada turno, para siempre — pero tu fuerza ahora tiene un tope de 11, no de 12 (nunca más apto para el poder de los 12).",
+    de: "🌾 Ceres gewährt dir ihren Überfluss: +1 Verstärkung am Ende jedes Zuges, für immer — doch deine Stärke ist nun bei 11 gedeckelt, nicht bei 12 (nie wieder berechtigt für die Macht der 12).",
+  },
+  godUnlockNeptune: {
+    fr: "🌊 Neptune vous accorde sa maîtrise des flots : vos traversées en mer coûtent 1 force de moins, pour toujours — mais vos côtes restent vulnérables, -1 défense contre une attaque venue de la mer.",
+    en: "🌊 Neptune grants you his mastery of the waves: your sea crossings cost 1 less strength, forever — but your coasts remain vulnerable, -1 defense against an attack from the sea.",
+    zh: "🌊 涅普顿赐予你他对波涛的掌控：你的渡海所需兵力永久-1——但你的海岸线依旧脆弱，面对来自海上的攻击时防御力-1。",
+    es: "🌊 Neptuno te concede su dominio de las olas: tus travesías por mar cuestan 1 fuerza menos, para siempre — pero tus costas siguen siendo vulnerables, -1 de defensa contra un ataque venido del mar.",
+    de: "🌊 Neptun gewährt dir seine Beherrschung der Wellen: deine Seeüberquerungen kosten für immer 1 Stärke weniger — doch deine Küsten bleiben verwundbar, -1 Verteidigung gegen einen Angriff vom Meer.",
+  },
+  oceanTapLine2Generic: {
+    fr: "Les poissons vous regardent d'un sale œil, mon général.",
+    en: "The fish are giving you a dirty look, general.",
+    zh: "鱼群正用嫌恶的眼神盯着您呢，将军。",
+    es: "Los peces os miran con mala cara, mi general.",
+    de: "Die Fische werfen dir einen bösen Blick zu, General.",
+  },
+  oceanTapLine1: { fr: "Et plouf !", en: "And splash!", zh: "扑通一声！", es: "¡Y zas, al agua!", de: "Und platsch!" },
+  oceanTapLine2: {
+    fr: "Les hommes racontent des histoires de monstres marins à faire froid dans le dos. Il devient difficile d'engager des marins pour vos expéditions, mon général.",
+    en: "The men tell bone-chilling tales of sea monsters. It's getting hard to hire sailors for your expeditions, general.",
+    zh: "士兵们讲述着令人毛骨悚然的海怪故事。将军，如今想为您的远征招募水手，已经越来越难了。",
+    es: "Los hombres cuentan historias de monstruos marinos que hielan la sangre. Cada vez es más difícil contratar marineros para vuestras expediciones, mi general.",
+    de: "Die Männer erzählen sich haarsträubende Geschichten von Seeungeheuern. Es wird immer schwerer, Matrosen für deine Expeditionen anzuheuern, General.",
+  },
+  oceanTapLine3: {
+    fr: "Les pieuvres géantes vous remercient pour le rhum, mais elles auraient préféré GTA VI.",
+    en: "The giant octopuses thank you for the rum, but they would have preferred GTA VI.",
+    zh: "巨型章鱼感谢您送来的朗姆酒，不过它们其实更想要《GTA VI》。",
+    es: "Los pulpos gigantes os agradecen el ron, pero habrían preferido GTA VI.",
+    de: "Die Riesenkraken danken dir für den Rum, hätten aber lieber GTA VI gehabt.",
+  },
+  oceanTapLine4: { fr: "Du rhum, des femmes ! Et du cidre nom de Zeus !", en: "Rum, women! And cider, by Zeus!", zh: "朗姆酒，女人！还有苹果酒，以宙斯之名！", es: "¡Ron, mujeres! ¡Y sidra, por Zeus!", de: "Rum, Frauen! Und Apfelwein, bei Zeus!" },
+  oceanTapLine5: { fr: "glouglouglou…", en: "gluglugluglu…", zh: "咕嘟咕嘟咕嘟……", es: "glugluglú…", de: "gluckgluckgluck…" },
+  perfLineWinning: {
+    fr: "Vous avez la plus grosse armée. Qu'attendez-vous pour lancer une nouvelle offensive, monseigneur ?",
+    en: "You have the largest army. What are you waiting for to launch a new offensive, my lord?",
+    zh: "你拥有最强大的军队。阁下，还在等什么，何不发起新一轮攻势？",
+    es: "Tienes el ejército más grande. ¿A qué esperas para lanzar una nueva ofensiva, mi señor?",
+    de: "Du hast die größte Armee. Worauf wartest du noch mit einer neuen Offensive, mein Herr?",
+  },
+  perfLineNeutral: {
+    fr: "Ni gloire ni déshonneur : vous rentrez chez vous comme vous êtes parti. La trêve n'a rien tranché — à vous de faire mieux la prochaine fois.",
+    en: "Neither glory nor dishonor: you go home just as you left. The truce settled nothing — do better next time.",
+    zh: "既无荣耀，亦无耻辱：你归来时与离去时并无二致。这场停战什么也没能决定——下次做得更好吧。",
+    es: "Ni gloria ni deshonor: vuelves a casa tal como te fuiste. La tregua no resolvió nada — a ti te toca hacerlo mejor la próxima vez.",
+    de: "Weder Ruhm noch Schande: Du kehrst heim, wie du aufgebrochen bist. Der Waffenstillstand hat nichts entschieden — mach es beim nächsten Mal besser.",
+  },
+  // Trophy room slot names (refreshTrophyRoom()) — royaume-named slots stay
+  // untranslated on purpose (roy.name, same ROYAUMES scope boundary as
+  // everywhere else); everything else here is a real trophy title.
+  trophyBoat: { fr: "Le bateau", en: "The boat", zh: "船", es: "El barco", de: "Das Boot" },
+  trophyPieuvre: { fr: "La pieuvre", en: "The octopus", zh: "章鱼", es: "El pulpo", de: "Der Oktopus" },
+  trophyCthulhuName: { fr: "Cthulhu", en: "Cthulhu", zh: "克苏鲁", es: "Cthulhu", de: "Cthulhu" },
+  trophyPower12: { fr: "Le pouvoir des 12", en: "The power of 12", zh: "十二之力", es: "El poder de los 12", de: "Die Macht der 12" },
+  trophyVictoryPrefix: { fr: "Victoire — {level}", en: "Victory — {level}", zh: "胜利——{level}", es: "Victoria — {level}", de: "Sieg — {level}" },
+  trophyAllFamilies: { fr: "Toutes les familles, tous les bonus", en: "Every family, every bonus", zh: "所有家族，所有加成", es: "Todas las familias, todos los bonos", de: "Alle Familien, alle Boni" },
+  trophyGraal: { fr: "Le Graal", en: "The Grail", zh: "圣杯", es: "El Grial", de: "Der Gral" },
+  trophyExcalibur: { fr: "Excalibur", en: "Excalibur", zh: "王者之剑", es: "Excalibur", de: "Excalibur" },
+  trophyParchemin: { fr: "Le parchemin", en: "The scroll", zh: "羊皮卷", es: "El pergamino", de: "Die Schriftrolle" },
+  trophySwordBlanche: { fr: "L'épée blanche", en: "The white sword", zh: "白剑", es: "La espada blanca", de: "Das weiße Schwert" },
 };
 function t(key) {
   const entry = UI_STRINGS[key];
-  return entry ? (entry[uiLang] || entry.fr) : key;
+  return entry ? tLang(entry) : key;
+}
+function tf(key, vars) {
+  return t(key).replace(/\{(\w+)\}/g, (_, k) => (vars && vars[k] !== undefined ? vars[k] : `{${k}}`));
 }
 let audioCtx = null;
 // The only two conditions sound should ever depend on: soundEnabled, and
@@ -5180,7 +5721,7 @@ function executeWaterSacrifice(fromId, waterHexKeys, pureDirectDive = true) {
   } else {
     showForcedSwimToast(fromId);
   }
-  logMsg(`${ROYAUMES[from.owner].name} perd des soldats en mer.`);
+  logMsg(tf("logSeaLoss", { name: ROYAUMES[from.owner].name }));
   render();
 }
 function attack(fromId, toId, chainIndex = -1, forcedGuaranteed = null) {
@@ -5195,7 +5736,7 @@ function attack(fromId, toId, chainIndex = -1, forcedGuaranteed = null) {
   // failure instead: the garrison is lost to the water, the target is
   // never touched, no dice are even rolled.
   if (from.force - waterCost <= 0) {
-    logMsg(`${ROYAUMES[from.owner].name} attaque ${ROYAUMES[to.owner].name} — noyés en chemin, aucune troupe n'arrive — échec`);
+    logMsg(tf("logSeaAttackFail", { from: ROYAUMES[from.owner].name, to: ROYAUMES[to.owner].name }));
     triggerCombatFX(fromId, toId, 0, to.force, false, from.owner, to.owner, to.hexKeys.length, waterPath);
     // combat win/fail sounds now play during replay too, per request
     // ("ajoute les sons de réussite de combat et d'échec") — reversing the
@@ -5258,7 +5799,7 @@ function attack(fromId, toId, chainIndex = -1, forcedGuaranteed = null) {
   // the budget once, up front, for the whole chain — draining it again here
   // per hop is exactly the bug this fixes (see that function's note).
   if (capBonusWin && forcedGuaranteed === null) capBonusBudget[from.owner]--;
-  logMsg(`${ROYAUMES[from.owner].name} attaque ${ROYAUMES[to.owner].name} — ${atk} vs ${def} — ${win ? "victoire" : "échec"}`);
+  logMsg(tf("logAttackResult", { from: ROYAUMES[from.owner].name, to: ROYAUMES[to.owner].name, atk, def, result: win ? t("logVictory") : t("logDefeatWord") }));
   triggerCombatFX(fromId, toId, atk, def, win, from.owner, to.owner, to.hexKeys.length, waterPath, capBonusWin || marsBonusWin);
   // sfxReinforce() (see endTurn()) stays replay-silent — reported multiple
   // times as unwanted clutter — but the attack win/fail sound itself is
@@ -5397,7 +5938,7 @@ function endTurn() {
     reinforcedCounts[chosen.id] = (reinforcedCounts[chosen.id] || 0) + 1;
     pts--;
   }
-  logMsg(`${ROYAUMES[royId].name} reçoit ${reinforcement} renfort(s).`);
+  logMsg(tf("logReinforce", { name: ROYAUMES[royId].name, n: reinforcement }));
   selected = -1;
   triggerPulse(reinforcedCounts);
   if (royId === humanRoyId && !replaying) sfxEndTurn();
@@ -5534,7 +6075,7 @@ function checkLoneDefections() {
       t.owner = neutralId;
       t.loneIsolatedRounds = undefined;
       t.loneDefectAt = undefined;
-      logMsg(`Une province isolée de ${ROYAUMES[formerOwner].name} fait défection vers les Celtes.`);
+      logMsg(tf("logDefection", { name: ROYAUMES[formerOwner].name }));
     }
   }
 }
@@ -5664,20 +6205,14 @@ function declareStalemateTruce() {
   // "Sire, " up front — this is counsel from your advisors, not a narrator
   // announcing the match is over; the player still gets the final word (see
   // #continueSiege below)
-  document.getElementById("truceText").textContent =
-    "Sire, aucun camp ne parvient à forcer la décision par les armes. Seuls les faibles réclament la paix, dit-on — " +
-    "et pourtant, à bout de souffle, tous l'acceptent. Match nul : la trêve, l'affaire des gueux.";
+  document.getElementById("truceText").textContent = t("truceText");
   // The player's own defiant reply if they refuse the truce (#continueSiege
   // below) — used to be one fixed quote hardcoded straight into the HTML;
   // picked deterministically from the seed now, same convention as
   // VICTORY_LINES/LOSS_OPENERS/SURRENDER_LINES, so a replay always shows
   // the same one.
-  const CONTINUE_SIEGE_QUOTES = [
-    "« Mortecouille ! Je n'ai pas peur de l'hiver, je lèverai le siège quand bon me semble, diplomate de bas étage ! Les hommes trouveront bien des rats à manger. À l'attaque !!! »",
-    "« Foutreboule ! Mais que nenni grand lâche de tes morts ! Retourne chez ta mère et laisse les adultes se charcuter en paix, vilain ! »",
-  ];
   document.getElementById("continueSiegeQuote").textContent =
-    CONTINUE_SIEGE_QUOTES[Math.abs(currentSeed) % CONTINUE_SIEGE_QUOTES.length];
+    pickLine(CONTINUE_SIEGE_QUOTES, Math.abs(currentSeed));
   document.getElementById("truceOverlay").style.display = "flex";
 }
 document.getElementById("acceptTruce").addEventListener("click", () => {
@@ -5769,10 +6304,145 @@ function personalPerformanceLine() {
     maxOtherForce = Math.max(maxOtherForce, totalForce(r));
   }
   if (humanForceNow >= maxOtherForce) {
-    return "Vous avez la plus grosse armée. Qu'attendez-vous pour lancer une nouvelle offensive, monseigneur ?";
+    return t("perfLineWinning");
   }
-  return "Ni gloire ni déshonneur : vous rentrez chez vous comme vous êtes parti. La trêve n'a rien tranché — à vous de faire mieux la prochaine fois.";
+  return t("perfLineNeutral");
 }
+
+// Pick-one-of-N flavor pools for showWin() — {name}/{hobby} placeholders
+// filled via pickLineF(). Same index across every language for a given
+// seed (see pickLine()'s own note): a replay/shared match always shows the
+// matching joke regardless of which language the VIEWER has selected.
+const SURRENDER_LINES = [
+  {
+    fr: "Vous jetez l'éponge, seigneur ! Pas de bataille perdue, pas de terre prise de force — juste un aveu de faiblesse pur et simple. {name} récupère votre trône sans même avoir eu à lever le petit doigt — même les manants ne vous craignent plus. Vos petits-enfants en pleureront encore pendant 100 ans.",
+    en: "You throw in the towel, my lord! No battle lost, no land taken by force — just a plain, simple admission of weakness. {name} takes back your throne without even having to lift a finger — even the peasants no longer fear you. Your grandchildren will still be weeping over it in 100 years.",
+    zh: "阁下，您认输了！没有战败的战役，没有被强占的土地——不过是一次赤裸裸的认怂罢了。{name}不费吹灰之力便夺回了您的王座——就连乡野村夫都不再惧怕您了。您的孙辈们还将为此哭泣一百年。",
+    es: "¡Tiráis la toalla, señor! Ninguna batalla perdida, ninguna tierra tomada por la fuerza — solo una llana y simple confesión de debilidad. {name} recupera vuestro trono sin siquiera haber movido un dedo — ni los campesinos os temen ya. Vuestros nietos aún llorarán por esto dentro de 100 años.",
+    de: "Ihr werft das Handtuch, mein Herr! Keine verlorene Schlacht, kein mit Gewalt genommenes Land — nur ein schlichtes, einfaches Eingeständnis der Schwäche. {name} nimmt sich Euren Thron zurück, ohne auch nur einen Finger zu rühren — selbst die Bauern fürchten Euch nicht mehr. Eure Enkel werden noch in 100 Jahren darüber weinen.",
+  },
+  {
+    fr: "L'échec. Vous êtes à peine reconnaissable avec votre barbe mitée et vos lambeaux sales. Vous me faites honte. Je préfère travailler pour un winner qui parie sur des cryptomonnaies. À Dieu l'bouseux.",
+    en: "Failure. You're barely recognizable with that moth-eaten beard and those filthy rags. You make me ashamed. I'd rather work for a winner who bets on crypto. Farewell, you hick.",
+    zh: "失败。您那被虫蛀的胡须和肮脏的破布，简直让人认不出来了。您让我蒙羞。我宁愿去为一个押注加密货币的赢家卖命。再会了，乡巴佬。",
+    es: "El fracaso. Apenas se os reconoce con esa barba apolillada y esos harapos sucios. Me avergonzáis. Prefiero trabajar para un ganador que apuesta por las criptomonedas. Adiós, paleto.",
+    de: "Das Scheitern. Man erkennt Euch kaum wieder mit diesem mottenzerfressenen Bart und den schmutzigen Lumpen. Ihr macht mir Schande. Ich arbeite lieber für einen Gewinner, der auf Kryptowährungen setzt. Leb wohl, du Hinterwäldler.",
+  },
+];
+const HOBBIES = [
+  { fr: "la poterie", en: "pottery", zh: "陶艺", es: "la alfarería", de: "der Töpferkunst" },
+  { fr: "la danse", en: "dancing", zh: "跳舞", es: "el baile", de: "dem Tanz" },
+  { fr: "la broderie", en: "embroidery", zh: "刺绣", es: "el bordado", de: "der Stickerei" },
+  { fr: "la peinture", en: "painting", zh: "绘画", es: "la pintura", de: "der Malerei" },
+  { fr: "courir la gueuse", en: "chasing skirts", zh: "拈花惹草", es: "corretear faldas", de: "den Weibergeschichten" },
+  { fr: "conter fleurette à la souillon", en: "flirting with the scullery maid", zh: "跟厨娘调情", es: "cortejar a la fregona", de: "dem Flirten mit der Küchenmagd" },
+];
+const LOSS_OPENERS = [
+  {
+    fr: "{name} ne vous a laissé ni terre ni honneur. Vous avez tout donné, tout dépensé, et voilà : plus de terre, plus de soldats, seul et honteux devant vos pairs. Essayez {hobby} plutôt que la guerre la prochaine fois.",
+    en: "{name} left you neither land nor honor. You gave everything, spent everything, and here you are: no land, no soldiers, alone and ashamed before your peers. Try {hobby} instead of war next time.",
+    zh: "{name}没有给您留下一寸土地，也没有留下一丝荣耀。您付出了一切、耗尽了一切，结果如此：无地无兵，孤身一人，在同侪面前颜面扫地。下次不如试试{hobby}，别再打仗了。",
+    es: "{name} no os dejó ni tierra ni honor. Lo disteis todo, lo gastasteis todo, y aquí estáis: sin tierra, sin soldados, solo y avergonzado ante vuestros pares. Probad con {hobby} en vez de la guerra la próxima vez.",
+    de: "{name} hat Euch weder Land noch Ehre gelassen. Ihr habt alles gegeben, alles ausgegeben, und nun steht Ihr da: kein Land, keine Soldaten, allein und beschämt vor Euresgleichen. Versucht es das nächste Mal lieber mit {hobby} statt mit Krieg.",
+  },
+  {
+    fr: "Foutrecouille ! Vous n'auriez pas dû faire bombance hier soir, sire. L'ennemi vous a surnommé Bidoumol, et {name} rit encore de votre déroute.",
+    en: "Blast and blazes! You shouldn't have feasted so hard last night, sire. The enemy has nicknamed you Wobblesword, and {name} is still laughing at your rout.",
+    zh: "该死！陛下，您昨晚就不该大吃大喝。敌人给您起了个绰号叫「软脚虾」，而{name}至今仍在嘲笑您的溃败。",
+    es: "¡Maldita sea! No deberíais haberos dado tal banquete anoche, sire. El enemigo os ha apodado Espadaflácida, y {name} todavía se ríe de vuestra derrota.",
+    de: "Verflucht und zugenäht! Ihr hättet gestern Abend nicht so schlemmen sollen, Sire. Der Feind nennt Euch nur noch Wackelschwert, und {name} lacht noch immer über Euer Debakel.",
+  },
+  // same anachronistic-aside style validated on the "étendard" victory
+  // line — the character breaks for a beat, then goes right back to it
+  {
+    fr: "{name} s'effondre, vaincu, sans terre ni couronne. *ferme les yeux une seconde, souffle un bon coup* ... Allez. Nouvelle partie.",
+    en: "{name} collapses, defeated, with neither land nor crown. *closes eyes for a second, takes a deep breath* ... Come on. New game.",
+    zh: "{name}垮了，战败了，既无领土也无王冠。*闭上双眼片刻，深吸一口气*……好了。开新的一局吧。",
+    es: "{name} se derrumba, vencido, sin tierra ni corona. *cierra los ojos un segundo, respira hondo* ... Vamos. Nueva partida.",
+    de: "{name} bricht zusammen, besiegt, ohne Land und ohne Krone. *schließt für einen Moment die Augen, atmet tief durch* ... Na gut. Neues Spiel.",
+  },
+];
+// "seigneur de Millon de X" doubled up on "de" in the French original —
+// ROYAUMES[royId].name already starts with "Millon de", so that address is
+// a comma, not a second "de"; translations below address {name} the same
+// natural way in each language instead of mirroring that French-specific
+// wording quirk.
+const VICTORY_LINES = [
+  {
+    fr: "Victoire, seigneur ! Sous la bannière de {name}, plus un seul donjon rival ne tient debout. Mais un trône ne se garde pas en jouant aux échecs et en buvant de la bière, il se défend — d'autres terres attendent d'être prises et d'autres citadelles méritent d'être défoncées par votre grosse armée, mon roi !",
+    en: "Victory, my lord! Under the banner of {name}, not a single rival keep still stands. But a throne isn't kept by playing chess and drinking beer, it's defended — other lands await conquest and other citadels deserve to be smashed open by your mighty army, my king!",
+    zh: "胜利了，阁下！在{name}的旗帜之下，敌方再无一座城堡屹立不倒。但王座不是靠下棋喝啤酒守住的，而是靠捍卫得来的——还有更多土地等待占领，还有更多要塞值得您的雄师去攻破，我的王！",
+    es: "¡Victoria, señor! Bajo el estandarte de {name}, ya no queda en pie ni una sola fortaleza rival. Pero un trono no se guarda jugando al ajedrez y bebiendo cerveza, se defiende — otras tierras esperan ser tomadas y otras ciudadelas merecen ser derribadas por vuestro gran ejército, ¡mi rey!",
+    de: "Sieg, mein Herr! Unter dem Banner von {name} steht keine einzige gegnerische Festung mehr. Doch einen Thron behält man nicht, indem man Schach spielt und Bier trinkt, man verteidigt ihn — andere Länder warten darauf, erobert zu werden, und andere Zitadellen verdienen es, von Eurem gewaltigen Heer eingerissen zu werden, mein König!",
+  },
+  {
+    fr: "Le sang a coulé, les dernières bannières rivales sont tombées. {name} règne seul. Votre nom sera chanté dans les tavernes... jusqu'à la prochaine guerre.",
+    en: "Blood has flowed, the last rival banners have fallen. {name} reigns alone. Your name will be sung in the taverns... until the next war.",
+    zh: "鲜血已经流尽，最后的敌方旗帜已然倒下。{name}独掌大权。您的名字将在酒馆中被传唱……直到下一场战争到来。",
+    es: "La sangre ha corrido, los últimos estandartes rivales han caído. {name} reina solo. Vuestro nombre será cantado en las tabernas... hasta la próxima guerra.",
+    de: "Blut ist geflossen, die letzten gegnerischen Banner sind gefallen. {name} herrscht allein. Euer Name wird in den Tavernen besungen … bis zum nächsten Krieg.",
+  },
+  {
+    fr: "Plus aucun ennemi ne conteste {name}. De joie vous plantez votre épée dans la pierre. Impossible de la retirer, vous en prenez une sur un cadavre défiguré en riant.",
+    en: "No enemy contests {name} any longer. In your joy you plant your sword into a stone. It won't come back out, so laughing, you grab another off a disfigured corpse.",
+    zh: "再无敌人能与{name}争锋。您喜不自胜，将剑插入石中。却怎么也拔不出来，于是您笑着从一具面目全非的尸体上又抄起一把。",
+    es: "Ya ningún enemigo disputa a {name}. De alegría clavais vuestra espada en la piedra. No hay forma de sacarla, así que cogéis otra de un cadáver desfigurado, riendo.",
+    de: "Kein Feind bestreitet {name} mehr. Vor Freude rammt Ihr Euer Schwert in den Stein. Es lässt sich nicht mehr herausziehen, also schnappt Ihr Euch lachend eines von einer entstellten Leiche.",
+  },
+  {
+    fr: "Toutes les terres sont vôtres, seigneur, {name}. Un royaume de plus sous votre étendard, et déjà l'horizon en réclame un autre. Vos hommes terminent de compter les morts et vous souriez, que c'est beau un champ de bataille. *croque son sandwich vegan, la larme à l'œil*",
+    en: "All the lands are yours, my lord, {name}. One more kingdom under your standard, and already the horizon demands another. Your men finish counting the dead and you smile — a battlefield is such a beautiful thing. *takes a bite of his vegan sandwich, a tear in his eye*",
+    zh: "所有的土地都归您所有了，阁下，{name}。旗下又多了一个王国，而地平线已经在召唤下一个。您的部下清点完死者，您露出微笑——战场竟是如此美丽。*咬了一口他的素食三明治，眼中噙泪*",
+    es: "Todas las tierras son vuestras, señor, {name}. Un reino más bajo vuestro estandarte, y el horizonte ya reclama otro. Vuestros hombres terminan de contar a los muertos y sonreís, qué hermoso es un campo de batalla. *le da un mordisco a su sándwich vegano, con una lágrima en el ojo*",
+    de: "Alle Länder sind Euer, mein Herr, {name}. Ein weiteres Königreich unter Eurem Banner, und schon verlangt der Horizont nach dem nächsten. Eure Männer sind mit dem Zählen der Toten fertig, und Ihr lächelt — wie schön ein Schlachtfeld doch ist. *beißt in sein veganes Sandwich, eine Träne im Auge*",
+  },
+  {
+    fr: "Victoire, seigneur, {name} ! Les hurlements vous manquent déjà.",
+    en: "Victory, my lord, {name}! You already miss the screaming.",
+    zh: "胜利了，阁下，{name}！您已经开始怀念那些嘶吼声了。",
+    es: "¡Victoria, señor, {name}! Ya echáis de menos los alaridos.",
+    de: "Sieg, mein Herr, {name}! Ihr vermisst das Geschrei schon jetzt.",
+  },
+  {
+    fr: "{name} règne sans partage, mais l'odeur de la paix n'égalera jamais celle de la chair brûlée. *soupir*",
+    en: "{name} reigns unchallenged, but the smell of peace will never match that of burnt flesh. *sigh*",
+    zh: "{name}独享至尊，但和平的气息终究比不上烧灼血肉的味道。*叹气*",
+    es: "{name} reina sin oposición, pero el olor de la paz nunca igualará al de la carne quemada. *suspiro*",
+    de: "{name} herrscht unangefochten, doch der Geruch des Friedens wird nie an den von verbranntem Fleisch heranreichen. *Seufzer*",
+  },
+  // The arc explaining why a hired général de guerre (see startGame()'s
+  // own onboarding-hint note — you were only ever engaged BY this house,
+  // not born to it) ends up addressed as "seigneur"/"my lord": once every
+  // rival branch is dust, the house that hired you has no rival army left
+  // of its own to enforce its claim over yours either — you don't conquer
+  // them so much as simply stop asking permission.
+  {
+    fr: "On vous avait engagé comme général, seigneur — un mercenaire au service de {name}, rien de plus. Mais un général qui a écrasé toutes les branches rivales n'a plus besoin qu'on lui rappelle qui commande : la maison qui vous payait n'a plus d'armée pour faire valoir son sang contre le vôtre. Engagé au matin, seigneur au soir.",
+    en: "You were hired as a general, my lord — a mercenary in the service of {name}, nothing more. But a general who has crushed every rival branch no longer needs reminding who's in command: the house that paid you has no army left to press its blood claim against yours. Hired in the morning, lord by evening.",
+    zh: "阁下，您原本只是被雇来的将军——不过是效力于{name}的一名雇佣兵，仅此而已。但一位已经击溃所有敌对分支的将军，已无需旁人提醒谁才是发号施令之人：曾雇用您的那个家族，如今已无军队可以拿血脉去对抗您了。清晨受雇，入夜为君。",
+    es: "Os habían contratado como general, señor — un mercenario al servicio de {name}, nada más. Pero un general que ha aplastado todas las ramas rivales ya no necesita que le recuerden quién manda: la casa que os pagaba ya no tiene ejército para hacer valer su sangre contra la vuestra. Contratado por la mañana, señor al anochecer.",
+    de: "Man hatte Euch als General angeheuert, mein Herr — ein Söldner im Dienste von {name}, nicht mehr. Doch ein General, der alle rivalisierenden Zweige zerschlagen hat, muss sich nicht mehr erinnern lassen, wer das Kommando führt: Das Haus, das Euch bezahlte, hat kein Heer mehr, um seinen Blutanspruch gegen Euren geltend zu machen. Am Morgen angeheuert, am Abend Lehnsherr.",
+  },
+];
+// The player's own defiant reply to a proposed truce (#continueSiege) —
+// picked deterministically from the seed, same convention as the pools
+// above, so a replay always shows the same one.
+const CONTINUE_SIEGE_QUOTES = [
+  {
+    fr: "« Mortecouille ! Je n'ai pas peur de l'hiver, je lèverai le siège quand bon me semble, diplomate de bas étage ! Les hommes trouveront bien des rats à manger. À l'attaque !!! »",
+    en: "\"Death and damnation! I fear not the winter, I'll lift this siege when it suits me, you two-bit diplomat! My men will find rats enough to eat. Attack!!!\"",
+    zh: "「见鬼去吧！我才不怕严冬，这场围城几时解，由我说了算，你这三流说客！弟兄们总能找到老鼠果腹。进攻！！！」",
+    es: "«¡Voto a bríos! No le temo al invierno, levantaré el asedio cuando me plazca, diplomático de tres al cuarto! Los hombres ya encontrarán ratas que comer. ¡Al ataque!!!»",
+    de: "„Zum Teufel! Ich fürchte den Winter nicht, ich breche diese Belagerung ab, wann es mir beliebt, du Möchtegern-Diplomat! Die Männer werden schon genug Ratten zum Essen finden. Zum Angriff!!!\"",
+  },
+  {
+    fr: "« Foutreboule ! Mais que nenni grand lâche de tes morts ! Retourne chez ta mère et laisse les adultes se charcuter en paix, vilain ! »",
+    en: "\"Blast and confound it! Nay, you great craven coward! Go home to your mother and let the grown-ups butcher each other in peace, you knave!\"",
+    zh: "「该死的混账！休想，你这懦弱之徒！滚回去找你娘吧，让大人们安安静静地互相残杀，你这卑鄙小人！」",
+    es: "«¡Maldición! ¡Ni hablar, cobarde de mala muerte! Vuelve con tu madre y deja que los adultos se destripen en paz, villano!»",
+    de: "„Verflixt und zugenäht! Von wegen, du feiger Hasenfuß! Lauf zurück zu deiner Mutter und lass die Erwachsenen in Ruhe aufeinander einschlagen, du Schuft!\"",
+  },
+];
 
 function showWin(royId) {
   if (!replaying) dismissOnboarding(); // reaching a game's own end retires the tutorial for good, even if it never got dismissed by an actual attack
@@ -5864,46 +6534,26 @@ function showWin(royId) {
     // the rival's own territory is left exactly as it was — this is a
     // political resolution, not a conquest, so there's nothing to record
     // about it beyond the flavor line itself
-    text = "Votre clémence vous honore, seigneur, ou bien est-ce de la faiblesse ? Seul le temps le dira — espérons qu'ils ne fomentent pas de rébellion.";
+    text = t("mercyLine");
   } else if (truceEnded) {
-    text = "Match nul — la paix, l'affaire des gueux.";
+    text = t("truceMatchNulLine");
   } else if (humanLost && humanSurrendered) {
     // no AI_PERSONALITIES reference here — epithets ("les Enragés" etc.) are
     // reserved for "Le lore", not general defeat banter; a generic jab at
     // the player's own standing (peasants, honor) works for any winner.
     // Picked deterministically from the seed, same convention as
     // LOSS_OPENERS/VICTORY_LINES below, so a replay always shows the same one.
-    const SURRENDER_LINES = [
-      `Vous jetez l'éponge, seigneur ! Pas de bataille perdue, pas de terre prise de force — juste un aveu de faiblesse pur et simple. ` +
-        `${ROYAUMES[royId].name} récupère votre trône sans même avoir eu à lever le petit doigt — même les manants ne vous craignent plus. ` +
-        "Vos petits-enfants en pleureront encore pendant 100 ans.",
-      "L'échec. Vous êtes à peine reconnaissable avec votre barbe mitée et vos lambeaux sales. " +
-        "Vous me faites honte. Je préfère travailler pour un winner qui parie sur des cryptomonnaies. À Dieu l'bouseux.",
-    ];
-    text = SURRENDER_LINES[Math.abs(currentSeed + royId) % SURRENDER_LINES.length];
+    text = pickLineF(SURRENDER_LINES, Math.abs(currentSeed + royId), { name: ROYAUMES[royId].name });
   } else if (humanLost) {
     // same rule as above: no pers.epithet here either, only ROYAUMES[royId].name
     // a hint of hope closes every loss, unchanged — only the humiliating
     // part varies, both in which joke it tells and (for the hobby-shaming
     // one) which hobby it suggests, picked deterministically from the seed
     // so a replay always shows the same one
-    const HOBBIES = ["la poterie", "la danse", "la broderie", "la peinture", "courir la gueuse", "conter fleurette à la souillon"];
-    const hobby = HOBBIES[Math.abs(currentSeed + royId) % HOBBIES.length];
-    const LOSS_OPENERS = [
-      `${ROYAUMES[royId].name} ne vous a laissé ni terre ni honneur. ` +
-        "Vous avez tout donné, tout dépensé, et voilà : plus de terre, plus de soldats, seul et honteux devant vos pairs. " +
-        `Essayez ${hobby} plutôt que la guerre la prochaine fois.`,
-      `Foutrecouille ! Vous n'auriez pas dû faire bombance hier soir, sire. L'ennemi vous a surnommé Bidoumol, ` +
-        `et ${ROYAUMES[royId].name} rit encore de votre déroute.`,
-      // same anachronistic-aside style validated on the "étendard" victory
-      // line — the character breaks for a beat, then goes right back to it
-      `${ROYAUMES[royId].name} s'effondre, vaincu, sans terre ni couronne. *ferme les yeux une seconde, souffle un bon coup* ... Allez. Nouvelle partie.`,
-    ];
-    const HOPE_ENDING = " Mais un seigneur déchu n'est pas un seigneur mort — quelque part, vous rêvez déjà de lever une nouvelle armée, " +
-      "ou de trouver des alliés assez généreux pour vous aider à vous relever.";
-    text = LOSS_OPENERS[Math.abs(currentSeed + royId + 11) % LOSS_OPENERS.length] + HOPE_ENDING;
+    const hobby = pickLine(HOBBIES, Math.abs(currentSeed + royId));
+    text = pickLineF(LOSS_OPENERS, Math.abs(currentSeed + royId + 11), { name: ROYAUMES[royId].name, hobby }) + t("hopeEnding");
   } else if (lastAttackWasGrind) {
-    text = "Bravo seigneur, vous avez guerroyé férocement aujourd'hui, la dernière bataille était dure !";
+    text = t("grindLine");
   } else {
     // royId === humanRoyId here (checkWinner() only reaches this branch once
     // a single royaume remains and it isn't a truce/loss), so it always names
@@ -5915,27 +6565,7 @@ function showWin(royId) {
     // this branch, and the personality epithets only ever describe an
     // *AI-controlled* seat — crediting one to the player's own victory just
     // read as an unexplained, meaningless name ("qui sont les Enragés ?")
-    const VICTORY_LINES = [
-      `Victoire, seigneur ! Sous la bannière de ${ROYAUMES[royId].name}, plus un seul donjon rival ne tient debout. Mais un trône ne se garde pas en jouant aux échecs et en buvant de la bière, il se défend — d'autres terres attendent d'être prises et d'autres citadelles méritent d'être défoncées par votre grosse armée, mon roi !`,
-      `Le sang a coulé, les dernières bannières rivales sont tombées. ${ROYAUMES[royId].name} règne seul. Votre nom sera chanté dans les tavernes... jusqu'à la prochaine guerre.`,
-      `Plus aucun ennemi ne conteste ${ROYAUMES[royId].name}. De joie vous plantez votre épée dans la pierre. Impossible de la retirer, vous en prenez une sur un cadavre défiguré en riant.`,
-      // "seigneur de Millon de X" doubled up on "de" — ROYAUMES[royId].name
-      // already starts with "Millon de", so this address is a comma, not a
-      // second "de". The anachronistic aside at the end (in the same
-      // *asterisks* style as the "*soupir*" line below) breaks the medieval
-      // voice on purpose, the moment the battle itself is actually over.
-      `Toutes les terres sont vôtres, seigneur, ${ROYAUMES[royId].name}. Un royaume de plus sous votre étendard, et déjà l'horizon en réclame un autre. Vos hommes terminent de compter les morts et vous souriez, que c'est beau un champ de bataille. *croque son sandwich vegan, la larme à l'œil*`,
-      `Victoire, seigneur, ${ROYAUMES[royId].name} ! Les hurlements vous manquent déjà.`,
-      `${ROYAUMES[royId].name} règne sans partage, mais l'odeur de la paix n'égalera jamais celle de la chair brûlée. *soupir*`,
-      // The arc explaining why a hired général de guerre (see startGame()'s
-      // own onboarding-hint note — you were only ever engaged BY this
-      // house, not born to it) ends up addressed as "seigneur": once every
-      // rival branch is dust, the house that hired you has no rival army
-      // left of its own to enforce its claim over yours either — you don't
-      // conquer them so much as simply stop asking permission.
-      `On vous avait engagé comme général, seigneur — un mercenaire au service de ${ROYAUMES[royId].name}, rien de plus. Mais un général qui a écrasé toutes les branches rivales n'a plus besoin qu'on lui rappelle qui commande : la maison qui vous payait n'a plus d'armée pour faire valoir son sang contre le vôtre. Engagé au matin, seigneur au soir.`,
-    ];
-    text = VICTORY_LINES[Math.abs(currentSeed + royId) % VICTORY_LINES.length];
+    text = pickLineF(VICTORY_LINES, Math.abs(currentSeed + royId), { name: ROYAUMES[royId].name });
   }
   // Split into the opening sentence (shown up top, before every button —
   // the actual verdict at a glance) and everything after it (shown at the
@@ -5955,32 +6585,27 @@ function showWin(royId) {
   // a surrender that had at least one to spend. A plain elimination loss or
   // a truce never touches gueuxCount, so this stays empty/hidden then.
   let gueuxNoteText = "";
-  if (royId === humanRoyId && metaProgressEnabled) gueuxNoteText = "Vous gagnez un gueux.";
-  else if (humanLost && humanSurrendered && surrenderCostAGueux) gueuxNoteText = "Vous perdez un gueux.";
+  if (royId === humanRoyId && metaProgressEnabled) gueuxNoteText = t("gueuxNoteGain");
+  else if (humanLost && humanSurrendered && surrenderCostAGueux) gueuxNoteText = t("gueuxNoteLose");
   else if (truceEnded && peaceGueuxGained > 0) {
     gueuxNoteText = peaceGueuxGained > 1
-      ? `Vous gagnez ${peaceGueuxGained} gueux.`
-      : "Vous gagnez un gueux.";
+      ? tf("gueuxNoteGainN", { n: peaceGueuxGained })
+      : t("gueuxNoteGain");
   }
   document.getElementById("gueuxNote").textContent = gueuxNoteText;
   // The hint itself — deliberately vague, names a rival seigneur (picked
   // deterministically off the seed, same convention as every other flavor
   // line here) rather than explaining what it means.
-  const CTHULHU_HINT_LINES = [
-    `Le Seigneur ${ROYAUMES[(currentSeed + royId) % (ROYAUME_COUNT - 1)].name.replace("Millon de ", "")} vous remet un parchemin crypté, persuadé de vous donner un secret crucial sur les mystères de l'océan…`,
-  ];
-  document.getElementById("cthulhuHintNote").textContent =
-    cthulhuHintFired ? CTHULHU_HINT_LINES[Math.abs(currentSeed) % CTHULHU_HINT_LINES.length] : "";
-  const GOD_UNLOCK_LINES = {
-    Vulcain: "🔨 Vulcain vous accorde sa forge : +1 force en défense, pour toujours — mais sa forge coûte cher, -1 renfort à chaque fin de tour.",
-    Bellone: "⚔ Bellone vous accorde sa fureur : +1 force en attaque, pour toujours — mais elle laisse vos remparts nus, -1 force en défense.",
-    Cérès: "🌾 Cérès vous accorde son abondance : +1 renfort à chaque fin de tour, pour toujours — mais votre force plafonne désormais à 11, pas 12 (plus jamais éligible au pouvoir des 12).",
-    Neptune: "🌊 Neptune vous accorde sa maîtrise des flots : vos traversées en mer coûtent 1 force de moins, pour toujours — mais vos côtes restent vulnérables, -1 défense contre une attaque venue de la mer.",
-  };
+  document.getElementById("cthulhuHintNote").textContent = cthulhuHintFired
+    ? tf("cthulhuHintLine", { name: ROYAUMES[(currentSeed + royId) % (ROYAUME_COUNT - 1)].name.replace("Millon de ", "") })
+    : "";
+  // Keyed by the internal GOD_NAMES value (language-independent), same
+  // split as GOD_DISPLAY_KEYS — see its own note.
+  const GOD_UNLOCK_KEYS = { Vulcain: "godUnlockVulcain", Bellone: "godUnlockBellone", Cérès: "godUnlockCeres", Neptune: "godUnlockNeptune" };
   // newlyUnlockedGod is an array now (0+ names — more than one condition
   // can be met in the same winning match) — see checkGodUnlockOnWin().
   document.getElementById("godUnlockNote").textContent =
-    newlyUnlockedGod ? newlyUnlockedGod.map((n) => GOD_UNLOCK_LINES[n]).join(" ") : "";
+    newlyUnlockedGod ? newlyUnlockedGod.map((n) => t(GOD_UNLOCK_KEYS[n])).join(" ") : "";
   if (newlyUnlockedGod) refreshLoreGods();
   document.getElementById("endturn").disabled = true;
   drawStatChart();
@@ -7981,7 +8606,7 @@ function updateGroups() {
     if (rowEl.dataset.godsKey !== godsKey) {
       rowEl.dataset.godsKey = godsKey;
       rowEl.querySelector(".chipGods").innerHTML = activeGods
-        .map((g) => `<img src="${GOD_ICON_SRCS[g]}" alt="${GOD_NAMES[g]}" title="${GOD_NAMES[g]}">`)
+        .map((g) => `<img src="${GOD_ICON_SRCS[g]}" alt="${t(GOD_DISPLAY_KEYS[g])}" title="${t(GOD_DISPLAY_KEYS[g])}">`)
         .join("");
     }
     // exactly one row emphasized at a time, including our own when it's
@@ -8198,8 +8823,8 @@ function pickFaction(royId) {
   // baseline for the end-of-game "gained ground?" flavor line — territory
   // ownership itself isn't touched by the pick or by balanceStartingForces()
   humanStartTerritories = territories.filter(t => t.owner === royId).length;
-  logMsg(`Vous jouez ${ROYAUMES[royId].name}.`);
-  if (onboarding) showOnboardingHint("Touchez une de vos provinces pour la sélectionner.");
+  logMsg(tf("logYouPlay", { name: ROYAUMES[royId].name }));
+  if (onboarding) showOnboardingHint(t("onboardHint1"));
   else hideOnboardingHint(); // clears the "à laquelle offrez-vous votre épée" banner from startGame() — shown every match now, not just onboarding, so it needs clearing every match too
   updateStatus();
   updateGroups();
@@ -8292,7 +8917,7 @@ function handlePointer(clientX, clientY) {
   if (selected === -1) {
     if (t.owner === currentPlayer && t.force > 1) {
       selected = tId;
-      if (onboarding) showOnboardingHint("<b>Touchez une province</b> ennemie adjacente (contour doré) pour l'attaquer.");
+      if (onboarding) showOnboardingHint(t("onboardHint2"));
     }
   } else if (selected === tId) {
     selected = -1;
@@ -8302,7 +8927,7 @@ function handlePointer(clientX, clientY) {
       if (onboarding) {
         onboarding = false;
         try { localStorage.setItem("kw_playedBefore", "1"); } catch (e) { /* ignore */ }
-        showOnboardingHint("Touchez « Fin de bataille » quand vous avez terminé vos attaques.");
+        showOnboardingHint(t("onboardHint3"));
         setTimeout(hideOnboardingHint, 4500);
       }
       logMove({ a: selected, b: tId });
@@ -8478,7 +9103,7 @@ canvas.addEventListener("pointerup", (e) => {
     if (onboarding) {
       onboarding = false;
       try { localStorage.setItem("kw_playedBefore", "1"); } catch (err) { /* ignore */ }
-      showOnboardingHint("Touchez « Fin de bataille » quand vous avez terminé vos attaques.");
+      showOnboardingHint(t("onboardHint3"));
       setTimeout(hideOnboardingHint, 4500);
     }
     selected = -1;
@@ -8960,12 +9585,18 @@ document.querySelectorAll("#loreMarsSwords img").forEach((img) => { img.src = SW
 // sit for why (all 5 were pure duplicates of art shown elsewhere on this
 // page). Only the boat survives, moved into refreshTrophyRoom() itself.
 refreshLorePieuvre();
-document.getElementById("lorePersonalities").innerHTML = ROYAUMES.slice(0, ROYAUME_COUNT - 1).map(roy => `
-  <div class="personalityRow">
-    <span class="rname">${roy.name}</span>, <span class="repithet">${AI_PERSONALITIES[roy.id].epithet}</span> :
-    ${AI_PERSONALITIES[roy.id].lore}
-  </div>
-`).join("");
+// Wrapped in a function (was a one-shot top-level statement) so it can be
+// re-run from applyUiLanguage() too — epithet/lore are now translated, so
+// this needs rebuilding on every language switch, not just once at boot.
+function renderLorePersonalities() {
+  document.getElementById("lorePersonalities").innerHTML = ROYAUMES.slice(0, ROYAUME_COUNT - 1).map(roy => `
+    <div class="personalityRow">
+      <span class="rname">${roy.name}</span>, <span class="repithet">${tLang(AI_PERSONALITIES[roy.id].epithet)}</span> :
+      ${tLang(AI_PERSONALITIES[roy.id].lore)}
+    </div>
+  `).join("");
+}
+renderLorePersonalities();
 // "Adapte les couleurs des blasons au niveau du trait diagonal en couleur
 // aux familles" — the shared placeholder blazon's diagonal stripe (solid
 // blue, hue ~216° including its anti-aliased edge blends — measured by
@@ -9089,15 +9720,15 @@ function refreshTrophyRoom() {
   // appearing only once earned, no exceptions. All 4 gods now have their
   // own dedicated sprite — Cérès (wheat stalk) and Neptune (trident) were
   // the last two still on emoji placeholders.
-  const slots = GOD_NAMES.map((name, i) => ({ earned: godUnlockedPlayer[i], name, img: GOD_ICON_SRCS[i] }));
+  const slots = GOD_NAMES.map((name, i) => ({ earned: godUnlockedPlayer[i], name: t(GOD_DISPLAY_KEYS[i]), img: GOD_ICON_SRCS[i] }));
   // The boat used to sit in its own decorative row above this title
   // (#loreWarTools, now removed — "déplacée en dessous dans un carré"); it
   // was never gated by any unlock before, so it stays always-earned here
   // too, just relocated into a real square slot like everything else.
-  slots.push({ earned: true, name: "Le bateau", img: BOAT_IMG_SRC });
-  slots.push({ earned: pieuvreUnlocked, name: "La pieuvre", img: OCTOPUS_IMG_SRC });
-  slots.push({ earned: cthulhuUnlocked, name: "Cthulhu", img: CTHULHU_IMG_SRC });
-  slots.push({ earned: marsBlessingUnlocked, name: "Le pouvoir des 12", img: SWORD_DIAGONAL_IMG_SRC });
+  slots.push({ earned: true, name: t("trophyBoat"), img: BOAT_IMG_SRC });
+  slots.push({ earned: pieuvreUnlocked, name: t("trophyPieuvre"), img: OCTOPUS_IMG_SRC });
+  slots.push({ earned: cthulhuUnlocked, name: t("trophyCthulhuName"), img: CTHULHU_IMG_SRC });
+  slots.push({ earned: marsBlessingUnlocked, name: t("trophyPower12"), img: SWORD_DIAGONAL_IMG_SRC });
   // "Un enfant qui porte un écu" — Page's own dedicated sprite, replacing
   // the plain white sword placeholder used until now. Shifted from index 0
   // to index 1 (and the gueux bust brought in at index 0) to match "on
@@ -9105,7 +9736,7 @@ function refreshTrophyRoom() {
   // DIFF_ICON_SRCS's own note on the same rename-vs-icon mismatch.
   const DIFF_TROPHY_IMG = [GUEUX_BUST_IMG_SRC, PAGE_IMG_SRC, FIGURE2_IMG_SRC, CREATURE_IMG_SRC];
   DIFFICULTY_LEVELS.forEach((lvl, i) => {
-    slots.push({ earned: difficultyTierWon[i], name: `Victoire — ${lvl.name}`, img: DIFF_TROPHY_IMG[i] });
+    slots.push({ earned: difficultyTierWon[i], name: tf("trophyVictoryPrefix", { level: t(DIFFICULTY_DISPLAY_KEYS[i]) }), img: DIFF_TROPHY_IMG[i] });
   });
   // "Ajoute une case par blason pour les familles" — one slot per royaume,
   // same condition/art as the #loreRoyaumesJoues row above (royaumePlayed,
@@ -9117,7 +9748,7 @@ function refreshTrophyRoom() {
   });
   // "Trophée pour vaincre toutes les familles, chacune avec tous les bonus
   // débloqués" — the ultimate one, computed live (see allRoyaumesFullyBlessed()).
-  slots.push({ earned: allRoyaumesFullyBlessed(), name: "Toutes les familles, tous les bonus", img: YINYANG_IMG_SRC });
+  slots.push({ earned: allRoyaumesFullyBlessed(), name: t("trophyAllFamilies"), img: YINYANG_IMG_SRC });
   // Le Graal — "100% de tout avoir débloqué, le dernier à débloquer" : a
   // meta-trophy earned only once every OTHER slot above is already earned
   // (checked against the preceding slots, never against itself — computed
@@ -9125,15 +9756,15 @@ function refreshTrophyRoom() {
   // Excalibur/parchemin/épée blanche have no unlock mechanic yet, so
   // counting them here would make Le Graal permanently unearnable by
   // anyone until all three get a real condition).
-  slots.push({ earned: slots.every((s) => s.earned), name: "Le Graal", img: GRAAL_IMG_SRC });
+  slots.push({ earned: slots.every((s) => s.earned), name: t("trophyGraal"), img: GRAAL_IMG_SRC });
   // "Excalibur et parchemin sont affichés en trophées, on verra la
   // mécanique plus tard" — two new real slots, not yet unlockable
   // (earned:false until an unlock condition is actually chosen).
-  slots.push({ earned: false, name: "Excalibur", img: EXCALIBUR_IMG_SRC });
-  slots.push({ earned: false, name: "Le parchemin", img: PARCHEMIN_IMG_SRC });
+  slots.push({ earned: false, name: t("trophyExcalibur"), img: EXCALIBUR_IMG_SRC });
+  slots.push({ earned: false, name: t("trophyParchemin"), img: PARCHEMIN_IMG_SRC });
   // "Il manque épée blanche dans les trophées" — same treatment, mécanique
   // à définir plus tard.
-  slots.push({ earned: false, name: "L'épée blanche", img: SWORD_IMG_SRC });
+  slots.push({ earned: false, name: t("trophySwordBlanche"), img: SWORD_IMG_SRC });
   el.innerHTML = slots.map((s) => `
     <div class="trophySlot${s.earned ? " earned" : ""}" title="${s.name}">
       ${s.emoji ? `<span class="trophyEmoji">${s.emoji}</span>` : `<img src="${s.img}" alt="${s.name}">`}
@@ -9201,6 +9832,15 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // add a new entry at the top whenever a future change is worth telling
 // players about.
 const CHANGELOG = [
+  {
+    version: "2.40",
+    notes: [
+      "Traduction complète en espagnol et en allemand, en plus du français, de l'anglais et du chinois déjà présents.",
+      "Le lore, les Conseils, les personnalités des royaumes IA, les messages de combat, les indices de tutoriel et les écrans de victoire/défaite sont maintenant traduits (avant, seuls les boutons d'action l'étaient).",
+      "Nouveau sélecteur de langue dans les réglages, avec le drapeau et le nom de chaque langue.",
+      "La langue se détecte maintenant automatiquement à la première ouverture, selon la langue du téléphone/navigateur.",
+    ],
+  },
   {
     version: "2.39",
     notes: [
@@ -10371,12 +11011,45 @@ document.getElementById("enemySurrenderBtn").addEventListener("click", () => {
 // once at startup and whenever langToggle switches uiLang, since most of
 // these buttons' text otherwise only gets (re)computed at specific game
 // events (a fresh match, a win, a replay starting...), not on every render.
+// Builds the 5 flag+name buttons once (LANGUAGES) — "avec drapeau + nom de
+// la langue" replacing the old flag-only fr/en/zh cycler. Text content
+// (the name) still needs re-translating on every language switch below
+// (a language's own name is always shown in ITSELF — "Français" stays
+// "Français" no matter which language is currently active — but this
+// still routes through applyUiLanguage() for the active/aria state).
+function buildLangLevels() {
+  const wrap = document.getElementById("langLevels");
+  wrap.innerHTML = LANGUAGES.map((l) => `<button data-lang="${l.code}" class="levelBtn">${l.flag} ${l.name}</button>`).join("");
+  wrap.querySelectorAll(".levelBtn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      if (btn.dataset.lang === uiLang) return; // already selected, no-op
+      uiLang = btn.dataset.lang;
+      try { localStorage.setItem("kw_uiLang", uiLang); } catch (e) { /* ignore */ }
+      sfxToggle();
+      applyUiLanguage();
+      updateEndTurnButton();
+    });
+  });
+}
+buildLangLevels();
+// Re-applies every translated string to the actual DOM — needed both once
+// at startup and whenever the language picker switches uiLang, since most
+// of this text otherwise only gets (re)computed at specific game events (a
+// fresh match, a win, a replay starting...), not on every render.
 function applyUiLanguage() {
   document.getElementById("settingsBtn").setAttribute("aria-label", t("settingsAria"));
   document.getElementById("surrenderBtn").setAttribute("aria-label", t("surrenderAria"));
+  document.getElementById("versionBtn").setAttribute("aria-label", t("versionAria"));
+  document.getElementById("backLoreToSettings").setAttribute("aria-label", t("backToSettingsAria"));
+  document.getElementById("backConseilsToSettings").setAttribute("aria-label", t("backToSettingsAria"));
+  document.getElementById("closeSettings").setAttribute("aria-label", t("closeAria"));
+  document.getElementById("closeChangelog").setAttribute("aria-label", t("closeAria"));
+  document.getElementById("closeLore").textContent = t("closeBtn");
+  document.getElementById("closeConseils").textContent = t("closeBtn");
   document.getElementById("prevMapBtn").textContent = t("prevMap");
   document.getElementById("prevMapBtn").setAttribute("aria-label", t("prevMapAria"));
   document.getElementById("replayResumeHereBtn").textContent = t("replayResumeHere");
+  document.getElementById("replayPauseBtn").setAttribute("aria-label", replayPaused ? t("replayPlayAria") : t("replayPauseAria"));
   document.getElementById("restart").textContent = t("restart");
   document.getElementById("watchReplay").textContent = t("watchReplay");
   document.getElementById("shareReplay").textContent = truceEnded ? t("shareTruce") : t("shareVictory");
@@ -10389,14 +11062,97 @@ function applyUiLanguage() {
   document.getElementById("proposePeaceBtn").textContent = t("proposePeace");
   document.getElementById("confirmSurrender").textContent = t("confirmSurrender");
   document.getElementById("continueSiege").textContent = t("continueSiege");
-  const LANG_ARIA = { fr: "Français", en: "English", zh: "中文" };
   document.querySelectorAll("#langLevels .levelBtn").forEach((btn) => {
     btn.classList.toggle("active", btn.dataset.lang === uiLang);
-    btn.setAttribute("aria-label", LANG_ARIA[btn.dataset.lang]);
+    btn.setAttribute("aria-label", LANGUAGES.find((l) => l.code === btn.dataset.lang).name);
   });
   const rerollBtnEl = document.getElementById("rerollBtn");
   rerollBtnEl.textContent = replaying ? "⏹" : t("rerollChangeMap");
   rerollBtnEl.setAttribute("aria-label", replaying ? t("rerollStopReplayAria") : t("rerollChangeMapAria"));
+  // Settings panel section labels/fields.
+  document.getElementById("difficultyFieldLabel").textContent = t("difficultyLabel");
+  document.querySelectorAll("#difficultyLevels button[data-level]").forEach((btn) => {
+    btn.querySelector(".levelBtnText").textContent = t(DIFFICULTY_DISPLAY_KEYS[Number(btn.dataset.level)]);
+  });
+  document.getElementById("cthulhuLevelBtn").querySelector(".levelBtnText").textContent = t("diffCthulhu");
+  document.getElementById("mapSizeFieldLabel").textContent = t("mapSizeLabel");
+  const MAP_SIZE_DISPLAY_KEYS = { small: "mapSmall", medium: "mapMedium", large: "mapLarge", huge: "mapHuge" };
+  document.querySelectorAll("#mapSizeLevels button[data-mapsize]").forEach((btn) => {
+    btn.textContent = t(MAP_SIZE_DISPLAY_KEYS[btn.dataset.mapsize]);
+  });
+  document.getElementById("opponentCountFieldLabel").textContent = t("opponentCountLabel");
+  document.getElementById("soundFieldLabel").textContent = t("soundLabel");
+  document.getElementById("musicFieldLabel").textContent = t("musicLabel");
+  document.getElementById("colorblindLabelText").textContent = t("colorblindLabel");
+  document.getElementById("helpSectionLabelDiv").textContent = t("helpSectionLabel");
+  document.getElementById("conseilsBtn").textContent = t("conseilsBtnLabel");
+  document.getElementById("loreBtn").textContent = t("loreBtnLabel");
+  document.getElementById("mapCodeFieldLabel").textContent = t("mapCodeLabel");
+  document.getElementById("mapCodeLoadFieldLabel").textContent = t("mapCodeLoadLabel");
+  document.getElementById("mapCodeInput").placeholder = t("mapCodeInputPlaceholder");
+  document.getElementById("loadMapCode").textContent = t("loadMapCodeBtn");
+  document.getElementById("supportLink").textContent = t("supportLinkLabel");
+  document.getElementById("gameLinksLabel").textContent = t("gameLinksLabel");
+  document.getElementById("changelogTitleH2").textContent = t("changelogTitle");
+  document.getElementById("changelogThanks").innerHTML = t("changelogThanks");
+  document.getElementById("scrollTopChangelog").textContent = t("changelogScrollTop");
+  // "Le lore" overlay.
+  document.getElementById("loreChronique").innerHTML = t("loreChronique");
+  document.getElementById("loreTitle").textContent = t("loreTitle");
+  document.getElementById("loreIntro1P").textContent = t("loreIntro1");
+  document.getElementById("loreIntro2P").textContent = t("loreIntro2");
+  document.getElementById("loreIntro3P").textContent = t("loreIntro3");
+  document.getElementById("loreCeltesP").textContent = t("loreCeltes");
+  document.getElementById("lorePieuvreP").textContent = t("lorePieuvreP");
+  document.getElementById("loreCthulhuP").textContent = t("loreCthulhuP");
+  document.getElementById("loreMarsP").textContent = t("loreMarsP");
+  document.getElementById("loreGodsExplainerP").textContent = t("loreGodsExplainer");
+  const lockedNote = `<em class="loreGodLockedNote">${t("loreGodLockedNote")}</em>`;
+  document.getElementById("loreGodVulcainP").innerHTML = `${t("loreGodVulcainP")} ${lockedNote}`;
+  document.getElementById("loreGodBelloneP").innerHTML = `${t("loreGodBelloneP")} ${lockedNote}`;
+  document.getElementById("loreGodCeresP").innerHTML = `${t("loreGodCeresP")} ${lockedNote}`;
+  document.getElementById("loreGodNeptuneP").innerHTML = `${t("loreGodNeptuneP")} ${lockedNote}`;
+  document.getElementById("trophyRoomLabelText").textContent = t("trophyRoomLabel");
+  renderLorePersonalities();
+  refreshTrophyRoom();
+  // Conseils overlay.
+  document.getElementById("conseilsTitleH2").textContent = t("conseilsTitle");
+  document.getElementById("conseilsIntro1P").textContent = t("conseilsIntro1");
+  document.getElementById("hVillageName").textContent = t("hLevelVillageName");
+  document.getElementById("hVillageDesc").textContent = t("hLevelVillageDesc");
+  document.getElementById("hProvinceName").textContent = t("hLevelProvinceName");
+  document.getElementById("hProvinceDesc").textContent = t("hLevelProvinceDesc");
+  document.getElementById("hRoyaumeName").textContent = t("hLevelRoyaumeName");
+  document.getElementById("hRoyaumeDesc").textContent = t("hLevelRoyaumeDesc");
+  document.getElementById("hPaysName").textContent = t("hLevelPaysName");
+  document.getElementById("hPaysDesc").textContent = t("hLevelPaysDesc");
+  document.getElementById("conseilsIntro2P").innerHTML = t("conseilsIntro2");
+  document.getElementById("royaumesListLabel").textContent = t("royaumesListLabel");
+  renderRoyaumesList();
+  document.getElementById("conseilsCombatP").innerHTML = t("conseilsCombatP");
+  document.getElementById("conseilsReinforceP").innerHTML = t("conseilsReinforceP");
+  document.getElementById("conseilsPower12P").innerHTML = t("conseilsPower12P");
+  document.getElementById("conseilsGueuxP").innerHTML = t("conseilsGueuxP");
+  // Share/truce/premium/surrender-confirm overlays — mostly static content,
+  // set here rather than at the one moment each overlay opens (unlike
+  // truceText/shareIntroText, which stay set at their own trigger point via
+  // t() too, but don't need re-applying here since they're effectively
+  // never open across a language switch).
+  document.getElementById("shareIntroTitleH2").textContent = t("shareIntroTitle");
+  document.getElementById("watchSharedReplay").textContent = t("watchSharedReplayBtn");
+  document.getElementById("playInstead").textContent = t("playInsteadBtn");
+  document.getElementById("truceTitleH2").textContent = t("truceTitle");
+  document.getElementById("premiumTitleH2").textContent = t("premiumTitle");
+  document.getElementById("premiumUnlockText").textContent = t("premiumText");
+  document.getElementById("premiumUnlockNote").textContent = t("premiumNote");
+  document.getElementById("premiumWatchAdBtn").textContent = t("premiumWatchAdBtn");
+  document.getElementById("premiumBuyBtn").textContent = t("premiumBuyBtn");
+  document.getElementById("premiumUnlockClose").textContent = t("premiumUnlockCloseBtn");
+  document.getElementById("adErrorTextP").textContent = t("adErrorText");
+  document.getElementById("adErrorOk").textContent = t("adErrorOkBtn");
+  document.getElementById("surrenderConfirmTitleH2").textContent = t("surrenderConfirmTitle");
+  document.getElementById("surrenderConfirmTextP").textContent = t("surrenderConfirmText");
+  document.getElementById("preGameSurrenderClose").textContent = t("preGameSurrenderResumeBtn");
   // NOT calling updateEndTurnButton() here: this same applyUiLanguage() runs
   // once at boot, this early in the script, before campPromptCount (a `let`
   // declared later) is initialized — updateEndTurnButton() reads it, so
@@ -10404,20 +11160,10 @@ function applyUiLanguage() {
   // referenced-before-declaration bug caused once before. The normal boot
   // sequence calls updateEndTurnButton() itself moments later anyway
   // (uiLang defaults to "fr", matching its own hardcoded default text), so
-  // this only matters for the langToggle click handler below, which is
-  // always well past that point.
+  // this only matters for the language picker's own click handler (see
+  // buildLangLevels()), which is always well past that point.
 }
 applyUiLanguage();
-document.querySelectorAll("#langLevels .levelBtn").forEach((btn) => {
-  btn.addEventListener("click", () => {
-    if (btn.dataset.lang === uiLang) return; // already selected, no-op
-    uiLang = btn.dataset.lang;
-    try { localStorage.setItem("kw_uiLang", uiLang); } catch (e) { /* ignore */ }
-    sfxToggle();
-    applyUiLanguage();
-    updateEndTurnButton();
-  });
-});
 
 const soundVolumeSlider = document.getElementById("soundVolumeSlider");
 soundVolumeSlider.value = soundVolume;
@@ -10485,13 +11231,19 @@ document.getElementById("gueuxBadge").addEventListener("click", () => {
 // end up AI-controlled once they pick their own. Reinstated after being
 // removed once as "duplicate of Le lore" — mid-match, a quick color/name
 // glance here is what's actually needed, not Le lore's fuller paragraphs.
-document.getElementById("royaumesList").innerHTML = ROYAUMES.slice(0, ROYAUME_COUNT - 1).map(roy => `
-  <div class="royaumeRow">
-    <span class="swatch" style="background:${roy.color}"></span>
-    <span class="rname">${roy.name}</span>
-    <span class="repithet">${AI_PERSONALITIES[roy.id].epithet}</span>
-  </div>
-`).join("");
+// Wrapped in a function (was a one-shot top-level statement) so it can be
+// re-run from applyUiLanguage() too — epithet is now translated, so this
+// needs rebuilding on every language switch, not just once at boot.
+function renderRoyaumesList() {
+  document.getElementById("royaumesList").innerHTML = ROYAUMES.slice(0, ROYAUME_COUNT - 1).map(roy => `
+    <div class="royaumeRow">
+      <span class="swatch" style="background:${roy.color}"></span>
+      <span class="rname">${roy.name}</span>
+      <span class="repithet">${tLang(AI_PERSONALITIES[roy.id].epithet)}</span>
+    </div>
+  `).join("");
+}
+renderRoyaumesList();
 
 
 // One icon per difficulty button — was "le Page sur le bouton de difficulté
@@ -10852,8 +11604,8 @@ function showToast(msg, holdMs = 1000) {
 // precedence as everywhere else this pair is read together (applyDifficulty()'s
 // own callers).
 function showForceAdaptToast() {
-  const name = cthulhuSelected ? CTHULHU_LEVEL.name : DIFFICULTY_LEVELS[difficultyLevel].name;
-  showToast(`Adaptation de la force des adversaires selon la difficulté : ${name}`);
+  const name = cthulhuSelected ? t("diffCthulhu") : t(DIFFICULTY_DISPLAY_KEYS[difficultyLevel]);
+  showToast(tf("toastForceAdapt", { name }));
 }
 
 // A little running joke for the deliberate ocean-sacrifice ritual (see
@@ -10873,14 +11625,15 @@ function showForceAdaptToast() {
 // uniquement en mode seigneur, il faut que les phrases spécifiques pour la
 // pieuvre n'apparaissent qu'en mode seigneur" — the joke shouldn't tease
 // something this difficulty can never actually deliver.
-const OCEAN_TAP_LINE_2_GENERIC = "Les poissons vous regardent d'un sale œil, mon général.";
-const OCEAN_TAP_LINES = [
-  "Et plouf !",
-  "Les hommes racontent des histoires de monstres marins à faire froid dans le dos. Il devient difficile d'engager des marins pour vos expéditions, mon général.",
-  "Les pieuvres géantes vous remercient pour le rhum, mais elles auraient préféré GTA VI.",
-  "Du rhum, des femmes ! Et du cidre nom de Zeus !",
-  "glouglouglou…",
-];
+// Kept as translation KEYS, not resolved strings — resolving eagerly here
+// (a top-level const, evaluated once at boot) would freeze every entry to
+// whatever uiLang was active at that instant, never updating again on a
+// later language switch (unlike VICTORY_LINES/LOSS_OPENERS/etc. above,
+// which store the {fr,en,...} objects themselves and resolve lazily at
+// pickLine()-call time — same fix applied here instead of duplicating that
+// pattern for a 5-entry array).
+const OCEAN_TAP_LINE_2_GENERIC_KEY = "oceanTapLine2Generic";
+const OCEAN_TAP_LINE_KEYS = ["oceanTapLine1", "oceanTapLine2", "oceanTapLine3", "oceanTapLine4", "oceanTapLine5"];
 let oceanTapCount = 0;
 let oceanTapToastTimer = null;
 // Octopus reveal — see executeWaterSacrifice()'s own note. Per-match count
@@ -10926,7 +11679,7 @@ function recordOctopusRevealAndCheckUnlock() {
     // just happened, only the reveal FX + a changed menu icon. "Si dans le
     // mode seigneur on gagne la pieuvre, il faut qu'il y ait un petit
     // message qui explique."
-    showToast("🐙 La pieuvre est débloquée pour de bon — voir Le lore.", 2600);
+    showToast(t("toastOctopusUnlocked"), 2600);
   }
 }
 function refreshLorePieuvre() {
@@ -11049,8 +11802,9 @@ function showOceanTapEasterEgg() {
   if (replaying) return;
   oceanTapCount++;
   const isSeigneur = DIFFICULTY_LEVELS.findIndex((l) => l.value === DIFFICULTY) === DIFFICULTY_LEVELS.length - 1;
-  let line = OCEAN_TAP_LINES[Math.min(oceanTapCount, OCEAN_TAP_LINES.length) - 1];
-  if (line === OCEAN_TAP_LINES[2] && !isSeigneur) line = OCEAN_TAP_LINE_2_GENERIC;
+  const lineIdx = Math.min(oceanTapCount, OCEAN_TAP_LINE_KEYS.length) - 1;
+  let line = t(OCEAN_TAP_LINE_KEYS[lineIdx]);
+  if (lineIdx === 2 && !isSeigneur) line = t(OCEAN_TAP_LINE_2_GENERIC_KEY);
   const el = document.getElementById("oceanTapToast");
   clearTimeout(oceanTapToastTimer);
   el.textContent = line;
@@ -11071,14 +11825,26 @@ function showOceanTapEasterEgg() {
 // convention as SURRENDER_LINES/CONTINUE_SIEGE_QUOTES, so a replay always
 // shows the same one.
 const FORCED_SWIM_LINES = [
-  "Baignade forcée, sire. Ils ne reviendront pas, je le crains.",
-  "Quitte à sacrifier des hommes, autant en envoyer un plein bateau sire ! Un sacrifice humain comme les Celtes, pourquoi pas ?",
+  {
+    fr: "Baignade forcée, sire. Ils ne reviendront pas, je le crains.",
+    en: "A forced swim, sire. I fear they won't be coming back.",
+    zh: "被迫下海了，陛下。恐怕他们回不来了。",
+    es: "Un baño forzoso, sire. Me temo que no volverán.",
+    de: "Ein Zwangsbad, Sire. Ich fürchte, sie kommen nicht zurück.",
+  },
+  {
+    fr: "Quitte à sacrifier des hommes, autant en envoyer un plein bateau sire ! Un sacrifice humain comme les Celtes, pourquoi pas ?",
+    en: "If we're going to sacrifice men anyway, might as well send a whole boatload, sire! A human sacrifice like the Celts do, why not?",
+    zh: "既然反正要牺牲人手，不如干脆送一整船去，陛下！学凯尔特人来场人祭，又有何不可？",
+    es: "Ya que vamos a sacrificar hombres, más vale enviar un barco entero, ¡sire! Un sacrificio humano como el de los celtas, ¿por qué no?",
+    de: "Wenn wir schon Männer opfern, dann gleich ein ganzes Boot voll, Sire! Ein Menschenopfer wie bei den Kelten, warum nicht?",
+  },
 ];
 function showForcedSwimToast(fromId = 0) {
   if (replaying) return; // see showOceanTapEasterEgg()'s own note just above
   const el = document.getElementById("oceanTapToast");
   clearTimeout(oceanTapToastTimer);
-  el.textContent = FORCED_SWIM_LINES[Math.abs(currentSeed + fromId) % FORCED_SWIM_LINES.length];
+  el.textContent = pickLine(FORCED_SWIM_LINES, Math.abs(currentSeed + fromId));
   el.style.display = "block";
   requestAnimationFrame(() => { el.style.opacity = "1"; });
   oceanTapToastTimer = setTimeout(() => {
@@ -11335,7 +12101,7 @@ function startGame(seed) {
     saveGameState();
   }
   updateStatus();
-  logMsg(awaitingFactionPick ? "Choisissez votre camp : touchez une province." : "Nouvelle partie.");
+  logMsg(awaitingFactionPick ? t("logChooseCampPrompt") : t("logNewGame"));
   // Voiced as an écuyer briefing a hired général de guerre, not a lord who'd
   // already know his own house — the player is a mercenary commander sold
   // to whichever Millon branch they pick this campaign (all four royaumes
@@ -11352,7 +12118,7 @@ function startGame(seed) {
   // lines that the banner (no max-height/reflow logic of its own, it just
   // grows with its text) reached down into the map's own top row, reported
   // live with a screenshot circling how much shorter it needed to be.
-  if (awaitingFactionPick && onboarding) showOnboardingHint("Mon général, la maison Millon se déchire. <b>Touchez une province</b> pour mettre votre épée au service d'une famille.");
+  if (awaitingFactionPick && onboarding) showOnboardingHint(t("onboardHintFactionPick"));
   else hideOnboardingHint();
   updateGroups(); // populate before resize() measures the HUD's real height
   resize();
@@ -11554,8 +12320,7 @@ const pendingSavedGame = pendingSharedReplay ? null : tryLoadSavedGame(); // a s
 if (pendingSharedReplay) {
   // clean the URL so a reload/rewatch doesn't re-trigger this same intro
   history.replaceState(null, "", location.pathname);
-  document.getElementById("shareIntroText").textContent =
-    "Un ami a remporté une bataille sur Knight Wars et te met au défi de faire aussi bien !";
+  document.getElementById("shareIntroText").textContent = t("shareIntroText");
   document.getElementById("shareIntro").style.display = "flex";
 } else if (pendingSavedGame) {
   resumeSavedGame(pendingSavedGame);
