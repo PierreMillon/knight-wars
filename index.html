@@ -1519,7 +1519,7 @@
 // before (CREATURE_IMG's own loadSprite() call, the changelog, etc.), not
 // redeclared.
 const CREATURE_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAANAAAADQCAYAAAB2pO90AAAC2klEQVR4nO3dQWoDMRAAwd3g/39ZOeQHahgroupuvF7TzGWQ3rXWw4z3fUde9lrrnfiend8z9WxTfr79APCfCQgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAg+336AE5y85LnzbJY855hAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEFx3MqlTOe/7PSf/pyYQBAKCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAiCd62RG9559pYimbOzgGoCQSAgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAguO5kUvbsLFJOLcdOPdvOZ0wgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAElkkZNbUYOvU9JhAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJAQBAICILrlkldJb9namHzZK65h2ECgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgrFl0pOvRD/Zbe/ttqVVEwgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAgEBMF1J5My57bF0B0mEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgq1lUlfJW6TkjwkEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJg7GTSnUXKqaXVqcXQk6+styC8xwSCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUHwccLmHO/tvhNdTSAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEASfkxf1OJsTUE0gSAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEY9fcw/OcfcroDhMIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgl9clHexCa709wAAAABJRU5ErkJggg==";
-const GAME_VERSION = "2.38";
+const GAME_VERSION = "2.39";
 document.getElementById("loadingKnight").src = CREATURE_IMG_SRC;
 document.getElementById("loadingVersion").textContent = `v${GAME_VERSION}`;
 
@@ -4088,22 +4088,79 @@ try {
 let musicEnabled = musicVolume > 0;
 const MUSIC_VOLUME_MAX = 0.35; // the level a full 100 slider reaches — same ceiling the old fixed volume used
 function musicVolumeLevel() { return MUSIC_VOLUME_MAX * (musicVolume / 100); }
-function tryStartBackgroundMusic() {
+const MUSIC_TRACK_IDS = ["introMusic", "bgMusic", "lossMusic"];
+// "Le bouton de volume ne fait absolument rien pour la musique" — confirmed:
+// iOS Safari (and any WKWebView, so every browser AND every installed PWA on
+// iPhone/iPad, not just Safari itself) treats HTMLMediaElement.volume as a
+// documented no-op — a page can read/write it without error, but actual
+// loudness stays tied to the hardware volume buttons only, by Apple's own
+// deliberate design. Routing the three <audio> elements through a Web Audio
+// GainNode instead (same AudioContext machinery playTone() already uses for
+// bruitages) sidesteps that entirely — a GainNode's gain IS controllable on
+// iOS, since it isn't the native element property Apple restricts. Built
+// lazily, once, on the first real attempt to actually play something (never
+// eagerly at load — AudioContext still wants to be constructed near a real
+// gesture); every platform where .volume already worked keeps working
+// exactly the same through this same path. Falls back to plain
+// `el.volume =` if Web Audio is unavailable or the graph fails to build for
+// any reason (never worse than before this fix, just not better on iOS).
+let musicGainNode = null;
+let musicAudioCtx = null;
+let musicGraphAttempted = false;
+function ensureMusicAudioGraph() {
+  if (musicGraphAttempted) return musicGainNode;
+  musicGraphAttempted = true; // only ever try once — a failure here should fall back, not retry on every single play()
+  try {
+    musicAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const gain = musicAudioCtx.createGain();
+    gain.gain.value = musicVolumeLevel();
+    gain.connect(musicAudioCtx.destination);
+    for (const id of MUSIC_TRACK_IDS) {
+      musicAudioCtx.createMediaElementSource(document.getElementById(id)).connect(gain);
+    }
+    musicGainNode = gain;
+  } catch (e) { musicGainNode = null; }
+  return musicGainNode;
+}
+function applyMusicVolume() {
+  const level = musicVolumeLevel();
+  const gain = ensureMusicAudioGraph();
+  if (gain) gain.gain.value = level;
+  else for (const id of MUSIC_TRACK_IDS) document.getElementById(id).volume = level; // fallback path — see ensureMusicAudioGraph()'s own note
+}
+// "La seule musique qui joue doit être celle prévue, pas d'autre en même
+// temps" (live report: dying while introMusic was still looping underneath
+// — a replay or a resumed autosave both skip pickFaction() entirely, the
+// only place that used to stop it) — every track that actually starts now
+// goes through here first, so silencing the other two is a hard invariant
+// instead of something each call site had to remember to do itself.
+// activeMusicTrackId additionally remembers which one SHOULD be playing
+// (independent of any track's own .paused/.currentTime, both of which stay
+// stale/misleading once paused — see musicVolumeSlider's own note on the
+// bug this caused) — the one thing musicVolumeSlider's mute-then-unmute
+// needs to resume the right track instead of guessing.
+let activeMusicTrackId = null;
+function stopOtherMusic(exceptId) {
+  for (const id of MUSIC_TRACK_IDS) {
+    if (id === exceptId) continue;
+    document.getElementById(id).pause();
+  }
+}
+function startMusicTrack(id) {
+  activeMusicTrackId = id;
   if (!musicEnabled) return;
+  const el = document.getElementById(id);
+  stopOtherMusic(id);
+  applyMusicVolume();
+  el.play().catch(() => { /* not allowed yet without a real gesture — the next one retries */ });
+}
+function tryStartBackgroundMusic() {
   const el = document.getElementById("bgMusic");
-  if (!el || !el.paused) return;
-  el.volume = musicVolumeLevel();
-  // Autoplay-with-sound is blocked by every browser until a real user
-  // gesture has happened on the page — .play() returns a rejected promise
-  // in that case rather than throwing, so this is safe to call speculatively
-  // any time (see the first-gesture listener and musicVolumeSlider's own
-  // input handler below) without needing to track "has the user interacted
-  // yet" state separately.
-  el.play().catch(() => { /* not allowed yet — the next gesture will retry */ });
+  if (!musicEnabled || !el.paused) return;
+  startMusicTrack("bgMusic");
 }
 function stopBackgroundMusic() {
-  const el = document.getElementById("bgMusic");
-  if (el) el.pause();
+  document.getElementById("bgMusic").pause();
 }
 // "Prémédiation Obstination" — see #lossMusic's own note. Loaded (not just
 // referenced) once a real match actually starts, so it's already sitting in
@@ -4125,11 +4182,12 @@ function preloadLossMusic() {
 // or immediately if a new game starts — see crossfadeToBackgroundMusic())
 // gets the "tout petit fond enchaîné" softness the player actually asked for.
 function playLossMusic() {
-  stopBackgroundMusic();
+  activeMusicTrackId = "lossMusic";
+  stopOtherMusic("lossMusic");
   if (!musicEnabled) return;
   const el = document.getElementById("lossMusic");
   el.currentTime = 0;
-  el.volume = musicVolumeLevel();
+  applyMusicVolume();
   el.play().catch(() => { /* ignore — same autoplay-gesture caveat as bgMusic, though a loss is never the very first tap on the page */ });
 }
 // "On lance le replay, la musique continue sans s'arrêter" — watching a
@@ -4143,17 +4201,25 @@ function crossfadeToBackgroundMusic(target) {
   const resumeTarget = target || tryStartBackgroundMusic;
   const loss = document.getElementById("lossMusic");
   if (loss.paused) { resumeTarget(); return; }
-  const startVol = loss.volume || musicVolumeLevel();
+  // Fades via the shared GainNode when the Web Audio graph is up (every
+  // track rides the same node — fading it also fades whatever resumeTarget()
+  // starts next, so the ramp back up piggybacks on this same fade instead of
+  // needing its own separate one); falls back to the loss element's own
+  // .volume otherwise (same caveat as applyMusicVolume() — a no-op on iOS,
+  // but then so was the fade this replaces on that platform already).
+  const gain = musicGainNode;
+  const startVol = gain ? gain.gain.value : (loss.volume || musicVolumeLevel());
   const STEPS = 6, STEP_MS = 50; // ~300ms total — "tout petit fond", not a real multi-second crossfade
   let i = 0;
   const fade = setInterval(() => {
     i++;
-    loss.volume = Math.max(0, startVol * (1 - i / STEPS));
+    const v = Math.max(0, startVol * (1 - i / STEPS));
+    if (gain) gain.gain.value = v; else loss.volume = v;
     if (i >= STEPS) {
       clearInterval(fade);
       loss.pause();
       loss.currentTime = 0;
-      loss.volume = startVol; // restored for the next time playLossMusic() uses it
+      if (gain) gain.gain.value = startVol; else loss.volume = startVol; // restored for the next time playLossMusic() uses it
       resumeTarget();
     }
   }, STEP_MS);
@@ -4162,16 +4228,25 @@ document.getElementById("lossMusic").addEventListener("ended", () => crossfadeTo
 // "Marchons N2" — the pre-game theme, see #introMusic's own note: "en intro
 // dès le début du chargement, qui continue jusqu'au choix d'une faction".
 function tryStartIntroMusic() {
-  if (!musicEnabled) return;
   const el = document.getElementById("introMusic");
-  if (!el || !el.paused) return;
-  el.volume = musicVolumeLevel();
-  el.play().catch(() => { /* not allowed yet — the next gesture will retry */ });
+  if (!musicEnabled || !el.paused) return;
+  startMusicTrack("introMusic");
 }
 function stopIntroMusic() {
-  const el = document.getElementById("introMusic");
-  if (el) el.pause();
+  document.getElementById("introMusic").pause();
 }
+// "La musique doit commencer au début de l'ouverture de l'écran titre" —
+// attempted as early as physically possible: right here, at this function's
+// own declaration, during the same single synchronous top-to-bottom script
+// pass that also paints the loading screen's title/knight/version (rather
+// than waiting for revealGameWhenReady()'s own later, rAF-deferred first
+// call) — every millisecond earlier this can go matters for how "together"
+// it all feels. Whether it actually produces sound this early is still
+// entirely up to the browser's autoplay policy (every browser blocks
+// audible playback before a real user gesture, no way around that from
+// script) — silently rejected here if so, retried on the very next tap via
+// the pointerdown listener right below.
+tryStartIntroMusic();
 // One-time: the very first tap/click ANYWHERE on the page — before a camp
 // is ever picked, the only thing there IS to tap is a territory on the
 // pre-game map, so in practice this fires on that very same gesture, a
@@ -4184,7 +4259,25 @@ function stopIntroMusic() {
 document.addEventListener("pointerdown", function firstGestureStartsMusic() {
   document.removeEventListener("pointerdown", firstGestureStartsMusic);
   tryStartIntroMusic();
+  if (musicAudioCtx && musicAudioCtx.state === "suspended") musicAudioCtx.resume().catch(() => {});
 }, { once: true });
+// "Si on quitte l'app tout son doit couper" — backgrounding the tab/app (an
+// OS notification, switching apps, locking the phone) now pauses whichever
+// track is actually playing, and resumes that SAME one (not a guess — see
+// activeMusicTrackId) on return, same spirit as the existing SFX
+// AudioContext resume dance below for bruitages, just for music.
+let musicPausedByVisibility = false;
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) {
+    if (activeMusicTrackId) {
+      const el = document.getElementById(activeMusicTrackId);
+      if (!el.paused) { el.pause(); musicPausedByVisibility = true; }
+    }
+  } else if (musicPausedByVisibility) {
+    musicPausedByVisibility = false;
+    if (musicEnabled && activeMusicTrackId) document.getElementById(activeMusicTrackId).play().catch(() => {});
+  }
+});
 // Colorblind-accessible mode — "un mode accessible en option dans le menu ou
 // les couleurs sont remplacés par hachure horizontales, verticale, diagonale
 // droite et gauche": one hatch pattern per playable royaume (ROYAUMES 0-3),
@@ -9109,6 +9202,15 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // players about.
 const CHANGELOG = [
   {
+    version: "2.39",
+    notes: [
+      "Corrigé le curseur de volume de la musique, qui n'avait aucun effet sur iPhone (limitation connue d'iOS sur les balises audio, contournée via l'API Web Audio).",
+      "Corrigé un bug où couper puis remettre la musique pouvait la faire changer de piste (revenir sur l'intro au lieu de la musique de fond).",
+      "Corrigé un cas où deux musiques pouvaient jouer en même temps (l'intro restait en fond pendant une défaite après un replay ou une reprise de partie).",
+      "La musique se coupe maintenant et reprend automatiquement quand on quitte l'application puis qu'on y revient.",
+    ],
+  },
+  {
     version: "2.38",
     notes: [
       "Corrigé un gel possible au tout début du chargement sur une connexion lente ou filtrée (l'écran de titre restait bloqué indéfiniment).",
@@ -10338,24 +10440,20 @@ musicVolumeSlider.addEventListener("input", () => {
     localStorage.setItem("kw_musicVolume", String(musicVolume));
   } catch (e) { /* ignore */ }
   // Three tracks now (intro/bg/loss), only ever one actually meant to be
-  // audible at a time. Dragging the slider just retunes whichever one is
-  // currently playing (harmless no-op on the other two, already paused);
-  // 0 pauses it the same way the old mute button did, and coming back up
-  // from 0 resumes THAT SAME one right where it left off (a still-in-
-  // progress loss theme, say) rather than guessing from the current game
-  // phase, which would restart the wrong track if the player had muted
-  // mid-defeat-theme.
-  const tracks = ["introMusic", "bgMusic", "lossMusic"].map((id) => document.getElementById(id));
+  // audible at a time — activeMusicTrackId (set by whichever startMusicTrack()
+  // call actually started it) says which, rather than guessing from
+  // .currentTime/.paused: those stay stale on every track BUT the current
+  // one once anything has ever played (a previously-paused track never
+  // resets its own currentTime), which used to resume the WRONG track after
+  // dragging down to 0 and back up — reported live as "ça m'a changé la
+  // musique en mettant la musique de l'intro" after doing exactly that.
   if (musicEnabled) {
-    tracks.forEach((el) => { if (!el.paused) el.volume = musicVolumeLevel(); });
-    if (!wasEnabled) {
-      const wasPlaying = tracks.find((el) => el.currentTime > 0 && !el.ended) ||
-        (awaitingFactionPick ? tracks[0] : tracks[1]);
-      wasPlaying.volume = musicVolumeLevel();
-      wasPlaying.play().catch(() => { /* ignore */ });
+    applyMusicVolume();
+    if (!wasEnabled && activeMusicTrackId) {
+      document.getElementById(activeMusicTrackId).play().catch(() => { /* ignore */ });
     }
   } else {
-    tracks.forEach((el) => el.pause());
+    for (const id of MUSIC_TRACK_IDS) document.getElementById(id).pause();
   }
 });
 // only on release (not every drag tick) — a quick audible taste of the new
