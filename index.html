@@ -766,6 +766,8 @@
      la page"). */
   #conseilsMechanics p { font-size: 13.5px; line-height: 1.55; margin: 0 0 12px; }
   #conseilsMechanics strong { color: #6b2318; }
+  #conseilsMechanics .conseilsGodsList { margin: 6px 0 0; padding-left: 18px; }
+  #conseilsMechanics .conseilsGodsList li { margin-bottom: 6px; }
   #changelogOverlay {
     position: absolute; inset: 0; display: none;
     align-items: center; justify-content: center;
@@ -1386,6 +1388,9 @@
         <p id="conseilsCombatP"></p>
         <p id="conseilsReinforceP"></p>
         <p id="conseilsPower12P"></p>
+        <p id="conseilsSacrificeP"></p>
+        <p id="conseilsCthulhuP"></p>
+        <p id="conseilsGodsP"></p>
         <p id="conseilsGueuxP"></p>
       </div>
       <button id="closeConseils"></button>
@@ -1572,7 +1577,7 @@
 // before (CREATURE_IMG's own loadSprite() call, the changelog, etc.), not
 // redeclared.
 const CREATURE_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAANAAAADQCAYAAAB2pO90AAAC2klEQVR4nO3dQWoDMRAAwd3g/39ZOeQHahgroupuvF7TzGWQ3rXWw4z3fUde9lrrnfiend8z9WxTfr79APCfCQgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAg+336AE5y85LnzbJY855hAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEFx3MqlTOe/7PSf/pyYQBAKCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAiCd62RG9559pYimbOzgGoCQSAgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAguO5kUvbsLFJOLcdOPdvOZ0wgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAElkkZNbUYOvU9JhAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJAQBAICILrlkldJb9namHzZK65h2ECgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgrFl0pOvRD/Zbe/ttqVVEwgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAgEBMF1J5My57bF0B0mEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgq1lUlfJW6TkjwkEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJg7GTSnUXKqaXVqcXQk6+styC8xwSCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUHwccLmHO/tvhNdTSAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEASfkxf1OJsTUE0gSAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEY9fcw/OcfcroDhMIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgl9clHexCa709wAAAABJRU5ErkJggg==";
-const GAME_VERSION = "2.42";
+const GAME_VERSION = "2.43";
 document.getElementById("loadingKnight").src = CREATURE_IMG_SRC;
 document.getElementById("loadingVersion").textContent = `v${GAME_VERSION}`;
 document.getElementById("splashKnight").src = CREATURE_IMG_SRC;
@@ -4906,11 +4911,43 @@ const UI_STRINGS = {
     de: "<strong>Die Verstärkung am Zugende</strong> hängt von deinem Gebietsanteil ab: über dem Durchschnitt der noch bestehenden Königreiche erhältst du mehr Verstärkung; darunter weniger (nie null). Ein sehr großes Königreich erhält zusätzlich zu seinem relativen Anteil noch mehr.",
   },
   conseilsPower12P: {
-    fr: "<strong>Le pouvoir des 12</strong> : quand toutes vos provinces sont au plafond en même temps, un contour doré se met à vibrer autour de tout votre royaume. Tant qu'il vibre, vous gagnez à coup sûr chaque attaque terrestre que vous lancez (autant que vous avez de provinces) — l'épée qui frappe devient la grande épée diagonale pour vous le rappeler. Il ne s'applique pas à la mer, qui a son propre bonus (voir la pieuvre/Cthulhu). Activez-le trois fois dans la même partie, puis trois parties différentes : vous débloquez une bénédiction permanente qui vous fait toujours gagner un combat terrestre à 12 contre 12.",
-    en: "<strong>The power of 12</strong>: when all your provinces are at the cap at the same time, a golden outline starts pulsing around your entire kingdom. While it pulses, you're guaranteed to win every land attack you launch (as many as you have provinces) — the striking sword turns into the big diagonal sword to remind you. It doesn't apply at sea, which has its own bonus (see the octopus/Cthulhu). Trigger it three times in the same match, then across three different matches: you unlock a permanent blessing that always wins you a twelve-on-twelve land battle.",
-    zh: "<strong>十二之力</strong>：当你所有省份同时达到上限时，一圈金色轮廓便会开始在你整个王国周围闪动。只要它在闪动，你发起的每一次陆地进攻都必胜（次数等同于你的省份数）——为提醒这一点，劈砍的剑会变成那把巨大的斜剑。此效果不适用于海战，海战有其自己的加成（见章鱼/克苏鲁）。在同一局中触发三次，再在三局不同的对局中各触发一次：你将解锁一项永久祝福，令你在十二对十二的陆战中永远获胜。",
-    es: "<strong>El poder de los 12</strong>: cuando todas tus provincias están al máximo al mismo tiempo, un contorno dorado empieza a vibrar alrededor de todo tu reino. Mientras vibra, tienes garantizado ganar cada ataque terrestre que lances (tantos como provincias tengas) — la espada que golpea se convierte en la gran espada diagonal para recordártelo. No se aplica al mar, que tiene su propia bonificación (ver el pulpo/Cthulhu). Actívalo tres veces en la misma partida, y luego en tres partidas distintas: desbloqueas una bendición permanente que te hace ganar siempre un combate terrestre de doce contra doce.",
-    de: "<strong>Die Macht der 12</strong>: Wenn alle deine Provinzen gleichzeitig ihr Maximum erreichen, beginnt ein goldener Umriss um dein gesamtes Königreich zu pulsieren. Solange er pulsiert, gewinnst du garantiert jeden Landangriff, den du startest (so viele wie du Provinzen hast) — das zuschlagende Schwert wird zur Erinnerung zum großen diagonalen Schwert. Es gilt nicht auf See, die ihren eigenen Bonus hat (siehe Oktopus/Cthulhu). Löse es dreimal in derselben Partie aus, dann in drei verschiedenen Partien: Du schaltest einen dauerhaften Segen frei, der dir eine Zwölf-gegen-Zwölf-Landschlacht immer gewinnen lässt.",
+    fr: "<strong>Le pouvoir des 12</strong> : quand toutes vos provinces sont au plafond en même temps, un contour doré se met à vibrer autour de tout votre royaume. Tant qu'il vibre, vous gagnez à coup sûr chaque attaque terrestre que vous lancez (autant que vous avez de provinces) — l'épée qui frappe devient la grande épée diagonale pour vous le rappeler. Il ne s'applique pas à la mer, qui a son propre bonus (voir ci-dessous). Activez-le trois fois dans la même partie, puis trois parties différentes : vous débloquez une bénédiction permanente qui vous fait toujours gagner un combat terrestre à 12 contre 12.",
+    en: "<strong>The power of 12</strong>: when all your provinces are at the cap at the same time, a golden outline starts pulsing around your entire kingdom. While it pulses, you're guaranteed to win every land attack you launch (as many as you have provinces) — the striking sword turns into the big diagonal sword to remind you. It doesn't apply at sea, which has its own bonus (see below). Trigger it three times in the same match, then across three different matches: you unlock a permanent blessing that always wins you a twelve-on-twelve land battle.",
+    zh: "<strong>十二之力</strong>：当你所有省份同时达到上限时，一圈金色轮廓便会开始在你整个王国周围闪动。只要它在闪动，你发起的每一次陆地进攻都必胜（次数等同于你的省份数）——为提醒这一点，劈砍的剑会变成那把巨大的斜剑。此效果不适用于海战，海战有其自己的加成（见下文）。在同一局中触发三次，再在三局不同的对局中各触发一次：你将解锁一项永久祝福，令你在十二对十二的陆战中永远获胜。",
+    es: "<strong>El poder de los 12</strong>: cuando todas tus provincias están al máximo al mismo tiempo, un contorno dorado empieza a vibrar alrededor de todo tu reino. Mientras vibra, tienes garantizado ganar cada ataque terrestre que lances (tantos como provincias tengas) — la espada que golpea se convierte en la gran espada diagonal para recordártelo. No se aplica al mar, que tiene su propia bonificación (ver más abajo). Actívalo tres veces en la misma partida, y luego en tres partidas distintas: desbloqueas una bendición permanente que te hace ganar siempre un combate terrestre de doce contra doce.",
+    de: "<strong>Die Macht der 12</strong>: Wenn alle deine Provinzen gleichzeitig ihr Maximum erreichen, beginnt ein goldener Umriss um dein gesamtes Königreich zu pulsieren. Solange er pulsiert, gewinnst du garantiert jeden Landangriff, den du startest (so viele wie du Provinzen hast) — das zuschlagende Schwert wird zur Erinnerung zum großen diagonalen Schwert. Es gilt nicht auf See, die ihren eigenen Bonus hat (siehe unten). Löse es dreimal in derselben Partie aus, dann in drei verschiedenen Partien: Du schaltest einen dauerhaften Segen frei, der dir eine Zwölf-gegen-Zwölf-Landschlacht immer gewinnen lässt.",
+  },
+  // "Tout explicite dans Astuces, y compris dieux, Cthulhu et pouvoir des
+  // 12 — confirmé" (grosse consigne "uniformisation", v2.43) : Le lore
+  // racontait déjà ces trois secrets, mais en langage de légende — la
+  // vraie mécanique, en clair, n'existait qu'ici pour le pouvoir des 12.
+  // conseilsSacrificeP/conseilsCthulhuP/conseilsGodsP comblent le reste,
+  // en langage direct (comme conseilsPower12P/conseilsGueuxP juste à
+  // côté), sans rien retirer au Lore qui garde son propre ton narratif.
+  // RÈGLE À SUIVRE POUR TOUTE MODIFICATION FUTURE D'UNE MÉCANIQUE DE JEU :
+  // toute mécanique nouvelle ou modifiée doit avoir son paragraphe (ajouté
+  // ou mis à jour) ici, dans conseilsMechanics — jamais seulement dans Le
+  // lore, qui reste volontairement évocateur/ambigu par endroits.
+  conseilsSacrificeP: {
+    fr: "<strong>Le sacrifice en mer</strong> : envoyez un village à son maximum (12 de force) directement en pleine mer, assez loin pour qu'il tombe à 1 de force à l'arrivée — c'est une offrande, pas une attaque. Faites-le 3 fois dans la même partie, au niveau de difficulté le plus dur (Templier) : une pieuvre géante se révèle sur la carte, et un niveau de difficulté caché supplémentaire vient d'apparaître dans les réglages.",
+    en: "<strong>The sea sacrifice</strong>: send a village at its maximum (12 strength) straight into open sea, far enough that it drops to 1 strength on arrival — it's an offering, not an attack. Do it 3 times in the same match, at the hardest difficulty (Templar): a giant octopus reveals itself on the map, and an extra hidden difficulty level appears in the settings.",
+    zh: "<strong>海上献祭</strong>：将一个满兵力（12）的村庄直接送入远海，足够远以至于抵达时兵力降到1——这是一次献祭，不是进攻。在同一局游戏中、最高难度（圣殿骑士）下完成3次：一只巨型章鱼会在地图上现身，设置中也会出现一个额外的隐藏难度等级。",
+    es: "<strong>El sacrificio en el mar</strong>: envía una aldea a su máximo (12 de fuerza) directamente a mar abierto, lo bastante lejos como para que caiga a 1 de fuerza al llegar — es una ofrenda, no un ataque. Hazlo 3 veces en la misma partida, en la dificultad más alta (Templario): un pulpo gigante se revela en el mapa, y aparece un nivel de dificultad oculto adicional en los ajustes.",
+    de: "<strong>Das Meeresopfer</strong>: Schicke ein Dorf auf seinem Maximum (12 Stärke) direkt in offene See, weit genug, dass es bei der Ankunft auf 1 Stärke fällt — das ist eine Opfergabe, kein Angriff. Mach das 3-mal in derselben Partie, auf dem höchsten Schwierigkeitsgrad (Templer): Ein riesiger Oktopus zeigt sich auf der Karte, und in den Einstellungen erscheint eine zusätzliche versteckte Schwierigkeitsstufe.",
+  },
+  conseilsCthulhuP: {
+    fr: "<strong>Cthulhu</strong> : le palier de difficulté caché le plus dur du jeu, au-delà de Templier. D'abord, gagnez assez de parties — un indice (« parchemin crypté ») apparaît sur un écran de victoire, au hasard, généralement entre la 5ᵉ et la 10ᵉ victoire. Une fois cet indice vu, faites un 4ᵉ sacrifice en mer (voir ci-dessus) dans une même partie à Templier. Une fois débloqué : plus aucune perte de force en traversant la mer, et une portée de traversée illimitée — mais l'adversaire aussi devient sans pitié à ce niveau.",
+    en: "<strong>Cthulhu</strong>: the hardest hidden difficulty tier in the game, beyond Templar. First, win enough matches — a hint (\"encrypted scroll\") appears on a win screen, at random, usually between the 5th and 10th win. Once that hint has appeared, do a 4th sea sacrifice (see above) in a single match at Templar. Once unlocked: no more strength lost crossing the sea, and unlimited crossing range — but the opponent turns merciless at this level too.",
+    zh: "<strong>克苏鲁</strong>：游戏中最难的隐藏难度等级，超越圣殿骑士。首先需要赢得足够多的对局——一条提示（「加密卷轴」）会随机出现在某次胜利画面上，通常在第5到第10次胜利之间。看到该提示后，在圣殿骑士难度的同一局游戏中完成第4次海上献祭（见上文）。解锁后：渡海不再损失兵力，且渡海距离不再受限——但对手在此难度下也会变得毫不留情。",
+    es: "<strong>Cthulhu</strong>: el nivel de dificultad oculto más duro del juego, más allá de Templario. Primero, gana suficientes partidas — una pista (\"pergamino cifrado\") aparece en una pantalla de victoria, al azar, normalmente entre la 5ª y la 10ª victoria. Una vez vista esa pista, haz un 4º sacrificio en el mar (ver arriba) en una misma partida en Templario. Una vez desbloqueado: ya no se pierde fuerza al cruzar el mar, y el alcance de la travesía es ilimitado — pero el adversario también se vuelve despiadado en este nivel.",
+    de: "<strong>Cthulhu</strong>: die härteste versteckte Schwierigkeitsstufe des Spiels, jenseits von Templer. Gewinne zuerst genug Partien — ein Hinweis (\"verschlüsselte Schriftrolle\") erscheint zufällig auf einem Siegbildschirm, meist zwischen dem 5. und 10. Sieg. Sobald dieser Hinweis erschienen ist, mach ein 4. Meeresopfer (siehe oben) in derselben Partie auf Templer-Stufe. Einmal freigeschaltet: kein Stärkeverlust mehr beim Überqueren des Meeres, und unbegrenzte Reichweite — aber der Gegner wird auf dieser Stufe ebenfalls gnadenlos.",
+  },
+  conseilsGodsP: {
+    fr: "<strong>Les dieux</strong> : chacun se gagne par un exploit précis, avec n'importe quel royaume — une fois obtenu, son bonus reste acquis pour vous à chaque partie suivante, peu importe la maison choisie (la maison qui a accompli l'exploit le garde aussi, elle, pour de bon). Chaque don a un prix.<ul class='conseilsGodsList'><li><strong>Vulcain</strong> : redescendez à votre toute dernière province, puis renversez le siège quand même — +1 défense sur chaque province, mais -1 renfort à chaque fin de tour.</li><li><strong>Bellone</strong> : gagnez un siège entier sans jamais céder une seule province — +1 attaque, mais -1 défense.</li><li><strong>Cérès</strong> : laissez chaque maison rivale vivre jusqu'au bout, puis balayez-les toutes en une seule charge continue — +1 renfort à chaque fin de tour, mais aucune province ne dépasse jamais 11 de force.</li><li><strong>Neptune</strong> : achevez un siège par une dernière charge venue de la mer — -1 de coût sur chaque traversée, mais -1 défense contre une attaque venant de la mer.</li></ul>",
+    en: "<strong>The gods</strong>: each one is earned through a specific feat, with any kingdom — once obtained, its bonus stays yours in every match after that, whichever house you pick (the house that pulled off the feat also keeps it, for good). Every gift has a price.<ul class='conseilsGodsList'><li><strong>Vulcan</strong>: fall back to your very last province, then turn the siege around anyway — +1 defense on every province, but -1 reinforcement at the end of every turn.</li><li><strong>Bellona</strong>: win an entire siege without ever giving up a single province — +1 attack, but -1 defense.</li><li><strong>Ceres</strong>: let every rival house live to the very end, then sweep them all in one continuous charge — +1 reinforcement at the end of every turn, but no province ever exceeds 11 strength.</li><li><strong>Neptune</strong>: finish a siege with one last charge out of the sea — -1 cost on every crossing, but -1 defense against an attack coming from the sea.</li></ul>",
+    zh: "<strong>诸神</strong>：每一位神祇都要通过特定的壮举来获得，任何王国皆可——一旦获得，此后的每局游戏中该加成都会一直归你所有，无论你选择哪个家族（完成壮举的那个家族自己也会永久保留该加成）。每一份馈赠都有代价。<ul class='conseilsGodsList'><li><strong>瓦肯</strong>：退守至你的最后一个省，随后仍能扭转围城局势——每个省+1防御，但每回合结束时-1援军。</li><li><strong>贝罗娜</strong>：打赢整场围城而未曾放弃任何一个省——+1进攻，但-1防御。</li><li><strong>刻瑞斯</strong>：放任每个敌对家族存活到最后，再以一次连续冲锋将它们尽数扫平——每回合结束时+1援军，但任何省份永远不能超过11兵力。</li><li><strong>涅普顿</strong>：以一次源自海上的最后冲锋终结围城——每次渡海费用-1，但面对来自海上的进攻时-1防御。</li></ul>",
+    es: "<strong>Los dioses</strong>: cada uno se gana con una hazaña concreta, con cualquier reino — una vez obtenido, su bonificación queda contigo en cada partida siguiente, sea cual sea la casa elegida (la casa que logró la hazaña también la conserva, para siempre). Cada don tiene un precio.<ul class='conseilsGodsList'><li><strong>Vulcano</strong>: retrocede hasta tu última provincia y aun así revierte el asedio — +1 defensa en cada provincia, pero -1 refuerzo al final de cada turno.</li><li><strong>Belona</strong>: gana un asedio entero sin ceder jamás ni una sola provincia — +1 ataque, pero -1 defensa.</li><li><strong>Ceres</strong>: deja vivir a cada casa rival hasta el final, y luego bárrelas todas en una sola carga continua — +1 refuerzo al final de cada turno, pero ninguna provincia supera nunca los 11 de fuerza.</li><li><strong>Neptuno</strong>: termina un asedio con una última carga surgida del mar — -1 de coste en cada travesía, pero -1 defensa contra un ataque que venga del mar.</li></ul>",
+    de: "<strong>Die Götter</strong>: Jeder wird durch eine bestimmte Heldentat verdient, mit jedem beliebigen Königreich — einmal erhalten, bleibt der Bonus dir in jeder folgenden Partie erhalten, welches Haus du auch wählst (das Haus, das die Heldentat vollbracht hat, behält ihn ebenfalls für immer). Jede Gabe hat ihren Preis.<ul class='conseilsGodsList'><li><strong>Vulkan</strong>: bis auf deine letzte Provinz zurückweichen und die Belagerung trotzdem wenden — +1 Verteidigung auf jeder Provinz, aber -1 Verstärkung am Ende jedes Zuges.</li><li><strong>Bellona</strong>: eine ganze Belagerung gewinnen, ohne je auch nur eine Provinz aufzugeben — +1 Angriff, aber -1 Verteidigung.</li><li><strong>Ceres</strong>: jedes rivalisierende Haus bis zum Ende leben lassen und sie dann alle in einem durchgehenden Sturmangriff hinwegfegen — +1 Verstärkung am Ende jedes Zuges, aber keine Provinz überschreitet je 11 Stärke.</li><li><strong>Neptun</strong>: eine Belagerung mit einem letzten Sturmangriff aus dem Meer beenden — -1 Kosten bei jeder Überquerung, aber -1 Verteidigung gegen einen Angriff, der vom Meer kommt.</li></ul>",
   },
   conseilsGueuxP: {
     fr: "<strong>Les gueux</strong> sont une réserve d'une partie à l'autre : vous en gagnez un à chaque victoire, et pouvez en dépenser un en touchant le badge puis une de vos provinces, pour lui donner +1 de force sur-le-champ, avant même la bataille suivante. Attention : une défaite (conquête ou abandon) vide entièrement la réserve.",
@@ -5011,6 +5048,22 @@ const UI_STRINGS = {
     zh: "🐙 章鱼已永久解锁——详见背景故事。",
     es: "🐙 El pulpo está desbloqueado para siempre — ver el Trasfondo.",
     de: "🐙 Der Oktopus ist dauerhaft freigeschaltet — siehe Hintergrundgeschichte.",
+  },
+  // "Ajoute des retours visuels pour chaque mécanique" — la défection
+  // n'avait qu'une ligne de journal jusqu'ici, voir checkLoneDefections().
+  toastDefectionOne: {
+    fr: "Une province isolée a fait défection vers les Celtes.",
+    en: "An isolated province has defected to the Celts.",
+    zh: "一个孤立的省份已倒戈投向凯尔特人。",
+    es: "Una provincia aislada se ha pasado a los celtas.",
+    de: "Eine isolierte Provinz ist zu den Kelten übergelaufen.",
+  },
+  toastDefectionMany: {
+    fr: "{count} provinces isolées ont fait défection vers les Celtes.",
+    en: "{count} isolated provinces have defected to the Celts.",
+    zh: "{count} 个孤立的省份已倒戈投向凯尔特人。",
+    es: "{count} provincias aisladas se han pasado a los celtas.",
+    de: "{count} isolierte Provinzen sind zu den Kelten übergelaufen.",
   },
   // Combat log messages (logMsg) — templates filled via tf().
   logSeaLoss: { fr: "{name} perd des soldats en mer.", en: "{name} loses soldiers at sea.", zh: "{name} 在海上损失了士兵。", es: "{name} pierde soldados en el mar.", de: "{name} verliert Soldaten auf See." },
@@ -6135,6 +6188,16 @@ function isAlive(royId) {
 function checkLoneDefections() {
   if (gameOver) return;
   const neutralId = ROYAUME_COUNT - 1;
+  // "Ajoute des retours visuels pour chaque mécanique" — la défection
+  // n'avait jusqu'ici qu'une ligne dans le journal de combat, facile à
+  // manquer (le joueur ne regarde pas forcément le journal en continu).
+  // Compté plutôt que déclenché province par province : plusieurs
+  // défections peuvent tomber le même tour, et showToast() n'affiche qu'un
+  // message à la fois (le suivant remplace le précédent sans jamais
+  // empiler) — un seul toast groupé (au singulier ou au pluriel selon le
+  // compte) évite qu'un 2ᵉ déclenchement écrase le 1ᵉʳ avant d'avoir pu
+  // être lu.
+  let defectedCount = 0;
   for (const t of territories) {
     if (t.owner === neutralId || t.force !== 1) {
       t.loneIsolatedRounds = undefined;
@@ -6158,8 +6221,11 @@ function checkLoneDefections() {
       t.loneIsolatedRounds = undefined;
       t.loneDefectAt = undefined;
       logMsg(tf("logDefection", { name: ROYAUMES[formerOwner].name }));
+      if (formerOwner === humanRoyId && !replaying) defectedCount++;
     }
   }
+  if (defectedCount === 1) showToast(t("toastDefectionOne"));
+  else if (defectedCount > 1) showToast(tf("toastDefectionMany", { count: defectedCount }));
 }
 // "Bonus de 12" trigger — every single province this royaume owns is at
 // FORCE_CAP, not just some of them. See drawRoyaumeOutline()'s own call
@@ -9915,6 +9981,13 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // players about.
 const CHANGELOG = [
   {
+    version: "2.43",
+    notes: [
+      "Astuces explique maintenant aussi le rituel du sacrifice en mer, Cthulhu et les 4 dieux (conditions de déblocage et bonus/malus exacts) — jusqu'ici seul Le lore en parlait, en langage de légende plutôt qu'en explication claire.",
+      "La défection d'une province isolée vers les Celtes affiche maintenant un message à l'écran, plutôt qu'une simple ligne dans le journal de combat.",
+    ],
+  },
+  {
     version: "2.42",
     notes: [
       "Rééquilibrage des niveaux de difficulté pour se rapprocher des taux de victoire visés à chaque palier, mesuré cette fois par simulation plutôt qu'au ressenti — Gueux et Page notamment donnaient une vraie résistance à l'IA au lieu d'être une formalité.",
@@ -11228,6 +11301,9 @@ function applyUiLanguage() {
   document.getElementById("conseilsCombatP").innerHTML = t("conseilsCombatP");
   document.getElementById("conseilsReinforceP").innerHTML = t("conseilsReinforceP");
   document.getElementById("conseilsPower12P").innerHTML = t("conseilsPower12P");
+  document.getElementById("conseilsSacrificeP").innerHTML = t("conseilsSacrificeP");
+  document.getElementById("conseilsCthulhuP").innerHTML = t("conseilsCthulhuP");
+  document.getElementById("conseilsGodsP").innerHTML = t("conseilsGodsP");
   document.getElementById("conseilsGueuxP").innerHTML = t("conseilsGueuxP");
   // Share/truce/premium/surrender-confirm overlays — mostly static content,
   // set here rather than at the one moment each overlay opens (unlike
