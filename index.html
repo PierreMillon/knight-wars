@@ -282,6 +282,11 @@
   #gueuxBadge.gueuxHidden { display: none; }
   /* armed: tap a territory to spend one gueux as a reinforcement there */
   #gueuxBadge.gueuxArmed { border-color: #e8c468; box-shadow: 0 0 0 2px rgba(232,196,104,.55), 0 0 10px rgba(232,196,104,.6); }
+  /* armed via long-press: tap a territory to spend GUEUX_GROUP_COST on it
+     AND every neighbor you already own — a distinct blue glow (same accent
+     already used for an "active"/selected state elsewhere, e.g. the
+     settings level buttons) so the two armed modes never look alike. */
+  #gueuxBadge.gueuxArmedGroup { border-color: #1c3f8f; box-shadow: 0 0 0 2px rgba(28,63,143,.55), 0 0 10px rgba(28,63,143,.6); }
   #endturn:disabled { background: #5a5044 !important; color: #f2ede2 !important; opacity: .6; }
   #topBar {
     position: absolute; left: 0; top: 0;
@@ -1600,7 +1605,7 @@
 // before (CREATURE_IMG's own loadSprite() call, the changelog, etc.), not
 // redeclared.
 const CREATURE_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAANAAAADQCAYAAAB2pO90AAAC2klEQVR4nO3dQWoDMRAAwd3g/39ZOeQHahgroupuvF7TzGWQ3rXWw4z3fUde9lrrnfiend8z9WxTfr79APCfCQgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAg+336AE5y85LnzbJY855hAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEFx3MqlTOe/7PSf/pyYQBAKCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAiCd62RG9559pYimbOzgGoCQSAgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAguO5kUvbsLFJOLcdOPdvOZ0wgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAElkkZNbUYOvU9JhAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJAQBAICILrlkldJb9namHzZK65h2ECgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgrFl0pOvRD/Zbe/ttqVVEwgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAgEBMF1J5My57bF0B0mEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgq1lUlfJW6TkjwkEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJg7GTSnUXKqaXVqcXQk6+styC8xwSCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUHwccLmHO/tvhNdTSAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEASfkxf1OJsTUE0gSAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEY9fcw/OcfcroDhMIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgl9clHexCa709wAAAABJRU5ErkJggg==";
-const GAME_VERSION = "2.46";
+const GAME_VERSION = "2.47";
 document.getElementById("loadingKnight").src = CREATURE_IMG_SRC;
 document.getElementById("loadingVersion").textContent = `v${GAME_VERSION}`;
 document.getElementById("splashKnight").src = CREATURE_IMG_SRC;
@@ -3866,7 +3871,20 @@ const REINFORCE_PAUSE_MS = 160;
 const metaProgressEnabled = true;
 let gueuxCount = 0;
 try { gueuxCount = Number(localStorage.getItem("kw_gueuxCount")) || 0; } catch (e) { /* ignore */ }
-let placingGueux = false; // armed by tapping the badge; consumed by the next own-territory tap
+// "Boutique de gueux plus profonde" (v2.47, proposition — voir BACKLOG.md)
+// — jusqu'ici un seul geste possible (+1 force, 1 gueux) ; les roguelikes
+// qui fidélisent bien (Slay the Spire, Hades) donnent un vrai choix de
+// dépense plutôt qu'un bouton unique. Ajouté un second geste, plus coûteux
+// mais plus large : "renfort de groupe" (+1 force sur la province touchée
+// ET chacune de ses provinces voisines qui vous appartiennent déjà). Tenu
+// volontairement à SEULEMENT 2 options pour cette première version — pas
+// un vrai magasin à onglets, juste un deuxième bouton — voir Astuces
+// (conseilsGueuxP) pour l'explication complète des deux.
+const GUEUX_GROUP_COST = 3;
+// null (rien d'armé) | "single" (comportement d'origine) | "group" (le
+// nouveau) — armé par un tap (single) ou un appui long (group) sur le
+// badge ; consommé par le tap suivant sur une de vos provinces.
+let placingGueuxMode = null;
 // Set by surrenderGame() right before it calls showWin(), true only when
 // the surrender actually had a gueux to take (gueuxCount was > 0) — showWin()
 // itself computes the win side (always knowable there, no ordering issue),
@@ -3880,11 +3898,30 @@ function reinforceTerritory(tId) {
   territories[tId].force = Math.min(effectiveForceCap(territories[tId].owner), territories[tId].force + 1);
   triggerPulse({ [tId]: 1 });
 }
-function spendGueux(tId) {
-  if (gueuxCount <= 0) return;
-  gueuxCount--;
-  try { localStorage.setItem("kw_gueuxCount", String(gueuxCount)); } catch (e) { /* ignore */ }
+// Just the territory-force side of a gueux spend, no bookkeeping — shared
+// by the live spend (spendGueux() below, which also debits gueuxCount) and
+// replay/resume playback (which only ever reproduces the force change,
+// never spends the viewer's own stock — see moveLog's own {gueux} case).
+// "group": also reinforces every neighbor ALREADY owned by the same
+// royaume at that exact point in the match — recomputed fresh from
+// territories/neighbors rather than stored in the log entry itself, same
+// principle as everything else here: replaying the identical move sequence
+// from the identical starting map reproduces identical ownership at every
+// step, so this always lands on the same set it did live.
+function applyGueuxEffect(tId, mode) {
   reinforceTerritory(tId);
+  if (mode === "group") {
+    for (const nId of territories[tId].neighbors) {
+      if (territories[nId].owner === territories[tId].owner) reinforceTerritory(nId);
+    }
+  }
+}
+function spendGueux(tId, mode) {
+  const cost = mode === "group" ? GUEUX_GROUP_COST : 1;
+  if (gueuxCount < cost) return;
+  gueuxCount -= cost;
+  try { localStorage.setItem("kw_gueuxCount", String(gueuxCount)); } catch (e) { /* ignore */ }
+  applyGueuxEffect(tId, mode);
 }
 
 /* ---------- MATCH HISTORY (stats graph + replay) ---------- */
@@ -5106,11 +5143,11 @@ const UI_STRINGS = {
     de: "<strong>Die Götter</strong>: Jeder wird durch eine bestimmte Heldentat verdient, mit jedem beliebigen Königreich — einmal erhalten, bleibt der Bonus dir in jeder folgenden Partie erhalten, welches Haus du auch wählst (das Haus, das die Heldentat vollbracht hat, behält ihn ebenfalls für immer). Jede Gabe hat ihren Preis.<ul class='conseilsGodsList'><li><strong>Vulkan</strong>: bis auf deine letzte Provinz zurückweichen und die Belagerung trotzdem wenden — +1 Verteidigung auf jeder Provinz, aber -1 Verstärkung am Ende jedes Zuges.</li><li><strong>Bellona</strong>: eine ganze Belagerung gewinnen, ohne je auch nur eine Provinz aufzugeben — +1 Angriff, aber -1 Verteidigung.</li><li><strong>Ceres</strong>: jedes rivalisierende Haus bis zum Ende leben lassen und sie dann alle in einem durchgehenden Sturmangriff hinwegfegen — +1 Verstärkung am Ende jedes Zuges, aber keine Provinz überschreitet je 11 Stärke.</li><li><strong>Neptun</strong>: eine Belagerung mit einem letzten Sturmangriff aus dem Meer beenden — -1 Kosten bei jeder Überquerung, aber -1 Verteidigung gegen einen Angriff, der vom Meer kommt.</li></ul>",
   },
   conseilsGueuxP: {
-    fr: "<strong>Les gueux</strong> sont une réserve d'une partie à l'autre : vous en gagnez un à chaque victoire, et pouvez en dépenser un en touchant le badge puis une de vos provinces, pour lui donner +1 de force sur-le-champ, avant même la bataille suivante. Attention : une défaite (conquête ou abandon) vide entièrement la réserve.",
-    en: "<strong>Beggars</strong> are a reserve carried from one match to the next: you gain one on every victory, and can spend one by tapping the badge then one of your provinces, giving it +1 strength on the spot, even before the next battle. Careful: a defeat (conquest or surrender) empties the reserve entirely.",
-    zh: "<strong>乞丐</strong>是跨局累积的储备：每次获胜你都会获得一个，可以先点击徽章、再点击你的一个省份来使用一个，令其立刻获得+1兵力，甚至在下一场战斗开始之前就能生效。注意：一次失败（被征服或投降）会将储备清空。",
-    es: "<strong>Los mendigos</strong> son una reserva que se mantiene de una partida a otra: ganas uno con cada victoria, y puedes gastar uno tocando la insignia y luego una de tus provincias, para darle +1 de fuerza al instante, incluso antes de la siguiente batalla. Cuidado: una derrota (conquista o rendición) vacía la reserva por completo.",
-    de: "<strong>Bettler</strong> sind eine Reserve, die von einer Partie zur nächsten mitgenommen wird: Du erhältst einen bei jedem Sieg und kannst einen ausgeben, indem du auf das Abzeichen und dann auf eine deiner Provinzen tippst, um ihr sofort +1 Stärke zu geben, noch vor der nächsten Schlacht. Achtung: Eine Niederlage (Eroberung oder Kapitulation) leert die Reserve vollständig.",
+    fr: "<strong>Les gueux</strong> sont une réserve d'une partie à l'autre : vous en gagnez un à chaque victoire. Deux façons de les dépenser : touchez le badge puis une de vos provinces pour lui donner +1 de force sur-le-champ (coûte 1 gueux) ; ou maintenez le badge enfoncé environ une seconde pour armer un renfort de groupe qui donne +1 à la province touchée ET à chacune de ses provinces voisines déjà à vous (coûte 3 gueux — à réserver pour un vrai front à consolider d'un coup). Attention : une défaite (conquête ou abandon) vide entièrement la réserve.",
+    en: "<strong>Beggars</strong> are a reserve carried from one match to the next: you gain one on every victory. Two ways to spend them: tap the badge then one of your provinces to give it +1 strength on the spot (costs 1 beggar); or hold the badge down for about a second to arm a group reinforcement that gives +1 to the tapped province AND every neighboring province already yours (costs 3 beggars — save it for a whole front you want to shore up at once). Careful: a defeat (conquest or surrender) empties the reserve entirely.",
+    zh: "<strong>乞丐</strong>是跨局累积的储备：每次获胜你都会获得一个。有两种使用方式：点击徽章、再点击你的一个省份，使其立刻获得+1兵力（花费1个乞丐）；或长按徽章约一秒，来激活群体增援——使被点击的省份及其每一个已属于你的相邻省份都获得+1兵力（花费3个乞丐——适合用来一次性加固整条战线）。注意：一次失败（被征服或投降）会将储备清空。",
+    es: "<strong>Los mendigos</strong> son una reserva que se mantiene de una partida a otra: ganas uno con cada victoria. Dos formas de gastarlos: toca la insignia y luego una de tus provincias para darle +1 de fuerza al instante (cuesta 1 mendigo); o mantén pulsada la insignia durante aproximadamente un segundo para armar un refuerzo de grupo que da +1 a la provincia tocada Y a cada provincia vecina que ya sea tuya (cuesta 3 mendigos — resérvalo para consolidar todo un frente de una vez). Cuidado: una derrota (conquista o rendición) vacía la reserva por completo.",
+    de: "<strong>Bettler</strong> sind eine Reserve, die von einer Partie zur nächsten mitgenommen wird: Du erhältst einen bei jedem Sieg. Zwei Arten, sie auszugeben: Tippe auf das Abzeichen und dann auf eine deiner Provinzen, um ihr sofort +1 Stärke zu geben (kostet 1 Bettler); oder halte das Abzeichen etwa eine Sekunde lang gedrückt, um eine Gruppenverstärkung zu aktivieren, die der angetippten Provinz UND jeder bereits dir gehörenden Nachbarprovinz +1 gibt (kostet 3 Bettler — hebe sie dir für eine ganze Front auf, die du auf einmal stärken willst). Achtung: Eine Niederlage (Eroberung oder Kapitulation) leert die Reserve vollständig.",
   },
   // Win/loss/truce/share/premium overlays.
   shareIntroTitle: { fr: "⚔️ Défi Knight Wars", en: "⚔️ Knight Wars challenge", zh: "⚔️ 骑士战争挑战", es: "⚔️ Desafío de Knight Wars", de: "⚔️ Knight-Wars-Herausforderung" },
@@ -5236,11 +5273,20 @@ const UI_STRINGS = {
     de: "{count} isolierte Provinzen sind zu den Kelten übergelaufen.",
   },
   // "Barres de progression sur les secrets" (v2.46, proposition) — voir
-  // executeWaterSacrifice()'s own note on exactly when these fire (jamais
+  // executeWaterSacrifice()'s own note on exactly when this fire (jamais
   // sur le rituel qui déclenche la révélation elle-même, jamais avant que
-  // l'indice correspondant soit déjà connu).
+  // l'indice correspondant soit déjà connu — et jamais de variante "vers
+  // Cthulhu", voir cette même note pour pourquoi il n'y a pas de palier
+  // intermédiaire possible entre la pieuvre et Cthulhu).
   toastRitualProgress: { fr: "🐙 Sacrifice {n}/3", en: "🐙 Sacrifice {n}/3", zh: "🐙 献祭 {n}/3", es: "🐙 Sacrificio {n}/3", de: "🐙 Opfer {n}/3" },
-  toastRitualProgressCthulhu: { fr: "🐙 Sacrifice {n}/4", en: "🐙 Sacrifice {n}/4", zh: "🐙 献祭 {n}/4", es: "🐙 Sacrificio {n}/4", de: "🐙 Opfer {n}/4" },
+  // "Boutique de gueux plus profonde" (v2.47) — voir GUEUX_GROUP_COST's own note.
+  toastGueuxGroupNeedsMore: {
+    fr: "Renfort de groupe : {cost} gueux nécessaires.",
+    en: "Group reinforcement: {cost} beggars needed.",
+    zh: "群体增援：需要 {cost} 个乞丐。",
+    es: "Refuerzo de grupo: se necesitan {cost} mendigos.",
+    de: "Gruppenverstärkung: {cost} Bettler nötig.",
+  },
   // Combat log messages (logMsg) — templates filled via tf().
   logSeaLoss: { fr: "{name} perd des soldats en mer.", en: "{name} loses soldiers at sea.", zh: "{name} 在海上损失了士兵。", es: "{name} pierde soldados en el mar.", de: "{name} verliert Soldaten auf See." },
   logSeaAttackFail: {
@@ -7349,7 +7395,7 @@ function playReplay(seed, difficulty, replayHumanRoyId, log, onFinish, replayMap
     if (i >= log.length) { finish(); return; }
     const action = log[i++];
     if (action.end) endTurn();
-    else if (action.gueux !== undefined) reinforceTerritory(action.gueux); // no gueuxCount touched — replay only reproduces the force change, never spends the viewer's own stock
+    else if (action.gueux !== undefined) applyGueuxEffect(action.gueux, action.mode); // no gueuxCount touched — replay only reproduces the force change, never spends the viewer's own stock
     else if (action.sac !== undefined) executeWaterSacrifice(action.sac, action.path, action.pure);
     else if (action.continue) { /* stray continue entry with no matching pause active — nothing to undo, just skip it rather than misreading it as attack(undefined, undefined) */ }
     // action.first (present only on a drag-chain move logged after this
@@ -7507,7 +7553,11 @@ function startReplay() {
 // match: 440 chars in the old encoded URL down to 96 in the new one.
 function encodeMoveForShare(action) {
   if (action.end) return [1];
-  if (action.gueux !== undefined) return [2, action.gueux];
+  // 3rd slot: 1 for "group" (see GUEUX_GROUP_COST's own note), 0/absent for
+  // the original single-territory spend — an older link with only 2 slots
+  // here still decodes fine (decodeMoveFromShare's own tuple[2] undefined
+  // falls back to "single" below), so nothing already shared ever breaks.
+  if (action.gueux !== undefined) return [2, action.gueux, action.mode === "group" ? 1 : 0];
   if (action.continue) return [3];
   // A water-sacrifice move (see executeWaterSacrifice()'s own logMove() call
   // sites) has no encoding at all before this — it silently fell through to
@@ -7521,7 +7571,7 @@ function encodeMoveForShare(action) {
 function decodeMoveFromShare(tuple) {
   switch (tuple[0]) {
     case 1: return { end: true };
-    case 2: return { gueux: tuple[1] };
+    case 2: return { gueux: tuple[1], mode: tuple[2] === 1 ? "group" : "single" };
     case 3: return { continue: true };
     case 4: return { sac: tuple[1], path: tuple[2], pure: !!tuple[3] };
     default: return { a: tuple[1], b: tuple[2] };
@@ -9212,10 +9262,10 @@ function handlePointer(clientX, clientY) {
   const t = territoryAtClientPointTolerant(clientX, clientY);
   if (!t) {
     // a tap or drag-release landing on open water instead of a real target.
-    // awaitingFactionPick and placingGueux each already have their own
+    // awaitingFactionPick and placingGueuxMode each already have their own
     // unrelated meaning for a tap that resolves to nothing, so neither
     // branch below fires while either applies.
-    if (!awaitingFactionPick && !placingGueux) {
+    if (!awaitingFactionPick && !placingGueuxMode) {
       // Landscape hides the entire persistent HUD for a distraction-free
       // view (see applyLandscapeHud()) — #endturn included — so the whole
       // visible "ocean" takes over its job instead: not just water hexes
@@ -9276,12 +9326,12 @@ function handlePointer(clientX, clientY) {
   if (aiRunning || currentPlayer !== humanRoyId) return;
   const tId = t.id;
 
-  if (placingGueux) {
+  if (placingGueuxMode) {
     if (t.owner === currentPlayer && t.force < effectiveForceCap(t.owner)) {
-      logMove({ gueux: tId });
-      spendGueux(tId);
+      logMove({ gueux: tId, mode: placingGueuxMode });
+      spendGueux(tId, placingGueuxMode);
     }
-    placingGueux = false;
+    placingGueuxMode = null;
     refreshGueuxBadge();
     render();
     return;
@@ -10235,6 +10285,12 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // add a new entry at the top whenever a future change is worth telling
 // players about.
 const CHANGELOG = [
+  {
+    version: "2.47",
+    notes: [
+      "Le badge des gueux propose maintenant deux façons de les dépenser : un tap donne +1 de force à une province (1 gueux, comme avant) ; un appui long donne +1 à cette province ET à chacune de ses voisines déjà à vous (3 gueux) — un vrai choix entre précision et effet de zone.",
+    ],
+  },
   {
     version: "2.46",
     notes: [
@@ -11671,12 +11727,55 @@ colorblindToggle.addEventListener("change", () => {
   sfxToggle();
 });
 
-document.getElementById("gueuxBadge").addEventListener("click", () => {
-  if (replaying || gameOver || awaitingFactionPick || currentPlayer !== humanRoyId || aiRunning || gueuxCount <= 0) return;
-  placingGueux = !placingGueux;
-  sfxToggle();
-  refreshGueuxBadge();
-});
+// Two ways to arm the badge now (see GUEUX_GROUP_COST's own note): a plain
+// tap arms "single" (unchanged from before), a ~500ms hold arms "group" —
+// same iOS-callout-suppression rules already applied globally (see the
+// -webkit-touch-callout note near the top of this file) keep a long-press
+// here from ever popping a native copy/select menu instead.
+{
+  let gueuxLongPressTimer = null;
+  let gueuxLongPressFired = false;
+  const gueuxBadgeEl = document.getElementById("gueuxBadge");
+  function gueuxBadgeGuardsPass() {
+    return !(replaying || gameOver || awaitingFactionPick || currentPlayer !== humanRoyId || aiRunning);
+  }
+  function cancelGueuxLongPress() {
+    if (gueuxLongPressTimer) { clearTimeout(gueuxLongPressTimer); gueuxLongPressTimer = null; }
+  }
+  gueuxBadgeEl.addEventListener("pointerdown", () => {
+    if (!gueuxBadgeGuardsPass()) return;
+    gueuxLongPressFired = false;
+    gueuxLongPressTimer = setTimeout(() => {
+      gueuxLongPressTimer = null;
+      gueuxLongPressFired = true;
+      if (gueuxCount >= GUEUX_GROUP_COST) {
+        placingGueuxMode = "group";
+        sfxToggle();
+        refreshGueuxBadge();
+      } else {
+        showToast(tf("toastGueuxGroupNeedsMore", { cost: GUEUX_GROUP_COST }));
+      }
+    }, 500);
+  });
+  gueuxBadgeEl.addEventListener("pointerup", () => {
+    const wasLongPress = gueuxLongPressFired;
+    cancelGueuxLongPress();
+    if (wasLongPress || !gueuxBadgeGuardsPass()) return;
+    // plain tap: toggle "single" armed/disarmed, same behavior as before
+    // this badge could also be long-pressed
+    if (placingGueuxMode) {
+      placingGueuxMode = null;
+    } else if (gueuxCount > 0) {
+      placingGueuxMode = "single";
+    } else {
+      return;
+    }
+    sfxToggle();
+    refreshGueuxBadge();
+  });
+  gueuxBadgeEl.addEventListener("pointercancel", cancelGueuxLongPress);
+  gueuxBadgeEl.addEventListener("pointerleave", cancelGueuxLongPress);
+}
 
 // static (never changes mid-game), so populated once — each royaume's fixed
 // personality, so the player knows what to expect from whichever 3 of the 4
@@ -11860,7 +11959,7 @@ function updateStatus() {
   document.getElementById("status").textContent =
     `Tour : ${ROYAUMES[currentPlayer].name}` + (currentPlayer === humanRoyId ? " (toi)" : "");
   // a gueux armed for placement doesn't carry across a turn change
-  if (placingGueux) { placingGueux = false; refreshGueuxBadge(); }
+  if (placingGueuxMode) { placingGueuxMode = null; refreshGueuxBadge(); }
   updateEndTurnButton();
   // once it's the human's turn again, drop back to the persisted "batailles
   // instantanées" setting — a manual tap-to-skip during the AI's turn is a
@@ -12318,7 +12417,8 @@ function refreshGueuxBadge() {
   let numEl = el.querySelector(".gueuxNum");
   if (!numEl) { numEl = document.createElement("span"); numEl.className = "gueuxNum"; el.appendChild(numEl); }
   numEl.textContent = `${gueuxCount}`;
-  el.classList.toggle("gueuxArmed", placingGueux);
+  el.classList.toggle("gueuxArmed", placingGueuxMode === "single");
+  el.classList.toggle("gueuxArmedGroup", placingGueuxMode === "group");
   el.style.opacity = gueuxCount > 0 ? "1" : ".5";
 }
 refreshGueuxBadge();
@@ -12687,7 +12787,7 @@ function resumeSavedGameInner(saved) {
     if (i >= log.length) { finish(); return; }
     const action = log[i++];
     if (action.end) endTurn();
-    else if (action.gueux !== undefined) reinforceTerritory(action.gueux);
+    else if (action.gueux !== undefined) applyGueuxEffect(action.gueux, action.mode);
     else if (action.sac !== undefined) executeWaterSacrifice(action.sac, action.path, action.pure);
     else if (action.continue) { /* stray entry with no matching pause active — nothing to undo, just skip it */ }
     // see playReplay()'s step()/resolveChainedAttack()'s own note — same
