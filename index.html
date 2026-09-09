@@ -553,6 +553,11 @@
      off the right edge of the card on a narrow phone. */
   #surrenderConfirmOverlay .winButtons { flex-wrap: wrap; justify-content: center; }
   #surrenderConfirmOverlay .winButtons button { flex: 1 1 auto; min-width: 84px; padding: 10px 10px; }
+  /* 3 buttons now (Voir sa partie/Jouer cette carte/Autre partie) — stacked
+     instead of side by side, same convention as premiumUnlockOverlay/
+     adErrorOverlay below: 3 full-width labels read better than 3 squeezed
+     side by side on a narrow phone. */
+  #shareIntro .winButtons { flex-direction: column; width: 100%; }
   #winActionsGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-self: stretch; }
   #winActionsGrid button { margin: 0; }
   /* was shrinking to its own content width and centering, unlike every
@@ -1185,6 +1190,7 @@
       <p id="shareIntroText"></p>
       <div class="winButtons">
         <button id="watchSharedReplay"></button>
+        <button id="playSharedMap"></button>
         <button id="playInstead"></button>
       </div>
     </div>
@@ -1594,7 +1600,7 @@
 // before (CREATURE_IMG's own loadSprite() call, the changelog, etc.), not
 // redeclared.
 const CREATURE_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAANAAAADQCAYAAAB2pO90AAAC2klEQVR4nO3dQWoDMRAAwd3g/39ZOeQHahgroupuvF7TzGWQ3rXWw4z3fUde9lrrnfiend8z9WxTfr79APCfCQgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAg+336AE5y85LnzbJY855hAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEFx3MqlTOe/7PSf/pyYQBAKCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAiCd62RG9559pYimbOzgGoCQSAgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAguO5kUvbsLFJOLcdOPdvOZ0wgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAElkkZNbUYOvU9JhAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJAQBAICILrlkldJb9namHzZK65h2ECgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgrFl0pOvRD/Zbe/ttqVVEwgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAgEBMF1J5My57bF0B0mEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgq1lUlfJW6TkjwkEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJg7GTSnUXKqaXVqcXQk6+styC8xwSCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUHwccLmHO/tvhNdTSAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEASfkxf1OJsTUE0gSAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEY9fcw/OcfcroDhMIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgl9clHexCa709wAAAABJRU5ErkJggg==";
-const GAME_VERSION = "2.44";
+const GAME_VERSION = "2.45";
 document.getElementById("loadingKnight").src = CREATURE_IMG_SRC;
 document.getElementById("loadingVersion").textContent = `v${GAME_VERSION}`;
 document.getElementById("splashKnight").src = CREATURE_IMG_SRC;
@@ -5116,7 +5122,14 @@ const UI_STRINGS = {
     de: "Ein Freund hat eine Schlacht in Knight Wars gewonnen und fordert dich heraus, es ihm gleichzutun!",
   },
   watchSharedReplayBtn: { fr: "▶ Voir sa partie", en: "▶ Watch their match", zh: "▶ 观看对局", es: "▶ Ver su partida", de: "▶ Sein Spiel ansehen" },
-  playInsteadBtn: { fr: "⚔ Jouer maintenant", en: "⚔ Play now", zh: "⚔ 立即游戏", es: "⚔ Jugar ahora", de: "⚔ Jetzt spielen" },
+  // "Rejouabilité asynchrone" (v2.45, proposition) — jusqu'ici un lien
+  // partagé n'offrait que regarder (spectateur) ou lancer une partie sans
+  // aucun rapport (seed aléatoire). Ce nouveau bouton reprend exactement la
+  // même carte/seed/difficulté que la partie partagée — un vrai défi
+  // comparable ("j'ai fait mieux que toi sur LA MÊME carte"), pas juste un
+  // clic d'évasion depuis l'écran d'accueil du lien.
+  playSharedMapBtn: { fr: "⚔ Jouer cette carte", en: "⚔ Play this map", zh: "⚔ 挑战这张地图", es: "⚔ Jugar este mapa", de: "⚔ Diese Karte spielen" },
+  playInsteadBtn: { fr: "🎲 Autre partie", en: "🎲 A different match", zh: "🎲 换一局", es: "🎲 Otra partida", de: "🎲 Anderes Spiel" },
   truceTitle: { fr: "🕊️ Trêve", en: "🕊️ Truce", zh: "🕊️ 停战", es: "🕊️ Tregua", de: "🕊️ Waffenstillstand" },
   truceText: {
     fr: "Sire, aucun camp ne parvient à forcer la décision par les armes. Seuls les faibles réclament la paix, dit-on — et pourtant, à bout de souffle, tous l'acceptent. Match nul : la trêve, l'affaire des gueux.",
@@ -7796,6 +7809,22 @@ document.getElementById("watchSharedReplay").addEventListener("click", () => {
     startGame(); // drop the visitor into their own fresh game right after
   }, payload.mapSize, payload.opponentCount);
 });
+// "Jouer cette carte" — same seed/map/difficulty/opponentCount as the
+// shared match, so the visitor faces the EXACT same starting position, but
+// picks their own camp freely (never forced to mirror the original
+// player's choice — a friend picking a different house is still a fair,
+// arguably more interesting comparison). Unlike watchSharedReplay, this is
+// a genuine live match, not a scripted playback: pickFaction() is never
+// called here, awaitingFactionPick stays true, the normal onboarding-style
+// "choose your camp" flow takes over exactly like any fresh game.
+document.getElementById("playSharedMap").addEventListener("click", () => {
+  document.getElementById("shareIntro").style.display = "none";
+  const payload = pendingSharedReplay;
+  applyMapSize(payload.mapSize);
+  applyDifficulty(payload.difficulty);
+  if (payload.opponentCount) opponentCount = payload.opponentCount;
+  startGame(payload.seed);
+});
 document.getElementById("playInstead").addEventListener("click", () => {
   document.getElementById("shareIntro").style.display = "none";
   startGame();
@@ -10187,6 +10216,12 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // players about.
 const CHANGELOG = [
   {
+    version: "2.45",
+    notes: [
+      "Un lien de partage propose maintenant « Jouer cette carte » : reprends exactement la même carte que ton ami (même graine, même carte, même difficulté), mais choisis ton propre camp — un vrai défi comparable, pas seulement un replay à regarder.",
+    ],
+  },
+  {
     version: "2.44",
     notes: [
       "Nouveau : Défi du jour, dans les réglages — la même carte pour tout le monde chaque jour, à finir en le moins de tours possible. Bats ton propre score, garde ta série de jours consécutifs, partage ton résultat.",
@@ -11527,6 +11562,7 @@ function applyUiLanguage() {
   // never open across a language switch).
   document.getElementById("shareIntroTitleH2").textContent = t("shareIntroTitle");
   document.getElementById("watchSharedReplay").textContent = t("watchSharedReplayBtn");
+  document.getElementById("playSharedMap").textContent = t("playSharedMapBtn");
   document.getElementById("playInstead").textContent = t("playInsteadBtn");
   document.getElementById("truceTitleH2").textContent = t("truceTitle");
   document.getElementById("premiumTitleH2").textContent = t("premiumTitle");
