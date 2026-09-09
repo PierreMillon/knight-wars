@@ -1600,7 +1600,7 @@
 // before (CREATURE_IMG's own loadSprite() call, the changelog, etc.), not
 // redeclared.
 const CREATURE_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAANAAAADQCAYAAAB2pO90AAAC2klEQVR4nO3dQWoDMRAAwd3g/39ZOeQHahgroupuvF7TzGWQ3rXWw4z3fUde9lrrnfiend8z9WxTfr79APCfCQgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAg+336AE5y85LnzbJY855hAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEFx3MqlTOe/7PSf/pyYQBAKCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAiCd62RG9559pYimbOzgGoCQSAgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAguO5kUvbsLFJOLcdOPdvOZ0wgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAElkkZNbUYOvU9JhAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJAQBAICILrlkldJb9namHzZK65h2ECgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgrFl0pOvRD/Zbe/ttqVVEwgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAgEBMF1J5My57bF0B0mEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgq1lUlfJW6TkjwkEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJg7GTSnUXKqaXVqcXQk6+styC8xwSCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUHwccLmHO/tvhNdTSAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEASfkxf1OJsTUE0gSAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEY9fcw/OcfcroDhMIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgl9clHexCa709wAAAABJRU5ErkJggg==";
-const GAME_VERSION = "2.45";
+const GAME_VERSION = "2.46";
 document.getElementById("loadingKnight").src = CREATURE_IMG_SRC;
 document.getElementById("loadingVersion").textContent = `v${GAME_VERSION}`;
 document.getElementById("splashKnight").src = CREATURE_IMG_SRC;
@@ -5235,6 +5235,12 @@ const UI_STRINGS = {
     es: "{count} provincias aisladas se han pasado a los celtas.",
     de: "{count} isolierte Provinzen sind zu den Kelten übergelaufen.",
   },
+  // "Barres de progression sur les secrets" (v2.46, proposition) — voir
+  // executeWaterSacrifice()'s own note on exactly when these fire (jamais
+  // sur le rituel qui déclenche la révélation elle-même, jamais avant que
+  // l'indice correspondant soit déjà connu).
+  toastRitualProgress: { fr: "🐙 Sacrifice {n}/3", en: "🐙 Sacrifice {n}/3", zh: "🐙 献祭 {n}/3", es: "🐙 Sacrificio {n}/3", de: "🐙 Opfer {n}/3" },
+  toastRitualProgressCthulhu: { fr: "🐙 Sacrifice {n}/4", en: "🐙 Sacrifice {n}/4", zh: "🐙 献祭 {n}/4", es: "🐙 Sacrificio {n}/4", de: "🐙 Opfer {n}/4" },
   // Combat log messages (logMsg) — templates filled via tf().
   logSeaLoss: { fr: "{name} perd des soldats en mer.", en: "{name} loses soldiers at sea.", zh: "{name} 在海上损失了士兵。", es: "{name} pierde soldados en el mar.", de: "{name} verliert Soldaten auf See." },
   logSeaAttackFail: {
@@ -6006,7 +6012,8 @@ function executeWaterSacrifice(fromId, waterHexKeys, pureDirectDive = true) {
     const levelIdx = DIFFICULTY_LEVELS.findIndex((l) => l.value === DIFFICULTY);
     if (levelIdx === DIFFICULTY_LEVELS.length - 1) {
       ritualCountThisMatch++;
-      if (ritualCountThisMatch >= 3 && !octopusRevealedThisMatch) {
+      const reachedOctopus = ritualCountThisMatch >= 3 && !octopusRevealedThisMatch;
+      if (reachedOctopus) {
         octopusRevealedThisMatch = true;
         triggerOctopusReveal(fromId, waterHexKeys);
         if (!replaying) recordOctopusRevealAndCheckUnlock();
@@ -6018,9 +6025,22 @@ function executeWaterSacrifice(fromId, waterHexKeys, pureDirectDive = true) {
       // finally draws it up. Same replay-safety split as the octopus just
       // above — the reveal itself replays deterministically, only the
       // permanent unlock stays real-play-only.
-      if (ritualCountThisMatch >= 4 && !cthulhuUnlocked && cthulhuHintShown) {
+      const reachedCthulhu = ritualCountThisMatch >= 4 && !cthulhuUnlocked && cthulhuHintShown;
+      if (reachedCthulhu) {
         triggerCthulhuReveal(fromId, waterHexKeys);
         if (!replaying) recordCthulhuUnlock();
+      }
+      // "Barres de progression sur les secrets" (v2.46, proposition) — sans
+      // rien répéter du contenu de la révélation elle-même. N'apparaît
+      // jamais sur le rituel qui déclenche effectivement la révélation de
+      // la pieuvre (reachedOctopus) — laisse ce moment-là pleinement à
+      // triggerOctopusReveal(). Un seul palier de progression a vraiment un
+      // sens ici : le 3ᵉ rituel qui révèle la pieuvre est ADJACENT au 4ᵉ qui
+      // révèle Cthulhu (aucun palier intermédiaire entre les deux), donc
+      // rien à afficher pour Cthulhu lui-même — la seule vraie progression
+      // "en cours de construction" est celle vers la pieuvre.
+      if (!replaying && !reachedOctopus && !octopusRevealedThisMatch && ritualCountThisMatch < 3) {
+        showToast(tf("toastRitualProgress", { n: ritualCountThisMatch }));
       }
     }
   } else {
@@ -10215,6 +10235,12 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // add a new entry at the top whenever a future change is worth telling
 // players about.
 const CHANGELOG = [
+  {
+    version: "2.46",
+    notes: [
+      "Le sacrifice en mer (voir Astuces) affiche maintenant sa propre progression (1/3, 2/3) avant que la pieuvre ne se révèle — sans jamais rien dévoiler à l'avance pour qui n'a pas encore vu l'indice correspondant.",
+    ],
+  },
   {
     version: "2.45",
     notes: [
