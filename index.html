@@ -435,6 +435,7 @@
      line needed there, the button's own margin already separates them */
   .settingsSectionLabel:first-of-type { border-top: none; padding-top: 0; }
   #royaumesList { display: flex; flex-direction: column; gap: 5px; }
+  #dailyChallengeStatus { font-size: 12px; opacity: .75; margin-top: 6px; text-align: center; line-height: 1.4; }
   .royaumeRow { display: flex; align-items: baseline; gap: 7px; font-size: 13px; }
   .royaumeRow .swatch { width: 11px; height: 11px; border-radius: 50%; flex: none; box-shadow: 0 0 0 1px rgba(43,29,16,.5); align-self: center; }
   .royaumeRow .rname { font-weight: 700; }
@@ -1504,6 +1505,22 @@
            first) now, same as the default it already opened on; the royaume
            color/name list itself lives in Conseils, not this panel. -->
 
+      <!-- "Défi du jour" (v2.45) — proposition de conception, pas une
+           consigne écrite par Pierre. Même carte/mêmes règles pour tout le
+           monde chaque jour (seed dérivée de la date, voir
+           startDailyChallenge()), 100% côté client pour cette première
+           version : pas de vrai classement (nécessiterait un serveur), juste
+           "bats ton propre score" + une série de jours consécutifs + le
+           partage déjà existant. Placé en Réglages plutôt que sur l'écran de
+           démarrage pour cette v1 — moins intrusif le temps de voir si le
+           joueur s'en sert ; le remonter sur l'écran de démarrage (mieux
+           pour un rituel quotidien) est le candidat naturel si ça prend. -->
+      <div class="settingsSectionLabel" id="dailyChallengeSectionLabel"></div>
+      <div class="fieldGroup">
+        <button id="dailyChallengeBtn" style="width:100%; box-sizing:border-box;"></button>
+        <div id="dailyChallengeStatus"></div>
+      </div>
+
       <!-- Tier 3: lore/rules reference, read-only overlays — no risk of
            accidentally ending or restarting anything by tapping these.
            Same row (reusing .winButtons' flex row) since both are the same
@@ -1577,7 +1594,7 @@
 // before (CREATURE_IMG's own loadSprite() call, the changelog, etc.), not
 // redeclared.
 const CREATURE_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAANAAAADQCAYAAAB2pO90AAAC2klEQVR4nO3dQWoDMRAAwd3g/39ZOeQHahgroupuvF7TzGWQ3rXWw4z3fUde9lrrnfiend8z9WxTfr79APCfCQgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAg+336AE5y85LnzbJY855hAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEFx3MqlTOe/7PSf/pyYQBAKCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAiCd62RG9559pYimbOzgGoCQSAgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAguO5kUvbsLFJOLcdOPdvOZ0wgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAElkkZNbUYOvU9JhAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJAQBAICILrlkldJb9namHzZK65h2ECgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgrFl0pOvRD/Zbe/ttqVVEwgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAgEBMF1J5My57bF0B0mEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgq1lUlfJW6TkjwkEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJg7GTSnUXKqaXVqcXQk6+styC8xwSCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUHwccLmHO/tvhNdTSAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEASfkxf1OJsTUE0gSAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEY9fcw/OcfcroDhMIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgl9clHexCa709wAAAABJRU5ErkJggg==";
-const GAME_VERSION = "2.43";
+const GAME_VERSION = "2.44";
 document.getElementById("loadingKnight").src = CREATURE_IMG_SRC;
 document.getElementById("loadingVersion").textContent = `v${GAME_VERSION}`;
 document.getElementById("splashKnight").src = CREATURE_IMG_SRC;
@@ -3888,6 +3905,13 @@ let gameStartMapSize = mapSize;
 // (via applyMapSize()) now depend on opponentCount too, not just map size, so
 // a replay needs to freeze and restore this exactly the same way
 let gameStartOpponentCount = opponentCount;
+// "Défi du jour" — set (to today's date, "YYYY-MM-DD" UTC) only by
+// startDailyChallenge(), null for every ordinary match. Same freeze/restore
+// treatment as the gameStart* trio just above: must survive an autosave
+// reload (see saveGameState()/resumeSavedGameInner()'s own finish()) so a
+// daily-challenge match interrupted by a reload still gets recorded as one
+// once it concludes, via recordDailyChallengeResult() in showWin().
+let dailyChallengeDate = null;
 // Autosave, so an accidental reload/app-close (an iPhone swipe-close mid-
 // match is the reported case) resumes exactly where the match was left,
 // instead of losing it and starting a fresh map. Reuses the exact same
@@ -3905,7 +3929,7 @@ function saveGameState() {
   try {
     localStorage.setItem(SAVED_GAME_KEY, JSON.stringify({
       seed: currentSeed, difficulty: gameStartDifficulty, mapSize: gameStartMapSize,
-      opponentCount: gameStartOpponentCount, humanRoyId, moveLog,
+      opponentCount: gameStartOpponentCount, humanRoyId, moveLog, dailyChallengeDate,
       // Stamped so a save written under an OLDER version of the game (map
       // generation, combat rules, anything that could change what the
       // recorded moveLog even means) is never blindly replayed against
@@ -4605,6 +4629,86 @@ function recordDifficultyTierWin(royId) {
   try { localStorage.setItem(`kw_difficultyTierWon_${idx}`, "1"); } catch (e) { /* ignore */ }
 }
 
+/* ---------- DÉFI DU JOUR (daily challenge) ---------- */
+// Proposition de conception (pas une consigne de Pierre) : le levier de
+// rétention le plus standard du genre "session courte, jouée quotidiennement"
+// (façon Wordle) — même carte pour tout le monde chaque jour, on essaie de
+// faire mieux que la veille, on partage. Volontairement 100% côté client
+// pour cette première version : pas de vrai classement entre joueurs (ça
+// demanderait un petit serveur, gros changement pour un jeu qui est
+// aujourd'hui un unique fichier HTML) — juste "bats ton propre score" +
+// une série de jours consécutifs, plus le lien de partage déjà existant.
+// Réutilise entièrement l'infrastructure de seed/replay déjà en place —
+// aucune nouvelle mécanique de jeu, juste un point d'entrée avec des
+// paramètres fixes au lieu de ceux choisis par le joueur.
+const DAILY_CHALLENGE_MAP_SIZE = "medium";
+const DAILY_CHALLENGE_DIFFICULTY_IDX = 2; // Écuyer — ni le plus facile ni le plus dur, pour que le défi ait un sens pour (presque) tout le monde
+const DAILY_CHALLENGE_OPPONENT_COUNT = 3; // le maximum — même carte "complète" pour tout le monde
+const DAILY_CHALLENGE_ROYAUME = 0; // fixe, pas un choix — un vrai défi comparable exige le même point de départ pour tout le monde, pas seulement la même carte
+function todayDateStrUTC() {
+  return new Date().toISOString().slice(0, 10); // "YYYY-MM-DD", UTC — un seul jour mondial, comme les jeux "quotidien" du genre
+}
+// Petit hash déterministe (FNV-1a) d'une chaîne vers un entier 32 bits —
+// seedRNG() n'attend qu'un entier (>>> 0 le force de toute façon), donc pas
+// besoin de plus. Namespacé ("kw-daily-") pour que ce hash ne retombe
+// jamais par hasard sur une valeur qu'un joueur pourrait aussi obtenir via
+// randomSeed()/un code de carte partagé.
+function stringHashSeed(str) {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return h >>> 0;
+}
+function dailySeedFor(dateStr) {
+  return stringHashSeed("kw-daily-" + dateStr);
+}
+function startDailyChallenge() {
+  applyMapSize(DAILY_CHALLENGE_MAP_SIZE);
+  applyDifficulty(DIFFICULTY_LEVELS[DAILY_CHALLENGE_DIFFICULTY_IDX].value);
+  opponentCount = DAILY_CHALLENGE_OPPONENT_COUNT;
+  const today = todayDateStrUTC();
+  startGame(dailySeedFor(today));
+  dailyChallengeDate = today; // must come AFTER startGame() — see its own reset note
+  pickFaction(DAILY_CHALLENGE_ROYAUME);
+}
+// Recorded once, in showWin(), regardless of outcome (win/loss/truce/
+// surrender all "complete" the day's attempt — only a genuine win keeps the
+// streak alive, same convention as any daily-streak game). `roundNumber` at
+// this point is the match's own turn count — the daily challenge's actual
+// "score" (fewer is better), already tracked for free by the existing game
+// loop, nothing new to compute.
+function recordDailyChallengeResult(royId) {
+  if (replaying || !dailyChallengeDate) return;
+  let lastDate = null, streak = 0;
+  try {
+    lastDate = localStorage.getItem("kw_dailyLastDate");
+    streak = parseInt(localStorage.getItem("kw_dailyStreak") || "0", 10) || 0;
+  } catch (e) { /* ignore */ }
+  if (lastDate === dailyChallengeDate) return; // already recorded today (safety net, showWin() shouldn't fire twice for one match)
+  const won = royId === humanRoyId;
+  if (won) {
+    const yesterday = new Date(Date.parse(dailyChallengeDate + "T00:00:00Z") - 86400000).toISOString().slice(0, 10);
+    streak = lastDate === yesterday ? streak + 1 : 1;
+  } else {
+    streak = 0;
+  }
+  try {
+    localStorage.setItem("kw_dailyLastDate", dailyChallengeDate);
+    localStorage.setItem("kw_dailyLastWon", won ? "1" : "0");
+    localStorage.setItem("kw_dailyLastTurns", String(roundNumber));
+    localStorage.setItem("kw_dailyStreak", String(streak));
+    const best = parseInt(localStorage.getItem("kw_dailyBestStreak") || "0", 10) || 0;
+    if (streak > best) localStorage.setItem("kw_dailyBestStreak", String(streak));
+  } catch (e) { /* ignore */ }
+  // Announced via the existing toast system rather than threading a new
+  // field through showWin()'s own already-long win-banner text logic —
+  // showWin() displays its own banner right after this runs, so the toast
+  // (bottom of screen, ~2.6s) is visible alongside it, not instead of it.
+  showToast(won ? tf("toastDailyChallengeWon", { turns: roundNumber, streak }) : t("toastDailyChallengeLost"), 2600);
+}
+
 // English support kicked off small on purpose — "fais l'anglais en premier
 // maintenant juste pour les boutons de jeu utiles au minimum": just the
 // core in-game action buttons at first, not the lore/flavor text. "Chinois
@@ -4727,6 +4831,52 @@ const UI_STRINGS = {
   langLabel: { fr: "Langue", en: "Language", zh: "语言", es: "Idioma", de: "Sprache" },
   colorblindLabel: { fr: "Mode daltonien (hachures)", en: "Colorblind mode (hatching)", zh: "色盲模式（纹理填充）", es: "Modo daltónico (tramas)", de: "Farbenblind-Modus (Schraffur)" },
   helpSectionLabel: { fr: "Aide", en: "Help", zh: "帮助", es: "Ayuda", de: "Hilfe" },
+  // "Défi du jour" (v2.45) — voir startDailyChallenge()'s own note.
+  dailyChallengeSectionLabel: { fr: "Défi du jour", en: "Daily challenge", zh: "每日挑战", es: "Desafío diario", de: "Tagesherausforderung" },
+  dailyChallengeBtnLabel: { fr: "🗓️ Jouer le défi du jour", en: "🗓️ Play today's challenge", zh: "🗓️ 挑战今日", es: "🗓️ Jugar el desafío de hoy", de: "🗓️ Heutige Herausforderung spielen" },
+  dailyChallengeReplayBtn: { fr: "🗓️ Rejouer le défi du jour", en: "🗓️ Replay today's challenge", zh: "🗓️ 重玩今日挑战", es: "🗓️ Rejugar el desafío de hoy", de: "🗓️ Heutige Herausforderung erneut spielen" },
+  dailyChallengeStatusIntro: {
+    fr: "Même carte pour tout le monde aujourd'hui — gagnez en le moins de tours possible.",
+    en: "Same map for everyone today — win in as few turns as possible.",
+    zh: "今天所有人的地图都相同——尽量以最少的回合数取胜。",
+    es: "Hoy el mismo mapa para todos — gana en el menor número de turnos posible.",
+    de: "Heute für alle dieselbe Karte — gewinne in möglichst wenigen Zügen.",
+  },
+  dailyChallengeStatusStreak: {
+    fr: "Série en cours : {streak} jour(s).",
+    en: "Current streak: {streak} day(s).",
+    zh: "当前连胜：{streak} 天。",
+    es: "Racha actual: {streak} día(s).",
+    de: "Aktuelle Serie: {streak} Tag(e).",
+  },
+  dailyChallengeStatusWon: {
+    fr: "✅ Réussi aujourd'hui en {turns} tours. Série : {streak} jour(s).",
+    en: "✅ Cleared today in {turns} turns. Streak: {streak} day(s).",
+    zh: "✅ 今日已通关，共 {turns} 回合。连胜：{streak} 天。",
+    es: "✅ Superado hoy en {turns} turnos. Racha: {streak} día(s).",
+    de: "✅ Heute in {turns} Zügen geschafft. Serie: {streak} Tag(e).",
+  },
+  dailyChallengeStatusLost: {
+    fr: "❌ Manqué aujourd'hui — la série repart de zéro. Revenez demain.",
+    en: "❌ Missed today — the streak is back to zero. Come back tomorrow.",
+    zh: "❌ 今日未能通关——连胜已清零。明天再来。",
+    es: "❌ Fallado hoy — la racha vuelve a cero. Vuelve mañana.",
+    de: "❌ Heute nicht geschafft — die Serie ist wieder bei null. Komm morgen wieder.",
+  },
+  toastDailyChallengeWon: {
+    fr: "🗓️ Défi du jour réussi en {turns} tours — série de {streak} jour(s) !",
+    en: "🗓️ Daily challenge cleared in {turns} turns — {streak}-day streak!",
+    zh: "🗓️ 每日挑战通关，共 {turns} 回合——连胜 {streak} 天！",
+    es: "🗓️ Desafío diario superado en {turns} turnos — ¡racha de {streak} día(s)!",
+    de: "🗓️ Tagesherausforderung in {turns} Zügen geschafft — {streak}-Tage-Serie!",
+  },
+  toastDailyChallengeLost: {
+    fr: "🗓️ Défi du jour manqué — série repartie de zéro.",
+    en: "🗓️ Daily challenge missed — streak back to zero.",
+    zh: "🗓️ 每日挑战失败——连胜已清零。",
+    es: "🗓️ Desafío diario fallado — racha reiniciada a cero.",
+    de: "🗓️ Tagesherausforderung verpasst — Serie wieder bei null.",
+  },
   // "Astuces" — renamed from "Conseils", the name common to all 3 games
   // ("nom commun aux 3 jeux", confirmed explicitly); en/zh/es/de already
   // meant "tips" rather than "advice/counsel", so only the French word
@@ -5026,6 +5176,13 @@ const UI_STRINGS = {
   onboardHint1: { fr: "Touchez une de vos provinces pour la sélectionner.", en: "Tap one of your provinces to select it.", zh: "点击你的一个省份以选中它。", es: "Toca una de tus provincias para seleccionarla.", de: "Tippe auf eine deiner Provinzen, um sie auszuwählen." },
   onboardHint2: { fr: "<b>Touchez une province</b> ennemie adjacente (contour doré) pour l'attaquer.", en: "<b>Tap an adjacent</b> enemy province (golden outline) to attack it.", zh: "<b>点击相邻的</b>敌方省份（金色轮廓）以发起进攻。", es: "<b>Toca una provincia</b> enemiga adyacente (contorno dorado) para atacarla.", de: "<b>Tippe auf eine angrenzende</b> feindliche Provinz (goldene Umrandung), um sie anzugreifen." },
   onboardHint3: { fr: "Touchez « Fin de bataille » quand vous avez terminé vos attaques.", en: "Tap \"End battle\" once you're done attacking.", zh: "完成进攻后，点击“结束战斗”。", es: "Toca «Fin de la batalla» cuando hayas terminado tus ataques.", de: "Tippe auf „Kampfende“, sobald du mit deinen Angriffen fertig bist." },
+  onboardHint4: {
+    fr: "Vos provinces gagnent des renforts à la fin de chaque tour, automatiquement — plus vous en tenez, plus vous en recevez. Pour le reste des règles (et quelques secrets à découvrir), ouvrez « Astuces » dans le menu.",
+    en: "Your provinces gain reinforcement at the end of every turn, automatically — the more you hold, the more you get. For the rest of the rules (and a few secrets to discover), open \"Tips\" in the menu.",
+    zh: "每回合结束时，你的省份会自动获得援军——占据的省份越多，获得的援军也越多。其余规则（以及一些等待发现的秘密），请打开菜单中的「提示」查看。",
+    es: "Tus provincias reciben refuerzo al final de cada turno, automáticamente — cuantas más tengas, más recibes. Para el resto de las reglas (y algunos secretos por descubrir), abre «Consejos» en el menú.",
+    de: "Deine Provinzen erhalten am Ende jedes Zuges automatisch Verstärkung — je mehr du hältst, desto mehr bekommst du. Für den Rest der Regeln (und ein paar zu entdeckende Geheimnisse) öffne „Tipps“ im Menü.",
+  },
   onboardHintFactionPick: {
     fr: "Mon général, la maison Millon se déchire. <b>Touchez une province</b> pour mettre votre épée au service d'une famille.",
     en: "My general, the house of Millon is tearing itself apart. <b>Tap a province</b> to put your sword at a family's service.",
@@ -6144,6 +6301,17 @@ function advanceTurn() {
     // cycles back to the human every simulated turn too, which would buzz
     // constantly instead of meaning anything.
     if (!replaying) { vibrateOwnTurn(); sfxYourTurn(); }
+    // Onboarding, 4th and last hint — first time the human's own turn comes
+    // back around (roundNumber===1: their own first-turn reinforcement has
+    // already landed, see endTurn()'s own call order, but no AI turn has
+    // reinforced twice yet). The first 3 hints (onboardHint1-3) only ever
+    // taught the raw mechanical actions (select/attack/end turn) — nothing
+    // about WHY, and nothing about reinforcement (the single biggest gap: a
+    // brand new player who only reads those 3 hints has no idea their
+    // provinces even grow on their own) or that Astuces/Le lore exist at
+    // all. Proposition de conception, pas une consigne écrite par Pierre —
+    // approximation volontaire, à ajuster/retirer selon son retour.
+    if (!replaying && onboarding && roundNumber === 1) showOnboardingHint(t("onboardHint4"));
   } else if (!isAlive(humanRoyId)) {
     // Dead branch in practice now: checkWinner() (called right after every
     // attack) ends the match the instant the human is eliminated, even with
@@ -6647,6 +6815,7 @@ function showWin(royId) {
   const newlyUnlockedGod = checkGodUnlockOnWin(royId);
   // Salle des trophées — see recordDifficultyTierWin()'s own note.
   recordDifficultyTierWin(royId);
+  recordDailyChallengeResult(royId); // no-op unless this match was actually started via startDailyChallenge() — see dailyChallengeDate's own note
   if (royId === humanRoyId) {
     sfxVictory(royId);
     if (metaProgressEnabled) {
@@ -7338,7 +7507,14 @@ function buildShareUrl() {
 async function shareReplay() {
   sfxShare();
   const url = buildShareUrl();
-  const text = truceEnded
+  // Note pour Pierre : ce texte de partage est en français en dur depuis
+  // l'origine (pas encore routé par t()/UI_STRINGS comme le reste du jeu) —
+  // pas touché ici pour rester cohérent avec la branche existante juste en
+  // dessous, seule la nouvelle branche "défi du jour" est ajoutée. À
+  // uniformiser un jour si ça vaut le coup.
+  const text = dailyChallengeDate
+    ? "J'ai fait le défi du jour de Knight Wars — à toi de faire mieux :"
+    : truceEnded
     ? "Match nul sur Knight Wars, personne n'a pu forcer la décision ! Regarde cette partie et fais mieux :"
     : "J'ai remporté une bataille sur Knight Wars ! Regarde ma partie et affronte-moi :";
   if (navigator.share) {
@@ -9620,7 +9796,37 @@ if (typeof ResizeObserver !== "undefined") {
 document.getElementById("settingsBtn").addEventListener("click", () => {
   settingsPanel.style.display = "flex";
   refreshMapCodeDisplay();
+  refreshDailyChallengeButton();
   sfxMenuOpen();
+});
+// "Défi du jour" — refreshed here (rather than only once at boot) so the
+// label/status/streak are never stale: the date can roll over, or a
+// previous match's result can just have been recorded, while the panel was
+// closed.
+function refreshDailyChallengeButton() {
+  const btn = document.getElementById("dailyChallengeBtn");
+  const statusEl = document.getElementById("dailyChallengeStatus");
+  const today = todayDateStrUTC();
+  let lastDate = null, lastWon = false, lastTurns = 0, streak = 0;
+  try {
+    lastDate = localStorage.getItem("kw_dailyLastDate");
+    lastWon = localStorage.getItem("kw_dailyLastWon") === "1";
+    lastTurns = parseInt(localStorage.getItem("kw_dailyLastTurns") || "0", 10) || 0;
+    streak = parseInt(localStorage.getItem("kw_dailyStreak") || "0", 10) || 0;
+  } catch (e) { /* ignore */ }
+  const playedToday = lastDate === today;
+  btn.textContent = playedToday ? t("dailyChallengeReplayBtn") : t("dailyChallengeBtnLabel");
+  if (playedToday) {
+    statusEl.textContent = lastWon
+      ? tf("dailyChallengeStatusWon", { turns: lastTurns, streak })
+      : t("dailyChallengeStatusLost");
+  } else {
+    statusEl.textContent = streak > 0 ? tf("dailyChallengeStatusStreak", { streak }) : t("dailyChallengeStatusIntro");
+  }
+}
+document.getElementById("dailyChallengeBtn").addEventListener("click", () => {
+  closeSettingsPanel();
+  startDailyChallenge();
 });
 function closeSettingsPanel() {
   settingsPanel.style.display = "none";
@@ -9980,6 +10186,13 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // add a new entry at the top whenever a future change is worth telling
 // players about.
 const CHANGELOG = [
+  {
+    version: "2.44",
+    notes: [
+      "Nouveau : Défi du jour, dans les réglages — la même carte pour tout le monde chaque jour, à finir en le moins de tours possible. Bats ton propre score, garde ta série de jours consécutifs, partage ton résultat.",
+      "Le tutoriel de démarrage explique maintenant aussi le renfort automatique de fin de tour, et signale qu'Astuces existe pour le reste des règles.",
+    ],
+  },
   {
     version: "2.43",
     notes: [
@@ -11254,6 +11467,8 @@ function applyUiLanguage() {
   document.getElementById("musicFieldLabel").textContent = t("musicLabel");
   document.getElementById("colorblindLabelText").textContent = t("colorblindLabel");
   document.getElementById("helpSectionLabelDiv").textContent = t("helpSectionLabel");
+  document.getElementById("dailyChallengeSectionLabel").textContent = t("dailyChallengeSectionLabel");
+  refreshDailyChallengeButton();
   document.getElementById("conseilsBtn").textContent = t("conseilsBtnLabel");
   document.getElementById("loreBtn").textContent = t("loreBtnLabel");
   document.getElementById("mapCodeFieldLabel").textContent = t("mapCodeLabel");
@@ -12268,6 +12483,7 @@ function startGame(seed) {
   if (activeRoyaumes < ROYAUME_COUNT - 1) mergeDownToActiveRoyaumes(activeRoyaumes);
   if (!replaying) {
     statHistory = []; moveLog = []; gameStartDifficulty = DIFFICULTY; gameStartMapSize = mapSize; gameStartOpponentCount = opponentCount;
+    dailyChallengeDate = null; // startDailyChallenge() sets this AFTER calling startGame() — see its own note
     recordRoundSnapshot();
     // overwrites any stale autosave from a previously-abandoned match the
     // instant a genuinely new one starts (map code load, "Nouvelle guerre",
@@ -12362,6 +12578,7 @@ function resumeSavedGameInner(saved) {
     opponentCount = saved.opponentCount;
     applyMapSize(saved.mapSize);
     startGame(saved.seed);
+    dailyChallengeDate = saved.dailyChallengeDate || null; // startGame() just reset it to null — see its own note
     return;
   }
   const soundWasEnabled = soundEnabled;
@@ -12436,6 +12653,7 @@ function resumeSavedGameInner(saved) {
     gameStartDifficulty = saved.difficulty;
     gameStartMapSize = saved.mapSize;
     gameStartOpponentCount = saved.opponentCount;
+    dailyChallengeDate = saved.dailyChallengeDate || null;
     document.getElementById("rerollBtn").style.display = "none";
     document.getElementById("settingsBtn").style.display = "";
     const endturnEl = document.getElementById("endturn");
