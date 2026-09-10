@@ -1204,6 +1204,11 @@
            (see checkGodUnlockOnWin()). Never a hint like Cthulhu's own —
            the win that earns it already names the god outright. -->
       <p id="godUnlockNote"></p>
+      <!-- "Presque débloqué" teaser (v2.49) — shown after a real, non-truce
+           human win, only when nothing else was already unlocked THIS same
+           match (never stack two celebratory notes) and Le Graal is
+           genuinely close (see graalNearMissCount()'s own note). -->
+      <p id="trophyNearMissNote"></p>
       <!-- only shown for surrenderBeforePick() — tapping the skull before
            ever picking a camp. There's no real match to report on (no
            chart, no replay, no share), just the joke line + gueux penalty
@@ -1628,7 +1633,7 @@
 // before (CREATURE_IMG's own loadSprite() call, the changelog, etc.), not
 // redeclared.
 const CREATURE_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAANAAAADQCAYAAAB2pO90AAAC2klEQVR4nO3dQWoDMRAAwd3g/39ZOeQHahgroupuvF7TzGWQ3rXWw4z3fUde9lrrnfiend8z9WxTfr79APCfCQgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAg+336AE5y85LnzbJY855hAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEFx3MqlTOe/7PSf/pyYQBAKCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAiCd62RG9559pYimbOzgGoCQSAgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAguO5kUvbsLFJOLcdOPdvOZ0wgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAElkkZNbUYOvU9JhAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJAQBAICILrlkldJb9namHzZK65h2ECgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgrFl0pOvRD/Zbe/ttqVVEwgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAgEBMF1J5My57bF0B0mEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgq1lUlfJW6TkjwkEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJg7GTSnUXKqaXVqcXQk6+styC8xwSCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUHwccLmHO/tvhNdTSAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEASfkxf1OJsTUE0gSAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEY9fcw/OcfcroDhMIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgl9clHexCa709wAAAABJRU5ErkJggg==";
-const GAME_VERSION = "2.48";
+const GAME_VERSION = "2.49";
 document.getElementById("loadingKnight").src = CREATURE_IMG_SRC;
 document.getElementById("loadingVersion").textContent = `v${GAME_VERSION}`;
 document.getElementById("splashKnight").src = CREATURE_IMG_SRC;
@@ -5301,6 +5306,22 @@ const UI_STRINGS = {
     de: "Gegnerstärke an den Schwierigkeitsgrad angepasst: {name}",
   },
   trophyRoomLabel: { fr: "🏆 Salle des trophées", en: "🏆 Trophy room", zh: "🏆 荣誉殿堂", es: "🏆 Sala de trofeos", de: "🏆 Trophäenraum" },
+  // "Presque débloqué" post-win teaser (v2.49) — see graalNearMissCount()'s
+  // own note. Singular/plural split, same convention as gueuxNoteGain(N).
+  trophyNearMiss1: {
+    fr: "🏆 Plus qu'un seul trophée avant Le Graal !",
+    en: "🏆 Just one trophy away from Le Graal!",
+    zh: "🏆 距离圣杯只差一个奖杯了！",
+    es: "🏆 ¡Solo un trofeo más para conseguir El Grial!",
+    de: "🏆 Nur noch eine Trophäe bis zum Gral!",
+  },
+  trophyNearMissN: {
+    fr: "🏆 Plus que {n} trophées avant Le Graal !",
+    en: "🏆 Just {n} trophies away from Le Graal!",
+    zh: "🏆 距离圣杯只差 {n} 个奖杯了！",
+    es: "🏆 ¡Solo {n} trofeos más para conseguir El Grial!",
+    de: "🏆 Nur noch {n} Trophäen bis zum Gral!",
+  },
   toastOctopusUnlocked: {
     fr: "🐙 La pieuvre est débloquée pour de bon — voir Le lore.",
     en: "🐙 The octopus is unlocked for good — see the Lore.",
@@ -7055,6 +7076,17 @@ function showWin(royId) {
   document.getElementById("godUnlockNote").textContent =
     newlyUnlockedGod ? newlyUnlockedGod.map((n) => t(GOD_UNLOCK_KEYS[n])).join(" ") : "";
   if (newlyUnlockedGod) refreshLoreGods();
+  // "Presque débloqué" post-win teaser (v2.49) — see graalNearMissCount()'s
+  // own note. Independent of the note above on purpose: a specific god
+  // unlock and an overall meta-progress nudge are complementary, not
+  // redundant — shown together when both apply, same as
+  // gueuxNote/cthulhuHintNote/godUnlockNote already stack without excluding
+  // each other. Never on a loss/truce: nothing to feel "so close" about
+  // when the match itself didn't go your way.
+  const nearMissCount = (royId === humanRoyId && !truceEnded && !replaying) ? graalNearMissCount() : null;
+  document.getElementById("trophyNearMissNote").textContent = nearMissCount
+    ? (nearMissCount === 1 ? t("trophyNearMiss1") : tf("trophyNearMissN", { n: nearMissCount }))
+    : "";
   document.getElementById("endturn").disabled = true;
   drawStatChart();
   document.getElementById("watchReplay").disabled = !lastMatchArchive;
@@ -10242,9 +10274,15 @@ refreshLoreRoyaumesJoues();
 // each time Le lore is opened (see its own click handler below) rather than
 // on every individual unlock event — nothing here needs to update live
 // mid-match.
-function refreshTrophyRoom() {
-  const el = document.getElementById("trophyRoom");
-  if (!el) return;
+// Extracted from refreshTrophyRoom() (v2.49) so the same slot list can also
+// drive a post-win "near-miss" teaser (see graalNearMissCount() and its own
+// use in showWin()) without a second, drift-prone copy of this same
+// bookkeeping. Returns both the full display list (unchanged) AND
+// remainingBeforeGraal — how many of the slots Le Graal's OWN condition
+// actually checks are still unearned, counted BEFORE pushing Graal itself
+// or the 3 still-mechanic-less slots after it (Excalibur/parchemin/épée
+// blanche never count toward it — see Graal's own note just below).
+function computeTrophySlots() {
   // The chest idea (hiding an unearned slot behind CHEST_IMG_SRC) was tried
   // and reverted live ("garde un coffre... revenir aux emoji partout") —
   // every slot now always shows its real icon/emoji at full opacity
@@ -10288,6 +10326,7 @@ function refreshTrophyRoom() {
   // Excalibur/parchemin/épée blanche have no unlock mechanic yet, so
   // counting them here would make Le Graal permanently unearnable by
   // anyone until all three get a real condition).
+  const remainingBeforeGraal = slots.filter((s) => !s.earned).length;
   slots.push({ earned: slots.every((s) => s.earned), name: t("trophyGraal"), img: GRAAL_IMG_SRC });
   // "Excalibur et parchemin sont affichés en trophées, on verra la
   // mécanique plus tard" — two new real slots, not yet unlockable
@@ -10297,6 +10336,20 @@ function refreshTrophyRoom() {
   // "Il manque épée blanche dans les trophées" — same treatment, mécanique
   // à définir plus tard.
   slots.push({ earned: false, name: t("trophySwordBlanche"), img: SWORD_IMG_SRC });
+  return { slots, remainingBeforeGraal };
+}
+// Post-win "presque débloqué" teaser (v2.49) — see its own use in showWin().
+// Only meaningful as a genuine near-miss when there's a small, real number
+// of trophies left before Le Graal becomes earnable; null otherwise (either
+// already earned, or still too far off for "presque" to be honest).
+function graalNearMissCount() {
+  const { remainingBeforeGraal } = computeTrophySlots();
+  return remainingBeforeGraal > 0 && remainingBeforeGraal <= 3 ? remainingBeforeGraal : null;
+}
+function refreshTrophyRoom() {
+  const el = document.getElementById("trophyRoom");
+  if (!el) return;
+  const { slots } = computeTrophySlots();
   el.innerHTML = slots.map((s) => `
     <div class="trophySlot${s.earned ? " earned" : ""}" title="${s.name}">
       ${s.emoji ? `<span class="trophyEmoji">${s.emoji}</span>` : `<img src="${s.img}" alt="${s.name}">`}
@@ -10364,6 +10417,12 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // add a new entry at the top whenever a future change is worth telling
 // players about.
 const CHANGELOG = [
+  {
+    version: "2.49",
+    notes: [
+      "Après une victoire, un petit message apparaît maintenant quand il ne vous manque plus que 1 à 3 trophées avant Le Graal — visible uniquement quand c'est vraiment à votre portée.",
+    ],
+  },
   {
     version: "2.48",
     notes: [
