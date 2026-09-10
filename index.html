@@ -100,6 +100,8 @@
   }
   #splashButtons { display: flex; flex-direction: column; gap: 12px; width: 100%; max-width: 280px; }
   #splashButtons button { width: 100%; box-sizing: border-box; font-size: 17px; padding: 14px 20px; }
+  #splashDaily { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 100%; max-width: 280px; }
+  #splashDailyStatus { font-size: 11px; opacity: .75; text-align: center; color: #2b1d10; }
   /* Sized by lockPortraitStage() (called from resize()): 100%x100% in
      portrait, as before. In landscape, #wrap freezes at its last-measured
      portrait pixel size and rotates ±90° about its own center — a
@@ -820,6 +822,16 @@
     color: #2b1d10; border: 1px solid #8a6d3b; border-radius: 8px;
     padding: 10px 20px; font-size: 15px; font-weight: 700;
   }
+  /* Second, deliberately quieter call to action — see #splashDaily's own
+     HTML comment. Requalified with the splashScreen ID (same specificity
+     trick as the language toggle just below) to beat the shared button
+     rule's gold gradient/padding above: a flat translucent fill and a
+     smaller size instead, so it never reads as equal-weight competition for
+     the real "À l'attaque !" button. */
+  #splashScreen #splashDailyBtn {
+    width: 100%; box-sizing: border-box; font-size: 13px; padding: 8px 16px;
+    background: rgba(246,236,210,.55); box-shadow: none;
+  }
   /* Language toggle: a real sliding switch instead of a button whose whole
      label used to swap text on tap ("le bouton français/anglais est
      maintenant un interrupteur qui glisse d'une langue à l'autre") — both
@@ -1036,6 +1048,16 @@
          note near the bottom of this script. -->
     <button id="splashResumeBtn" style="display:none;"></button>
     <button id="splashNewGameBtn" style="display:none;"></button>
+  </div>
+  <!-- "Défi du jour" (v2.45) était bien joué mais restait invisible tant
+       qu'on n'ouvrait pas les réglages — aucune chance de le découvrir sans
+       déjà savoir qu'il existe. Repris ici en second appel à l'action, plus
+       discret que l'attaque (fond translucide, pas le même relief doré) pour
+       ne jamais concurrencer le vrai bouton principal — voir
+       renderDailyChallengeCta()/refreshSplashDailyChallenge(). -->
+  <div id="splashDaily">
+    <button id="splashDailyBtn"></button>
+    <div id="splashDailyStatus"></div>
   </div>
 </div>
 <div id="wrap">
@@ -1404,6 +1426,7 @@
         <p id="conseilsCthulhuP"></p>
         <p id="conseilsGodsP"></p>
         <p id="conseilsGueuxP"></p>
+        <p id="conseilsDailyChallengeP"></p>
       </div>
       <button id="closeConseils"></button>
     </div>
@@ -1605,7 +1628,7 @@
 // before (CREATURE_IMG's own loadSprite() call, the changelog, etc.), not
 // redeclared.
 const CREATURE_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAANAAAADQCAYAAAB2pO90AAAC2klEQVR4nO3dQWoDMRAAwd3g/39ZOeQHahgroupuvF7TzGWQ3rXWw4z3fUde9lrrnfiend8z9WxTfr79APCfCQgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAg+336AE5y85LnzbJY855hAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEFx3MqlTOe/7PSf/pyYQBAKCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAiCd62RG9559pYimbOzgGoCQSAgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAguO5kUvbsLFJOLcdOPdvOZ0wgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAElkkZNbUYOvU9JhAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJAQBAICILrlkldJb9namHzZK65h2ECgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgrFl0pOvRD/Zbe/ttqVVEwgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAgEBMF1J5My57bF0B0mEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgq1lUlfJW6TkjwkEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJg7GTSnUXKqaXVqcXQk6+styC8xwSCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUHwccLmHO/tvhNdTSAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEASfkxf1OJsTUE0gSAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEY9fcw/OcfcroDhMIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgl9clHexCa709wAAAABJRU5ErkJggg==";
-const GAME_VERSION = "2.47";
+const GAME_VERSION = "2.48";
 document.getElementById("loadingKnight").src = CREATURE_IMG_SRC;
 document.getElementById("loadingVersion").textContent = `v${GAME_VERSION}`;
 document.getElementById("splashKnight").src = CREATURE_IMG_SRC;
@@ -4920,6 +4943,25 @@ const UI_STRINGS = {
     es: "🗓️ Desafío diario fallado — racha reiniciada a cero.",
     de: "🗓️ Tagesherausforderung verpasst — Serie wieder bei null.",
   },
+  // Shared-result text (v2.48) for shareReplay()'s own daily-challenge
+  // branch — was a single generic line with no score in it at all ("à toi
+  // de faire mieux", no proof of what "mieux" even means); the one Wordle
+  // convention every daily-challenge genre entry leans on (a result worth
+  // bragging about IN the share text itself) was still missing.
+  shareTextDailyWon: {
+    fr: "🗓️ Défi du jour de Knight Wars réussi en {turns} tours — série de {streak} jour(s) ! À toi de faire mieux :",
+    en: "🗓️ Cleared today's Knight Wars daily challenge in {turns} turns — {streak}-day streak! Beat that:",
+    zh: "🗓️ 通关了今日 Knight Wars 每日挑战，共 {turns} 回合——连胜 {streak} 天！来试试超越我：",
+    es: "🗓️ Superé el desafío diario de Knight Wars en {turns} turnos — ¡racha de {streak} día(s)! A ver si lo superas:",
+    de: "🗓️ Die Tagesherausforderung von Knight Wars in {turns} Zügen geschafft — {streak}-Tage-Serie! Schlag das:",
+  },
+  shareTextDailyLost: {
+    fr: "🗓️ Le défi du jour de Knight Wars a eu raison de moi cette fois — tu peux sûrement faire mieux :",
+    en: "🗓️ Today's Knight Wars daily challenge got the better of me — think you can do better:",
+    zh: "🗓️ 今日 Knight Wars 每日挑战没能通关——你来试试：",
+    es: "🗓️ El desafío diario de Knight Wars de hoy me ganó — seguro que tú lo haces mejor:",
+    de: "🗓️ Die heutige Tagesherausforderung von Knight Wars hat mich geschlagen — schaffst du es besser?:",
+  },
   // "Astuces" — renamed from "Conseils", the name common to all 3 games
   // ("nom commun aux 3 jeux", confirmed explicitly); en/zh/es/de already
   // meant "tips" rather than "advice/counsel", so only the French word
@@ -5148,6 +5190,16 @@ const UI_STRINGS = {
     zh: "<strong>乞丐</strong>是跨局累积的储备：每次获胜你都会获得一个。有两种使用方式：点击徽章、再点击你的一个省份，使其立刻获得+1兵力（花费1个乞丐）；或长按徽章约一秒，来激活群体增援——使被点击的省份及其每一个已属于你的相邻省份都获得+1兵力（花费3个乞丐——适合用来一次性加固整条战线）。注意：一次失败（被征服或投降）会将储备清空。",
     es: "<strong>Los mendigos</strong> son una reserva que se mantiene de una partida a otra: ganas uno con cada victoria. Dos formas de gastarlos: toca la insignia y luego una de tus provincias para darle +1 de fuerza al instante (cuesta 1 mendigo); o mantén pulsada la insignia durante aproximadamente un segundo para armar un refuerzo de grupo que da +1 a la provincia tocada Y a cada provincia vecina que ya sea tuya (cuesta 3 mendigos — resérvalo para consolidar todo un frente de una vez). Cuidado: una derrota (conquista o rendición) vacía la reserva por completo.",
     de: "<strong>Bettler</strong> sind eine Reserve, die von einer Partie zur nächsten mitgenommen wird: Du erhältst einen bei jedem Sieg. Zwei Arten, sie auszugeben: Tippe auf das Abzeichen und dann auf eine deiner Provinzen, um ihr sofort +1 Stärke zu geben (kostet 1 Bettler); oder halte das Abzeichen etwa eine Sekunde lang gedrückt, um eine Gruppenverstärkung zu aktivieren, die der angetippten Provinz UND jeder bereits dir gehörenden Nachbarprovinz +1 gibt (kostet 3 Bettler — hebe sie dir für eine ganze Front auf, die du auf einmal stärken willst). Achtung: Eine Niederlage (Eroberung oder Kapitulation) leert die Reserve vollständig.",
+  },
+  // "Défi du jour" (v2.44/v2.45) n'avait encore jamais eu sa propre fiche
+  // Astuces — comblé ici en même temps que sa mise en avant sur l'écran
+  // titre (v2.48), plutôt que de laisser ce trou de doc traîner encore.
+  conseilsDailyChallengeP: {
+    fr: "<strong>Le défi du jour</strong> propose la même carte, avec les mêmes règles, à tout le monde ce jour-là — accessible directement depuis l'écran titre ou depuis les réglages. Le but : la remporter en le moins de tours possible. Une victoire prolonge votre série de jours consécutifs (visible sur l'écran titre) ; une défaite la remet à zéro. Une seule tentative compte par jour — la rejouer ne change rien à la série, mais reste possible pour s'entraîner ou tenter un meilleur temps à partager.",
+    en: "<strong>The daily challenge</strong> gives everyone the exact same map, under the exact same rules, on a given day — playable straight from the title screen or from settings. The goal: win it in as few turns as possible. A win extends your streak of consecutive days (shown on the title screen); a loss resets it to zero. Only your first attempt each day counts — replaying it afterward doesn't affect the streak, but is still there for practice or a better time to share.",
+    zh: "<strong>每日挑战</strong>让所有人在当天面对完全相同的地图和规则——可直接从标题界面或设置中进入。目标是尽量以最少的回合数获胜。获胜会延长你的连续天数纪录（显示在标题界面）；失败则会清零。每天只有第一次尝试计入纪录——之后重玩不会影响连胜，但仍可用来练习或争取一个更值得分享的成绩。",
+    es: "<strong>El desafío diario</strong> ofrece a todos exactamente el mismo mapa, con las mismas reglas, ese día — se juega directamente desde la pantalla de título o desde los ajustes. El objetivo: ganarlo en el menor número de turnos posible. Una victoria extiende tu racha de días consecutivos (visible en la pantalla de título); una derrota la reinicia a cero. Solo cuenta tu primer intento del día — volver a jugarlo después no afecta la racha, pero sigue disponible para practicar o buscar un mejor tiempo que compartir.",
+    de: "<strong>Die Tagesherausforderung</strong> stellt allen an einem bestimmten Tag genau dieselbe Karte mit denselben Regeln — direkt vom Startbildschirm oder aus den Einstellungen spielbar. Das Ziel: sie in möglichst wenigen Zügen gewinnen. Ein Sieg verlängert deine Serie aufeinanderfolgender Tage (auf dem Startbildschirm sichtbar); eine Niederlage setzt sie auf null zurück. Nur dein erster Versuch am Tag zählt — ein erneutes Spielen danach ändert nichts an der Serie, eignet sich aber weiterhin zum Üben oder für eine bessere, teilbare Zeit.",
   },
   // Win/loss/truce/share/premium overlays.
   shareIntroTitle: { fr: "⚔️ Défi Knight Wars", en: "⚔️ Knight Wars challenge", zh: "⚔️ 骑士战争挑战", es: "⚔️ Desafío de Knight Wars", de: "⚔️ Knight-Wars-Herausforderung" },
@@ -7593,10 +7645,14 @@ async function shareReplay() {
   // Note pour Pierre : ce texte de partage est en français en dur depuis
   // l'origine (pas encore routé par t()/UI_STRINGS comme le reste du jeu) —
   // pas touché ici pour rester cohérent avec la branche existante juste en
-  // dessous, seule la nouvelle branche "défi du jour" est ajoutée. À
-  // uniformiser un jour si ça vaut le coup.
+  // dessous. La branche "défi du jour", elle, a besoin d'interpoler
+  // tours/série (voir shareTextDailyWon/Lost) donc passe par tf()/t() — à
+  // uniformiser un jour si ça vaut le coup pour les deux autres aussi.
+  const dailyState = getDailyChallengeState();
   const text = dailyChallengeDate
-    ? "J'ai fait le défi du jour de Knight Wars — à toi de faire mieux :"
+    ? (dailyState.lastWon
+        ? tf("shareTextDailyWon", { turns: dailyState.lastTurns, streak: dailyState.streak })
+        : t("shareTextDailyLost"))
     : truceEnded
     ? "Match nul sur Knight Wars, personne n'a pu forcer la décision ! Regarde cette partie et fais mieux :"
     : "J'ai remporté une bataille sur Knight Wars ! Regarde ma partie et affronte-moi :";
@@ -9898,13 +9954,10 @@ document.getElementById("settingsBtn").addEventListener("click", () => {
   refreshDailyChallengeButton();
   sfxMenuOpen();
 });
-// "Défi du jour" — refreshed here (rather than only once at boot) so the
-// label/status/streak are never stale: the date can roll over, or a
-// previous match's result can just have been recorded, while the panel was
-// closed.
-function refreshDailyChallengeButton() {
-  const btn = document.getElementById("dailyChallengeBtn");
-  const statusEl = document.getElementById("dailyChallengeStatus");
+// "Défi du jour" state, shared by every place that shows a CTA for it (the
+// settings-panel button, and the splash-screen one added in v2.48 — see its
+// own note by #splashDaily). Centralized so the two never drift.
+function getDailyChallengeState() {
   const today = todayDateStrUTC();
   let lastDate = null, lastWon = false, lastTurns = 0, streak = 0;
   try {
@@ -9913,7 +9966,10 @@ function refreshDailyChallengeButton() {
     lastTurns = parseInt(localStorage.getItem("kw_dailyLastTurns") || "0", 10) || 0;
     streak = parseInt(localStorage.getItem("kw_dailyStreak") || "0", 10) || 0;
   } catch (e) { /* ignore */ }
-  const playedToday = lastDate === today;
+  return { playedToday: lastDate === today, lastWon, lastTurns, streak };
+}
+function renderDailyChallengeCta(btn, statusEl) {
+  const { playedToday, lastWon, lastTurns, streak } = getDailyChallengeState();
   btn.textContent = playedToday ? t("dailyChallengeReplayBtn") : t("dailyChallengeBtnLabel");
   if (playedToday) {
     statusEl.textContent = lastWon
@@ -9923,9 +9979,32 @@ function refreshDailyChallengeButton() {
     statusEl.textContent = streak > 0 ? tf("dailyChallengeStatusStreak", { streak }) : t("dailyChallengeStatusIntro");
   }
 }
+// "Défi du jour" — refreshed here (rather than only once at boot) so the
+// label/status/streak are never stale: the date can roll over, or a
+// previous match's result can just have been recorded, while the panel was
+// closed.
+function refreshDailyChallengeButton() {
+  renderDailyChallengeCta(document.getElementById("dailyChallengeBtn"), document.getElementById("dailyChallengeStatus"));
+}
 document.getElementById("dailyChallengeBtn").addEventListener("click", () => {
   closeSettingsPanel();
   startDailyChallenge();
+});
+// Splash-screen CTA (v2.48) — see #splashDaily's own HTML comment for why
+// it exists. Unlike the settings-panel one, this only ever needs rendering
+// once: the splash screen itself only shows once at boot (see
+// beginFromSplash(), which hides it for good the moment any of its buttons
+// is tapped), so there's no "panel reopened, state may be stale" case to
+// guard against here.
+function refreshSplashDailyChallenge() {
+  renderDailyChallengeCta(document.getElementById("splashDailyBtn"), document.getElementById("splashDailyStatus"));
+}
+document.getElementById("splashDailyBtn").addEventListener("click", () => {
+  tryStartIntroMusic(); // same requirement as splashAttackBtn — see #splashScreen's own note
+  // A saved game in progress is implicitly abandoned by picking the daily
+  // challenge instead, exactly like tapping "Commencer une nouvelle partie"
+  // would — see abandonSavedGameAndStartDaily()'s own note.
+  beginFromSplash(pendingSavedGame ? abandonSavedGameAndStartDaily : startDailyChallenge);
 });
 function closeSettingsPanel() {
   settingsPanel.style.display = "none";
@@ -10285,6 +10364,14 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // add a new entry at the top whenever a future change is worth telling
 // players about.
 const CHANGELOG = [
+  {
+    version: "2.48",
+    notes: [
+      "Le défi du jour est maintenant visible dès l'écran titre (plus seulement caché dans les réglages), avec votre série de jours consécutifs affichée directement.",
+      "Le texte partagé après un défi du jour indique maintenant votre score (nombre de tours et série en cours) au lieu d'un simple « à toi de faire mieux ».",
+      "Ajout d'une fiche Astuces dédiée au défi du jour, qui n'en avait encore jamais eu.",
+    ],
+  },
   {
     version: "2.47",
     notes: [
@@ -11586,6 +11673,7 @@ function applyUiLanguage() {
   document.getElementById("helpSectionLabelDiv").textContent = t("helpSectionLabel");
   document.getElementById("dailyChallengeSectionLabel").textContent = t("dailyChallengeSectionLabel");
   refreshDailyChallengeButton();
+  refreshSplashDailyChallenge();
   document.getElementById("conseilsBtn").textContent = t("conseilsBtnLabel");
   document.getElementById("loreBtn").textContent = t("loreBtnLabel");
   document.getElementById("mapCodeFieldLabel").textContent = t("mapCodeLabel");
@@ -11637,6 +11725,7 @@ function applyUiLanguage() {
   document.getElementById("conseilsCthulhuP").innerHTML = t("conseilsCthulhuP");
   document.getElementById("conseilsGodsP").innerHTML = t("conseilsGodsP");
   document.getElementById("conseilsGueuxP").innerHTML = t("conseilsGueuxP");
+  document.getElementById("conseilsDailyChallengeP").innerHTML = t("conseilsDailyChallengeP");
   // Share/truce/premium/surrender-confirm overlays — mostly static content,
   // set here rather than at the one moment each overlay opens (unlike
   // truceText/shareIntroText, which stay set at their own trigger point via
@@ -12722,6 +12811,19 @@ function abandonSavedGameAndStartFresh() {
   forceInstantSkip = false;
   activeReplayFinish = null;
   startGame();
+}
+// Same abandon-in-progress-save guard as abandonSavedGameAndStartFresh(),
+// but landing on today's daily challenge instead of a random match — used
+// by the splash-screen daily CTA (see #splashDaily's own note) when a saved
+// game exists. Deliberately NOT just "abandonSavedGameAndStartFresh() then
+// startDailyChallenge()": that would call startGame() twice in a row (once
+// random, immediately discarded, then once for real with the daily seed).
+function abandonSavedGameAndStartDaily() {
+  try { localStorage.removeItem(SAVED_GAME_KEY); } catch (e) { /* ignore */ }
+  replaying = false;
+  forceInstantSkip = false;
+  activeReplayFinish = null;
+  startDailyChallenge();
 }
 function resumeSavedGame(saved) {
   try {
