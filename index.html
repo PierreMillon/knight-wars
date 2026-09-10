@@ -1432,6 +1432,7 @@
         <p id="conseilsGodsP"></p>
         <p id="conseilsGueuxP"></p>
         <p id="conseilsDailyChallengeP"></p>
+        <p id="conseilsForecastP"></p>
       </div>
       <button id="closeConseils"></button>
     </div>
@@ -1537,6 +1538,7 @@
            gauche" — four playable royaumes (ROYAUMES 0-3), four hatch
            patterns, one each; see buildHatchPatterns()/render()'s own note. -->
       <label style="display:block; margin-top:10px;"><input type="checkbox" id="colorblindToggle"> <span id="colorblindLabelText"></span></label>
+      <label style="display:block; margin-top:10px;"><input type="checkbox" id="attackForecastToggle"> <span id="attackForecastLabelText"></span></label>
 
       <!-- Tier 2 used to be here: an "Affichage" section holding only the
            royaume-sort-order control (Villages/Soldats/Ordre de jeu). Removed
@@ -1633,7 +1635,7 @@
 // before (CREATURE_IMG's own loadSprite() call, the changelog, etc.), not
 // redeclared.
 const CREATURE_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAANAAAADQCAYAAAB2pO90AAAC2klEQVR4nO3dQWoDMRAAwd3g/39ZOeQHahgroupuvF7TzGWQ3rXWw4z3fUde9lrrnfiend8z9WxTfr79APCfCQgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAg+336AE5y85LnzbJY855hAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEFx3MqlTOe/7PSf/pyYQBAKCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAiCd62RG9559pYimbOzgGoCQSAgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAguO5kUvbsLFJOLcdOPdvOZ0wgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAElkkZNbUYOvU9JhAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJAQBAICILrlkldJb9namHzZK65h2ECgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgrFl0pOvRD/Zbe/ttqVVEwgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAgEBMF1J5My57bF0B0mEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgq1lUlfJW6TkjwkEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJg7GTSnUXKqaXVqcXQk6+styC8xwSCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUHwccLmHO/tvhNdTSAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEASfkxf1OJsTUE0gSAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEY9fcw/OcfcroDhMIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgl9clHexCa709wAAAABJRU5ErkJggg==";
-const GAME_VERSION = "2.49";
+const GAME_VERSION = "2.50";
 document.getElementById("loadingKnight").src = CREATURE_IMG_SRC;
 document.getElementById("loadingVersion").textContent = `v${GAME_VERSION}`;
 document.getElementById("splashKnight").src = CREATURE_IMG_SRC;
@@ -4496,6 +4498,19 @@ document.addEventListener("visibilitychange", () => {
 // alone). See buildHatchPatterns()/render()'s own note.
 let colorblindMode = false;
 try { colorblindMode = localStorage.getItem("kw_colorblindMode") === "1"; } catch (e) { /* ignore */ }
+// "Pronostic d'attaque" (v2.50) — a small badge on every enemy province the
+// armed province could attack right now, saying what the rule already says
+// in Astuces (sure win / 1 in 3 / 1 in 5 / hopeless), at the moment the
+// decision is actually made. Purely informational: it reveals no hidden
+// state and changes no balance — the combat rule is public, it was just
+// never surfaced where it mattered. On by default (a player who never opens
+// Astuces cannot otherwise guess that equal force still wins 1 time in 3);
+// off for anyone who prefers reading the raw numbers themselves.
+let attackForecastEnabled = true;
+try {
+  const savedForecast = localStorage.getItem("kw_attackForecast");
+  if (savedForecast !== null) attackForecastEnabled = savedForecast === "1";
+} catch (e) { /* ignore */ }
 
 // "Contenu avancé" gate on the hardest difficulty (Seigneur) and the
 // biggest map size (Croisade) — a PREVIEW of the ad-watch/one-time-
@@ -4901,6 +4916,7 @@ const UI_STRINGS = {
   musicLabel: { fr: "Musique", en: "Music", zh: "音乐", es: "Música", de: "Musik" },
   langLabel: { fr: "Langue", en: "Language", zh: "语言", es: "Idioma", de: "Sprache" },
   colorblindLabel: { fr: "Mode daltonien (hachures)", en: "Colorblind mode (hatching)", zh: "色盲模式（纹理填充）", es: "Modo daltónico (tramas)", de: "Farbenblind-Modus (Schraffur)" },
+  attackForecastLabel: { fr: "Pronostic d'attaque sur la carte", en: "Show attack odds on the map", zh: "在地图上显示进攻胜算", es: "Mostrar el pronóstico de ataque en el mapa", de: "Angriffschancen auf der Karte anzeigen" },
   helpSectionLabel: { fr: "Aide", en: "Help", zh: "帮助", es: "Ayuda", de: "Hilfe" },
   // "Défi du jour" (v2.45) — voir startDailyChallenge()'s own note.
   dailyChallengeSectionLabel: { fr: "Défi du jour", en: "Daily challenge", zh: "每日挑战", es: "Desafío diario", de: "Tagesherausforderung" },
@@ -5205,6 +5221,16 @@ const UI_STRINGS = {
     zh: "<strong>每日挑战</strong>让所有人在当天面对完全相同的地图和规则——可直接从标题界面或设置中进入。目标是尽量以最少的回合数获胜。获胜会延长你的连续天数纪录（显示在标题界面）；失败则会清零。每天只有第一次尝试计入纪录——之后重玩不会影响连胜，但仍可用来练习或争取一个更值得分享的成绩。",
     es: "<strong>El desafío diario</strong> ofrece a todos exactamente el mismo mapa, con las mismas reglas, ese día — se juega directamente desde la pantalla de título o desde los ajustes. El objetivo: ganarlo en el menor número de turnos posible. Una victoria extiende tu racha de días consecutivos (visible en la pantalla de título); una derrota la reinicia a cero. Solo cuenta tu primer intento del día — volver a jugarlo después no afecta la racha, pero sigue disponible para practicar o buscar un mejor tiempo que compartir.",
     de: "<strong>Die Tagesherausforderung</strong> stellt allen an einem bestimmten Tag genau dieselbe Karte mit denselben Regeln — direkt vom Startbildschirm oder aus den Einstellungen spielbar. Das Ziel: sie in möglichst wenigen Zügen gewinnen. Ein Sieg verlängert deine Serie aufeinanderfolgender Tage (auf dem Startbildschirm sichtbar); eine Niederlage setzt sie auf null zurück. Nur dein erster Versuch am Tag zählt — ein erneutes Spielen danach ändert nichts an der Serie, eignet sich aber weiterhin zum Üben oder für eine bessere, teilbare Zeit.",
+  },
+  // "Pronostic d'attaque" (v2.50) — voir attackForecastEnabled. La règle
+  // elle-même est déjà expliquée juste au-dessus (conseilsCombatP) ; cette
+  // fiche-ci ne décrit que la façon de la lire sur la carte.
+  conseilsForecastP: {
+    fr: "<strong>Le pronostic d'attaque</strong> : dès que vous armez une province (en la touchant, ou pendant un glissé), chaque province ennemie voisine par la terre affiche l'issue réelle de l'attaque — ✔ victoire certaine, \u2153 une chance sur 3, \u2155 une chance sur 5, ✘ perdue d'avance. Ce n'est pas une aide qui triche : c'est exactement la règle de combat ci-dessus, affichée au moment de décider plutôt que dans ce menu. Désactivable dans les Réglages.",
+    en: "<strong>Attack odds</strong>: as soon as you arm a province (by tapping it, or during a drag), every enemy province next to it by land shows the real outcome of that attack — ✔ certain victory, \u2153 a 1-in-3 chance, \u2155 a 1-in-5 chance, ✘ lost before it starts. It isn't a cheat: it's exactly the combat rule above, shown when you're deciding rather than only in this menu. Can be turned off in Settings.",
+    zh: "<strong>进攻胜算</strong>：当你选定一个省份后（点击它，或在拖动过程中），每个与之陆地相邻的敌方省份都会显示这次进攻的真实结果——✔ 必胜，\u2153 三分之一的机会，\u2155 五分之一的机会，✘ 毫无胜算。这并非作弊式辅助：它正是上面那条战斗规则，只是显示在你做决定的那一刻，而不是只写在这个菜单里。可在设置中关闭。",
+    es: "<strong>El pronóstico de ataque</strong>: en cuanto preparas una provincia (tocándola o durante un arrastre), cada provincia enemiga contigua por tierra muestra el resultado real de ese ataque — ✔ victoria segura, \u2153 una posibilidad entre 3, \u2155 una entre 5, ✘ perdida de antemano. No es una ayuda tramposa: es exactamente la regla de combate de arriba, mostrada en el momento de decidir en lugar de solo en este menú. Se puede desactivar en los Ajustes.",
+    de: "<strong>Die Angriffsprognose</strong>: Sobald du eine Provinz aktivierst (durch Antippen oder während eines Ziehens), zeigt jede über Land benachbarte feindliche Provinz den tatsächlichen Ausgang dieses Angriffs — ✔ sicherer Sieg, \u2153 eine Chance von 3, \u2155 eine von 5, ✘ von vornherein verloren. Das ist keine mogelnde Hilfe: es ist genau die Kampfregel von oben, gezeigt im Moment der Entscheidung statt nur in diesem Menü. In den Einstellungen abschaltbar.",
   },
   // Win/loss/truce/share/premium overlays.
   shareIntroTitle: { fr: "⚔️ Défi Knight Wars", en: "⚔️ Knight Wars challenge", zh: "⚔️ 骑士战争挑战", es: "⚔️ Desafío de Knight Wars", de: "⚔️ Knight-Wars-Herausforderung" },
@@ -5967,6 +5993,49 @@ function resolveCombat(attackingForce, defendingForce) {
   return attackingForce > defendingForce;
 }
 
+// The god modifiers applied to a matchup's two sides, pulled out of attack()
+// (v2.50) so the pre-attack forecast below reads the EXACT same math the
+// real resolution does instead of a second copy that could quietly drift —
+// a forecast that disagrees with the outcome is worse than no forecast.
+// See attack()'s own note for what each god does and why atk/def themselves
+// stay the real, displayed numbers.
+function godAdjustedForces(from, to, atk, def, waterPath) {
+  return {
+    godAtk: atk + (isGodActiveFor(from.owner, 1) ? 1 : 0),
+    godDef: Math.max(0, def
+      + (isGodActiveFor(to.owner, 0) ? 1 : 0)
+      - (isGodActiveFor(to.owner, 1) ? 1 : 0)
+      - (waterPath && isGodActiveFor(to.owner, 3) ? 1 : 0)),
+  };
+}
+// What WOULD happen if fromId attacked toId right now, without touching the
+// RNG (v2.50). Mirrors attack() branch for branch — water-crossing decay,
+// the drowned-in-transit case, le pouvoir des 12, la bénédiction de Mars,
+// then the god-adjusted comparison resolveCombat() itself makes.
+// NEVER calls resolveCombat(): that consumes a seeded rngFloat(), so
+// forecasting a hover would desync every replay of the match. The odds it
+// reports are exactly the rule already spelled out in Astuces
+// (conseilsCombatP) — public information, surfaced at the moment it's
+// actually being decided rather than only in a menu.
+// Returns "sure" | "third" | "fifth" | "doomed" | "drowned", or null when
+// the pair isn't a real attack at all.
+function combatForecast(fromId, toId) {
+  const from = territories[fromId], to = territories[toId];
+  if (!from || !to || from === to || to.owner === from.owner) return null;
+  const waterCost = waterCostBetween(from, toId);
+  const waterPath = from.neighbors.has(toId) ? null : waterPathBetween(from, toId);
+  if (from.force - waterCost <= 0) return "drowned";
+  const atk = Math.max(1, from.force - waterCost), def = to.force;
+  const isLandAttack = waterPath === null;
+  if (isLandAttack && (capBonusBudget[from.owner] || 0) > 0) return "sure";
+  if (isLandAttack && marsBlessingUnlocked && from.owner === humanRoyId && atk === FORCE_CAP && def === FORCE_CAP) return "sure";
+  const { godAtk, godDef } = godAdjustedForces(from, to, atk, def, waterPath);
+  if (godAtk > godDef) return "sure";
+  if (godAtk === godDef) return "third";
+  if (godAtk === godDef - 1) return "fifth";
+  return "doomed";
+}
+
 let lastAttackWasGrind = false; // both sides near the force cap — used for the victory flavor text
 // 0 for an ordinary land-adjacent attack; otherwise the cheapest water route
 // cost between the two territories (see computeWaterRoutes()) — force spent
@@ -6233,11 +6302,7 @@ function attack(fromId, toId, chainIndex = -1, forcedGuaranteed = null) {
   // (displayed/logged below, and used for lastAttackWasGrind above) stay
   // the real force values, same treatment capBonusWin/marsBonusWin already
   // get (an invisible thumb on the scale, not a fake number on screen).
-  const godAtk = atk + (isGodActiveFor(from.owner, 1) ? 1 : 0);
-  const godDef = Math.max(0, def
-    + (isGodActiveFor(to.owner, 0) ? 1 : 0)
-    - (isGodActiveFor(to.owner, 1) ? 1 : 0)
-    - (waterPath && isGodActiveFor(to.owner, 3) ? 1 : 0));
+  const { godAtk, godDef } = godAdjustedForces(from, to, atk, def, waterPath);
   const win = capBonusWin || marsBonusWin ? true : resolveCombat(godAtk, godDef);
   // forcedGuaranteed !== null means resolveChainedAttack() already drained
   // the budget once, up front, for the whole chain — draining it again here
@@ -8695,6 +8760,8 @@ function render() {
     drawForceIcon(t);
   }
 
+  drawAttackForecasts();
+
   // reinforcement pulse — a ring on territories that just gained force. Ring
   // shrink + label float-up plays out over PULSE_INTRO_MS, then the whole
   // thing fades out on its own short clock (PULSE_FADE_MS, per tile, from
@@ -9152,6 +9219,59 @@ const UNIT_ASPECT = {
 // figures a consistent size instead of their raw bitmaps.
 const UNIT_CONTENT_FRACTION = { triangle: 1.0, square: 0.91, circle: 0.62 };
 
+// Best-odds-wins when two armed sources (a selection plus a live drag, or
+// two concurrent drags) both threaten the same province — showing the worse
+// of the two would misreport what the player can actually do right now.
+const FORECAST_RANK = { doomed: 0, fifth: 1, third: 2, sure: 3 };
+const FORECAST_GLYPH = { sure: "\u2714", third: "\u2153", fifth: "\u2155", doomed: "\u2718" };
+const FORECAST_COLOR = { sure: "#9ce89c", third: "#f2d98c", fifth: "#f2d98c", doomed: "#f0a0a0" };
+// "Pronostic d'attaque" (v2.50) — see attackForecastEnabled's own note for
+// why this exists and why it's honest rather than an aid. Badges every
+// enemy province the currently-armed province could march on BY LAND: the
+// armed one being whatever is selected (tap mode) or the current head of a
+// drag chain. Land neighbours only — at most 6, so the map never fills up
+// with badges, and a water crossing already draws its own decaying-force
+// trail and boat (which says the same thing in its own language) while its
+// routes can reach clear across the map.
+function drawAttackForecasts() {
+  if (!attackForecastEnabled || replaying || gameOver || awaitingFactionPick) return;
+  if (currentPlayer !== humanRoyId) return;
+  const sourceIds = new Set();
+  if (selected !== -1) sourceIds.add(selected);
+  for (const drag of activeDrags.values()) {
+    if (drag.path && drag.path.length) sourceIds.add(drag.path[drag.path.length - 1]);
+  }
+  if (!sourceIds.size) return;
+  const shown = new Map(); // territoryId -> forecast kind
+  for (const srcId of sourceIds) {
+    const src = territories[srcId];
+    if (!src || src.owner !== humanRoyId || src.force <= 1) continue;
+    for (const nId of src.neighbors) {
+      const n = territories[nId];
+      if (!n || n.owner === src.owner) continue;
+      const kind = combatForecast(srcId, nId);
+      if (!kind || kind === "drowned") continue; // land-adjacent: a crossing can't drown here
+      const prev = shown.get(nId);
+      if (!prev || FORECAST_RANK[kind] > FORECAST_RANK[prev]) shown.set(nId, kind);
+    }
+  }
+  if (!shown.size) return;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.font = "bold 17px -apple-system, sans-serif";
+  ctx.lineWidth = 3;
+  for (const [tId, kind] of shown) {
+    const t = territories[tId];
+    ctx.strokeStyle = "rgba(20,16,12,0.85)";
+    ctx.fillStyle = FORECAST_COLOR[kind];
+    // Clear of the force number below it (drawn from about cy-8 down to
+    // cy+15 by drawForceIcon()) while still inside even a single-hex
+    // territory — the badge must never collide with the one number the
+    // player is comparing it against.
+    drawMapNumber(FORECAST_GLYPH[kind], t.cx, t.cy - 25);
+  }
+  ctx.textBaseline = "alphabetic"; // restore the default every other text draw in render() assumes
+}
 function drawForceIcon(t) {
   if (t.force === 0) return; // undefended neutral land — no army, no number to show
   // Replay hides every numeric indicator on the map (see the combat-FX loop's
@@ -10417,6 +10537,12 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // add a new entry at the top whenever a future change is worth telling
 // players about.
 const CHANGELOG = [
+  {
+    version: "2.50",
+    notes: [
+      "Nouveau pronostic d'attaque : quand vous armez une province, chaque province ennemie voisine affiche l'issue réelle de l'attaque (victoire certaine, 1 chance sur 3, 1 sur 5, ou perdue d'avance). La règle de combat n'a pas changé d'un pouce — elle est juste enfin lisible au moment de décider. Désactivable dans les Réglages.",
+    ],
+  },
   {
     version: "2.49",
     notes: [
@@ -11729,6 +11855,7 @@ function applyUiLanguage() {
   document.getElementById("soundFieldLabel").textContent = t("soundLabel");
   document.getElementById("musicFieldLabel").textContent = t("musicLabel");
   document.getElementById("colorblindLabelText").textContent = t("colorblindLabel");
+  document.getElementById("attackForecastLabelText").textContent = t("attackForecastLabel");
   document.getElementById("helpSectionLabelDiv").textContent = t("helpSectionLabel");
   document.getElementById("dailyChallengeSectionLabel").textContent = t("dailyChallengeSectionLabel");
   refreshDailyChallengeButton();
@@ -11785,6 +11912,7 @@ function applyUiLanguage() {
   document.getElementById("conseilsGodsP").innerHTML = t("conseilsGodsP");
   document.getElementById("conseilsGueuxP").innerHTML = t("conseilsGueuxP");
   document.getElementById("conseilsDailyChallengeP").innerHTML = t("conseilsDailyChallengeP");
+  document.getElementById("conseilsForecastP").innerHTML = t("conseilsForecastP");
   // Share/truce/premium/surrender-confirm overlays — mostly static content,
   // set here rather than at the one moment each overlay opens (unlike
   // truceText/shareIntroText, which stay set at their own trigger point via
@@ -11871,6 +11999,14 @@ colorblindToggle.checked = colorblindMode;
 colorblindToggle.addEventListener("change", () => {
   colorblindMode = colorblindToggle.checked;
   try { localStorage.setItem("kw_colorblindMode", colorblindMode ? "1" : "0"); } catch (e) { /* ignore */ }
+  render();
+  sfxToggle();
+});
+const attackForecastToggle = document.getElementById("attackForecastToggle");
+attackForecastToggle.checked = attackForecastEnabled;
+attackForecastToggle.addEventListener("change", () => {
+  attackForecastEnabled = attackForecastToggle.checked;
+  try { localStorage.setItem("kw_attackForecast", attackForecastEnabled ? "1" : "0"); } catch (e) { /* ignore */ }
   render();
   sfxToggle();
 });
