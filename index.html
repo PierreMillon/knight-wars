@@ -1433,6 +1433,7 @@
         <p id="conseilsGueuxP"></p>
         <p id="conseilsDailyChallengeP"></p>
         <p id="conseilsForecastP"></p>
+        <p id="conseilsArtefactsP"></p>
       </div>
       <button id="closeConseils"></button>
     </div>
@@ -1635,7 +1636,7 @@
 // before (CREATURE_IMG's own loadSprite() call, the changelog, etc.), not
 // redeclared.
 const CREATURE_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAANAAAADQCAYAAAB2pO90AAAC2klEQVR4nO3dQWoDMRAAwd3g/39ZOeQHahgroupuvF7TzGWQ3rXWw4z3fUde9lrrnfiend8z9WxTfr79APCfCQgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAg+336AE5y85LnzbJY855hAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEFx3MqlTOe/7PSf/pyYQBAKCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAiCd62RG9559pYimbOzgGoCQSAgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAguO5kUvbsLFJOLcdOPdvOZ0wgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAElkkZNbUYOvU9JhAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJAQBAICILrlkldJb9namHzZK65h2ECgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgrFl0pOvRD/Zbe/ttqVVEwgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAgEBMF1J5My57bF0B0mEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgq1lUlfJW6TkjwkEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJg7GTSnUXKqaXVqcXQk6+styC8xwSCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUHwccLmHO/tvhNdTSAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEASfkxf1OJsTUE0gSAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEY9fcw/OcfcroDhMIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgl9clHexCa709wAAAABJRU5ErkJggg==";
-const GAME_VERSION = "2.50";
+const GAME_VERSION = "2.51";
 document.getElementById("loadingKnight").src = CREATURE_IMG_SRC;
 document.getElementById("loadingVersion").textContent = `v${GAME_VERSION}`;
 document.getElementById("splashKnight").src = CREATURE_IMG_SRC;
@@ -2291,6 +2292,56 @@ try { pieuvreUnlocked = localStorage.getItem("kw_pieuvreUnlocked") === "1"; } ca
 // romain" (a permanent 12-vs-12 auto-win, see attack()'s own marsBonusWin).
 let marsBlessingUnlocked = false;
 try { marsBlessingUnlocked = localStorage.getItem("kw_marsBlessingUnlocked") === "1"; } catch (e) { /* ignore */ }
+// Les 3 derniers emplacements de la Salle des trophées (Excalibur, le
+// parchemin, l'épée blanche) étaient affichés depuis longtemps sans aucune
+// condition de déblocage ("on verra la mécanique plus tard") — donc
+// définitivement gris. v2.51 leur en donne enfin une, arbitrée par Pierre :
+//
+//  - LE PARCHEMIN : gagné à l'instant précis où le "parchemin crypté" est
+//    remis au joueur (l'indice vers Cthulhu, voir rollCthulhuHintWinCount()).
+//    L'événement existait déjà et ne laissait aucune trace ; il en laisse une.
+//  - EXCALIBUR : l'épée dans le rocher. Il faut arracher DOUZE provinces
+//    défendues à la force maximale (12), cumulées sur toute la carrière —
+//    idée de Pierre, meilleure que la version "une seule fois" que j'avais
+//    proposée : à 12 contre 12 on a une chance sur 3, donc une seule prise
+//    n'était qu'un coup de chance qu'on refait jusqu'à ce que ça passe.
+//    Douze annule le hasard et ne laisse que la persévérance, et la symétrie
+//    12/12 fait écho au "pouvoir des 12" déjà présent.
+//  - L'ÉPÉE BLANCHE : l'épée qu'on repose. Gagnée en terminant une partie
+//    sur un statu-quo — jusqu'ici la seule fin du jeu qui ne rapportait
+//    strictement rien.
+//
+// Compteurs cumulatifs et drapeaux permanents, jamais des conditions du type
+// "gagner sans aide divine" : les dieux étant passifs et définitifs une fois
+// débloqués (voir isGodActiveFor()), une telle condition deviendrait
+// impossible dès qu'on progresse — exactement l'impasse évitée en v2.46.
+const EXCALIBUR_CAP_KILLS_NEEDED = 12;
+let parcheminUnlocked = false, epeeBlancheUnlocked = false, excaliburCapKills = 0;
+try {
+  parcheminUnlocked = localStorage.getItem("kw_parcheminUnlocked") === "1";
+  epeeBlancheUnlocked = localStorage.getItem("kw_epeeBlancheUnlocked") === "1";
+  excaliburCapKills = parseInt(localStorage.getItem("kw_excaliburCapKills") || "0", 10) || 0;
+} catch (e) { /* ignore */ }
+function excaliburUnlocked() { return excaliburCapKills >= EXCALIBUR_CAP_KILLS_NEEDED; }
+// Une prise de province à la force maximale, par le joueur, en vrai jeu.
+// !replaying est obligatoire : attack() tourne aussi pendant un rejeu et
+// pendant la reconstruction d'une sauvegarde, où recompter ferait grimper le
+// compteur sans qu'aucune bataille neuve n'ait eu lieu.
+function recordExcaliburCapKill() {
+  if (excaliburCapKills >= EXCALIBUR_CAP_KILLS_NEEDED) return;
+  excaliburCapKills++;
+  try { localStorage.setItem("kw_excaliburCapKills", String(excaliburCapKills)); } catch (e) { /* ignore */ }
+}
+function recordParcheminUnlock() {
+  if (parcheminUnlocked) return;
+  parcheminUnlocked = true;
+  try { localStorage.setItem("kw_parcheminUnlocked", "1"); } catch (e) { /* ignore */ }
+}
+function recordEpeeBlancheUnlock() {
+  if (epeeBlancheUnlocked) return;
+  epeeBlancheUnlocked = true;
+  try { localStorage.setItem("kw_epeeBlancheUnlocked", "1"); } catch (e) { /* ignore */ }
+}
 // Composite "double sword" icon for that unlock's own settings-menu swap —
 // no separate art drawn for this one either (see recordCapBonusRevealAndCheckUnlock()'s
 // own note): just SWORD_IMG drawn twice onto a small offscreen canvas,
@@ -5232,6 +5283,16 @@ const UI_STRINGS = {
     es: "<strong>El pronóstico de ataque</strong>: en cuanto preparas una provincia (tocándola o durante un arrastre), cada provincia enemiga contigua por tierra muestra el resultado real de ese ataque — ✔ victoria segura, \u2153 una posibilidad entre 3, \u2155 una entre 5, ✘ perdida de antemano. No es una ayuda tramposa: es exactamente la regla de combate de arriba, mostrada en el momento de decidir en lugar de solo en este menú. Se puede desactivar en los Ajustes.",
     de: "<strong>Die Angriffsprognose</strong>: Sobald du eine Provinz aktivierst (durch Antippen oder während eines Ziehens), zeigt jede über Land benachbarte feindliche Provinz den tatsächlichen Ausgang dieses Angriffs — ✔ sicherer Sieg, \u2153 eine Chance von 3, \u2155 eine von 5, ✘ von vornherein verloren. Das ist keine mogelnde Hilfe: es ist genau die Kampfregel von oben, gezeigt im Moment der Entscheidung statt nur in diesem Menü. In den Einstellungen abschaltbar.",
   },
+  // Les 3 artefacts (v2.51) — voir EXCALIBUR_CAP_KILLS_NEEDED. Même
+  // traitement que conseilsGodsP/conseilsCthulhuP, qui expliquent déjà
+  // leurs propres conditions de déblocage.
+  conseilsArtefactsP: {
+    fr: "<strong>Les trois artefacts</strong> : le parchemin s'obtient à l'instant précis où un Seigneur vous remet le parchemin crypté. Excalibur, plantée dans son rocher, ne se libère qu'après avoir arraché <strong>douze</strong> provinces défendues à la force maximale (12) — cumulées sur toutes vos parties, pas en une seule. L'épée blanche, elle, se gagne en terminant une partie sur un statu-quo.",
+    en: "<strong>The three artifacts</strong>: the scroll is earned the moment a Lord hands you the encrypted parchment. Excalibur, set in its stone, comes free only after you have torn away <strong>twelve</strong> provinces defended at maximum strength (12) — counted across all your matches, not within one. The white sword is earned by ending a match in a stalemate.",
+    zh: "<strong>三件圣物</strong>：当某位领主将密文羊皮卷交给你的那一刻，你便获得羊皮卷。插在石中的王者之剑，唯有在你夺下<strong>十二</strong>个以最大兵力（12）防守的省份之后才会松动——跨越你所有对局累计，而非一局之内。白剑则通过以僵局结束一场对局来获得。",
+    es: "<strong>Los tres artefactos</strong>: el pergamino se obtiene en el instante en que un Señor te entrega el pergamino cifrado. Excalibur, clavada en su roca, solo se libera tras arrancar <strong>doce</strong> provincias defendidas a la fuerza máxima (12), acumuladas a lo largo de todas tus partidas, no en una sola. La espada blanca se gana terminando una partida en tablas.",
+    de: "<strong>Die drei Artefakte</strong>: Die Schriftrolle erhältst du in dem Moment, in dem ein Fürst dir die verschlüsselte Pergamentrolle überreicht. Excalibur, im Stein steckend, löst sich erst, nachdem du <strong>zwölf</strong> Provinzen entrissen hast, die mit maximaler Stärke (12) verteidigt wurden — über all deine Partien hinweg gezählt, nicht in einer einzigen. Das weiße Schwert verdienst du dir, indem du eine Partie mit einem Patt beendest.",
+  },
   // Win/loss/truce/share/premium overlays.
   shareIntroTitle: { fr: "⚔️ Défi Knight Wars", en: "⚔️ Knight Wars challenge", zh: "⚔️ 骑士战争挑战", es: "⚔️ Desafío de Knight Wars", de: "⚔️ Knight-Wars-Herausforderung" },
   shareIntroText: {
@@ -6304,6 +6365,10 @@ function attack(fromId, toId, chainIndex = -1, forcedGuaranteed = null) {
   // get (an invisible thumb on the scale, not a fake number on screen).
   const { godAtk, godDef } = godAdjustedForces(from, to, atk, def, waterPath);
   const win = capBonusWin || marsBonusWin ? true : resolveCombat(godAtk, godDef);
+  // Excalibur — voir EXCALIBUR_CAP_KILLS_NEEDED. `def` est la force réelle
+  // affichée du défenseur (jamais la valeur retouchée par les dieux) : c'est
+  // bien le 12 que le joueur voit sur la carte qui compte.
+  if (win && !replaying && from.owner === humanRoyId && def === FORCE_CAP) recordExcaliburCapKill();
   // forcedGuaranteed !== null means resolveChainedAttack() already drained
   // the budget once, up front, for the whole chain — draining it again here
   // per hop is exactly the bug this fixes (see that function's note).
@@ -7027,6 +7092,11 @@ function showWin(royId) {
   // was a real, outright victory — never a truce/mercy, and never during a
   // shared replay someone else's win banner.
   const cthulhuHintFired = royId === humanRoyId && !replaying && rollCthulhuHintWinCount();
+  // Le parchemin devient un vrai trophée au moment même où il est remis.
+  if (cthulhuHintFired) recordParcheminUnlock();
+  // L'épée blanche : la partie s'achève sur un statu-quo. truceEnded couvre
+  // les deux chemins qui y mènent (voir ses propres affectations).
+  if (truceEnded && !replaying) recordEpeeBlancheUnlock();
   // "Dieux spéciaux par royaume" — see checkGodUnlockOnWin()'s own note;
   // guards truceEnded/replaying/royId internally, same as the Cthulhu hint.
   const newlyUnlockedGod = checkGodUnlockOnWin(royId);
@@ -10439,23 +10509,22 @@ function computeTrophySlots() {
   // "Trophée pour vaincre toutes les familles, chacune avec tous les bonus
   // débloqués" — the ultimate one, computed live (see allRoyaumesFullyBlessed()).
   slots.push({ earned: allRoyaumesFullyBlessed(), name: t("trophyAllFamilies"), img: YINYANG_IMG_SRC });
+  // Excalibur, le parchemin et l'épée blanche — jusqu'en v2.51 affichés sans
+  // aucune condition ("on verra la mécanique plus tard"), donc gris à vie et
+  // pour cette raison exclus du décompte du Graal. Maintenant qu'ils ont
+  // chacun une vraie condition (voir EXCALIBUR_CAP_KILLS_NEEDED), ils sont
+  // poussés AVANT Le Graal et comptent donc pour lui, comme tous les autres :
+  // laisser trois cases gagnables hors du 100 % ferait mentir le Graal.
+  slots.push({ earned: excaliburUnlocked(), name: t("trophyExcalibur"), img: EXCALIBUR_IMG_SRC });
+  slots.push({ earned: parcheminUnlocked, name: t("trophyParchemin"), img: PARCHEMIN_IMG_SRC });
+  slots.push({ earned: epeeBlancheUnlocked, name: t("trophySwordBlanche"), img: SWORD_IMG_SRC });
   // Le Graal — "100% de tout avoir débloqué, le dernier à débloquer" : a
   // meta-trophy earned only once every OTHER slot above is already earned
-  // (checked against the preceding slots, never against itself — computed
-  // BEFORE the 3 still-undecided slots just below are pushed, on purpose:
-  // Excalibur/parchemin/épée blanche have no unlock mechanic yet, so
-  // counting them here would make Le Graal permanently unearnable by
-  // anyone until all three get a real condition).
+  // (checked against the preceding slots, never against itself). Poussé en
+  // tout dernier maintenant que plus aucune case n'est en attente de
+  // mécanique — ce qui correspond enfin à sa description d'origine.
   const remainingBeforeGraal = slots.filter((s) => !s.earned).length;
   slots.push({ earned: slots.every((s) => s.earned), name: t("trophyGraal"), img: GRAAL_IMG_SRC });
-  // "Excalibur et parchemin sont affichés en trophées, on verra la
-  // mécanique plus tard" — two new real slots, not yet unlockable
-  // (earned:false until an unlock condition is actually chosen).
-  slots.push({ earned: false, name: t("trophyExcalibur"), img: EXCALIBUR_IMG_SRC });
-  slots.push({ earned: false, name: t("trophyParchemin"), img: PARCHEMIN_IMG_SRC });
-  // "Il manque épée blanche dans les trophées" — same treatment, mécanique
-  // à définir plus tard.
-  slots.push({ earned: false, name: t("trophySwordBlanche"), img: SWORD_IMG_SRC });
   return { slots, remainingBeforeGraal };
 }
 // Post-win "presque débloqué" teaser (v2.49) — see its own use in showWin().
@@ -10537,6 +10606,13 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // add a new entry at the top whenever a future change is worth telling
 // players about.
 const CHANGELOG = [
+  {
+    version: "2.51",
+    notes: [
+      "Les trois derniers trophées sans mécanique se débloquent enfin. Le parchemin : à l'instant où un Seigneur vous remet le parchemin crypté. Excalibur : après avoir arraché douze provinces défendues à la force maximale, cumulées sur toutes vos parties. L'épée blanche : en terminant une partie sur un statu-quo.",
+      "Ces trois cases comptent désormais pour Le Graal, qui redevient un vrai 100 % — elles en étaient exclues tant qu'elles étaient impossibles à obtenir.",
+    ],
+  },
   {
     version: "2.50",
     notes: [
@@ -11913,6 +11989,7 @@ function applyUiLanguage() {
   document.getElementById("conseilsGueuxP").innerHTML = t("conseilsGueuxP");
   document.getElementById("conseilsDailyChallengeP").innerHTML = t("conseilsDailyChallengeP");
   document.getElementById("conseilsForecastP").innerHTML = t("conseilsForecastP");
+  document.getElementById("conseilsArtefactsP").innerHTML = t("conseilsArtefactsP");
   // Share/truce/premium/surrender-confirm overlays — mostly static content,
   // set here rather than at the one moment each overlay opens (unlike
   // truceText/shareIntroText, which stay set at their own trigger point via
