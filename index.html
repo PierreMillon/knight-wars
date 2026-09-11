@@ -1658,7 +1658,7 @@
 // before (CREATURE_IMG's own loadSprite() call, the changelog, etc.), not
 // redeclared.
 const CREATURE_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAANAAAADQCAYAAAB2pO90AAAC2klEQVR4nO3dQWoDMRAAwd3g/39ZOeQHahgroupuvF7TzGWQ3rXWw4z3fUde9lrrnfiend8z9WxTfr79APCfCQgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAg+336AE5y85LnzbJY855hAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEFx3MqlTOe/7PSf/pyYQBAKCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAiCd62RG9559pYimbOzgGoCQSAgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAguO5kUvbsLFJOLcdOPdvOZ0wgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAElkkZNbUYOvU9JhAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJAQBAICILrlkldJb9namHzZK65h2ECgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgrFl0pOvRD/Zbe/ttqVVEwgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAgEBMF1J5My57bF0B0mEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgq1lUlfJW6TkjwkEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJg7GTSnUXKqaXVqcXQk6+styC8xwSCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUHwccLmHO/tvhNdTSAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEASfkxf1OJsTUE0gSAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEY9fcw/OcfcroDhMIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgl9clHexCa709wAAAABJRU5ErkJggg==";
-const GAME_VERSION = "2.52";
+const GAME_VERSION = "2.53";
 document.getElementById("loadingKnight").src = CREATURE_IMG_SRC;
 document.getElementById("loadingVersion").textContent = `v${GAME_VERSION}`;
 document.getElementById("splashKnight").src = CREATURE_IMG_SRC;
@@ -5612,6 +5612,15 @@ function t(key) {
   const entry = UI_STRINGS[key];
   return entry ? tLang(entry) : key;
 }
+// Alias stable de t(). Plusieurs fonctions du jeu déclarent une variable
+// locale nommée `t` (un territoire : voir handlePointer(), drawForceIcon()…),
+// qui masque cette fonction de traduction dans toute leur portée. Un appel à
+// t("uneClé") y échouait alors avec « t is not a function » — bug réel et
+// invisible en relecture : c'est ce qui empêchait le 2e message du tutoriel
+// de s'afficher depuis toujours, et l'exception interrompait handlePointer()
+// en plein milieu, cassant la sélection d'une province pour un joueur qui
+// découvre le jeu. À utiliser dans toute portée où `t` est déjà pris.
+const tKey = t;
 function tf(key, vars) {
   return t(key).replace(/\{(\w+)\}/g, (_, k) => (vars && vars[k] !== undefined ? vars[k] : `{${k}}`));
 }
@@ -6615,7 +6624,20 @@ function advanceTurn() {
     // provinces even grow on their own) or that Astuces/Le lore exist at
     // all. Proposition de conception, pas une consigne écrite par Pierre —
     // approximation volontaire, à ajuster/retirer selon son retour.
-    if (!replaying && onboarding && roundNumber === 1) showOnboardingHint(t("onboardHint4"));
+    // Dernière leçon du parcours : les renforts de fin de tour. Elle exige
+    // que le joueur ait déjà attaqué au moins une fois (sinon le message
+    // arrive avant d'avoir un sens), puis clôt l'onboarding pour de bon.
+    // Plus de condition sur roundNumber : ce compteur ne vaut pas encore 1
+    // quand la main revient au joueur après son tout premier tour (mesuré),
+    // ce qui repoussait la leçon indéfiniment. Le bon déclencheur est
+    // simplement « le joueur a attaqué, puis la main lui est revenue » —
+    // c'est-à-dire le moment exact où ses provinces viennent d'être
+    // renforcées sous ses yeux. completeOnboarding() garantit une seule fois.
+    if (!replaying && onboarding && firstAttackDone) {
+      showOnboardingHint(t("onboardHint4"));
+      setTimeout(hideOnboardingHint, 6000);
+      completeOnboarding();
+    }
   } else if (!isAlive(humanRoyId)) {
     // Dead branch in practice now: checkWinner() (called right after every
     // attack) ends the match the instant the human is eliminated, even with
@@ -9669,19 +9691,14 @@ function handlePointer(clientX, clientY) {
   if (selected === -1) {
     if (t.owner === currentPlayer && t.force > 1) {
       selected = tId;
-      if (onboarding) showOnboardingHint(t("onboardHint2"));
+      if (onboarding) showOnboardingHint(tKey("onboardHint2")); // tKey et non t : ici `t` est le territoire touché — voir tKey
     }
   } else if (selected === tId) {
     selected = -1;
   } else {
     const selTerr = territories[selected];
     if (t.owner !== currentPlayer && canAffordWaterRoute(selTerr, tId)) {
-      if (onboarding) {
-        onboarding = false;
-        try { localStorage.setItem("kw_playedBefore", "1"); } catch (e) { /* ignore */ }
-        showOnboardingHint(t("onboardHint3"));
-        setTimeout(hideOnboardingHint, 4500);
-      }
+      if (onboarding) markFirstAttackDone();
       logMove({ a: selected, b: tId });
       attack(selected, tId);
       selected = (territories[selected].force > 1) ? selected : -1;
@@ -9852,12 +9869,7 @@ canvas.addEventListener("pointerup", (e) => {
     // against the live board as it plays out, so it's harmless if another
     // finger's own chain has meanwhile changed who owns a territory along
     // this path; this one just stops at whichever hop no longer holds up.
-    if (onboarding) {
-      onboarding = false;
-      try { localStorage.setItem("kw_playedBefore", "1"); } catch (err) { /* ignore */ }
-      showOnboardingHint(t("onboardHint3"));
-      setTimeout(hideOnboardingHint, 4500);
-    }
+    if (onboarding) markFirstAttackDone();
     selected = -1;
     executeAttackChain(path);
     return;
@@ -10657,6 +10669,13 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // add a new entry at the top whenever a future change is worth telling
 // players about.
 const CHANGELOG = [
+  {
+    version: "2.53",
+    notes: [
+      "Le tutoriel de première partie va enfin jusqu'au bout. Deux de ses messages ne s'affichaient en réalité jamais : celui qui explique comment attaquer, et celui qui explique que vos provinces se renforcent toutes seules en fin de tour.",
+      "Correction associée : toucher une de vos provinces déclenchait une erreur interne lors d'une toute première partie, ce qui pouvait casser la sélection au pire moment — juste quand on découvre le jeu.",
+    ],
+  },
   {
     version: "2.52",
     notes: [
@@ -12537,6 +12556,28 @@ function hideOnboardingHint() {
 // game that ended without ever attacking left `onboarding` stuck true
 // forever, re-showing the tutorial on every game after that too ("le tuto
 // s'affiche encore et encore après la première partie").
+// La première attaque terminait autrefois l'onboarding sur-le-champ
+// (onboarding = false + kw_playedBefore posés ici même). Conséquence non
+// vue à l'époque : le 4e message, celui qui explique les renforts de fin de
+// tour, est gardé par `onboarding && roundNumber === 1` — or le joueur a
+// forcément déjà attaqué quand le tour 1 arrive, donc ce message n'a JAMAIS
+// pu s'afficher en partie réelle depuis son ajout (vérifié en rejouant une
+// ouverture normale : onboarding déjà à false au tour 1).
+// L'onboarding avance donc maintenant par étapes et ne s'éteint qu'une fois
+// la leçon des renforts délivrée — c'est-à-dire quand il a réellement fini
+// d'apprendre quelque chose, et non au premier geste.
+function markFirstAttackDone() {
+  if (!onboarding || firstAttackDone) return;
+  firstAttackDone = true;
+  showOnboardingHint(t("onboardHint3"));
+  setTimeout(hideOnboardingHint, 4500);
+}
+// Fin normale du parcours : la dernière leçon a été donnée.
+function completeOnboarding() {
+  if (!onboarding) return;
+  onboarding = false;
+  try { localStorage.setItem("kw_playedBefore", "1"); } catch (e) { /* ignore */ }
+}
 function dismissOnboarding() {
   if (!onboarding) return;
   onboarding = false;
@@ -12938,6 +12979,10 @@ document.addEventListener("visibilitychange", () => { if (!document.hidden) chec
 /* ---------- BOOT ---------- */
 let onboarding = false;
 try { onboarding = localStorage.getItem("kw_playedBefore") !== "1"; } catch (e) { /* ignore */ }
+// Étape du parcours d'apprentissage : la première attaque a-t-elle eu lieu ?
+// Volontairement NON persisté — il ne sert qu'à enchaîner les messages d'une
+// même première partie, et kw_playedBefore reste le seul drapeau durable.
+let firstAttackDone = false;
 // "Choisissez un camp" (the endturn button's own label while awaitingFactionPick)
 // used to show for the first CAMP_PROMPT_MAX times someone actually picked a
 // camp — now retired outright, at 0, per direct request: "le bouton en bas
