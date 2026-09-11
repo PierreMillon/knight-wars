@@ -1659,7 +1659,7 @@
 // before (CREATURE_IMG's own loadSprite() call, the changelog, etc.), not
 // redeclared.
 const CREATURE_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAANAAAADQCAYAAAB2pO90AAAC2klEQVR4nO3dQWoDMRAAwd3g/39ZOeQHahgroupuvF7TzGWQ3rXWw4z3fUde9lrrnfiend8z9WxTfr79APCfCQgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAg+336AE5y85LnzbJY855hAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEFx3MqlTOe/7PSf/pyYQBAKCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAiCd62RG9559pYimbOzgGoCQSAgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAguO5kUvbsLFJOLcdOPdvOZ0wgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAElkkZNbUYOvU9JhAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJAQBAICILrlkldJb9namHzZK65h2ECgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgrFl0pOvRD/Zbe/ttqVVEwgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAgEBMF1J5My57bF0B0mEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgq1lUlfJW6TkjwkEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJg7GTSnUXKqaXVqcXQk6+styC8xwSCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUHwccLmHO/tvhNdTSAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEASfkxf1OJsTUE0gSAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEY9fcw/OcfcroDhMIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgl9clHexCa709wAAAABJRU5ErkJggg==";
-const GAME_VERSION = "2.54";
+const GAME_VERSION = "2.55";
 document.getElementById("loadingKnight").src = CREATURE_IMG_SRC;
 document.getElementById("loadingVersion").textContent = `v${GAME_VERSION}`;
 document.getElementById("splashKnight").src = CREATURE_IMG_SRC;
@@ -3904,6 +3904,23 @@ const FASTFORWARD_MIN_DELAY_MS = 90;
 // entirely instead of just switching to the smaller floor. Reset back to
 // false the moment control returns to the human (see updateStatus()).
 let forceInstantSkip = false;
+// "Reconstruction en cours" — resumeSavedGameInner() replaying a saved
+// match's whole move log back into the board, as fast as the machine can
+// run it, with nothing drawn in between. Deliberately NOT forceInstantSkip:
+// that flag belongs to the player ("La guerre fait rage"), so the game
+// clears it on its own the moment control comes back to the human (see
+// updateStatus()) and startGame() wipes it too — both entirely correct for
+// what it means, and both fatal for a reconstruction, which has to keep its
+// pacing for the whole log. Reusing it there froze the app outright: the
+// reconstruction's step() chains on queueMicrotask (see its own note on the
+// nested-setTimeout throttle), so the instant scheduleTurn() fell back to a
+// real timer for the next AI turn, that timer could never fire — a
+// self-requeueing microtask chain never yields to the event loop. The page
+// locked up permanently on "Reprendre la partie" for any match longer than
+// a single turn (measured: main thread unresponsive, indefinitely). This
+// flag is the reconstruction's own, and only resumeSavedGameInner() sets or
+// clears it.
+let reconstructing = false;
 // endTurn() delays advanceTurn() by REINFORCE_PAUSE_MS so the reinforcement
 // pulse/chime is actually visible before the turn hands off — this holds the
 // pending setTimeout handle while that short gap is in progress, null the
@@ -3940,7 +3957,7 @@ function cancelAllScheduledTurns() {
   pendingScheduledTurnTimeouts.clear();
 }
 function scheduleTurn(fn, delay) {
-  if (forceInstantSkip) { queueMicrotask(fn); return; }
+  if (forceInstantSkip || reconstructing) { queueMicrotask(fn); return; }
   if (replaying) {
     // fixed, uniform pace for every action — see REPLAY_STEP_MS's own note
     // (replaces the old per-caller delay/replaySpeed math, which gave AI
@@ -7711,6 +7728,7 @@ function playReplay(seed, difficulty, replayHumanRoyId, log, onFinish, replayMap
     activeReplayTogglePause = null;
     activeReplayFork = null;
     replaying = false;
+    reconstructing = false;
     stopAllReplayTimers(); // no leftover replay timer should keep firing into the now-live, forked match
     replayPaused = false;
     forceInstantSkip = false;
@@ -10737,6 +10755,13 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // players about.
 const CHANGELOG = [
   {
+    version: "2.55",
+    notes: [
+      "« Reprendre la partie » fonctionne enfin. Rouvrir le jeu sur une partie en cours figeait l'application pour de bon — écran bloqué, plus rien ne répond — dès que la partie dépassait un seul tour. C'est très probablement le « bug d'affichage » signalé plusieurs fois, longtemps mis sur le dos du cache.",
+      "Votre partie reprend désormais exactement là où vous l'aviez laissée, au village près, en une seconde environ.",
+    ],
+  },
+  {
     version: "2.54",
     notes: [
       "Nouvelles provinces en danger : quand rien n'est sélectionné, celles de vos provinces qu'un voisin pourrait vous prendre au prochain tour sont cernées de rouge. De quoi savoir où renforcer avant de finir votre tour, au lieu de le découvrir après coup.",
@@ -13118,6 +13143,7 @@ function startGame(seed) {
   mercyOfferShownAtRound = null;
   document.getElementById("enemySurrenderBtn").style.display = "none";
   forceInstantSkip = false; // leftover from a manual "La guerre fait rage" tap in a just-abandoned match shouldn't carry over
+  reconstructing = false; // same idea for an abandoned reconstruction — and why resumeSavedGameInner() sets its flags AFTER calling this, never before
   // a stray queued chime (or an already-scheduled note from one) from a
   // just-abandoned match (e.g. "Nouvelle guerre" tapped mid AI-cascade, or a
   // replay stopped mid-playback) shouldn't bleed into the new one
@@ -13258,6 +13284,7 @@ function startGame(seed) {
 function abandonSavedGameAndStartFresh() {
   try { localStorage.removeItem(SAVED_GAME_KEY); } catch (e) { /* ignore */ }
   replaying = false;
+  reconstructing = false;
   forceInstantSkip = false;
   activeReplayFinish = null;
   startGame();
@@ -13271,6 +13298,7 @@ function abandonSavedGameAndStartFresh() {
 function abandonSavedGameAndStartDaily() {
   try { localStorage.removeItem(SAVED_GAME_KEY); } catch (e) { /* ignore */ }
   replaying = false;
+  reconstructing = false;
   forceInstantSkip = false;
   activeReplayFinish = null;
   startDailyChallenge();
@@ -13298,15 +13326,36 @@ function resumeSavedGameInner(saved) {
   const soundWasEnabled = soundEnabled;
   soundEnabled = false;
   replaying = true;
-  forceInstantSkip = true;
   humanRoyId = saved.humanRoyId;
   applyDifficulty(saved.difficulty);
   opponentCount = saved.opponentCount;
   applyMapSize(saved.mapSize);
   startGame(saved.seed);
+  // AFTER startGame(), never before: it resets both of these itself (see its
+  // own note). Setting them first — which is what this did originally — left
+  // the whole reconstruction running at live pacing, and that is exactly
+  // what froze the app: step() below chains on queueMicrotask, so once
+  // scheduleTurn() handed the next AI turn to a real timer, that timer could
+  // never fire and the page hung for good. See `reconstructing`'s own note.
+  reconstructing = true;
+  forceInstantSkip = true;
   balanceStartingForces(); // mirrors pickFaction()'s own call — must run exactly once, at the same point in the sequence, or forces desync from the actual saved match
   const log = saved.moveLog;
   let i = 0;
+  // Hard ceiling on how many step() hops one reconstruction may take before
+  // it's declared broken. Belt-and-braces against this whole class of bug:
+  // step() re-queues itself on queueMicrotask while it waits for the AI, so
+  // any future change that stops that wait from ever resolving wouldn't
+  // merely be slow — it would starve every timer in the page and freeze the
+  // app for good, with no way out (exactly what reusing forceInstantSkip
+  // here used to do; see `reconstructing`'s own note). A real
+  // reconstruction, measured on the largest map at the hardest difficulty
+  // with a 285-move log, costs about 1 100 hops — so this leaves roughly
+  // 200x headroom and can only ever fire on a genuine defect. Bailing out
+  // lands the player on a fresh match, which is a bad outcome but a visible
+  // and recoverable one, unlike a dead page.
+  const MAX_RECONSTRUCTION_HOPS = 200000;
+  let hops = 0;
   function step() {
     try {
       stepInner();
@@ -13321,6 +13370,7 @@ function resumeSavedGameInner(saved) {
   }
   function stepInner() {
     if (!replaying) return; // escaped via rerollBtn's "stop" (see activeReplayFinish below) — bail cleanly
+    if (++hops > MAX_RECONSTRUCTION_HOPS) throw new Error("reconstruction made no progress"); // caught by step()'s own handler -> abandonSavedGameAndStartFresh()
     if (gameOver) {
       // mirrors playReplay()'s own handling of a logged "continue" entry
       // (accepting a truce's "keep fighting" option) — without this, a
@@ -13361,6 +13411,7 @@ function resumeSavedGameInner(saved) {
   function finish() {
     activeReplayFinish = null;
     replaying = false;
+    reconstructing = false;
     forceInstantSkip = false;
     soundEnabled = soundWasEnabled;
     moveLog = log.slice();
