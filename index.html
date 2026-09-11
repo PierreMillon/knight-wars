@@ -1242,6 +1242,10 @@
     <div class="box">
       <h2 id="shareIntroTitleH2"></h2>
       <p id="shareIntroText"></p>
+      <!-- Résultat VÉRIFIÉ de l'ami sur le défi du jour, et le duel avec le
+           score du visiteur s'il a joué le même jour. Reste vide pour un
+           lien de partage ordinaire. Voir verifyDailyClaim(). -->
+      <p id="shareIntroDuel"></p>
       <div class="winButtons">
         <button id="watchSharedReplay"></button>
         <button id="playSharedMap"></button>
@@ -1456,6 +1460,7 @@
         <p id="conseilsDailyChallengeP"></p>
         <p id="conseilsForecastP"></p>
         <p id="conseilsDangerP"></p>
+        <p id="conseilsDuelP"></p>
         <p id="conseilsArtefactsP"></p>
       </div>
       <button id="closeConseils"></button>
@@ -1659,7 +1664,7 @@
 // before (CREATURE_IMG's own loadSprite() call, the changelog, etc.), not
 // redeclared.
 const CREATURE_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAANAAAADQCAYAAAB2pO90AAAC2klEQVR4nO3dQWoDMRAAwd3g/39ZOeQHahgroupuvF7TzGWQ3rXWw4z3fUde9lrrnfiend8z9WxTfr79APCfCQgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAg+336AE5y85LnzbJY855hAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEFx3MqlTOe/7PSf/pyYQBAKCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAiCd62RG9559pYimbOzgGoCQSAgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAguO5kUvbsLFJOLcdOPdvOZ0wgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAElkkZNbUYOvU9JhAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJAQBAICILrlkldJb9namHzZK65h2ECgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgrFl0pOvRD/Zbe/ttqVVEwgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAgEBMF1J5My57bF0B0mEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgq1lUlfJW6TkjwkEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJg7GTSnUXKqaXVqcXQk6+styC8xwSCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUHwccLmHO/tvhNdTSAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEASfkxf1OJsTUE0gSAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEY9fcw/OcfcroDhMIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgl9clHexCa709wAAAABJRU5ErkJggg==";
-const GAME_VERSION = "2.55";
+const GAME_VERSION = "2.56";
 document.getElementById("loadingKnight").src = CREATURE_IMG_SRC;
 document.getElementById("loadingVersion").textContent = `v${GAME_VERSION}`;
 document.getElementById("splashKnight").src = CREATURE_IMG_SRC;
@@ -5335,6 +5340,13 @@ const UI_STRINGS = {
   },
   // "Province en danger" (v2.54) — pendant défensif du pronostic, voir
   // drawDangerMarkers(). Même règle publique, lue dans l'autre sens.
+  conseilsDuelP: {
+    fr: "<strong>Se mesurer à ses amis</strong> : partagez une victoire au défi du jour et votre ami verra votre score — mais le jeu ne le croira pas sur parole. Il <strong>rejoue votre partie coup par coup</strong> chez lui et recompte les tours lui-même. Personne ne peut donc s'inventer un score : il faudrait avoir vraiment gagné, sur la carte du jour, pour qu'un chiffre s'affiche. Si votre ami a lui aussi gagné ce jour-là, les deux scores sont comparés — le plus petit nombre de tours l'emporte.",
+    en: "<strong>Measuring up against friends</strong>: share a daily-challenge win and your friend will see your score — but the game won't take its word for it. It <strong>replays your match move by move</strong> on their device and recounts the turns itself. Nobody can invent a score: you'd have to genuinely win, on that day's map, for any number to appear. If your friend also won that day, the two scores are compared — fewest turns wins.",
+    zh: "<strong>与好友一较高下</strong>：分享每日挑战的胜利，好友就能看到你的成绩——但游戏不会轻信。它会在对方设备上<strong>逐步重放你的对局</strong>，自行重新计算回合数。因此没人能编造成绩：必须在当日的地图上真正取胜，数字才会出现。如果好友当天也获胜了，两个成绩会进行比较——回合数少者胜。",
+    es: "<strong>Medirse con los amigos</strong>: comparte una victoria del desafío diario y tu amigo verá tu puntuación — pero el juego no se fía de su palabra. <strong>Rejuega tu partida jugada a jugada</strong> en su dispositivo y recuenta los turnos por su cuenta. Nadie puede inventarse una puntuación: habría que ganar de verdad, en el mapa de ese día, para que aparezca cifra alguna. Si tu amigo también ganó ese día, se comparan ambas puntuaciones — gana quien use menos turnos.",
+    de: "<strong>Sich mit Freunden messen</strong>: Teile einen Sieg in der Tagesherausforderung, und dein Freund sieht dein Ergebnis — aber das Spiel glaubt es nicht einfach. Es <strong>spielt deine Partie Zug für Zug nach</strong> und zählt die Züge selbst neu. Niemand kann sich also ein Ergebnis ausdenken: Man müsste auf der Karte dieses Tages wirklich gewinnen, damit überhaupt eine Zahl erscheint. Hat dein Freund an dem Tag ebenfalls gewonnen, werden beide Ergebnisse verglichen — die wenigsten Züge gewinnen.",
+  },
   conseilsDangerP: {
     fr: "<strong>Les provinces en danger</strong> : quand rien n'est sélectionné, vos provinces qu'un voisin ennemi pourrait vous prendre à son prochain tour sont cernées d'un liseré rouge en pointillés. C'est la même règle de combat que ci-dessus, simplement lue dans l'autre sens — rien de caché n'est révélé. Le liseré disparaît dès que vous armez une province, pour laisser place au pronostic d'attaque : on regarde soit ce qu'on peut prendre, soit ce qu'on risque de perdre, jamais les deux à la fois. Se désactive avec le pronostic, dans les Réglages.",
     en: "<strong>Provinces in danger</strong>: when nothing is selected, any of your provinces that an enemy neighbour could take on their next turn is ringed with a dashed red outline. It's the same combat rule as above, simply read the other way round — nothing hidden is revealed. The outline disappears as soon as you arm a province, making room for the attack odds: you look either at what you can take, or at what you might lose, never both at once. Turned off together with the attack odds, in Settings.",
@@ -5631,6 +5643,51 @@ const UI_STRINGS = {
   trophyVictoryPrefix: { fr: "Victoire — {level}", en: "Victory — {level}", zh: "胜利——{level}", es: "Victoria — {level}", de: "Sieg — {level}" },
   trophyAllFamilies: { fr: "Toutes les familles, tous les bonus", en: "Every family, every bonus", zh: "所有家族，所有加成", es: "Todas las familias, todos los bonos", de: "Alle Familien, alle Boni" },
   trophyGraal: { fr: "Le Graal", en: "The Grail", zh: "圣杯", es: "El Grial", de: "Der Gral" },
+  // Classement entre amis sur le défi du jour — voir verifyDailyClaim().
+  // Le nombre de tours affiché est TOUJOURS celui recompté en rejouant le
+  // journal chez le visiteur, jamais celui annoncé par le lien.
+  duelChecking: {
+    fr: "🗓️ Ce lien annonce un défi du jour. On rejoue sa partie pour vérifier son score…",
+    en: "🗓️ This link claims a daily challenge. Replaying their match to verify the score…",
+    zh: "🗓️ 此链接声称是每日挑战。正在重放其对局以验证分数……",
+    es: "🗓️ Este enlace anuncia un desafío diario. Rejugando su partida para verificar la puntuación…",
+    de: "🗓️ Dieser Link behauptet eine Tagesherausforderung. Die Partie wird zur Überprüfung nachgespielt …",
+  },
+  duelFriendWon: {
+    fr: "🗓️ Défi du jour du {date} : votre ami l'a emporté en {turns} tours — score vérifié en rejouant sa partie.",
+    en: "🗓️ Daily challenge for {date}: your friend won it in {turns} turns — score verified by replaying their match.",
+    zh: "🗓️ {date} 的每日挑战：你的朋友以 {turns} 回合获胜——已通过重放其对局验证。",
+    es: "🗓️ Desafío diario del {date}: tu amigo ganó en {turns} turnos — puntuación verificada rejugando su partida.",
+    de: "🗓️ Tagesherausforderung vom {date}: Dein Freund hat sie in {turns} Zügen gewonnen — Ergebnis durch Nachspielen seiner Partie überprüft.",
+  },
+  duelFriendFailed: {
+    fr: "🗓️ Défi du jour du {date} : votre ami n'en est pas venu à bout. À vous de jouer.",
+    en: "🗓️ Daily challenge for {date}: your friend didn't manage it. Your turn.",
+    zh: "🗓️ {date} 的每日挑战：你的朋友没能通关。轮到你了。",
+    es: "🗓️ Desafío diario del {date}: tu amigo no lo logró. Te toca.",
+    de: "🗓️ Tagesherausforderung vom {date}: Dein Freund hat es nicht geschafft. Du bist dran.",
+  },
+  duelYouBeat: {
+    fr: " Vous l'aviez fait en {yours} tours : vous menez.",
+    en: " You did it in {yours}: you're ahead.",
+    zh: "你用了 {yours} 回合：你领先。",
+    es: " Tú lo hiciste en {yours} turnos: vas por delante.",
+    de: " Du hast es in {yours} Zügen geschafft: Du führst.",
+  },
+  duelYouLost: {
+    fr: " Vous l'aviez fait en {yours} tours : il vous devance.",
+    en: " You did it in {yours}: they're ahead of you.",
+    zh: "你用了 {yours} 回合：他们领先于你。",
+    es: " Tú lo hiciste en {yours} turnos: te lleva ventaja.",
+    de: " Du hast es in {yours} Zügen geschafft: Sie liegen vor dir.",
+  },
+  duelYouTied: {
+    fr: " Vous aussi, en {yours} tours exactement : égalité parfaite.",
+    en: " So did you, in exactly {yours}: a dead heat.",
+    zh: "你也是，恰好 {yours} 回合：完全平局。",
+    es: " Tú también, en exactamente {yours} turnos: empate perfecto.",
+    de: " Du auch, in genau {yours} Zügen: ein glattes Unentschieden.",
+  },
   trophyExcalibur: { fr: "Excalibur", en: "Excalibur", zh: "王者之剑", es: "Excalibur", de: "Excalibur" },
   trophyParchemin: { fr: "Le parchemin", en: "The scroll", zh: "羊皮卷", es: "El pergamino", de: "Die Schriftrolle" },
   trophySwordBlanche: { fr: "L'épée blanche", en: "The white sword", zh: "白剑", es: "La espada blanca", de: "Das weiße Schwert" },
@@ -7683,20 +7740,7 @@ function playReplay(seed, difficulty, replayHumanRoyId, log, onFinish, replayMap
     }
     if (currentPlayer !== humanRoyId || aiRunning) { scheduleStep(REPLAY_STEP_MS); return; }
     if (i >= log.length) { finish(); return; }
-    const action = log[i++];
-    if (action.end) endTurn();
-    else if (action.gueux !== undefined) applyGueuxEffect(action.gueux, action.mode); // no gueuxCount touched — replay only reproduces the force change, never spends the viewer's own stock
-    else if (action.sac !== undefined) executeWaterSacrifice(action.sac, action.path, action.pure);
-    else if (action.continue) { /* stray continue entry with no matching pause active — nothing to undo, just skip it rather than misreading it as attack(undefined, undefined) */ }
-    // action.first (present only on a drag-chain move logged after this
-    // fix) routes through resolveChainedAttack() so the guaranteed-win
-    // decision + budget deduction replay exactly as they happened, hop for
-    // hop — see that function's own note. Absent (a lone tap-attack, or an
-    // older replay/share-link recorded before this fix existed) means "check
-    // the live budget for just this one attack", which is exactly what both
-    // of those already did originally, so it's still correct as-is.
-    else if (action.first !== undefined) resolveChainedAttack(action.a, action.b, -1, action.first);
-    else attack(action.a, action.b);
+    applyLoggedMove(log[i++]); // see its own note — shared with resumeSavedGameInner() and verifyDailyClaim(); applyGueuxEffect() never spends the viewer's own gueux stock, so a replay only reproduces the force change
     scheduleStep(REPLAY_STEP_MS);
   }
   function togglePause() {
@@ -7871,7 +7915,13 @@ function decodeMoveFromShare(tuple) {
 function buildShareUrl() {
   let diffField = DIFFICULTY_LEVELS.findIndex((l) => l.value === gameStartDifficulty);
   if (diffField === -1) diffField = gameStartDifficulty; // defensive fallback — see decode below
-  const payload = [currentSeed, diffField, humanRoyId, gameStartMapSize[0], moveLog.map(encodeMoveForShare), gameStartOpponentCount];
+  // 7e emplacement : la date du défi du jour, quand ce match EN ÉTAIT un.
+  // Ajouté en fin de tableau, donc un lien plus ancien (6 emplacements) se
+  // décode toujours — le champ vaut simplement undefined et le lien reste un
+  // partage ordinaire. C'est ce champ qui permet au destinataire de
+  // RECALCULER le score annoncé au lieu de le croire : voir
+  // verifyDailyClaim().
+  const payload = [currentSeed, diffField, humanRoyId, gameStartMapSize[0], moveLog.map(encodeMoveForShare), gameStartOpponentCount, dailyChallengeDate || undefined];
   const encoded = btoa(JSON.stringify(payload));
   const url = new URL(location.href);
   url.hash = ""; url.search = "";
@@ -8154,7 +8204,7 @@ function tryParseSharedReplay() {
   try {
     const encoded = new URLSearchParams(location.search).get("replay");
     if (!encoded) return null;
-    const [seed, diffField, humanRoyId, mapSizeLetter, log, sharedOpponentCount] = JSON.parse(atob(encoded));
+    const [seed, diffField, humanRoyId, mapSizeLetter, log, sharedOpponentCount, sharedDailyDate] = JSON.parse(atob(encoded));
     // Tout ce qui suit vient d'un lien que N'IMPORTE QUI peut fabriquer et
     // envoyer à un joueur (v2.52). JSON.parse ne peut produire que des
     // données, jamais du code — il n'y a donc aucun risque d'exécution ici —
@@ -8193,8 +8243,159 @@ function tryParseSharedReplay() {
     // current max (3) rather than passed through to a royaume that no
     // longer exists.
     const opponentCount = (sharedOpponentCount >= 1 && sharedOpponentCount <= 3) ? sharedOpponentCount : undefined;
-    return { seed, difficulty, humanRoyId, log: log.map(decodeMoveFromShare), mapSize, opponentCount };
+    // La date du défi du jour, quand le lien en annonce un. Validée avec la
+    // même rigueur que le reste (forme AAAA-MM-JJ stricte ET date réelle :
+    // "2026-13-45" a la bonne forme mais n'existe pas), et absente sur un
+    // lien de partage ordinaire ou plus ancien. Rien n'est cru sur parole
+    // pour autant — ce champ ne fait qu'annoncer « ceci prétend être le défi
+    // du jour de telle date » ; verifyDailyClaim() rejoue ensuite le journal
+    // et recompte le score lui-même.
+    let dailyDate = null;
+    if (typeof sharedDailyDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(sharedDailyDate)) {
+      // La forme ne suffit pas : "2026-13-45" la respecte sans être une date.
+      // On vérifie donc le temps AVANT d'appeler toISOString(), qui lèverait
+      // sur une date invalide — et faire lever ici rejetterait le lien tout
+      // entier alors que seul ce champ est en cause (un lien de partage
+      // ordinaire doit rester lisible même avec une date absurde collée
+      // dedans). Le repassage par toISOString() écarte en plus les dates
+      // "qui glissent" (31 février -> 3 mars).
+      const parsed = new Date(sharedDailyDate + "T00:00:00Z");
+      if (!Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === sharedDailyDate) {
+        dailyDate = sharedDailyDate;
+      }
+    }
+    return { seed, difficulty, humanRoyId, log: log.map(decodeMoveFromShare), mapSize, opponentCount, dailyDate };
   } catch (e) { return null; }
+}
+// ---------- Classement entre amis sur le défi du jour ----------
+// Le principe, et la seule chose qui rende un classement honnête sans
+// serveur : on ne croit JAMAIS le score écrit dans le lien. On rejoue le
+// journal de coups chez le destinataire et on recompte les tours soi-même.
+// Falsifier un score exigerait donc de produire une vraie suite de coups
+// gagnante sur la carte du jour — c'est-à-dire de gagner pour de bon.
+//
+// Premier filtre : le lien doit bien ÊTRE le défi du jour de la date qu'il
+// annonce. La graine est dérivée de la date (dailySeedFor()), donc un
+// menteur ne peut pas garder son journal gagnant et changer la date : la
+// graine ne suivrait pas, et la carte non plus. Les autres paramètres sont
+// fixes par définition du défi — les laisser flotter permettrait de gagner
+// à un palier plus facile puis d'annoncer le score comme s'il valait pour
+// tout le monde.
+function dailyClaimParamsMatch(payload) {
+  return payload.dailyDate !== null
+    && payload.seed === dailySeedFor(payload.dailyDate)
+    && payload.humanRoyId === DAILY_CHALLENGE_ROYAUME
+    && payload.mapSize === DAILY_CHALLENGE_MAP_SIZE
+    && payload.difficulty === DIFFICULTY_LEVELS[DAILY_CHALLENGE_DIFFICULTY_IDX].value
+    && payload.opponentCount === DAILY_CHALLENGE_OPPONENT_COUNT;
+}
+// Rejoue le journal sans rien afficher ni faire de bruit, et rend
+// { won, turns } — ou null si rien n'est certifiable (paramètres qui ne
+// collent pas, journal qui ne conclut pas, reconstruction qui casse).
+// `turns` est TOUJOURS le compteur lu à l'arrivée, jamais un nombre
+// transporté par le lien.
+//
+// Même machinerie que resumeSavedGameInner() — `reconstructing` (et non
+// forceInstantSkip, voir la note de ce drapeau : le réutiliser ici gelait
+// l'application) plus un enchaînement de queueMicrotask. C'est délibéré :
+// ce chemin-là est celui que le test de non-régression de simulate.js
+// couvre, et les deux partagent applyLoggedMove().
+function verifyDailyClaim(payload) {
+  return new Promise((resolve) => {
+    if (!dailyClaimParamsMatch(payload)) { resolve(null); return; }
+    const soundWasEnabled = soundEnabled;
+    soundEnabled = false;
+    replaying = true;
+    humanRoyId = payload.humanRoyId;
+    applyDifficulty(payload.difficulty);
+    opponentCount = payload.opponentCount;
+    applyMapSize(payload.mapSize);
+    startGame(payload.seed);
+    // APRÈS startGame(), jamais avant : il remet ces deux drapeaux à false
+    // lui-même. Les poser en amont — ce que faisait la première version de
+    // ce code — laissait toute la vérification tourner au rythme d'un replay
+    // animé, ordonnancée par de vrais timers qu'une chaîne de micro-tâches
+    // ne laisse jamais passer.
+    reconstructing = true;
+    forceInstantSkip = true;
+    balanceStartingForces(); // exactement comme resumeSavedGameInner() : une seule fois, au même moment de la séquence, sinon les forces de départ ne correspondent plus à la vraie partie
+    const log = payload.log;
+    let i = 0;
+    let hops = 0;
+    const MAX_VERIFICATION_HOPS = 200000; // même filet que la reconstruction d'une sauvegarde — voir MAX_RECONSTRUCTION_HOPS
+    // Une chaîne de queueMicrotask ne rend JAMAIS la main à la boucle
+    // d'événements : tant qu'elle tourne, la page est figée — rien ne se
+    // redessine, aucun appui n'est pris. Pour la reconstruction d'une
+    // sauvegarde c'est sans conséquence (le joueur vient d'appuyer sur
+    // « Reprendre la partie » et regarde un écran d'attente). Ici, non : la
+    // vérification démarre toute seule quand un visiteur ouvre le lien d'un
+    // ami, et un long journal la fait durer — MESURÉ : 2,15 s de fil
+    // principal bloqué sur un journal de 366 coups, sur une machine de
+    // bureau, donc bien pire sur un téléphone. Le premier contact avec le
+    // jeu aurait été une page qui ne répond pas, exactement le symptôme
+    // qu'on vient de corriger ailleurs.
+    //
+    // On rend donc la main dès qu'on a occupé le fil trop longtemps d'affilée.
+    // Le seuil est en TEMPS et non en nombre de sauts : un saut ne coûte pas
+    // du tout la même chose selon qu'il applique un simple coup ou qu'il
+    // déroule tout un tour d'IA, et surtout un téléphone lent en fait bien
+    // moins par milliseconde qu'une machine de bureau — compter les sauts
+    // aurait protégé le poste rapide et pas celui qui en a besoin.
+    //
+    // Ce que ça donne, mesuré sur un journal de 366 coups (le pire cas
+    // testé) : la page passe de figée d'un bloc à vivante l'essentiel du
+    // temps — boutons vus verrouillés dans 29 échantillons sur 30, contre 0
+    // sur 33 avant. Mais le plus long blocage résiduel reste de l'ordre de
+    // la seconde, et il ne vient PAS d'ici : sous `reconstructing`,
+    // scheduleTurn() enchaîne les tours d'IA sur queueMicrotask (c'est
+    // exactement ce qui a corrigé le gel de « Reprendre la partie », voir la
+    // note de ce drapeau), donc toute une manche d'IA se déroule d'un trait
+    // entre deux de nos reprises de main, hors de portée de ce rythme-ci.
+    // D'où le message d'attente affiché pendant ce temps plutôt qu'un écran
+    // muet : la vérification rejoue une partie entière, elle prend le temps
+    // qu'elle prend, autant le dire.
+    const YIELD_MS = 25;
+    let lastYield = performance.now();
+    const keepGoing = () => {
+      const now = performance.now();
+      if (now - lastYield >= YIELD_MS) { lastYield = now; setTimeout(step, 0); }
+      else queueMicrotask(step);
+    };
+    function done(result) {
+      replaying = false;
+      reconstructing = false;
+      forceInstantSkip = false;
+      soundEnabled = soundWasEnabled;
+      resolve(result);
+    }
+    function step() {
+      try {
+        if (++hops > MAX_VERIFICATION_HOPS) { done(null); return; }
+        if (gameOver) {
+          if (i < log.length && log[i].continue) {
+            i++;
+            gameOver = false; truceEnded = false; truceWinnerId = -1; allCappedStreak = 0;
+            keepGoing();
+            return;
+          }
+          // Une vraie victoire du royaume imposé, jamais un statu-quo ni une
+          // reddition : il ne doit plus rester que nos provinces et les
+          // neutres. roundNumber est alors le score, LU et non pas cru.
+          const won = !truceEnded && !humanSurrendered
+            && territories.every((t) => t.owner === humanRoyId || ROYAUMES[t.owner].neutral);
+          done({ won, turns: roundNumber });
+          return;
+        }
+        if (currentPlayer !== humanRoyId || aiRunning) { keepGoing(); return; }
+        if (i >= log.length) { done(null); return; } // journal épuisé sans que la partie conclue : il n'y a rien à certifier
+        applyLoggedMove(log[i++]);
+        keepGoing();
+      } catch (e) {
+        done(null); // un journal trafiqué qui casse la reconstruction ne certifie rien
+      }
+    }
+    queueMicrotask(step);
+  });
 }
 document.getElementById("watchSharedReplay").addEventListener("click", () => {
   document.getElementById("shareIntro").style.display = "none";
@@ -10755,6 +10956,13 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // players about.
 const CHANGELOG = [
   {
+    version: "2.56",
+    notes: [
+      "Défi du jour : partagez une victoire et votre ami verra votre score — vérifié, pas déclaré. Son jeu rejoue votre partie coup par coup et recompte les tours lui-même, donc personne ne peut s'inventer un résultat.",
+      "S'il a gagné le même jour, les deux scores s'affichent côte à côte : le plus petit nombre de tours l'emporte.",
+    ],
+  },
+  {
     version: "2.55",
     notes: [
       "« Reprendre la partie » fonctionne enfin. Rouvrir le jeu sur une partie en cours figeait l'application pour de bon — écran bloqué, plus rien ne répond — dès que la partie dépassait un seul tour. C'est très probablement le « bug d'affichage » signalé plusieurs fois, longtemps mis sur le dos du cache.",
@@ -12166,6 +12374,7 @@ function applyUiLanguage() {
   document.getElementById("conseilsDailyChallengeP").innerHTML = t("conseilsDailyChallengeP");
   document.getElementById("conseilsForecastP").innerHTML = t("conseilsForecastP");
   document.getElementById("conseilsDangerP").innerHTML = t("conseilsDangerP");
+  document.getElementById("conseilsDuelP").innerHTML = t("conseilsDuelP");
   document.getElementById("conseilsArtefactsP").innerHTML = t("conseilsArtefactsP");
   // Share/truce/premium/surrender-confirm overlays — mostly static content,
   // set here rather than at the one moment each overlay opens (unlike
@@ -13303,6 +13512,29 @@ function abandonSavedGameAndStartDaily() {
   activeReplayFinish = null;
   startDailyChallenge();
 }
+// Applique UN coup du journal au plateau — l'unique endroit qui sache
+// traduire une entrée de journal en action de jeu. Les trois rejeux du jeu
+// s'en servent (le replay visible playReplay(), la reconstruction d'une
+// sauvegarde resumeSavedGameInner(), et la vérification du score d'un ami
+// verifyDailyClaim()) précisément pour qu'ils ne puissent pas diverger :
+// un nouveau type de coup ajouté ici est compris par les trois d'un coup,
+// au lieu d'être oublié dans deux d'entre eux — ce qui ne casserait rien
+// tout de suite mais ferait silencieusement dériver un rejeu de la partie
+// qu'il prétend rejouer.
+function applyLoggedMove(action) {
+  if (action.end) endTurn();
+  else if (action.gueux !== undefined) applyGueuxEffect(action.gueux, action.mode);
+  else if (action.sac !== undefined) executeWaterSacrifice(action.sac, action.path, action.pure);
+  else if (action.continue) { /* stray entry with no matching pause active — nothing to undo, just skip it rather than misreading it as attack(undefined, undefined) */ }
+  // action.first (present only on a drag-chain move) routes through
+  // resolveChainedAttack() so the guaranteed-win decision + budget deduction
+  // replay exactly as they happened, hop for hop. Absent (a lone tap-attack,
+  // or an older replay/share link recorded before that existed) means "check
+  // the live budget for just this one attack", which is what both of those
+  // already did originally.
+  else if (action.first !== undefined) resolveChainedAttack(action.a, action.b, -1, action.first);
+  else attack(action.a, action.b);
+}
 function resumeSavedGame(saved) {
   try {
     resumeSavedGameInner(saved);
@@ -13387,16 +13619,7 @@ function resumeSavedGameInner(saved) {
     }
     if (currentPlayer !== humanRoyId || aiRunning) { queueMicrotask(step); return; }
     if (i >= log.length) { finish(); return; }
-    const action = log[i++];
-    if (action.end) endTurn();
-    else if (action.gueux !== undefined) applyGueuxEffect(action.gueux, action.mode);
-    else if (action.sac !== undefined) executeWaterSacrifice(action.sac, action.path, action.pure);
-    else if (action.continue) { /* stray entry with no matching pause active — nothing to undo, just skip it */ }
-    // see playReplay()'s step()/resolveChainedAttack()'s own note — same
-    // chain-aware replay needed here so a resumed match's guaranteed-win
-    // bookkeeping matches the original exactly, hop for hop.
-    else if (action.first !== undefined) resolveChainedAttack(action.a, action.b, -1, action.first);
-    else attack(action.a, action.b);
+    applyLoggedMove(log[i++]); // see its own note — shared with playReplay() and verifyDailyClaim() so the three rejeux can't drift apart
     // queueMicrotask, not setTimeout(fn, 0) — browsers throttle a *chain* of
     // nested zero-delay setTimeout calls to a real ~4ms floor each, which a
     // deep match's full moveLog (every action, every AI turn in between)
@@ -13528,6 +13751,60 @@ if (pendingSharedReplay) {
   history.replaceState(null, "", location.pathname);
   document.getElementById("shareIntroText").textContent = t("shareIntroText");
   document.getElementById("shareIntro").style.display = "flex";
+  // Classement entre amis : si le lien annonce un défi du jour, on rejoue sa
+  // partie en tâche de fond et on affiche le score RECOMPTÉ — voir
+  // verifyDailyClaim(). Pendant ce temps, les trois boutons de l'écran sont
+  // désactivés : ils démarrent tous une partie, et la vérification est en
+  // train d'utiliser le plateau pour rejouer celle de l'ami. Sans ce
+  // verrou, un appui rapide lançait une partie qui se faisait aussitôt
+  // écraser par le rejeu en cours.
+  if (pendingSharedReplay.dailyDate !== null) {
+    const duelEl = document.getElementById("shareIntroDuel");
+    const introBtns = ["watchSharedReplay", "playSharedMap", "playInstead"].map((id) => document.getElementById(id));
+    for (const b of introBtns) b.disabled = true;
+    // La vérification rejoue une partie entière : sur un long journal elle
+    // prend quelques secondes, dont une partie le fil principal occupé (voir
+    // la note de keepGoing()). Un écran muet pendant ce temps ressemblerait à
+    // un bug — on dit donc ce qui se passe, et pourquoi les boutons ne
+    // répondent pas encore.
+    duelEl.textContent = t("duelChecking");
+    verifyDailyClaim(pendingSharedReplay).then((verdict) => {
+      for (const b of introBtns) b.disabled = false;
+      // Le rejeu vient de laisser le plateau sur la partie de l'ami : on
+      // rend au visiteur une carte neuve, exactement comme s'il venait
+      // d'arriver, avant qu'il ne touche quoi que ce soit.
+      startGame();
+      // ...mais sans la première leçon du tutoriel, que ce startGame()
+      // déclenche : elle s'affichait derrière la boîte de dialogue du lien,
+      // à un moment où le visiteur n'a encore rien à faire sur la carte
+      // (constaté à l'écran). Le tutoriel n'est pas annulé pour autant —
+      // `onboarding` reste vrai, donc la leçon reviendra normalement quand
+      // il lancera vraiment sa partie.
+      hideOnboardingHint();
+      if (!verdict) { duelEl.textContent = ""; return; } // rien de certifiable : on n'affiche AUCUN score plutôt qu'un score douteux (et on retire le message d'attente)
+      const date = pendingSharedReplay.dailyDate;
+      let line = verdict.won
+        ? tf("duelFriendWon", { date, turns: verdict.turns })
+        : tf("duelFriendFailed", { date });
+      // Le duel n'a de sens que si le visiteur a gagné CE jour-là : comparer
+      // son score à celui d'un autre jour comparerait deux cartes
+      // différentes.
+      if (verdict.won) {
+        let myDate = null, myWon = "0", myTurns = 0;
+        try {
+          myDate = localStorage.getItem("kw_dailyLastDate");
+          myWon = localStorage.getItem("kw_dailyLastWon");
+          myTurns = parseInt(localStorage.getItem("kw_dailyLastTurns") || "0", 10) || 0;
+        } catch (e) { /* private mode — pas de duel, le reste s'affiche quand même */ }
+        if (myDate === date && myWon === "1" && myTurns > 0) {
+          if (myTurns < verdict.turns) line += tf("duelYouBeat", { yours: myTurns });
+          else if (myTurns > verdict.turns) line += tf("duelYouLost", { yours: myTurns });
+          else line += tf("duelYouTied", { yours: myTurns });
+        }
+      }
+      duelEl.textContent = line;
+    });
+  }
 } else {
   showSplashScreen(!!pendingSavedGame);
 }
