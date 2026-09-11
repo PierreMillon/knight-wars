@@ -724,7 +724,16 @@
      a narrower auto-fill minimum (was 52px/10px), so more slots per row and
      less dead space between them. */
   #trophyRoom { display: grid; grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); gap: 6px; margin: 0 0 16px; }
-  .trophySlot { display: flex; align-items: center; justify-content: center; width: 38px; height: 38px; border: 1px solid #000; }
+  /* Ce que dit la case touchée. Hauteur minimale réservée pour qu'un
+     toucher ne fasse pas sauter toute la grille au-dessus : le texte
+     apparaît, la mise en page ne bouge pas. */
+  #trophyHowText {
+    font-size: 13px; line-height: 1.5; margin: 0 0 16px; min-height: 3.2em;
+    opacity: .9;
+  }
+  /* La case touchée reste visiblement celle dont on lit la condition. */
+  .trophySlot.trophyPicked img, .trophySlot.trophyPicked .trophyEmoji { outline: 2px solid #e8c468; outline-offset: 2px; }
+  .trophySlot { cursor: pointer; display: flex; align-items: center; justify-content: center; width: 38px; height: 38px; border: 1px solid #000; }
   /* "les images des trophées doivent toutes rentrer dans leurs cases" — every
      trophy image was rendering at the generic #loreOverlay img size (64px,
      centered with a 14px bottom margin) instead of this 30px/no-margin rule:
@@ -1449,6 +1458,8 @@
            the grid itself. -->
       <div class="fieldLabel" id="trophyRoomLabel"><span id="trophyRoomLabelText"></span> <span id="trophyRoomCount"></span></div>
       <div id="trophyRoom"></div>
+      <!-- Ce que dit la case touchée (v2.58). Vide au repos : voir refreshTrophyRoom(). -->
+      <p id="trophyHowText"></p>
       <button id="closeLore"></button>
     </div>
   </div>
@@ -1498,6 +1509,7 @@
         <p id="conseilsDangerP"></p>
         <p id="conseilsDuelP"></p>
         <p id="conseilsInstallP"></p>
+        <p id="conseilsTrophyP"></p>
         <p id="conseilsArtefactsP"></p>
       </div>
       <button id="closeConseils"></button>
@@ -1707,7 +1719,7 @@
 // before (CREATURE_IMG's own loadSprite() call, the changelog, etc.), not
 // redeclared.
 const CREATURE_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAANAAAADQCAYAAAB2pO90AAAC2klEQVR4nO3dQWoDMRAAwd3g/39ZOeQHahgroupuvF7TzGWQ3rXWw4z3fUde9lrrnfiend8z9WxTfr79APCfCQgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAg+336AE5y85LnzbJY855hAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEFx3MqlTOe/7PSf/pyYQBAKCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAiCd62RG9559pYimbOzgGoCQSAgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAguO5kUvbsLFJOLcdOPdvOZ0wgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAElkkZNbUYOvU9JhAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJAQBAICILrlkldJb9namHzZK65h2ECgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgrFl0pOvRD/Zbe/ttqVVEwgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAgEBMF1J5My57bF0B0mEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgq1lUlfJW6TkjwkEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJg7GTSnUXKqaXVqcXQk6+styC8xwSCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUHwccLmHO/tvhNdTSAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEASfkxf1OJsTUE0gSAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEY9fcw/OcfcroDhMIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgl9clHexCa709wAAAABJRU5ErkJggg==";
-const GAME_VERSION = "2.57";
+const GAME_VERSION = "2.58";
 document.getElementById("loadingKnight").src = CREATURE_IMG_SRC;
 document.getElementById("loadingVersion").textContent = `v${GAME_VERSION}`;
 document.getElementById("splashKnight").src = CREATURE_IMG_SRC;
@@ -2398,10 +2410,37 @@ function excaliburUnlocked() { return excaliburCapKills >= EXCALIBUR_CAP_KILLS_N
 // !replaying est obligatoire : attack() tourne aussi pendant un rejeu et
 // pendant la reconstruction d'une sauvegarde, où recompter ferait grimper le
 // compteur sans qu'aucune bataille neuve n'ait eu lieu.
+// Excalibur est le seul des trois artéfacts à se franchir EN PLEINE PARTIE
+// (une prise après l'autre), et non sur l'écran de victoire comme les deux
+// autres. Comparer "avant / après" dans showWin() ne marche donc pas pour
+// lui : le seuil est déjà passé quand showWin() mesure, et l'annonce ne
+// sortait jamais (attrapé par un test, invisible à la relecture). D'où un
+// drapeau persistant dédié : "l'a-t-on déjà annoncé ?", vrai une fois pour
+// toutes, indépendant du moment exact du franchissement.
+let excaliburAnnounced = false;
+try { excaliburAnnounced = localStorage.getItem("kw_excaliburAnnounced") === "1"; } catch (e) { /* ignore */ }
+function markExcaliburAnnounced() {
+  excaliburAnnounced = true;
+  try { localStorage.setItem("kw_excaliburAnnounced", "1"); } catch (e) { /* ignore */ }
+}
 function recordExcaliburCapKill() {
   if (excaliburCapKills >= EXCALIBUR_CAP_KILLS_NEEDED) return;
   excaliburCapKills++;
   try { localStorage.setItem("kw_excaliburCapKills", String(excaliburCapKills)); } catch (e) { /* ignore */ }
+}
+// La barque — jusqu'ici la SEULE case acquise d'office, sans condition
+// ("une case décorative qui montre un outil de guerre"). Elle comptait
+// pourtant dans le total ET dans Le Graal : une case gratuite au milieu de
+// vingt cases gagnables faisait mentir le compteur. Elle demande désormais
+// ce qu'elle illustre — avoir mené une traversée jusqu'à la victoire. La
+// condition la plus douce du jeu (une seule fois suffit, et les débutants la
+// remplissent souvent sans le vouloir), mais c'en est une.
+let boatUnlocked = false;
+try { boatUnlocked = localStorage.getItem("kw_boatUnlocked") === "1"; } catch (e) { /* ignore */ }
+function recordBoatUnlock() {
+  if (boatUnlocked) return;
+  boatUnlocked = true;
+  try { localStorage.setItem("kw_boatUnlocked", "1"); } catch (e) { /* ignore */ }
 }
 function recordParcheminUnlock() {
   if (parcheminUnlocked) return;
@@ -4727,6 +4766,9 @@ const GOD_DISPLAY_KEYS = ["godVulcain", "godBellone", "godCeres", "godNeptune"];
 // all-time earned set (godUnlockedPlayer), never which bonuses are actually
 // live for a given royaume THIS match (which also includes godUnlockedRoyaume
 // and the hardest-difficulty AI freebie — see isGodActiveFor()).
+// Clés "comment débloquer" (v2.58), dans le MÊME ordre que GOD_NAMES — même
+// convention que GOD_DISPLAY_KEYS juste au-dessus.
+const GOD_HOW_KEYS = ["trophyHowVulcain", "trophyHowBellone", "trophyHowCeres", "trophyHowNeptune"];
 const GOD_ICON_SRCS = [VULCAIN_IMG_SRC, BELLONE_IMG_SRC, CERES_IMG_SRC, NEPTUNE_IMG_SRC];
 let godUnlockedRoyaume = [[false, false, false, false], [false, false, false, false], [false, false, false, false], [false, false, false, false]];
 let godUnlockedPlayer = [false, false, false, false];
@@ -5419,6 +5461,13 @@ const UI_STRINGS = {
     es: ["Busca el icono de instalación en la barra de direcciones, a la derecha (una pantalla con una flecha)", "Si no, abre el menú ⋮ del navegador y busca «Instalar Knight Wars»", "Confirma haciendo clic en «Instalar»"],
     de: ["Suche das Installationssymbol rechts in der Adressleiste (ein Bildschirm mit Pfeil)", "Andernfalls öffne das ⋮-Menü des Browsers und suche «Knight Wars installieren»", "Bestätige mit «Installieren»"],
   },
+  conseilsTrophyP: {
+    fr: "<strong>La salle des trophées</strong> : dans Le lore, <strong>touchez n'importe quelle case</strong> pour savoir comment la débloquer — et ce qu'elle rapporte. Toutes ne donnent pas un bonus : les quatre dieux et Le pouvoir des 12 changent vraiment vos combats, les autres marquent le chemin parcouru. Attention, chaque dieu a son prix : Cérès en particulier abaisse votre force maximale à 11, ce qui vous ferme définitivement Le pouvoir des 12.",
+    en: "<strong>The trophy room</strong>: in Le lore, <strong>tap any slot</strong> to see how to unlock it — and what it grants. Not all of them grant anything: the four gods and The power of 12 genuinely change your battles, the others mark how far you've come. Careful, each god has its price: Cérès in particular lowers your maximum strength to 11, which permanently closes off The power of 12.",
+    zh: "<strong>战利品室</strong>：在「传说」中<strong>点按任意格子</strong>即可查看解锁方式及其效果。并非全都有加成：四位神明与「十二之力」会真正改变你的战斗，其余则记录你走过的路。注意，每位神明都有代价：尤其是刻瑞斯会将你的最大力量降至 11，从而永久关闭「十二之力」。",
+    es: "<strong>La sala de trofeos</strong>: en El lore, <strong>toca cualquier casilla</strong> para ver cómo desbloquearla — y qué otorga. No todas otorgan algo: los cuatro dioses y El poder de los 12 cambian de verdad tus combates, las demás marcan el camino recorrido. Ojo, cada dios tiene su precio: Cérès en particular baja tu fuerza máxima a 11, lo que te cierra definitivamente El poder de los 12.",
+    de: "<strong>Die Trophäenhalle</strong>: Tippe in Le lore <strong>auf ein beliebiges Feld</strong>, um zu sehen, wie es freigeschaltet wird — und was es bringt. Nicht alle bringen etwas: Die vier Götter und Die Macht der 12 verändern deine Kämpfe wirklich, die übrigen markieren den zurückgelegten Weg. Achtung, jeder Gott hat seinen Preis: Besonders Cérès senkt deine Maximalstärke auf 11 und verschließt dir damit dauerhaft Die Macht der 12.",
+  },
   conseilsInstallP: {
     fr: "<strong>Installer le jeu</strong> : dans les Réglages, « Installer le jeu » explique comment poser Knight Wars sur votre écran d'accueil. Le jeu s'ouvre alors en plein écran, sans la barre du navigateur, et se lance d'une seule touche. Rien à télécharger sur un magasin d'applications, aucun compte : c'est la page elle-même qui s'installe. Le jeu a besoin du réseau à chaque lancement.",
     en: "<strong>Installing the game</strong>: in Settings, \"Install the game\" explains how to put Knight Wars on your home screen. The game then opens full-screen, without the browser bar, and launches with a single tap. Nothing to download from an app store, no account: it's the page itself that installs. The game needs network on each launch.",
@@ -5728,6 +5777,146 @@ const UI_STRINGS = {
   trophyPower12: { fr: "Le pouvoir des 12", en: "The power of 12", zh: "十二之力", es: "El poder de los 12", de: "Die Macht der 12" },
   trophyVictoryPrefix: { fr: "Victoire — {level}", en: "Victory — {level}", zh: "胜利——{level}", es: "Victoria — {level}", de: "Sieg — {level}" },
   trophyAllFamilies: { fr: "Toutes les familles, tous les bonus", en: "Every family, every bonus", zh: "所有家族，所有加成", es: "Todas las familias, todos los bonos", de: "Alle Familien, alle Boni" },
+  // Comment débloquer chaque case (v2.58) — affiché au TOUCHER dans la salle
+  // des trophées. Volontairement court et concret : la condition d'abord,
+  // puis ce que ça rapporte (ou l'absence de bonus, dite franchement). Le
+  // lore long des dieux vit ailleurs, dans Le lore ; ici on répond à une
+  // seule question, « qu'est-ce que je dois faire ? ».
+  // Annonces de déblocage des trois artéfacts (v2.58) — même ton et même
+  // emplacement que les lignes de dieux, voir godUnlockVulcain & co.
+  artifactUnlockParchemin: {
+    fr: "📜 Le parchemin chiffré rejoint vos trophées.",
+    en: "📜 The ciphered parchment joins your trophies.",
+    zh: "📜 密文羊皮卷已加入你的战利品。",
+    es: "📜 El pergamino cifrado se suma a tus trofeos.",
+    de: "📜 Das verschlüsselte Pergament reiht sich in deine Trophäen ein.",
+  },
+  artifactUnlockSwordBlanche: {
+    fr: "⚔️ L'épée blanche vous revient : une guerre que nul n'a pu gagner.",
+    en: "⚔️ The white sword is yours: a war nobody could win.",
+    zh: "⚔️ 白剑归你所有：一场无人能赢的战争。",
+    es: "⚔️ La espada blanca es tuya: una guerra que nadie pudo ganar.",
+    de: "⚔️ Das weiße Schwert gehört dir: ein Krieg, den niemand gewinnen konnte.",
+  },
+  artifactUnlockExcalibur: {
+    fr: "🗡️ Excalibur quitte enfin son rocher — douze forteresses sont tombées.",
+    en: "🗡️ Excalibur leaves its stone at last — twelve fortresses have fallen.",
+    zh: "🗡️ 石中剑终于出鞘——十二座要塞已然陷落。",
+    es: "🗡️ Excalibur abandona por fin su roca — han caído doce fortalezas.",
+    de: "🗡️ Excalibur verlässt endlich seinen Fels — zwölf Festungen sind gefallen.",
+  },
+  trophyHowVulcain: {
+    fr: "Gagner une partie après être redescendu à une seule province. → +1 force en défense, partout. Prix : −1 renfort en fin de tour.",
+    en: "Win a match after being reduced to a single province. → +1 strength on defense, everywhere. Price: −1 reinforcement at end of turn.",
+    zh: "在只剩一个省份后仍赢得对局。→ 各处防御 +1 力量。代价：回合结束时援军 −1。",
+    es: "Ganar una partida tras quedar reducido a una sola provincia. → +1 de fuerza en defensa, en todas partes. Precio: −1 refuerzo al final del turno.",
+    de: "Eine Partie gewinnen, nachdem du auf eine einzige Provinz reduziert warst. → +1 Stärke in der Verteidigung, überall. Preis: −1 Verstärkung am Zugende.",
+  },
+  trophyHowBellone: {
+    fr: "Gagner une partie sans jamais perdre une seule province. → +1 force en attaque. Prix : −1 force en défense, partout.",
+    en: "Win a match without ever losing a single province. → +1 strength on attack. Price: −1 strength on defense, everywhere.",
+    zh: "在从未失去任何一个省份的情况下赢得对局。→ 攻击 +1 力量。代价：各处防御 −1 力量。",
+    es: "Ganar una partida sin perder ni una sola provincia. → +1 de fuerza en ataque. Precio: −1 de fuerza en defensa, en todas partes.",
+    de: "Eine Partie gewinnen, ohne je eine Provinz zu verlieren. → +1 Stärke im Angriff. Preis: −1 Stärke in der Verteidigung, überall.",
+  },
+  trophyHowCeres: {
+    fr: "Gagner sans éliminer aucun rival jusqu'au dernier instant, puis les abattre tous d'une seule attaque en chaîne qui vous laisse toute la carte. → +1 renfort en fin de tour. Prix lourd : votre force plafonne à 11 au lieu de 12 — Le pouvoir des 12 vous devient définitivement inaccessible.",
+    en: "Win without eliminating a single rival until the very last moment, then fell them all with one chained attack that leaves you the whole map. → +1 reinforcement at end of turn. Heavy price: your strength caps at 11 instead of 12 — The power of 12 becomes permanently out of reach.",
+    zh: "直到最后一刻都不消灭任何对手，然后以一次连锁攻击将他们全部击败并占据整张地图。→ 回合结束时援军 +1。沉重代价：你的力量上限变为 11 而非 12——「十二之力」将永远无法获得。",
+    es: "Ganar sin eliminar a ningún rival hasta el último instante, y luego abatirlos a todos con un solo ataque encadenado que te deje todo el mapa. → +1 refuerzo al final del turno. Precio alto: tu fuerza se limita a 11 en vez de 12 — El poder de los 12 queda definitivamente fuera de tu alcance.",
+    de: "Gewinnen, ohne bis zum letzten Augenblick einen einzigen Rivalen auszuschalten, und sie dann alle mit einem einzigen Kettenangriff niederstrecken, der dir die ganze Karte lässt. → +1 Verstärkung am Zugende. Hoher Preis: Deine Stärke ist bei 11 statt 12 gedeckelt — Die Macht der 12 wird dauerhaft unerreichbar.",
+  },
+  trophyHowNeptune: {
+    fr: "Gagner une partie sur une attaque finale portée par la mer. → Traversées en mer moins chères de 1. Prix : −1 force quand vous êtes attaqué depuis la mer.",
+    en: "Win a match on a final attack delivered by sea. → Sea crossings cost 1 less. Price: −1 strength when attacked from the sea.",
+    zh: "以一次海上发起的最终攻击赢得对局。→ 渡海费用减少 1。代价：被从海上攻击时 −1 力量。",
+    es: "Ganar una partida con un ataque final lanzado por mar. → Las travesías marítimas cuestan 1 menos. Precio: −1 de fuerza cuando te atacan desde el mar.",
+    de: "Eine Partie mit einem finalen Angriff über See gewinnen. → Seeüberfahrten kosten 1 weniger. Preis: −1 Stärke, wenn du von See aus angegriffen wirst.",
+  },
+  trophyHowBoat: {
+    fr: "Remporter une attaque menée par la mer. Aucun bonus : c'est l'outil de guerre lui-même.",
+    en: "Win an attack delivered by sea. No bonus: it's the war tool itself.",
+    zh: "赢得一次从海上发起的攻击。无加成：它本身就是战争工具。",
+    es: "Ganar un ataque lanzado por mar. Sin bonificación: es la propia herramienta de guerra.",
+    de: "Einen über See geführten Angriff gewinnen. Kein Bonus: Es ist das Kriegswerkzeug selbst.",
+  },
+  trophyHowPieuvre: {
+    fr: "Faire surgir la pieuvre trois fois, toutes parties confondues. Aucun bonus de combat : elle prend la place de l'icône des Réglages.",
+    en: "Make the octopus surface three times, across all your matches. No combat bonus: it takes over the Settings icon.",
+    zh: "在所有对局中累计让章鱼现身三次。无战斗加成：它会取代设置图标。",
+    es: "Hacer emerger al pulpo tres veces, sumando todas tus partidas. Sin bonificación de combate: ocupa el icono de Ajustes.",
+    de: "Den Tintenfisch dreimal auftauchen lassen, über alle Partien hinweg. Kein Kampfbonus: Er übernimmt das Einstellungssymbol.",
+  },
+  trophyHowCthulhu: {
+    fr: "Accomplir quatre rituels de l'océan dans une même partie, au palier Templier, après avoir reçu le parchemin. → Débloque le palier de difficulté caché.",
+    en: "Complete four ocean rituals in a single match, at Templar tier, after receiving the parchment. → Unlocks the hidden difficulty tier.",
+    zh: "在获得羊皮卷后，于「圣殿骑士」难度的同一局中完成四次海洋仪式。→ 解锁隐藏难度等级。",
+    es: "Completar cuatro rituales del océano en una misma partida, en nivel Templario, tras recibir el pergamino. → Desbloquea el nivel de dificultad oculto.",
+    de: "Vier Ozean-Rituale in einer einzigen Partie auf der Templer-Stufe vollenden, nachdem du das Pergament erhalten hast. → Schaltet die verborgene Schwierigkeitsstufe frei.",
+  },
+  trophyHowPower12: {
+    fr: "Amener toutes vos provinces à 12 en même temps, trois fois, toutes parties confondues. → Victoire garantie quand vous attaquez à 12 contre 12 par voie terrestre.",
+    en: "Bring all your provinces to 12 at once, three times, across all your matches. → Guaranteed win when you attack 12 against 12 by land.",
+    zh: "在所有对局中累计三次让你的所有省份同时达到 12。→ 以 12 对 12 从陆路进攻时必胜。",
+    es: "Llevar todas tus provincias a 12 a la vez, tres veces, sumando todas tus partidas. → Victoria garantizada cuando atacas 12 contra 12 por tierra.",
+    de: "Alle deine Provinzen dreimal gleichzeitig auf 12 bringen, über alle Partien hinweg. → Garantierter Sieg, wenn du auf dem Landweg 12 gegen 12 angreifst.",
+  },
+  trophyHowDifficulty: {
+    fr: "Remporter au moins une partie au palier {level}. Aucun bonus : c'est une marque au tableau.",
+    en: "Win at least one match at {level} tier. No bonus: it's a mark on the board.",
+    zh: "在「{level}」难度下至少赢得一局。无加成：这是记录板上的一个印记。",
+    es: "Ganar al menos una partida en el nivel {level}. Sin bonificación: es una marca en el tablero.",
+    de: "Mindestens eine Partie auf der Stufe {level} gewinnen. Kein Bonus: Es ist ein Zeichen auf der Tafel.",
+  },
+  trophyHowFamily: {
+    fr: "Jouer au moins une partie sous la bannière de {name} — la gagner n'est pas nécessaire. Aucun bonus.",
+    en: "Play at least one match under {name}'s banner — winning isn't required. No bonus.",
+    zh: "至少以 {name} 的旗帜进行一局对战——无需获胜。无加成。",
+    es: "Jugar al menos una partida bajo el estandarte de {name} — no hace falta ganar. Sin bonificación.",
+    de: "Mindestens eine Partie unter dem Banner von {name} spielen — gewinnen ist nicht nötig. Kein Bonus.",
+  },
+  trophyHowAllFamilies: {
+    fr: "Débloquer les quatre dieux pour chacune des quatre maisons — seize conditions en tout. De loin le plus long chemin du jeu. Aucun bonus propre.",
+    en: "Unlock all four gods for each of the four houses — sixteen conditions in all. By far the longest road in the game. No bonus of its own.",
+    zh: "为四大家族各自解锁全部四位神明——总共十六个条件。这是游戏中最漫长的道路。本身无加成。",
+    es: "Desbloquear los cuatro dioses para cada una de las cuatro casas — dieciséis condiciones en total. Con diferencia, el camino más largo del juego. Sin bonificación propia.",
+    de: "Alle vier Götter für jedes der vier Häuser freischalten — insgesamt sechzehn Bedingungen. Mit Abstand der längste Weg im Spiel. Kein eigener Bonus.",
+  },
+  trophyHowExcalibur: {
+    fr: "Arracher {need} provinces défendues à la force maximale (12), cumulées sur toutes vos parties. Vous en êtes à {done}.",
+    en: "Tear away {need} provinces defended at maximum strength (12), counted across all your matches. You're at {done}.",
+    zh: "累计夺取 {need} 个以最大力量（12）防守的省份。当前进度：{done}。",
+    es: "Arrancar {need} provincias defendidas a fuerza máxima (12), sumando todas tus partidas. Vas por {done}.",
+    de: "{need} Provinzen entreißen, die mit maximaler Stärke (12) verteidigt werden, über alle Partien hinweg gezählt. Du stehst bei {done}.",
+  },
+  trophyHowParchemin: {
+    fr: "Recevoir le parchemin chiffré des mains d'un seigneur, à la fin d'une partie.",
+    en: "Receive the ciphered parchment from a lord's hands, at the end of a match.",
+    zh: "在一局结束时从某位领主手中接过密文羊皮卷。",
+    es: "Recibir el pergamino cifrado de manos de un señor, al final de una partida.",
+    de: "Das verschlüsselte Pergament am Ende einer Partie aus der Hand eines Fürsten erhalten.",
+  },
+  trophyHowSwordBlanche: {
+    fr: "Terminer une partie sur un statu quo — une guerre que plus personne ne peut gagner.",
+    en: "End a match on a stalemate — a war nobody can win any more.",
+    zh: "以僵局结束一局对战——一场再也无人能赢的战争。",
+    es: "Terminar una partida en tablas — una guerra que ya nadie puede ganar.",
+    de: "Eine Partie mit einem Patt beenden — ein Krieg, den niemand mehr gewinnen kann.",
+  },
+  trophyHowGraal: {
+    fr: "Débloquer les vingt autres cases. Il vous en reste {n}.",
+    en: "Unlock the other twenty slots. You have {n} left.",
+    zh: "解锁其余二十个格子。你还剩 {n} 个。",
+    es: "Desbloquear las otras veinte casillas. Te quedan {n}.",
+    de: "Die anderen zwanzig Felder freischalten. Dir fehlen noch {n}.",
+  },
+  trophyTapHint: {
+    fr: "Touchez une case pour savoir comment la débloquer.",
+    en: "Tap a slot to see how to unlock it.",
+    zh: "点按格子即可查看解锁方式。",
+    es: "Toca una casilla para ver cómo desbloquearla.",
+    de: "Tippe auf ein Feld, um zu sehen, wie es freigeschaltet wird.",
+  },
   trophyGraal: { fr: "Le Graal", en: "The Grail", zh: "圣杯", es: "El Grial", de: "Der Gral" },
   // Classement entre amis sur le défi du jour — voir verifyDailyClaim().
   // Le nombre de tours affiché est TOUJOURS celui recompté en rejouant le
@@ -6570,6 +6759,9 @@ function attack(fromId, toId, chainIndex = -1, forcedGuaranteed = null) {
   // affichée du défenseur (jamais la valeur retouchée par les dieux) : c'est
   // bien le 12 que le joueur voit sur la carte qui compte.
   if (win && !replaying && from.owner === humanRoyId && def === FORCE_CAP) recordExcaliburCapKill();
+  // La barque : une traversée menée jusqu'à la prise. Même garde !replaying
+  // que juste au-dessus, et pour la même raison.
+  if (win && !replaying && from.owner === humanRoyId && waterPath) recordBoatUnlock();
   // forcedGuaranteed !== null means resolveChainedAttack() already drained
   // the budget once, up front, for the whole chain — draining it again here
   // per hop is exactly the bug this fixes (see that function's note).
@@ -7306,11 +7498,27 @@ function showWin(royId) {
   // was a real, outright victory — never a truce/mercy, and never during a
   // shared replay someone else's win banner.
   const cthulhuHintFired = royId === humanRoyId && !replaying && rollCthulhuHintWinCount();
+  // Les trois artéfacts s'obtenaient EN SILENCE jusqu'ici (v2.58) : la case
+  // s'allumait dans la salle des trophées et le joueur ne l'apprenait qu'en
+  // allant y regarder, des parties plus tard. Les dieux, eux, ont toujours
+  // eu leur ligne après victoire. On mesure donc l'état AVANT pour ne
+  // annoncer que ce qui vient réellement d'être gagné — et jamais deux fois.
+  const hadParchemin = parcheminUnlocked, hadEpee = epeeBlancheUnlocked;
   // Le parchemin devient un vrai trophée au moment même où il est remis.
   if (cthulhuHintFired) recordParcheminUnlock();
   // L'épée blanche : la partie s'achève sur un statu-quo. truceEnded couvre
   // les deux chemins qui y mènent (voir ses propres affectations).
   if (truceEnded && !replaying) recordEpeeBlancheUnlock();
+  const newArtifacts = [];
+  if (!hadParchemin && parcheminUnlocked) newArtifacts.push(t("artifactUnlockParchemin"));
+  if (!hadEpee && epeeBlancheUnlocked) newArtifacts.push(t("artifactUnlockSwordBlanche"));
+  // Excalibur : pas de comparaison avant/après (voir excaliburAnnounced),
+  // mais "acquis et jamais encore annoncé". Jamais pendant un rejeu, qui
+  // rejoue une partie déjà jouée — ou celle d'un inconnu.
+  if (!replaying && excaliburUnlocked() && !excaliburAnnounced) {
+    newArtifacts.push(t("artifactUnlockExcalibur"));
+    markExcaliburAnnounced();
+  }
   // "Dieux spéciaux par royaume" — see checkGodUnlockOnWin()'s own note;
   // guards truceEnded/replaying/royId internally, same as the Cthulhu hint.
   const newlyUnlockedGod = checkGodUnlockOnWin(royId);
@@ -7422,8 +7630,11 @@ function showWin(royId) {
   const GOD_UNLOCK_KEYS = { Vulcain: "godUnlockVulcain", Bellone: "godUnlockBellone", Cérès: "godUnlockCeres", Neptune: "godUnlockNeptune" };
   // newlyUnlockedGod is an array now (0+ names — more than one condition
   // can be met in the same winning match) — see checkGodUnlockOnWin().
+  // Même ligne que les déblocages de dieux, à dessein : ce sont les mêmes
+  // nouvelles pour le joueur ("j'ai gagné quelque chose"), il n'y avait
+  // aucune raison de leur inventer un second emplacement.
   document.getElementById("godUnlockNote").textContent =
-    newlyUnlockedGod ? newlyUnlockedGod.map((n) => t(GOD_UNLOCK_KEYS[n])).join(" ") : "";
+    [...(newlyUnlockedGod ? newlyUnlockedGod.map((n) => t(GOD_UNLOCK_KEYS[n])) : []), ...newArtifacts].join(" ");
   if (newlyUnlockedGod) refreshLoreGods();
   // "Presque débloqué" post-win teaser (v2.49) — see graalNearMissCount()'s
   // own note. Independent of the note above on purpose: a specific god
@@ -10915,15 +11126,15 @@ function computeTrophySlots() {
   // appearing only once earned, no exceptions. All 4 gods now have their
   // own dedicated sprite — Cérès (wheat stalk) and Neptune (trident) were
   // the last two still on emoji placeholders.
-  const slots = GOD_NAMES.map((name, i) => ({ earned: godUnlockedPlayer[i], name: t(GOD_DISPLAY_KEYS[i]), img: GOD_ICON_SRCS[i] }));
+  const slots = GOD_NAMES.map((name, i) => ({ earned: godUnlockedPlayer[i], name: t(GOD_DISPLAY_KEYS[i]), img: GOD_ICON_SRCS[i], how: t(GOD_HOW_KEYS[i]) }));
   // The boat used to sit in its own decorative row above this title
   // (#loreWarTools, now removed — "déplacée en dessous dans un carré"); it
   // was never gated by any unlock before, so it stays always-earned here
   // too, just relocated into a real square slot like everything else.
-  slots.push({ earned: true, name: t("trophyBoat"), img: BOAT_IMG_SRC });
-  slots.push({ earned: pieuvreUnlocked, name: t("trophyPieuvre"), img: OCTOPUS_IMG_SRC });
-  slots.push({ earned: cthulhuUnlocked, name: t("trophyCthulhuName"), img: CTHULHU_IMG_SRC });
-  slots.push({ earned: marsBlessingUnlocked, name: t("trophyPower12"), img: SWORD_DIAGONAL_IMG_SRC });
+  slots.push({ earned: boatUnlocked, name: t("trophyBoat"), img: BOAT_IMG_SRC, how: t("trophyHowBoat") });
+  slots.push({ earned: pieuvreUnlocked, name: t("trophyPieuvre"), img: OCTOPUS_IMG_SRC, how: t("trophyHowPieuvre") });
+  slots.push({ earned: cthulhuUnlocked, name: t("trophyCthulhuName"), img: CTHULHU_IMG_SRC, how: t("trophyHowCthulhu") });
+  slots.push({ earned: marsBlessingUnlocked, name: t("trophyPower12"), img: SWORD_DIAGONAL_IMG_SRC, how: t("trophyHowPower12") });
   // "Un enfant qui porte un écu" — Page's own dedicated sprite, replacing
   // the plain white sword placeholder used until now. Shifted from index 0
   // to index 1 (and the gueux bust brought in at index 0) to match "on
@@ -10931,7 +11142,7 @@ function computeTrophySlots() {
   // DIFF_ICON_SRCS's own note on the same rename-vs-icon mismatch.
   const DIFF_TROPHY_IMG = [GUEUX_BUST_IMG_SRC, PAGE_IMG_SRC, FIGURE2_IMG_SRC, CREATURE_IMG_SRC];
   DIFFICULTY_LEVELS.forEach((lvl, i) => {
-    slots.push({ earned: difficultyTierWon[i], name: tf("trophyVictoryPrefix", { level: t(DIFFICULTY_DISPLAY_KEYS[i]) }), img: DIFF_TROPHY_IMG[i] });
+    slots.push({ earned: difficultyTierWon[i], name: tf("trophyVictoryPrefix", { level: t(DIFFICULTY_DISPLAY_KEYS[i]) }), img: DIFF_TROPHY_IMG[i], how: tf("trophyHowDifficulty", { level: t(DIFFICULTY_DISPLAY_KEYS[i]) }) });
   });
   // "Ajoute une case par blason pour les familles" — one slot per royaume,
   // same condition/art as the #loreRoyaumesJoues row above (royaumePlayed,
@@ -10939,27 +11150,27 @@ function computeTrophySlots() {
   // same progress, inside the trophy grid itself rather than only the
   // dedicated row up top.
   ROYAUMES.slice(0, ROYAUME_COUNT - 1).forEach((roy) => {
-    slots.push({ earned: royaumePlayed[roy.id], name: roy.name.replace("Millon de ", ""), img: recolorBlazonDiagonal(roy.color) || BLAZON_IMG_SRC });
+    slots.push({ earned: royaumePlayed[roy.id], name: roy.name.replace("Millon de ", ""), img: recolorBlazonDiagonal(roy.color) || BLAZON_IMG_SRC, how: tf("trophyHowFamily", { name: roy.name.replace("Millon de ", "") }) });
   });
   // "Trophée pour vaincre toutes les familles, chacune avec tous les bonus
   // débloqués" — the ultimate one, computed live (see allRoyaumesFullyBlessed()).
-  slots.push({ earned: allRoyaumesFullyBlessed(), name: t("trophyAllFamilies"), img: YINYANG_IMG_SRC });
+  slots.push({ earned: allRoyaumesFullyBlessed(), name: t("trophyAllFamilies"), img: YINYANG_IMG_SRC, how: t("trophyHowAllFamilies") });
   // Excalibur, le parchemin et l'épée blanche — jusqu'en v2.51 affichés sans
   // aucune condition ("on verra la mécanique plus tard"), donc gris à vie et
   // pour cette raison exclus du décompte du Graal. Maintenant qu'ils ont
   // chacun une vraie condition (voir EXCALIBUR_CAP_KILLS_NEEDED), ils sont
   // poussés AVANT Le Graal et comptent donc pour lui, comme tous les autres :
   // laisser trois cases gagnables hors du 100 % ferait mentir le Graal.
-  slots.push({ earned: excaliburUnlocked(), name: t("trophyExcalibur"), img: EXCALIBUR_IMG_SRC });
-  slots.push({ earned: parcheminUnlocked, name: t("trophyParchemin"), img: PARCHEMIN_IMG_SRC });
-  slots.push({ earned: epeeBlancheUnlocked, name: t("trophySwordBlanche"), img: SWORD_IMG_SRC });
+  slots.push({ earned: excaliburUnlocked(), name: t("trophyExcalibur"), img: EXCALIBUR_IMG_SRC, how: tf("trophyHowExcalibur", { done: excaliburCapKills, need: EXCALIBUR_CAP_KILLS_NEEDED }) });
+  slots.push({ earned: parcheminUnlocked, name: t("trophyParchemin"), img: PARCHEMIN_IMG_SRC, how: t("trophyHowParchemin") });
+  slots.push({ earned: epeeBlancheUnlocked, name: t("trophySwordBlanche"), img: SWORD_IMG_SRC, how: t("trophyHowSwordBlanche") });
   // Le Graal — "100% de tout avoir débloqué, le dernier à débloquer" : a
   // meta-trophy earned only once every OTHER slot above is already earned
   // (checked against the preceding slots, never against itself). Poussé en
   // tout dernier maintenant que plus aucune case n'est en attente de
   // mécanique — ce qui correspond enfin à sa description d'origine.
   const remainingBeforeGraal = slots.filter((s) => !s.earned).length;
-  slots.push({ earned: slots.every((s) => s.earned), name: t("trophyGraal"), img: GRAAL_IMG_SRC });
+  slots.push({ earned: slots.every((s) => s.earned), name: t("trophyGraal"), img: GRAAL_IMG_SRC, how: tf("trophyHowGraal", { n: remainingBeforeGraal }) });
   return { slots, remainingBeforeGraal };
 }
 // Post-win "presque débloqué" teaser (v2.49) — see its own use in showWin().
@@ -11070,11 +11281,31 @@ function refreshTrophyRoom() {
   const el = document.getElementById("trophyRoom");
   if (!el) return;
   const { slots } = computeTrophySlots();
-  el.innerHTML = slots.map((s) => `
-    <div class="trophySlot${s.earned ? " earned" : ""}" title="${s.name}">
+  el.innerHTML = slots.map((s, i) => `
+    <div class="trophySlot${s.earned ? " earned" : ""}" title="${s.name}" data-slot="${i}">
       ${s.emoji ? `<span class="trophyEmoji">${s.emoji}</span>` : `<img src="${s.img}" alt="${s.name}">`}
     </div>
   `).join("");
+  // Ce que fait la case au toucher (v2.58). Jusqu'ici la salle n'affichait
+  // qu'un compteur et des icônes éteintes : le joueur voyait ce qui lui
+  // manquait sans jamais savoir quoi faire pour l'obtenir — la moitié de
+  // l'intérêt d'une salle des trophées. L'attribut title= existait déjà mais
+  // ne donnait que le nom, et une infobulle native ne s'affiche de toute
+  // façon jamais sur un écran tactile.
+  const howEl = document.getElementById("trophyHowText");
+  if (howEl) {
+    howEl.textContent = t("trophyTapHint");
+    for (const slotEl of el.querySelectorAll(".trophySlot")) {
+      slotEl.addEventListener("click", () => {
+        const picked = slots[Number(slotEl.dataset.slot)];
+        if (!picked) return;
+        for (const other of el.querySelectorAll(".trophySlot.trophyPicked")) other.classList.remove("trophyPicked");
+        slotEl.classList.add("trophyPicked");
+        howEl.textContent = picked.how ? `${picked.name} — ${picked.how}` : picked.name;
+        sfxToggle();
+      });
+    }
+  }
   const countEl = document.getElementById("trophyRoomCount");
   if (countEl) countEl.textContent = `${slots.filter((s) => s.earned).length}/${slots.length}`;
 }
@@ -11137,6 +11368,15 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // add a new entry at the top whenever a future change is worth telling
 // players about.
 const CHANGELOG = [
+  {
+    version: "2.58",
+    notes: [
+      "Salle des trophées : touchez n'importe quelle case pour savoir comment la débloquer, et ce qu'elle rapporte. Jusqu'ici on voyait ce qui manquait sans jamais savoir quoi faire pour l'obtenir.",
+      "Excalibur affiche votre progression réelle (par exemple 3/12), et Le Graal le nombre de cases qu'il vous reste.",
+      "La barque n'est plus offerte d'office : elle se gagne en remportant une attaque menée par la mer.",
+      "Excalibur, le parchemin et l'épée blanche s'annoncent désormais après la victoire, comme les dieux — ils s'obtenaient en silence.",
+    ],
+  },
   {
     version: "2.57",
     notes: [
@@ -12571,6 +12811,7 @@ function applyUiLanguage() {
   document.getElementById("conseilsDangerP").innerHTML = t("conseilsDangerP");
   document.getElementById("conseilsDuelP").innerHTML = t("conseilsDuelP");
   document.getElementById("conseilsInstallP").innerHTML = t("conseilsInstallP");
+  document.getElementById("conseilsTrophyP").innerHTML = t("conseilsTrophyP");
   document.getElementById("conseilsArtefactsP").innerHTML = t("conseilsArtefactsP");
   // Share/truce/premium/surrender-confirm overlays — mostly static content,
   // set here rather than at the one moment each overlay opens (unlike
