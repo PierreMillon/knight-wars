@@ -788,6 +788,9 @@
   #installOverlay #installNowBtn, #installOverlay #installGotItBtn { width: 100%; margin-top: 8px; }
   /* Rangée dédiée plutôt qu'un 3e bouton serré à côté de Conseils/Le lore :
      installer est une action, pas une page à lire. */
+  /* Excalibur armée : impossible de ne pas voir qu'elle l'est — le joueur
+     doit savoir que sa prochaine attaque consommera le pouvoir. */
+  #excaliburBtn.armed { box-shadow: 0 0 0 2px #fff, 0 0 10px 3px rgba(232, 196, 104, 0.9); }
   #installRow { margin: 12px 0 4px; }
   #installRow button { width: 100%; }
   #conseilsOverlay {
@@ -1187,6 +1190,13 @@
          choisi une faction", surrenderGame() itself already no-ops during
          awaitingFactionPick, this just stops offering it visually too. -->
     <button id="surrenderBtn" aria-label="Abandonner"><svg viewBox="0 0 7 8" shape-rendering="crispEdges" fill="currentColor" aria-hidden="true"><rect x="1" y="0" width="1" height="1"/><rect x="2" y="0" width="1" height="1"/><rect x="3" y="0" width="1" height="1"/><rect x="4" y="0" width="1" height="1"/><rect x="5" y="0" width="1" height="1"/><rect x="0" y="1" width="1" height="1"/><rect x="1" y="1" width="1" height="1"/><rect x="2" y="1" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="1"/><rect x="6" y="1" width="1" height="1"/><rect x="0" y="2" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="3" y="2" width="1" height="1"/><rect x="4" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="6" y="2" width="1" height="1"/><rect x="0" y="3" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="2" y="3" width="1" height="1"/><rect x="3" y="3" width="1" height="1"/><rect x="4" y="3" width="1" height="1"/><rect x="5" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="0" y="4" width="1" height="1"/><rect x="3" y="4" width="1" height="1"/><rect x="6" y="4" width="1" height="1"/><rect x="0" y="5" width="1" height="1"/><rect x="3" y="5" width="1" height="1"/><rect x="6" y="5" width="1" height="1"/><rect x="1" y="6" width="1" height="1"/><rect x="2" y="6" width="1" height="1"/><rect x="4" y="6" width="1" height="1"/><rect x="5" y="6" width="1" height="1"/><rect x="2" y="7" width="1" height="1"/><rect x="3" y="7" width="1" height="1"/><rect x="4" y="7" width="1" height="1"/></svg></button>
+    <!-- "Excalibur" et "L'épée blanche" (v2.59) — placés ici avec les autres
+         actions de combat, par choix de Pierre. Tous deux restent masqués
+         tant que le trophée n'est pas gagné ET que le pouvoir n'a pas été
+         dépensé, donc la rangée ne s'allonge que pour un joueur avancé, et
+         seulement le temps d'une partie. Voir refreshPowerButtons(). -->
+    <button id="excaliburBtn" style="display:none;" aria-label="Excalibur"></button>
+    <button id="truceBtn" style="display:none;" aria-label="Trêve"></button>
     <button id="endturn">Fin de bataille</button>
   </div>
   <div id="onboardingHint"></div>
@@ -1510,6 +1520,7 @@
         <p id="conseilsDuelP"></p>
         <p id="conseilsInstallP"></p>
         <p id="conseilsTrophyP"></p>
+        <p id="conseilsPowersP"></p>
         <p id="conseilsArtefactsP"></p>
       </div>
       <button id="closeConseils"></button>
@@ -1719,7 +1730,7 @@
 // before (CREATURE_IMG's own loadSprite() call, the changelog, etc.), not
 // redeclared.
 const CREATURE_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAANAAAADQCAYAAAB2pO90AAAC2klEQVR4nO3dQWoDMRAAwd3g/39ZOeQHahgroupuvF7TzGWQ3rXWw4z3fUde9lrrnfiend8z9WxTfr79APCfCQgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAg+336AE5y85LnzbJY855hAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEFx3MqlTOe/7PSf/pyYQBAKCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAiCd62RG9559pYimbOzgGoCQSAgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAguO5kUvbsLFJOLcdOPdvOZ0wgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAElkkZNbUYOvU9JhAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJAQBAICILrlkldJb9namHzZK65h2ECgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgrFl0pOvRD/Zbe/ttqVVEwgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAgEBMF1J5My57bF0B0mEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgq1lUlfJW6TkjwkEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJg7GTSnUXKqaXVqcXQk6+styC8xwSCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUHwccLmHO/tvhNdTSAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEASfkxf1OJsTUE0gSAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEY9fcw/OcfcroDhMIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgl9clHexCa709wAAAABJRU5ErkJggg==";
-const GAME_VERSION = "2.59";
+const GAME_VERSION = "2.60";
 document.getElementById("loadingKnight").src = CREATURE_IMG_SRC;
 document.getElementById("loadingVersion").textContent = `v${GAME_VERSION}`;
 document.getElementById("splashKnight").src = CREATURE_IMG_SRC;
@@ -5072,6 +5083,14 @@ const UI_STRINGS = {
   replayPlayAria: { fr: "Lire", en: "Play", zh: "播放", es: "Reproducir", de: "Abspielen" },
   replayPauseAria: { fr: "Pause", en: "Pause", zh: "暂停", es: "Pausar", de: "Pause" },
   endturnMain: { fr: "À la soupe", en: "Chow time", zh: "开饭了", es: "¡A comer!", de: "Zum Essen antreten!" },
+  // Libellé court, quand les boutons de pouvoir occupent la rangée du bas
+  // (v2.60). Idée de Pierre : « le HUD se complexifie avec l'expérience des
+  // joueurs — le bouton peut être réduit quand y'a moins de place, car on le
+  // connaît ». C'est juste : un joueur qui possède Excalibur ou l'épée
+  // blanche a des centaines de parties derrière lui et n'a plus besoin de
+  // lire le libellé en entier. L'abréviation se justifie donc par ce que le
+  // joueur sait déjà, et non par un simple manque de place.
+  endturnShort: { fr: "Go", en: "Go", zh: "开始", es: "Go", de: "Los" },
   chooseCamp: { fr: "Choisissez un camp", en: "Choose a side", zh: "选择阵营", es: "Elige un bando", de: "Wählt eine Seite" },
   // + "{N} tour(s)" / "{N} turn(s)" appended separately, see updateEndTurnButton() —
   // turn/turns must stay grammatically correct standing right after a bare
@@ -5480,6 +5499,13 @@ const UI_STRINGS = {
     es: ["Busca el icono de instalación en la barra de direcciones, a la derecha (una pantalla con una flecha)", "Si no, abre el menú ⋮ del navegador y busca «Instalar Knight Wars»", "Confirma haciendo clic en «Instalar»"],
     de: ["Suche das Installationssymbol rechts in der Adressleiste (ein Bildschirm mit Pfeil)", "Andernfalls öffne das ⋮-Menü des Browsers und suche «Knight Wars installieren»", "Bestätige mit «Installieren»"],
   },
+  conseilsPowersP: {
+    fr: "<strong>Les pouvoirs des artéfacts</strong> : trois trophées ne sont plus seulement décoratifs. <strong>Excalibur</strong> pose une épée dans la barre du bas : armez-la et votre prochaine attaque est gagnée d'avance, une seule fois par partie — vous pouvez la rengainer si vous changez d'avis. <strong>L'épée blanche</strong> offre une trêve : touchez le bouton puis une province du seigneur avec qui vous voulez la paix ; il ne vous attaquera plus pendant 3 tours, restera libre de frapper vos rivaux, et la paix se rompt à l'instant où vous l'attaquez. <strong>Le parchemin</strong> marque d'un chevron, à la couleur de son royaume, la province que chaque seigneur s'apprête à vous prendre — de quoi défendre avant plutôt que regretter après.",
+    en: "<strong>The artefact powers</strong>: three trophies are no longer decorative. <strong>Excalibur</strong> puts a sword in the bottom bar: draw it and your next attack is won in advance, once per match — you can sheathe it again if you change your mind. <strong>The white sword</strong> offers a truce: tap the button, then a province of the lord you want peace with; they won't attack you for 3 turns, stay free to strike your rivals, and the peace breaks the instant you attack them. <strong>The parchment</strong> marks, with a chevron in that kingdom's colour, the province each lord is about to take from you — enough to defend beforehand rather than regret it after.",
+    zh: "<strong>神器之力</strong>：三件战利品不再只是装饰。<strong>石中剑</strong>会在底部栏放置一把剑：拔出它，你的下一次进攻便必定成功，每局一次——若改变主意也可收回。<strong>白剑</strong>可提出停战：点按按钮，再点按你想议和的领主的省份；他将在 3 回合内不攻击你，仍可自由攻打你的对手，而一旦你出手，和平立刻破裂。<strong>羊皮卷</strong>会以对应王国的颜色标出每位领主即将夺取的省份——让你能事先防守，而非事后懊悔。",
+    es: "<strong>Los poderes de los artefactos</strong>: tres trofeos ya no son solo decorativos. <strong>Excalibur</strong> pone una espada en la barra inferior: desenváinala y tu próximo ataque está ganado de antemano, una vez por partida — puedes envainarla si cambias de idea. <strong>La espada blanca</strong> ofrece una tregua: toca el botón y luego una provincia del señor con quien quieres la paz; no te atacará durante 3 turnos, seguirá libre de golpear a tus rivales, y la paz se rompe en cuanto le ataques. <strong>El pergamino</strong> marca con un galón, del color de su reino, la provincia que cada señor está a punto de quitarte — lo justo para defender antes en vez de lamentarlo después.",
+    de: "<strong>Die Macht der Artefakte</strong>: Drei Trophäen sind nicht mehr bloß Zierde. <strong>Excalibur</strong> legt ein Schwert in die untere Leiste: Zieh es, und dein nächster Angriff ist im Voraus gewonnen, einmal pro Partie — du kannst es wieder zurückstecken, wenn du es dir anders überlegst. <strong>Das weiße Schwert</strong> bietet einen Waffenstillstand: Tippe auf die Schaltfläche und dann auf eine Provinz des Fürsten, mit dem du Frieden willst; er greift dich 3 Züge lang nicht an, darf deine Rivalen weiter schlagen, und der Friede bricht in dem Moment, in dem du ihn angreifst. <strong>Das Pergament</strong> markiert mit einem Winkel in der Farbe seines Königreichs die Provinz, die dir jeder Fürst gleich nehmen will — genug, um vorher zu verteidigen, statt es hinterher zu bereuen.",
+  },
   conseilsTrophyP: {
     fr: "<strong>La salle des trophées</strong> : dans Le lore, <strong>touchez n'importe quelle case</strong> pour savoir comment la débloquer — et ce qu'elle rapporte. Toutes ne donnent pas un bonus : les quatre dieux et Le pouvoir des 12 changent vraiment vos combats, les autres marquent le chemin parcouru. Attention, chaque dieu a son prix : Cérès en particulier abaisse votre force maximale à 11, ce qui vous ferme définitivement Le pouvoir des 12.",
     en: "<strong>The trophy room</strong>: in Le lore, <strong>tap any slot</strong> to see how to unlock it — and what it grants. Not all of them grant anything: the four gods and The power of 12 genuinely change your battles, the others mark how far you've come. Careful, each god has its price: Cérès in particular lowers your maximum strength to 11, which permanently closes off The power of 12.",
@@ -5823,6 +5849,39 @@ const UI_STRINGS = {
     zh: "🗡️ 石中剑终于出鞘——十二座要塞已然陷落。",
     es: "🗡️ Excalibur abandona por fin su roca — han caído doce fortalezas.",
     de: "🗡️ Excalibur verlässt endlich seinen Fels — zwölf Festungen sind gefallen.",
+  },
+  // Pouvoirs des trois artéfacts et du Graal (v2.60).
+  excaliburHint: { fr: "Excalibur — une attaque infaillible, une seule fois", en: "Excalibur — one unfailing attack, once only", zh: "石中剑——必胜一击，仅限一次", es: "Excalibur — un ataque infalible, una sola vez", de: "Excalibur — ein unfehlbarer Angriff, nur einmal" },
+  excaliburArmedHint: { fr: "Excalibur est tirée — votre prochaine attaque est gagnée", en: "Excalibur is drawn — your next attack is won", zh: "石中剑已出鞘——你的下一次进攻必胜", es: "Excalibur está desenvainada — tu próximo ataque está ganado", de: "Excalibur ist gezogen — dein nächster Angriff ist gewonnen" },
+  excaliburArmedToast: {
+    fr: "🗡️ Excalibur est tirée. Votre prochaine attaque est gagnée d'avance — touchez à nouveau l'épée pour la rengainer.",
+    en: "🗡️ Excalibur is drawn. Your next attack is already won — tap the sword again to sheathe it.",
+    zh: "🗡️ 石中剑已出鞘。你的下一次进攻必定成功——再次点按剑可收回。",
+    es: "🗡️ Excalibur está desenvainada. Tu próximo ataque ya está ganado — toca la espada otra vez para envainarla.",
+    de: "🗡️ Excalibur ist gezogen. Dein nächster Angriff ist bereits gewonnen — tippe erneut auf das Schwert, um es zurückzustecken.",
+  },
+  excaliburDisarmedToast: {
+    fr: "Excalibur retourne au fourreau. Elle vous reste pour cette partie.",
+    en: "Excalibur goes back in its sheath. It's still yours for this match.",
+    zh: "石中剑归鞘。本局中它依然属于你。",
+    es: "Excalibur vuelve a su vaina. Sigue siendo tuya en esta partida.",
+    de: "Excalibur kehrt in die Scheide zurück. Sie bleibt dir für diese Partie.",
+  },
+  truceHint: { fr: "L'épée blanche — proposer une trêve, une seule fois", en: "The white sword — offer a truce, once only", zh: "白剑——提出停战，仅限一次", es: "La espada blanca — proponer una tregua, una sola vez", de: "Das weiße Schwert — einen Waffenstillstand anbieten, nur einmal" },
+  truceAimHint: { fr: "Touchez une province du rival à qui offrir la paix", en: "Tap a province of the rival you're offering peace to", zh: "点按你想与之议和的对手的省份", es: "Toca una provincia del rival al que ofreces la paz", de: "Tippe auf eine Provinz des Rivalen, dem du Frieden anbietest" },
+  truceAimToast: {
+    fr: "☮ Touchez une province du seigneur à qui vous offrez la paix.",
+    en: "☮ Tap a province of the lord you're offering peace to.",
+    zh: "☮ 点按你想与之议和的领主的省份。",
+    es: "☮ Toca una provincia del señor al que ofreces la paz.",
+    de: "☮ Tippe auf eine Provinz des Fürsten, dem du Frieden anbietest.",
+  },
+  truceGrantedToast: {
+    fr: "☮ {name} accepte la trêve : il ne vous attaquera plus pendant {n} tours. Mais il reste libre de frapper vos rivaux — et si vous l'attaquez, la paix est rompue.",
+    en: "☮ {name} accepts the truce: they won't attack you for {n} turns. But they remain free to strike your rivals — and if you attack them, the peace is broken.",
+    zh: "☮ {name} 接受停战：{n} 回合内不会进攻你。但他仍可自由攻击你的对手——而一旦你出手，和平即刻破裂。",
+    es: "☮ {name} acepta la tregua: no te atacará durante {n} turnos. Pero sigue libre de golpear a tus rivales — y si tú le atacas, la paz se rompe.",
+    de: "☮ {name} nimmt den Waffenstillstand an: Er greift dich {n} Züge lang nicht an. Doch er darf deine Rivalen weiter schlagen — und greifst du ihn an, ist der Friede gebrochen.",
   },
   trophyHowVulcain: {
     fr: "Gagner une partie après être redescendu à une seule province. → +1 force en défense, partout. Prix : −1 renfort en fin de tour.",
@@ -6760,6 +6819,15 @@ function attack(fromId, toId, chainIndex = -1, forcedGuaranteed = null) {
   // chain still resolves on its own (normal combat, real water-crossing
   // rules) — only land hops actually manifest the free win/black sword.
   const isLandAttack = waterPath === null;
+  // "L'épée blanche" — attaquer un royaume sous trêve la rompt sur l'instant
+  // ("sauf si moi je l'attaque"). Avant la résolution : on ne veut pas d'une
+  // trêve qui survivrait à notre propre offensive, même d'un tour.
+  if (from.owner === humanRoyId) breakTruceIfAttacking(to.owner);
+  // "Excalibur" — l'épée ne rate jamais, une fois par partie. Armée par le
+  // joueur (voir le bouton du HUD), elle se consomme sur CETTE attaque quoi
+  // qu'il arrive. Jamais pendant un rejeu : le drapeau y est reconstruit
+  // depuis le journal, jamais rearmé à la volée.
+  const excaliburWin = excaliburArmed && from.owner === humanRoyId;
   const capBonusWin = isLandAttack && (forcedGuaranteed !== null ? forcedGuaranteed : (capBonusBudget[from.owner] || 0) > 0);
   const marsBonusWin = isLandAttack && marsBlessingUnlocked && from.owner === humanRoyId && atk === FORCE_CAP && def === FORCE_CAP;
   // "Dieux spéciaux" — Bellone (id1) adds +1 to the attacker's effective
@@ -6773,7 +6841,13 @@ function attack(fromId, toId, chainIndex = -1, forcedGuaranteed = null) {
   // the real force values, same treatment capBonusWin/marsBonusWin already
   // get (an invisible thumb on the scale, not a fake number on screen).
   const { godAtk, godDef } = godAdjustedForces(from, to, atk, def, waterPath);
-  const win = capBonusWin || marsBonusWin ? true : resolveCombat(godAtk, godDef);
+  // Excalibur d'abord : si le joueur a choisi de la dépenser ici, elle
+  // l'emporte sans consulter le sort — et sans consommer de tirage, donc
+  // sans décaler le flux aléatoire (règle d'or : resolveCombat() n'est pas
+  // appelé du tout dans ce cas, exactement comme pour les deux victoires
+  // garanties ci-dessus).
+  const win = excaliburWin || capBonusWin || marsBonusWin ? true : resolveCombat(godAtk, godDef);
+  if (excaliburWin) { excaliburArmed = false; excaliburUsedThisMatch = true; }
   // Excalibur — voir EXCALIBUR_CAP_KILLS_NEEDED. `def` est la force réelle
   // affichée du défenseur (jamais la valeur retouchée par les dieux) : c'est
   // bien le 12 que le joueur voit sur la carte qui compte.
@@ -6978,6 +7052,13 @@ function advanceTurn() {
     // instead of counting back up from 0, throwing escalation off from the
     // very first replayed AI turn.
     roundNumber++;
+    // "L'épée blanche" — les trêves s'égrènent en tours du JOUEUR, comme il
+    // les compte lui-même. Décrémenté ici et non dans endTurn() pour la même
+    // raison que roundNumber juste au-dessus : ce doit être identique lors
+    // d'un rejeu, sinon la partie rejouée diverge de celle qui a été jouée.
+    for (let r = 0; r < truceWithRoyaume.length; r++) {
+      if (truceWithRoyaume[r] > 0) truceWithRoyaume[r]--;
+    }
     if (!replaying) recordRoundSnapshot();
     // checkStalemate() must run during a replay too, at the identical point,
     // for the same reason roundNumber does above: the truce it can trigger
@@ -8745,6 +8826,192 @@ document.getElementById("playInstead").addEventListener("click", () => {
 // Tracks the AI's own in-progress attack chain across consecutive runAI()
 // calls within one royaume's turn — see runAI()'s own note.
 let lastConqueredId = null, lastConqueredRoyId = -1;
+// Le coup que CE royaume jouerait maintenant, d'après sa personnalité et
+// l'état du plateau. Extrait de runAI() (v2.59) pour que "le parchemin"
+// puisse annoncer la province visée sans dupliquer une ligne de la logique
+// d'IA : une prédiction qui diverge de ce que l'IA fait vraiment serait
+// pire que pas de prédiction du tout.
+//
+// RÈGLE D'OR respectée : cette fonction ne tire AUCUN nombre aléatoire —
+// vérifié, il n'y a pas un seul rngFloat() ici, ils vivent tous chez
+// l'appelant. La prédiction peut donc tourner à chaque rendu sans décaler
+// le flux aléatoire, ce qui casserait rejeux et sauvegardes (même
+// discipline que combatForecast(), voir sa propre note).
+function bestMoveFor(royId, restrictFromId) {
+  const pers = AI_PERSONALITIES[royId];
+  const isPage = DIFFICULTY_LEVELS.findIndex((l) => l.value === DIFFICULTY) === 0;
+  const territoryCount = {};
+  for (const t of territories) territoryCount[t.owner] = (territoryCount[t.owner] || 0) + 1;
+  // "Le pouvoir des 12" — while this royaume has a guaranteed-win attack
+  // budget active (see ensureCapBonusActivation()/attack()'s own
+  // capBonusWin), every attack it could make wins outright regardless of
+  // the numbers, so the normal aggression-threshold gate below (which
+  // exists to stop the AI throwing away force on bad trades) doesn't
+  // apply — skipping it here is what actually lets the AI spend a budget
+  // it would otherwise just let expire unused ("l'adversaire a 12
+  // partout et il en profite pas").
+  const capActive = (capBonusBudget[royId] || 0) > 0;
+  // Hard floor, independent of difficulty/personality: resolveCombat()
+  // only ever gives the ATTACKER real odds at adv===0 (1/3) or adv===-1
+  // (1/5) — anything below that is a mathematically GUARANTEED loss (no
+  // roll at all), which never has any value: a lost attack doesn't even
+  // touch the defender's own force, it just drops the attacker's own
+  // territory to 1 for nothing. AI_AGGRESSION_THRESHOLD's own floor
+  // (lerp(1.5,-2.2,DIFFICULTY), pushed lower still by personality deltas)
+  // could fall well past -1 at high difficulty, which meant "aggressive"
+  // AI was actually throwing away force on attacks it was CERTAIN to
+  // lose — reported live as "l'ennemi fait des attaques sûres de
+  // perdre, c'est absurde". This floor applies at every difficulty; it's
+  // not itself the aggression tuning, just a sanity clamp under it.
+  const MIN_VIABLE_ADV = -1;
+
+  let best = null, bestScore = -Infinity;
+  for (const t of territories) {
+    if (t.owner !== royId || t.force <= 1) continue;
+    if (restrictFromId !== undefined && t.id !== restrictFromId) continue;
+    for (const nId of t.neighbors) {
+      const n = territories[nId];
+      if (n.owner === royId) continue;
+      if (isPage && n.owner === humanRoyId) continue; // see isPage's own note above
+      if (truceWithRoyaume[royId] > 0 && n.owner === humanRoyId) continue; // "L'épée blanche" : ce royaume nous a accordé une trêve — voir TRUCE_ROUNDS
+      const adv = t.force - n.force;
+      if (!capActive && (adv < MIN_VIABLE_ADV || adv < escalated(AI_AGGRESSION_THRESHOLD, -1) + pers.aggressionDelta)) continue;
+
+      // prefer finishing off a nearly-eliminated royaume over a marginally
+      // better trade elsewhere
+      let score = adv + (territoryCount[n.owner] <= 2 ? pers.finishOffBonus : 0);
+
+      // attacking always drops `from` to force 1 (win or lose) — penalize
+      // leaving it exposed to a strong hostile neighbor other than the target
+      let exposure = 0;
+      for (const oId of t.neighbors) {
+        if (oId === nId) continue;
+        const o = territories[oId];
+        if (o.owner !== royId) exposure = Math.max(exposure, o.force);
+      }
+      score -= exposure * 0.3 * pers.exposureWeight;
+
+      if (score > bestScore) { bestScore = score; best = { from: t.id, to: nId }; }
+    }
+    // Water-route targets — same scoring as land above, but the crossing's
+    // own cost comes off the attacking force first (same math attack()
+    // itself uses), and only a route the royaume can actually survive is
+    // ever considered (canAffordWaterRoute() — never a doomed crossing).
+    // Was human-only in the mechanic's first version ("Donne aux IA la
+    // capacité d'attaquer par bateau" — task #82).
+    for (const [nId, route] of t.waterRoutes) {
+      const n = territories[nId];
+      if (n.owner === royId || !canAffordWaterRoute(t, nId)) continue;
+      if (isPage && n.owner === humanRoyId) continue; // see isPage's own note above
+      if (truceWithRoyaume[royId] > 0 && n.owner === humanRoyId) continue; // "L'épée blanche" : ce royaume nous a accordé une trêve — voir TRUCE_ROUNDS
+      // effectiveWaterCost(), not the route's own raw .cost — Neptune's
+      // discount (id3) wasn't being applied to the AI's OWN scoring here,
+      // despite this comment's claim of matching attack()'s math exactly:
+      // an AI royaume with Neptune active underrated its own water
+      // attacks, and would pass on some it could actually afford/win.
+      const attackingForce = t.force - effectiveWaterCost(t, route);
+      const adv = attackingForce - n.force;
+      if (!capActive && (adv < MIN_VIABLE_ADV || adv < escalated(AI_AGGRESSION_THRESHOLD, -1) + pers.aggressionDelta)) continue;
+      let score = adv + (territoryCount[n.owner] <= 2 ? pers.finishOffBonus : 0);
+      let exposure = 0;
+      for (const oId of t.neighbors) {
+        const o = territories[oId];
+        if (o.owner !== royId) exposure = Math.max(exposure, o.force);
+      }
+      score -= exposure * 0.3 * pers.exposureWeight;
+      if (score > bestScore) { bestScore = score; best = { from: t.id, to: nId }; }
+    }
+  }
+  return best;
+}
+// "Excalibur" (v2.59) — une attaque infaillible par partie. Armée
+// explicitement par le joueur (bouton du HUD) : c'est LUI qui choisit le
+// moment, pas le hasard d'une première défaite. Désarmable librement tant
+// qu'elle n'a pas servi, pour qu'un appui de trop ne la gâche pas.
+let excaliburArmed = false;
+let excaliburUsedThisMatch = false;
+function excaliburAvailable() {
+  return excaliburUnlocked() && !excaliburUsedThisMatch && !replaying
+    && !gameOver && !awaitingFactionPick && currentPlayer === humanRoyId;
+}
+// "L'épée blanche" (v2.59) — la paix armée. Une fois par partie, le joueur
+// peut obtenir d'un rival qu'il cesse de l'attaquer pendant TRUCE_ROUNDS
+// tours. Trois clauses, choisies par Pierre, qui en font un vrai choix
+// plutôt qu'un bouclier gratuit :
+//   - unilatérale : le rival reste libre d'attaquer les autres royaumes, ce
+//     qui en fait aussi une arme diplomatique (on le lâche sur un voisin) ;
+//   - le joueur, lui, PEUT l'attaquer — mais alors la trêve se rompt sur
+//     l'instant, ce qui interdit d'en faire un bouclier derrière lequel on
+//     frappe impunément ;
+//   - une seule par partie, jamais renouvelable.
+// Compté en tours du joueur (voir advanceTurn()), pas en tours de tout le
+// monde : c'est ce que le joueur voit et compte lui-même.
+const TRUCE_ROUNDS = 3;
+let truceWithRoyaume = [0, 0, 0, 0, 0]; // tours restants, par royaume
+let epeeBlancheUsedThisMatch = false;
+function truceAvailable() {
+  return epeeBlancheUnlocked && !epeeBlancheUsedThisMatch && !replaying
+    && !gameOver && !awaitingFactionPick && currentPlayer === humanRoyId;
+}
+// Les rivaux vivants qu'on peut encore approcher — ni nous, ni les neutres,
+// ni un royaume déjà sous trêve.
+function truceCandidates() {
+  const out = [];
+  for (let r = 0; r < ROYAUME_COUNT; r++) {
+    if (r === humanRoyId || ROYAUMES[r].neutral || !isAlive(r)) continue;
+    if (truceWithRoyaume[r] > 0) continue;
+    out.push(r);
+  }
+  return out;
+}
+function grantTruceWith(royId) {
+  if (!truceAvailable()) return false;
+  truceWithRoyaume[royId] = TRUCE_ROUNDS;
+  epeeBlancheUsedThisMatch = true;
+  return true;
+}
+// Rompue par notre propre attaque : "sauf si moi je l'attaque". Appelée
+// depuis attack(), donc aussi pendant un rejeu — et c'est voulu, sinon la
+// partie rejouée divergerait de celle qui a réellement été jouée.
+function breakTruceIfAttacking(defenderOwner) {
+  if (defenderOwner != null && defenderOwner >= 0 && truceWithRoyaume[defenderOwner] > 0) {
+    truceWithRoyaume[defenderOwner] = 0;
+  }
+}
+// "Le parchemin" (v2.59) — le savoir interdit : la province que chaque rival
+// s'apprête à attaquer, visible PENDANT le tour du joueur, donc assez tôt
+// pour défendre. Aucun gain de force, uniquement de l'information — mais de
+// l'information qui vaut cher, puisqu'elle transforme chaque fin de tour en
+// vraie décision plutôt qu'en pari.
+//
+// S'appuie sur bestMoveFor(), c'est-à-dire sur la logique d'IA elle-même et
+// non sur une approximation réécrite à côté : une prédiction qui diverge de
+// ce que l'IA fait vraiment serait pire que pas de prédiction. Elle reste
+// une PRÉDICTION et non une certitude — l'IA peut encore commettre une
+// erreur volontaire (AI_MISTAKE_RATE) ou, au palier le plus doux, tenter un
+// coup risqué ; ces deux écarts-là se jouent au tirage aléatoire, après
+// coup, et il n'est pas question de les consulter ici (voir la règle d'or
+// dans la note de bestMoveFor).
+function predictedAIThreats() {
+  const marks = new Map(); // id de province visée -> royaume qui la vise
+  if (!parcheminUnlocked || replaying || gameOver || awaitingFactionPick) return marks;
+  if (currentPlayer !== humanRoyId) return marks;
+  for (let r = 0; r < ROYAUME_COUNT; r++) {
+    if (r === humanRoyId || ROYAUMES[r].neutral || !isAlive(r)) continue;
+    // La trêve de l'épée blanche : ce royaume-là ne nous vise plus, donc
+    // annoncer une menace de sa part serait un mensonge.
+    if (truceWithRoyaume[r] > 0) continue;
+    let mv = null;
+    // Sans second argument : restrictFromId est testé contre `undefined`
+    // dans bestMoveFor, donc y passer -1 (ou n'importe quelle autre valeur
+    // "neutre") écarte TOUTES les provinces et ne renvoie jamais rien —
+    // bug réel, attrapé en jouant 24 tours sans qu'une seule menace ne
+    // s'affiche. On veut ici le meilleur coup toutes provinces confondues.
+    try { mv = bestMoveFor(r); } catch (e) { mv = null; }
+    if (mv && territories[mv.to] && territories[mv.to].owner === humanRoyId) marks.set(mv.to, r);
+  }
+  return marks;
+}
 function runAI() {
   const royId = currentPlayer;
   if (gameOver || royId === humanRoyId) { aiRunning = false; return; }
@@ -8771,89 +9038,9 @@ function runAI() {
   // with no further target) just falls through to the normal global pick.
   if (royId !== lastConqueredRoyId) { lastConqueredId = null; lastConqueredRoyId = royId; }
 
-  function bestMove(restrictFromId) {
-    const territoryCount = {};
-    for (const t of territories) territoryCount[t.owner] = (territoryCount[t.owner] || 0) + 1;
-    // "Le pouvoir des 12" — while this royaume has a guaranteed-win attack
-    // budget active (see ensureCapBonusActivation()/attack()'s own
-    // capBonusWin), every attack it could make wins outright regardless of
-    // the numbers, so the normal aggression-threshold gate below (which
-    // exists to stop the AI throwing away force on bad trades) doesn't
-    // apply — skipping it here is what actually lets the AI spend a budget
-    // it would otherwise just let expire unused ("l'adversaire a 12
-    // partout et il en profite pas").
-    const capActive = (capBonusBudget[royId] || 0) > 0;
-    // Hard floor, independent of difficulty/personality: resolveCombat()
-    // only ever gives the ATTACKER real odds at adv===0 (1/3) or adv===-1
-    // (1/5) — anything below that is a mathematically GUARANTEED loss (no
-    // roll at all), which never has any value: a lost attack doesn't even
-    // touch the defender's own force, it just drops the attacker's own
-    // territory to 1 for nothing. AI_AGGRESSION_THRESHOLD's own floor
-    // (lerp(1.5,-2.2,DIFFICULTY), pushed lower still by personality deltas)
-    // could fall well past -1 at high difficulty, which meant "aggressive"
-    // AI was actually throwing away force on attacks it was CERTAIN to
-    // lose — reported live as "l'ennemi fait des attaques sûres de
-    // perdre, c'est absurde". This floor applies at every difficulty; it's
-    // not itself the aggression tuning, just a sanity clamp under it.
-    const MIN_VIABLE_ADV = -1;
-
-    let best = null, bestScore = -Infinity;
-    for (const t of territories) {
-      if (t.owner !== royId || t.force <= 1) continue;
-      if (restrictFromId !== undefined && t.id !== restrictFromId) continue;
-      for (const nId of t.neighbors) {
-        const n = territories[nId];
-        if (n.owner === royId) continue;
-        if (isPage && n.owner === humanRoyId) continue; // see isPage's own note above
-        const adv = t.force - n.force;
-        if (!capActive && (adv < MIN_VIABLE_ADV || adv < escalated(AI_AGGRESSION_THRESHOLD, -1) + pers.aggressionDelta)) continue;
-
-        // prefer finishing off a nearly-eliminated royaume over a marginally
-        // better trade elsewhere
-        let score = adv + (territoryCount[n.owner] <= 2 ? pers.finishOffBonus : 0);
-
-        // attacking always drops `from` to force 1 (win or lose) — penalize
-        // leaving it exposed to a strong hostile neighbor other than the target
-        let exposure = 0;
-        for (const oId of t.neighbors) {
-          if (oId === nId) continue;
-          const o = territories[oId];
-          if (o.owner !== royId) exposure = Math.max(exposure, o.force);
-        }
-        score -= exposure * 0.3 * pers.exposureWeight;
-
-        if (score > bestScore) { bestScore = score; best = { from: t.id, to: nId }; }
-      }
-      // Water-route targets — same scoring as land above, but the crossing's
-      // own cost comes off the attacking force first (same math attack()
-      // itself uses), and only a route the royaume can actually survive is
-      // ever considered (canAffordWaterRoute() — never a doomed crossing).
-      // Was human-only in the mechanic's first version ("Donne aux IA la
-      // capacité d'attaquer par bateau" — task #82).
-      for (const [nId, route] of t.waterRoutes) {
-        const n = territories[nId];
-        if (n.owner === royId || !canAffordWaterRoute(t, nId)) continue;
-        if (isPage && n.owner === humanRoyId) continue; // see isPage's own note above
-        // effectiveWaterCost(), not the route's own raw .cost — Neptune's
-        // discount (id3) wasn't being applied to the AI's OWN scoring here,
-        // despite this comment's claim of matching attack()'s math exactly:
-        // an AI royaume with Neptune active underrated its own water
-        // attacks, and would pass on some it could actually afford/win.
-        const attackingForce = t.force - effectiveWaterCost(t, route);
-        const adv = attackingForce - n.force;
-        if (!capActive && (adv < MIN_VIABLE_ADV || adv < escalated(AI_AGGRESSION_THRESHOLD, -1) + pers.aggressionDelta)) continue;
-        let score = adv + (territoryCount[n.owner] <= 2 ? pers.finishOffBonus : 0);
-        let exposure = 0;
-        for (const oId of t.neighbors) {
-          const o = territories[oId];
-          if (o.owner !== royId) exposure = Math.max(exposure, o.force);
-        }
-        score -= exposure * 0.3 * pers.exposureWeight;
-        if (score > bestScore) { bestScore = score; best = { from: t.id, to: nId }; }
-      }
-    }
-    return best;
-  }
+  // bestMove() vit maintenant au niveau du fichier (voir bestMoveFor) — cette
+  // liaison garde les appels ci-dessous inchangés.
+  const bestMove = (restrictFromId) => bestMoveFor(royId, restrictFromId);
 
   // Page-only fallback: 3 very passive AIs at the easiest level can end up
   // just growing off neutral land and never actually attacking each other —
@@ -8871,6 +9058,7 @@ function runAI() {
         const n = territories[nId];
         if (n.owner === royId) continue;
         if (isPage && n.owner === humanRoyId) continue; // see isPage's own note above — never the human, even as a "why not" throwaway attack
+        if (truceWithRoyaume[royId] > 0 && n.owner === humanRoyId) continue; // "L'épée blanche" : une trêve vaut aussi contre un coup désespéré
         candidates.push({ from: t.id, to: nId });
       }
     }
@@ -9450,6 +9638,7 @@ function render() {
 
   drawAttackForecasts();
   drawDangerMarkers();
+  drawParcheminThreats();
 
   // reinforcement pulse — a ring on territories that just gained force. Ring
   // shrink + label float-up plays out over PULSE_INTRO_MS, then the whole
@@ -9938,6 +10127,35 @@ const FORECAST_COLOR = { sure: "#9ce89c", third: "#f2d98c", fifth: "#f2d98c", do
 // Un liseré rouge sombre sur le pourtour, et non un symbole de plus : le
 // haut des hexagones est déjà pris par les badges d'attaque, et le centre
 // par le chiffre de force.
+// "Le parchemin" (v2.59) — marque la province que chaque rival s'apprête à
+// attaquer, avec la couleur de ce rival pour qu'on sache DE QUI vient la
+// menace, pas seulement qu'il y en a une. Dessiné au-dessus du liseré rouge
+// de v2.54, qui dit "cette province peut tomber" : les deux se complètent —
+// l'un mesure le risque, l'autre nomme l'assaillant.
+function drawParcheminThreats() {
+  const marks = predictedAIThreats();
+  if (!marks.size) return;
+  for (const [tId, royId] of marks) {
+    const t = territories[tId];
+    if (!t) continue;
+    ctx.save();
+    // Un chevron pointant vers la province, dans la couleur du rival, posé
+    // sous le chiffre de force : le haut de l'hexagone est déjà pris par les
+    // badges de pronostic (v2.50) et le centre par la force elle-même.
+    ctx.fillStyle = ROYAUMES[royId].color;
+    ctx.strokeStyle = "rgba(0,0,0,0.75)";
+    ctx.lineWidth = 2;
+    const y = t.cy + 22;
+    ctx.beginPath();
+    ctx.moveTo(t.cx, y + 7);
+    ctx.lineTo(t.cx - 7, y - 3);
+    ctx.lineTo(t.cx + 7, y - 3);
+    ctx.closePath();
+    ctx.stroke();
+    ctx.fill();
+    ctx.restore();
+  }
+}
 function drawDangerMarkers() {
   if (!attackForecastEnabled || replaying || gameOver || awaitingFactionPick) return;
   if (currentPlayer !== humanRoyId) return;
@@ -10289,6 +10507,13 @@ function handlePointer(clientX, clientY) {
     render();
     return;
   }
+
+  // "L'épée blanche" — quand la trêve est armée, le toucher sert à désigner
+  // le rival, pas à sélectionner une province. Testé AVANT la sélection
+  // normale, sinon toucher un ennemi lancerait une attaque au lieu d'offrir
+  // la paix. Renvoie false si le toucher ne désigne pas un rival valide, et
+  // le jeu reprend alors son cours habituel.
+  if (awaitingTruceTarget && handleTruceTargetTap(tId)) return;
 
   if (selected === -1) {
     if (t.owner === currentPlayer && t.force > 1) {
@@ -11387,6 +11612,15 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // add a new entry at the top whenever a future change is worth telling
 // players about.
 const CHANGELOG = [
+  {
+    version: "2.60",
+    notes: [
+      "Trois trophées deviennent de vrais pouvoirs. Excalibur : armez l'épée dans la barre du bas et votre prochaine attaque est gagnée d'avance, une fois par partie — rengainable si vous changez d'avis.",
+      "L'épée blanche : proposez une trêve à un seigneur en touchant une de ses provinces. Il vous laisse tranquille 3 tours, reste libre d'attaquer vos rivaux, et la paix se rompt si vous l'attaquez.",
+      "Le parchemin : un chevron aux couleurs de chaque seigneur marque la province qu'il s'apprête à vous prendre, pendant votre tour — assez tôt pour défendre.",
+      "Quand ces pouvoirs occupent la barre du bas, le bouton de fin de tour se réduit à « Go » : à ce stade de jeu, vous le connaissez par cœur.",
+    ],
+  },
   {
     version: "2.59",
     notes: [
@@ -12837,6 +13071,7 @@ function applyUiLanguage() {
   document.getElementById("conseilsDuelP").innerHTML = t("conseilsDuelP");
   document.getElementById("conseilsInstallP").innerHTML = t("conseilsInstallP");
   document.getElementById("conseilsTrophyP").innerHTML = t("conseilsTrophyP");
+  document.getElementById("conseilsPowersP").innerHTML = t("conseilsPowersP");
   document.getElementById("conseilsArtefactsP").innerHTML = t("conseilsArtefactsP");
   // Share/truce/premium/surrender-confirm overlays — mostly static content,
   // set here rather than at the one moment each overlay opens (unlike
@@ -13174,6 +13409,8 @@ function updateStatus() {
   // instantanées" setting — a manual tap-to-skip during the AI's turn is a
   // one-off, not a standing override
   if (currentPlayer === humanRoyId) { fastForward = false; forceInstantSkip = false; }
+  // les pouvoirs ne valent que pendant notre tour — voir refreshPowerButtons()
+  refreshPowerButtons();
 }
 
 // luminance-based contrast pick so light royaume colors (e.g. Châteauvieux's
@@ -13231,6 +13468,77 @@ function applyHudFactionColors() {
   sideKnightEl.style.backgroundColor = base;
 }
 
+// "Excalibur" et "L'épée blanche" (v2.59) — les deux boutons de pouvoir de
+// la rangée du bas. Icônes seules, comme "Abandonner" juste à côté : la
+// rangée est étroite sur un téléphone, et Pierre a déjà signalé un
+// chevauchement entre Abandonner et "Fin de bataille" par le passé.
+// Chacun ne paraît que s'il peut réellement servir MAINTENANT (trophée
+// gagné, pouvoir non dépensé, tour du joueur) — le HUD ne s'allonge donc
+// jamais pour un joueur qui n'a pas encore ces trophées, et retrouve sa
+// forme habituelle dès que le pouvoir est consommé.
+let awaitingTruceTarget = false;
+function refreshPowerButtons() {
+  const exc = document.getElementById("excaliburBtn");
+  const tru = document.getElementById("truceBtn");
+  if (!exc || !tru) return;
+  const excOn = excaliburAvailable();
+  exc.style.display = excOn ? "" : "none";
+  exc.classList.toggle("armed", excaliburArmed);
+  exc.textContent = "🗡";
+  exc.title = excaliburArmed ? t("excaliburArmedHint") : t("excaliburHint");
+  const truOn = truceAvailable() && truceCandidates().length > 0;
+  tru.style.display = truOn ? "" : "none";
+  tru.classList.toggle("armed", awaitingTruceTarget);
+  tru.textContent = "☮";
+  tru.title = awaitingTruceTarget ? t("truceAimHint") : t("truceHint");
+  // l'apparition/disparition d'un bouton de pouvoir change la place
+  // disponible, donc le libellé du bouton principal (voir endturnLabel())
+  updateEndTurnButton();
+}
+function toggleExcalibur() {
+  if (!excaliburAvailable()) return;
+  // Désarmable librement tant qu'elle n'a pas servi : un appui de trop ne
+  // doit pas gâcher un pouvoir qu'on n'a qu'une fois par partie.
+  excaliburArmed = !excaliburArmed;
+  awaitingTruceTarget = false; // les deux pouvoirs ne s'arment jamais ensemble
+  showToast(excaliburArmed ? t("excaliburArmedToast") : t("excaliburDisarmedToast"), 2200);
+  refreshPowerButtons();
+  render();
+}
+function toggleTruceAiming() {
+  if (!truceAvailable()) return;
+  awaitingTruceTarget = !awaitingTruceTarget;
+  if (awaitingTruceTarget) { excaliburArmed = false; showToast(t("truceAimToast"), 2600); }
+  refreshPowerButtons();
+  render();
+}
+// Le joueur désigne le rival en touchant une de SES provinces — même geste
+// que pour attaquer, rien de nouveau à apprendre (choix de Pierre).
+// Renvoie true si le toucher a été consommé par la trêve.
+function handleTruceTargetTap(territoryId) {
+  if (!awaitingTruceTarget) return false;
+  const t2 = territories[territoryId];
+  if (!t2 || t2.owner === humanRoyId || ROYAUMES[t2.owner].neutral) return false;
+  if (truceWithRoyaume[t2.owner] > 0) return false;
+  if (!grantTruceWith(t2.owner)) return false;
+  awaitingTruceTarget = false;
+  showToast(tf("truceGrantedToast", { name: ROYAUMES[t2.owner].name, n: TRUCE_ROUNDS }), 3200);
+  refreshPowerButtons();
+  updateGroups();
+  render();
+  return true;
+}
+document.getElementById("excaliburBtn").addEventListener("click", toggleExcalibur);
+document.getElementById("truceBtn").addEventListener("click", toggleTruceAiming);
+// Le libellé du bouton principal se raccourcit dès qu'un bouton de pouvoir
+// partage la rangée — voir endturnShort pour le raisonnement. Purement
+// visuel : le bouton fait exactement la même chose.
+function endturnLabel() {
+  const exc = document.getElementById("excaliburBtn");
+  const tru = document.getElementById("truceBtn");
+  const crowded = (exc && exc.style.display !== "none") || (tru && tru.style.display !== "none");
+  return crowded ? t("endturnShort") : t("endturnMain");
+}
 function updateEndTurnButton() {
   const btn = document.getElementById("endturn");
   // authoritative every time, not just while replaying (see endturnVisible())
@@ -13267,9 +13575,9 @@ function updateEndTurnButton() {
     if (allCappedStreak > 0 && !gameOver) {
       const remaining = STALEMATE_TRUCE_ROUNDS - allCappedStreak;
       const turnWord = remaining > 1 ? t("turns") : t("turn");
-      btn.innerHTML = `<span class="btnMain">${t("endturnMain")}</span><span class="btnHint">${t("stalemateHint")} ${remaining} ${turnWord}</span>`;
+      btn.innerHTML = `<span class="btnMain">${endturnLabel()}</span><span class="btnHint">${t("stalemateHint")} ${remaining} ${turnWord}</span>`;
     } else {
-      btn.innerHTML = `<span class="btnMain">${t("endturnMain")}</span>`;
+      btn.innerHTML = `<span class="btnMain">${endturnLabel()}</span>`;
     }
   } else {
     // during the AIs' turn the same button doubles as a fast-forward: one tap
@@ -13805,6 +14113,9 @@ function startGame(seed) {
   oceanTapCount = 0; // fresh running gag for a fresh match — see showOceanTapEasterEgg()
   ritualCountThisMatch = 0; octopusRevealedThisMatch = false; octopusRevealFX = null; cthulhuRevealFX = null;
   capBonusBudget = {}; capBonusActivations = 0; capBonusRevealedThisMatch = false; capBonusRevealFX = null;
+  // "L'épée blanche" — une seule trêve par partie, et aucune ne survit à la
+  // partie précédente (voir TRUCE_ROUNDS).
+  truceWithRoyaume = [0, 0, 0, 0, 0]; epeeBlancheUsedThisMatch = false; excaliburArmed = false; excaliburUsedThisMatch = false;
   // "Dieux spéciaux par royaume" — per-match unlock tracking, fresh every
   // match (a comeback/flawless-run/territory-share/water-finish has to
   // happen IN this match to count — see checkGodUnlockOnWin()).
