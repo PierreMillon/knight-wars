@@ -758,6 +758,29 @@
      qu'il y a quelque chose à faire" — without any label, a dimmed blazon
      alone didn't read as "unlock this" so much as just a duller icon. */
   .loreBlazonSlot .loreBlazonUnplayed { font-size: 9px; font-style: italic; text-align: center; line-height: 1.2; max-width: 60px; opacity: .85; }
+  /* Même famille visuelle que #loreOverlay/#conseilsOverlay — volontairement
+     pas un style à part : c'est un écran d'explication de plus, pas un objet
+     nouveau. Les boutons héritent de la règle dorée partagée plus bas. */
+  #installOverlay {
+    position: fixed; inset: 0; z-index: 12; display: none;
+    align-items: center; justify-content: center; padding: 16px;
+    background: rgba(8, 6, 4, 0.72);
+  }
+  #installOverlay .box { max-height: 84vh; overflow-y: auto; max-width: min(94vw, 460px); position: relative; padding-top: 34px; }
+  #installOverlay h2 { margin: 0 0 12px; font-size: 20px; text-align: center; }
+  #installOverlay p { font-size: 14px; line-height: 1.6; margin: 0 0 14px; }
+  #installOverlay button#closeInstall {
+    position: absolute; top: 6px; right: 8px; width: 32px; min-width: 32px;
+    padding: 0; line-height: 30px; font-size: 17px;
+  }
+  #installSteps { margin: 0 0 16px; padding-left: 22px; }
+  #installSteps li { font-size: 14px; line-height: 1.55; margin-bottom: 9px; }
+  #installSteps li:last-child { margin-bottom: 0; }
+  #installOverlay #installNowBtn, #installOverlay #installGotItBtn { width: 100%; margin-top: 8px; }
+  /* Rangée dédiée plutôt qu'un 3e bouton serré à côté de Conseils/Le lore :
+     installer est une action, pas une page à lire. */
+  #installRow { margin: 12px 0 4px; }
+  #installRow button { width: 100%; }
   #conseilsOverlay {
     position: absolute; inset: 0; display: none;
     align-items: center; justify-content: center;
@@ -1429,6 +1452,19 @@
       <button id="closeLore"></button>
     </div>
   </div>
+  <!-- "Installer le jeu" — explique ce qu'est une application installée
+       PUIS donne les étapes, différentes sur chaque plateforme. Voir
+       openInstallOverlay(). -->
+  <div id="installOverlay">
+    <div class="box" id="installBox">
+      <button id="closeInstall" aria-label="Fermer">✕</button>
+      <h2 id="installTitleH2"></h2>
+      <p id="installWhatP"></p>
+      <ol id="installSteps"></ol>
+      <button id="installNowBtn" style="display:none;"></button>
+      <button id="installGotItBtn"></button>
+    </div>
+  </div>
   <div id="conseilsOverlay">
     <div class="box" id="conseilsBox">
       <button id="backConseilsToSettings" aria-label="Retour aux réglages">‹</button>
@@ -1461,6 +1497,7 @@
         <p id="conseilsForecastP"></p>
         <p id="conseilsDangerP"></p>
         <p id="conseilsDuelP"></p>
+        <p id="conseilsInstallP"></p>
         <p id="conseilsArtefactsP"></p>
       </div>
       <button id="closeConseils"></button>
@@ -1631,6 +1668,12 @@
       <!-- "En dessous soutenez le jeu, un petit trait de séparation et
            dessous les liens" — soutien d'abord, puis les deux autres
            prototypes en dessous d'un second trait, plus discret ("petit"). -->
+      <!-- Masqué d'office quand le jeu tourne DÉJÀ en application installée
+           (voir refreshInstallButton()) : proposer d'installer ce qui est
+           installé n'a aucun sens et ferait douter de tout le reste. -->
+      <div id="installRow" style="display:none;">
+        <button id="installBtn"></button>
+      </div>
       <div id="supportLinkWrap">
         <a id="supportLink" href="https://ko-fi.com/knightwars" target="_blank" rel="noopener"></a>
       </div>
@@ -1664,7 +1707,7 @@
 // before (CREATURE_IMG's own loadSprite() call, the changelog, etc.), not
 // redeclared.
 const CREATURE_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAANAAAADQCAYAAAB2pO90AAAC2klEQVR4nO3dQWoDMRAAwd3g/39ZOeQHahgroupuvF7TzGWQ3rXWw4z3fUde9lrrnfiend8z9WxTfr79APCfCQgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAg+336AE5y85LnzbJY855hAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEFx3MqlTOe/7PSf/pyYQBAKCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAiCd62RG9559pYimbOzgGoCQSAgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAguO5kUvbsLFJOLcdOPdvOZ0wgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAElkkZNbUYOvU9JhAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJAQBAICILrlkldJb9namHzZK65h2ECgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgrFl0pOvRD/Zbe/ttqVVEwgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAgEBMF1J5My57bF0B0mEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgq1lUlfJW6TkjwkEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJg7GTSnUXKqaXVqcXQk6+styC8xwSCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUHwccLmHO/tvhNdTSAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEASfkxf1OJsTUE0gSAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEY9fcw/OcfcroDhMIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgl9clHexCa709wAAAABJRU5ErkJggg==";
-const GAME_VERSION = "2.56";
+const GAME_VERSION = "2.57";
 document.getElementById("loadingKnight").src = CREATURE_IMG_SRC;
 document.getElementById("loadingVersion").textContent = `v${GAME_VERSION}`;
 document.getElementById("splashKnight").src = CREATURE_IMG_SRC;
@@ -5340,6 +5383,49 @@ const UI_STRINGS = {
   },
   // "Province en danger" (v2.54) — pendant défensif du pronostic, voir
   // drawDangerMarkers(). Même règle publique, lue dans l'autre sens.
+  // "Installer le jeu" (v2.57) — voir openInstallOverlay(). Le texte
+  // explique d'ABORD ce qu'on y gagne, puis comment faire : personne
+  // n'installe quelque chose dont il ne voit pas l'intérêt, et "PWA" ne dit
+  // rien à un joueur. Les étapes sont propres à chaque plateforme.
+  installBtn: { fr: "⬇ Installer le jeu", en: "⬇ Install the game", zh: "⬇ 安装游戏", es: "⬇ Instalar el juego", de: "⬇ Spiel installieren" },
+  installTitle: { fr: "Installer Knight Wars", en: "Install Knight Wars", zh: "安装 Knight Wars", es: "Instalar Knight Wars", de: "Knight Wars installieren" },
+  installWhat: {
+    fr: "Knight Wars peut s'installer comme une vraie application : une icône sur votre écran d'accueil, le jeu en plein écran sans la barre du navigateur, et un lancement direct. Rien à télécharger sur un magasin d'applications, aucun compte — c'est la page elle-même qui s'installe.",
+    en: "Knight Wars can install itself like a real app: an icon on your home screen, the game full-screen without the browser bar, and a direct launch. Nothing to download from an app store, no account — it's the page itself that installs.",
+    zh: "Knight Wars 可以像真正的应用一样安装：主屏幕上的图标、无浏览器地址栏的全屏游戏、直接启动。无需从应用商店下载，无需账号——安装的就是网页本身。",
+    es: "Knight Wars puede instalarse como una aplicación de verdad: un icono en tu pantalla de inicio, el juego a pantalla completa sin la barra del navegador y un arranque directo. Nada que descargar de una tienda de aplicaciones, ninguna cuenta — es la propia página la que se instala.",
+    de: "Knight Wars lässt sich wie eine echte App installieren: ein Symbol auf deinem Startbildschirm, das Spiel im Vollbild ohne Browserleiste und ein direkter Start. Nichts aus einem App-Store zu laden, kein Konto — es ist die Seite selbst, die sich installiert.",
+  },
+  installNow: { fr: "Installer maintenant", en: "Install now", zh: "立即安装", es: "Instalar ahora", de: "Jetzt installieren" },
+  installGotIt: { fr: "C'est compris", en: "Got it", zh: "明白了", es: "Entendido", de: "Verstanden" },
+  installStepsIos: {
+    fr: ["Touchez le bouton Partager, en bas de Safari (le carré avec une flèche vers le haut)", "Faites défiler et touchez « Sur l'écran d'accueil »", "Touchez « Ajouter », en haut à droite"],
+    en: ["Tap the Share button at the bottom of Safari (the square with an arrow pointing up)", "Scroll down and tap \"Add to Home Screen\"", "Tap \"Add\" in the top-right corner"],
+    zh: ["点按 Safari 底部的「分享」按钮（带向上箭头的方块）", "向下滑动并点按「添加到主屏幕」", "点按右上角的「添加」"],
+    es: ["Toca el botón Compartir, abajo en Safari (el cuadrado con una flecha hacia arriba)", "Desplázate y toca «Añadir a pantalla de inicio»", "Toca «Añadir», arriba a la derecha"],
+    de: ["Tippe unten in Safari auf «Teilen» (das Quadrat mit dem Pfeil nach oben)", "Scrolle nach unten und tippe auf «Zum Home-Bildschirm»", "Tippe oben rechts auf «Hinzufügen»"],
+  },
+  installStepsAndroid: {
+    fr: ["Touchez le menu ⋮ du navigateur, en haut à droite", "Touchez « Installer l'application » (ou « Ajouter à l'écran d'accueil »)", "Confirmez en touchant « Installer »"],
+    en: ["Tap the browser's ⋮ menu, top right", "Tap \"Install app\" (or \"Add to Home screen\")", "Confirm by tapping \"Install\""],
+    zh: ["点按浏览器右上角的 ⋮ 菜单", "点按「安装应用」（或「添加到主屏幕」）", "点按「安装」确认"],
+    es: ["Toca el menú ⋮ del navegador, arriba a la derecha", "Toca «Instalar aplicación» (o «Añadir a pantalla de inicio»)", "Confirma tocando «Instalar»"],
+    de: ["Tippe oben rechts auf das ⋮-Menü des Browsers", "Tippe auf «App installieren» (oder «Zum Startbildschirm hinzufügen»)", "Bestätige mit «Installieren»"],
+  },
+  installStepsDesktop: {
+    fr: ["Cherchez l'icône d'installation dans la barre d'adresse, à droite (un écran avec une flèche)", "Sinon, ouvrez le menu ⋮ du navigateur et cherchez « Installer Knight Wars »", "Confirmez en cliquant « Installer »"],
+    en: ["Look for the install icon in the address bar, on the right (a screen with an arrow)", "Otherwise open the browser's ⋮ menu and look for \"Install Knight Wars\"", "Confirm by clicking \"Install\""],
+    zh: ["在地址栏右侧查找安装图标（带箭头的屏幕图案）", "或者打开浏览器的 ⋮ 菜单，查找「安装 Knight Wars」", "点击「安装」确认"],
+    es: ["Busca el icono de instalación en la barra de direcciones, a la derecha (una pantalla con una flecha)", "Si no, abre el menú ⋮ del navegador y busca «Instalar Knight Wars»", "Confirma haciendo clic en «Instalar»"],
+    de: ["Suche das Installationssymbol rechts in der Adressleiste (ein Bildschirm mit Pfeil)", "Andernfalls öffne das ⋮-Menü des Browsers und suche «Knight Wars installieren»", "Bestätige mit «Installieren»"],
+  },
+  conseilsInstallP: {
+    fr: "<strong>Installer le jeu</strong> : dans les Réglages, « Installer le jeu » explique comment poser Knight Wars sur votre écran d'accueil. Le jeu s'ouvre alors en plein écran, sans la barre du navigateur, et se lance d'une seule touche. Rien à télécharger sur un magasin d'applications, aucun compte : c'est la page elle-même qui s'installe. Le jeu a besoin du réseau à chaque lancement.",
+    en: "<strong>Installing the game</strong>: in Settings, \"Install the game\" explains how to put Knight Wars on your home screen. The game then opens full-screen, without the browser bar, and launches with a single tap. Nothing to download from an app store, no account: it's the page itself that installs. The game needs network on each launch.",
+    zh: "<strong>安装游戏</strong>：在「设置」中，「安装游戏」会说明如何将 Knight Wars 放到主屏幕上。之后游戏将全屏打开，没有浏览器地址栏，一触即启。无需从应用商店下载，无需账号：安装的就是网页本身。每次启动仍需联网。",
+    es: "<strong>Instalar el juego</strong>: en Ajustes, «Instalar el juego» explica cómo poner Knight Wars en tu pantalla de inicio. El juego se abre entonces a pantalla completa, sin la barra del navegador, y arranca con un solo toque. Nada que descargar de una tienda de aplicaciones, ninguna cuenta: es la propia página la que se instala. El juego necesita red en cada arranque.",
+    de: "<strong>Das Spiel installieren</strong>: Unter Einstellungen erklärt «Spiel installieren», wie du Knight Wars auf deinen Startbildschirm legst. Das Spiel öffnet sich dann im Vollbild, ohne Browserleiste, und startet mit einem einzigen Tippen. Nichts aus einem App-Store zu laden, kein Konto: Es ist die Seite selbst, die sich installiert. Das Spiel braucht bei jedem Start Netz.",
+  },
   conseilsDuelP: {
     fr: "<strong>Se mesurer à ses amis</strong> : partagez une victoire au défi du jour et votre ami verra votre score — mais le jeu ne le croira pas sur parole. Il <strong>rejoue votre partie coup par coup</strong> chez lui et recompte les tours lui-même. Personne ne peut donc s'inventer un score : il faudrait avoir vraiment gagné, sur la carte du jour, pour qu'un chiffre s'affiche. Si votre ami a lui aussi gagné ce jour-là, les deux scores sont comparés — le plus petit nombre de tours l'emporte.",
     en: "<strong>Measuring up against friends</strong>: share a daily-challenge win and your friend will see your score — but the game won't take its word for it. It <strong>replays your match move by move</strong> on their device and recounts the turns itself. Nobody can invent a score: you'd have to genuinely win, on that day's map, for any number to appear. If your friend also won that day, the two scores are compared — fewest turns wins.",
@@ -10884,6 +10970,102 @@ function graalNearMissCount() {
   const { remainingBeforeGraal } = computeTrophySlots();
   return remainingBeforeGraal > 0 && remainingBeforeGraal <= 3 ? remainingBeforeGraal : null;
 }
+// ---------- "Installer le jeu" ----------
+// Le jeu est déjà une application installable (manifest.json + affichage
+// "standalone"), mais RIEN ne le disait : il fallait le savoir et connaître
+// le menu de son navigateur. C'est tout l'objet de cet écran.
+//
+// Point important, et la raison pour laquelle les instructions manuelles
+// sont le chemin PRINCIPAL et non un repli : le service worker du jeu est
+// désactivé volontairement (c'est lui qui causait les écrans noirs/blancs/
+// roses, voir sa propre note). Or Chrome n'émet "beforeinstallprompt" —
+// l'événement qui permet un bouton d'installation en un seul appui — que
+// pour un site qui EN A un. Sur iOS/Safari, cet événement n'existe de toute
+// façon dans aucun cas. On capte donc l'événement s'il vient (rien à perdre,
+// et si le hors-ligne est un jour rétabli le bouton natif apparaîtra tout
+// seul), mais on n'attend pas après lui : ce qu'on affiche toujours, ce sont
+// les étapes réelles, propres à chaque plateforme.
+let deferredInstallPrompt = null;
+window.addEventListener("beforeinstallprompt", (e) => {
+  e.preventDefault(); // sinon le navigateur affiche sa propre bannière, en double avec notre bouton
+  deferredInstallPrompt = e;
+  refreshInstallButton();
+});
+window.addEventListener("appinstalled", () => {
+  deferredInstallPrompt = null;
+  closeInstallOverlay();
+  refreshInstallButton();
+});
+// Déjà lancé DEPUIS l'écran d'accueil ? Alors il n'y a plus rien à
+// installer. display-mode:standalone couvre Android et le bureau ;
+// navigator.standalone est la propriété propre à Safari iOS, qui n'implémente
+// pas la media query.
+function isRunningInstalled() {
+  try {
+    if (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) return true;
+  } catch (e) { /* navigateur sans matchMedia — on retombe sur le test iOS */ }
+  return navigator.standalone === true;
+}
+function installPlatform() {
+  const ua = navigator.userAgent || "";
+  // iPad moderne : Safari annonce un UA de Mac de bureau, seul le tactile le
+  // trahit — sans ce test, un iPad recevait les instructions du bureau
+  // (une icône dans la barre d'adresse qui n'existe pas chez lui).
+  const isIOS = /iPad|iPhone|iPod/.test(ua)
+    || (/Macintosh/.test(ua) && typeof navigator.maxTouchPoints === "number" && navigator.maxTouchPoints > 1);
+  if (isIOS) return "ios";
+  if (/Android/.test(ua)) return "android";
+  return "desktop";
+}
+function refreshInstallSteps() {
+  const ol = document.getElementById("installSteps");
+  if (!ol) return;
+  const key = { ios: "installStepsIos", android: "installStepsAndroid", desktop: "installStepsDesktop" }[installPlatform()];
+  const steps = t(key);
+  // textContent et non innerHTML : ces chaînes sont des traductions, pas du
+  // balisage, et rien ici n'a besoin d'en être.
+  ol.innerHTML = "";
+  for (const stepText of Array.isArray(steps) ? steps : []) {
+    const li = document.createElement("li");
+    li.textContent = stepText;
+    ol.appendChild(li);
+  }
+}
+function refreshInstallButton() {
+  const row = document.getElementById("installRow");
+  if (row) row.style.display = isRunningInstalled() ? "none" : "";
+  const nowBtn = document.getElementById("installNowBtn");
+  if (nowBtn) nowBtn.style.display = deferredInstallPrompt ? "" : "none";
+}
+function openInstallOverlay() {
+  refreshInstallSteps();
+  refreshInstallButton();
+  document.getElementById("settingsPanel").style.display = "none";
+  document.getElementById("installOverlay").style.display = "flex";
+  sfxMenuOpen();
+}
+function closeInstallOverlay() {
+  document.getElementById("installOverlay").style.display = "none";
+  sfxMenuClose();
+}
+document.getElementById("installBtn").addEventListener("click", openInstallOverlay);
+document.getElementById("closeInstall").addEventListener("click", closeInstallOverlay);
+document.getElementById("installGotItBtn").addEventListener("click", closeInstallOverlay);
+document.getElementById("installNowBtn").addEventListener("click", async () => {
+  if (!deferredInstallPrompt) return;
+  const prompt = deferredInstallPrompt;
+  // Un "beforeinstallprompt" ne se rejoue pas : une fois prompt() appelé, il
+  // est consommé quoi qu'en fasse le joueur. On le libère donc tout de suite
+  // pour ne pas laisser un bouton qui ne ferait plus rien au second appui.
+  deferredInstallPrompt = null;
+  refreshInstallButton();
+  try {
+    await prompt.prompt();
+    await prompt.userChoice;
+  } catch (e) { /* refusé ou déjà consommé — les étapes manuelles restent affichées juste au-dessus */ }
+});
+refreshInstallButton();
+
 function refreshTrophyRoom() {
   const el = document.getElementById("trophyRoom");
   if (!el) return;
@@ -10955,6 +11137,13 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // add a new entry at the top whenever a future change is worth telling
 // players about.
 const CHANGELOG = [
+  {
+    version: "2.57",
+    notes: [
+      "Nouveau bouton « Installer le jeu » dans les Réglages : il explique ce qu'on y gagne (une icône sur l'écran d'accueil, le jeu en plein écran sans la barre du navigateur) puis donne la marche à suivre, différente sur iPhone, sur Android et sur ordinateur.",
+      "Le bouton disparaît de lui-même quand le jeu tourne déjà en application installée.",
+    ],
+  },
   {
     version: "2.56",
     notes: [
@@ -12320,6 +12509,12 @@ function applyUiLanguage() {
   document.getElementById("dailyChallengeSectionLabel").textContent = t("dailyChallengeSectionLabel");
   refreshDailyChallengeButton();
   refreshSplashDailyChallenge();
+  document.getElementById("installBtn").textContent = t("installBtn");
+  document.getElementById("installTitleH2").textContent = t("installTitle");
+  document.getElementById("installWhatP").textContent = t("installWhat");
+  document.getElementById("installNowBtn").textContent = t("installNow");
+  document.getElementById("installGotItBtn").textContent = t("installGotIt");
+  refreshInstallSteps();
   document.getElementById("conseilsBtn").textContent = t("conseilsBtnLabel");
   document.getElementById("loreBtn").textContent = t("loreBtnLabel");
   document.getElementById("mapCodeFieldLabel").textContent = t("mapCodeLabel");
@@ -12375,6 +12570,7 @@ function applyUiLanguage() {
   document.getElementById("conseilsForecastP").innerHTML = t("conseilsForecastP");
   document.getElementById("conseilsDangerP").innerHTML = t("conseilsDangerP");
   document.getElementById("conseilsDuelP").innerHTML = t("conseilsDuelP");
+  document.getElementById("conseilsInstallP").innerHTML = t("conseilsInstallP");
   document.getElementById("conseilsArtefactsP").innerHTML = t("conseilsArtefactsP");
   // Share/truce/premium/surrender-confirm overlays — mostly static content,
   // set here rather than at the one moment each overlay opens (unlike
