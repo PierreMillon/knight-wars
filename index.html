@@ -1455,6 +1455,7 @@
         <p id="conseilsGueuxP"></p>
         <p id="conseilsDailyChallengeP"></p>
         <p id="conseilsForecastP"></p>
+        <p id="conseilsDangerP"></p>
         <p id="conseilsArtefactsP"></p>
       </div>
       <button id="closeConseils"></button>
@@ -1658,7 +1659,7 @@
 // before (CREATURE_IMG's own loadSprite() call, the changelog, etc.), not
 // redeclared.
 const CREATURE_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAANAAAADQCAYAAAB2pO90AAAC2klEQVR4nO3dQWoDMRAAwd3g/39ZOeQHahgroupuvF7TzGWQ3rXWw4z3fUde9lrrnfiend8z9WxTfr79APCfCQgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAg+336AE5y85LnzbJY855hAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEFx3MqlTOe/7PSf/pyYQBAKCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAiCd62RG9559pYimbOzgGoCQSAgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAguO5kUvbsLFJOLcdOPdvOZ0wgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAElkkZNbUYOvU9JhAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJAQBAICILrlkldJb9namHzZK65h2ECgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgrFl0pOvRD/Zbe/ttqVVEwgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAgEBMF1J5My57bF0B0mEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgq1lUlfJW6TkjwkEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJg7GTSnUXKqaXVqcXQk6+styC8xwSCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUHwccLmHO/tvhNdTSAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEASfkxf1OJsTUE0gSAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEY9fcw/OcfcroDhMIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgl9clHexCa709wAAAABJRU5ErkJggg==";
-const GAME_VERSION = "2.53";
+const GAME_VERSION = "2.54";
 document.getElementById("loadingKnight").src = CREATURE_IMG_SRC;
 document.getElementById("loadingVersion").textContent = `v${GAME_VERSION}`;
 document.getElementById("splashKnight").src = CREATURE_IMG_SRC;
@@ -5315,6 +5316,15 @@ const UI_STRINGS = {
     es: "<strong>Los tres artefactos</strong>: el pergamino se obtiene en el instante en que un Señor te entrega el pergamino cifrado. Excalibur, clavada en su roca, solo se libera tras arrancar <strong>doce</strong> provincias defendidas a la fuerza máxima (12), acumuladas a lo largo de todas tus partidas, no en una sola. La espada blanca se gana terminando una partida en tablas.",
     de: "<strong>Die drei Artefakte</strong>: Die Schriftrolle erhältst du in dem Moment, in dem ein Fürst dir die verschlüsselte Pergamentrolle überreicht. Excalibur, im Stein steckend, löst sich erst, nachdem du <strong>zwölf</strong> Provinzen entrissen hast, die mit maximaler Stärke (12) verteidigt wurden — über all deine Partien hinweg gezählt, nicht in einer einzigen. Das weiße Schwert verdienst du dir, indem du eine Partie mit einem Patt beendest.",
   },
+  // "Province en danger" (v2.54) — pendant défensif du pronostic, voir
+  // drawDangerMarkers(). Même règle publique, lue dans l'autre sens.
+  conseilsDangerP: {
+    fr: "<strong>Les provinces en danger</strong> : quand rien n'est sélectionné, vos provinces qu'un voisin ennemi pourrait vous prendre à son prochain tour sont cernées d'un liseré rouge en pointillés. C'est la même règle de combat que ci-dessus, simplement lue dans l'autre sens — rien de caché n'est révélé. Le liseré disparaît dès que vous armez une province, pour laisser place au pronostic d'attaque : on regarde soit ce qu'on peut prendre, soit ce qu'on risque de perdre, jamais les deux à la fois. Se désactive avec le pronostic, dans les Réglages.",
+    en: "<strong>Provinces in danger</strong>: when nothing is selected, any of your provinces that an enemy neighbour could take on their next turn is ringed with a dashed red outline. It's the same combat rule as above, simply read the other way round — nothing hidden is revealed. The outline disappears as soon as you arm a province, making room for the attack odds: you look either at what you can take, or at what you might lose, never both at once. Turned off together with the attack odds, in Settings.",
+    zh: "<strong>处于危险中的省份</strong>：当没有选中任何省份时，凡是敌方邻居下回合可能夺走的你的省份，都会被红色虚线勾出轮廓。这与上面那条战斗规则完全相同，只是反过来读——不会泄露任何隐藏信息。一旦你选定某个省份，轮廓便会消失，把位置让给进攻胜算：你要么看自己能夺下什么，要么看自己可能失去什么，不会同时看两者。可与进攻胜算一起在设置中关闭。",
+    es: "<strong>Las provincias en peligro</strong>: cuando no hay nada seleccionado, tus provincias que un vecino enemigo podría arrebatarte en su próximo turno aparecen rodeadas por un contorno rojo discontinuo. Es la misma regla de combate de arriba, simplemente leída al revés — no se revela nada oculto. El contorno desaparece en cuanto preparas una provincia, dejando sitio al pronóstico de ataque: miras o bien lo que puedes tomar, o bien lo que puedes perder, nunca ambas cosas a la vez. Se desactiva junto con el pronóstico, en los Ajustes.",
+    de: "<strong>Provinzen in Gefahr</strong>: Wenn nichts ausgewählt ist, wird jede deiner Provinzen, die ein feindlicher Nachbar in seinem nächsten Zug erobern könnte, mit einer gestrichelten roten Umrandung markiert. Es ist dieselbe Kampfregel wie oben, nur andersherum gelesen — nichts Verborgenes wird preisgegeben. Die Umrandung verschwindet, sobald du eine Provinz aktivierst, und macht der Angriffsprognose Platz: Du schaust entweder darauf, was du nehmen kannst, oder darauf, was du verlieren könntest, nie auf beides zugleich. Wird zusammen mit der Angriffsprognose in den Einstellungen abgeschaltet.",
+  },
   // Win/loss/truce/share/premium overlays.
   shareIntroTitle: { fr: "⚔️ Défi Knight Wars", en: "⚔️ Knight Wars challenge", zh: "⚔️ 骑士战争挑战", es: "⚔️ Desafío de Knight Wars", de: "⚔️ Knight-Wars-Herausforderung" },
   shareIntroText: {
@@ -8904,6 +8914,7 @@ function render() {
   }
 
   drawAttackForecasts();
+  drawDangerMarkers();
 
   // reinforcement pulse — a ring on territories that just gained force. Ring
   // shrink + label float-up plays out over PULSE_INTRO_MS, then the whole
@@ -9376,6 +9387,62 @@ const FORECAST_COLOR = { sure: "#9ce89c", third: "#f2d98c", fifth: "#f2d98c", do
 // with badges, and a water crossing already draws its own decaying-force
 // trail and boat (which says the same thing in its own language) while its
 // routes can reach clear across the map.
+// "Province en danger" (v2.54) — le pendant défensif du pronostic d'attaque.
+// Le pronostic dit ce que VOUS pouvez prendre ; celui-ci dit ce que vous
+// pouvez PERDRE. Même source de vérité exactement : combatForecast(), juste
+// appelé dans l'autre sens (le voisin ennemi en attaquant, votre province en
+// défenseur), donc les deux ne peuvent pas se contredire et aucune
+// information cachée n'est révélée — c'est la même règle publique.
+//
+// Ne s'affiche QUE quand rien n'est armé : dès qu'une province est
+// sélectionnée ou qu'un glissé commence, les badges d'attaque prennent le
+// relais. Les deux lectures ne cohabitent donc jamais à l'écran, ce qui
+// évite une carte couverte de symboles — on regarde soit ce qu'on peut
+// prendre, soit ce qu'on risque de perdre, jamais les deux en même temps.
+//
+// Un liseré rouge sombre sur le pourtour, et non un symbole de plus : le
+// haut des hexagones est déjà pris par les badges d'attaque, et le centre
+// par le chiffre de force.
+function drawDangerMarkers() {
+  if (!attackForecastEnabled || replaying || gameOver || awaitingFactionPick) return;
+  if (currentPlayer !== humanRoyId) return;
+  // rien n'est armé : c'est la condition même de l'affichage (voir la note)
+  if (selected !== -1) return;
+  for (const drag of activeDrags.values()) if (drag.path && drag.path.length) return;
+  const menacees = [];
+  for (const mine of territories) {
+    if (mine.owner !== humanRoyId) continue;
+    for (const nId of mine.neighbors) {
+      const foe = territories[nId];
+      if (!foe || foe.owner === humanRoyId || ROYAUMES[foe.owner].neutral) continue;
+      if (foe.force <= 1) continue; // une province à 1 ne peut pas attaquer
+      const kind = combatForecast(nId, mine.id); // le voisin attaque, moi je défends
+      if (kind === "sure" || kind === "third" || kind === "fifth") { menacees.push(mine); break; }
+    }
+  }
+  if (!menacees.length) return;
+  ctx.save();
+  ctx.strokeStyle = "rgba(150,30,30,0.85)";
+  ctx.lineWidth = 3;
+  ctx.setLineDash([6, 4]);
+  for (const t of menacees) {
+    for (const hk of t.hexKeys) {
+      const h2 = hexes[hk];
+      for (const [dq, dr] of NEI) {
+        const nh = hexes[`${h2.q + dq},${h2.r + dr}`];
+        if (nh && nh.territoryId === h2.territoryId) continue; // arête intérieure
+        const npos = nh || axialToPixel(h2.q + dq, h2.r + dr);
+        const edge = sharedHexEdge(h2, npos);
+        if (!edge) continue;
+        ctx.beginPath();
+        ctx.moveTo(edge[0][0], edge[0][1]);
+        ctx.lineTo(edge[1][0], edge[1][1]);
+        ctx.stroke();
+      }
+    }
+  }
+  ctx.restore();
+}
 function drawAttackForecasts() {
   if (!attackForecastEnabled || replaying || gameOver || awaitingFactionPick) return;
   if (currentPlayer !== humanRoyId) return;
@@ -10669,6 +10736,12 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // add a new entry at the top whenever a future change is worth telling
 // players about.
 const CHANGELOG = [
+  {
+    version: "2.54",
+    notes: [
+      "Nouvelles provinces en danger : quand rien n'est sélectionné, celles de vos provinces qu'un voisin pourrait vous prendre au prochain tour sont cernées de rouge. De quoi savoir où renforcer avant de finir votre tour, au lieu de le découvrir après coup.",
+    ],
+  },
   {
     version: "2.53",
     notes: [
@@ -12067,6 +12140,7 @@ function applyUiLanguage() {
   document.getElementById("conseilsGueuxP").innerHTML = t("conseilsGueuxP");
   document.getElementById("conseilsDailyChallengeP").innerHTML = t("conseilsDailyChallengeP");
   document.getElementById("conseilsForecastP").innerHTML = t("conseilsForecastP");
+  document.getElementById("conseilsDangerP").innerHTML = t("conseilsDangerP");
   document.getElementById("conseilsArtefactsP").innerHTML = t("conseilsArtefactsP");
   // Share/truce/premium/surrender-confirm overlays — mostly static content,
   // set here rather than at the one moment each overlay opens (unlike
