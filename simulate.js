@@ -55,6 +55,14 @@ globalThis.__sim = {
   // "correct", it's needlessly grinding. See POLICIES.correct's own note on
   // why this matters for the win-rate measurement below.
   livingRivalIds: livingRivalIds, grantMercy: grantMercy,
+  // resumeSavedGameInner() + the state a reconstruction has to land on
+  // exactly — see the "resume a saved match" check below. logMove() is
+  // needed because a real player's moves are recorded by the tap/drag
+  // handlers, not by attack()/endTurn() themselves, so a headless run has
+  // to record them the same way to produce a realistic save.
+  resumeSavedGameInner: resumeSavedGameInner, logMove: logMove,
+  get roundNumber() { return roundNumber; }, get moveLog() { return moveLog; },
+  get replaying() { return replaying; },
   // grantMercy() deliberately does NOT reassign the surrendering rival's
   // territory ("une résolution politique, pas une résolution de combat" —
   // see its own comment) — so outcomeFor() below can't tell a mercy win
@@ -84,7 +92,7 @@ function buildSandbox() {
     querySelectorAll() { return []; }, createElement() { return makeStubEl(); }, addEventListener() {}, hidden: false,
     body: makeStubEl(), // resize() toggles document.body.classList (landscapeHud) — needs a stub too
   };
-  const taskQueue = [];
+  const taskQueue = [], microQueue = [];
   const sandbox = {
     document: documentStub, window: { innerWidth: 800, innerHeight: 600, devicePixelRatio: 1, addEventListener() {} },
     Image: class { set src(v) {} }, console, Math, performance: { now: () => Date.now() },
@@ -95,19 +103,36 @@ function buildSandbox() {
     // spin those loops indefinitely instead of the single harmless no-op
     // frame a browser's own throttled rAF naturally resolves in.
     setTimeout: (fn) => { taskQueue.push(fn); }, clearTimeout: () => {}, requestAnimationFrame: () => {}, Proxy,
+    // Real microtask queue, kept separate from the timer queue on purpose —
+    // drainTaskQueue() below reproduces the browser's actual ordering rule
+    // between the two, which is what makes the reconstruction check able to
+    // catch a real page freeze.
+    queueMicrotask: (fn) => { microQueue.push(fn); },
     location: { search: "", pathname: "/", href: "http://localhost/" },
     history: { replaceState() {} }, URL, URLSearchParams, atob, btoa, navigator: {},
   };
   sandbox.window.document = documentStub;
   sandbox.__taskQueue = taskQueue;
+  sandbox.__microQueue = microQueue;
   vm.createContext(sandbox);
   return sandbox;
 }
+// Drains both queues the way a browser actually does: the microtask queue
+// is emptied COMPLETELY before any timer callback gets to run, and again
+// after each one. That ordering isn't a detail — a microtask that re-queues
+// itself starves every setTimeout forever, which is a real, permanent page
+// freeze and not something a naive "run all callbacks" drain would ever
+// notice. Returning false on the budget is therefore a genuine failure
+// signal (the page would hang), not just "this took a while".
 function drainTaskQueue(sandbox, maxTasks) {
-  const queue = sandbox.__taskQueue;
+  const macro = sandbox.__taskQueue, micro = sandbox.__microQueue;
   let n = 0;
-  while (queue.length) { if (++n > maxTasks) return false; queue.shift()(); }
-  return true;
+  for (;;) {
+    while (micro.length) { if (++n > maxTasks) return false; micro.shift()(); }
+    if (!macro.length) return true;
+    if (++n > maxTasks) return false;
+    macro.shift()();
+  }
 }
 
 // Deterministic PRNG (mulberry32) — NOT the game's own RNG, only used by
@@ -378,6 +403,84 @@ try {
   console.log(`FAIL determinism: ${e.message}`);
 }
 
+// Resume a saved match — plays a real match while recording its move log
+// exactly as the tap/drag handlers do, cuts the log mid-match (an app closed
+// or reloaded partway through, the case autosave exists for), and hands that
+// save to the real resumeSavedGameInner(). Two things have to hold, and only
+// the pair of them is worth anything:
+//
+//   1. It has to FINISH. The reconstruction chains on queueMicrotask, and a
+//      microtask chain that outlives its own progress condition starves every
+//      timer in the page forever — a permanent freeze on "Reprendre la
+//      partie", measured in a real browser before this check existed, on any
+//      match longer than a single turn. drainTaskQueue()'s budget is what
+//      catches that (see its own note on browser task ordering).
+//   2. It has to land on the EXACT board the live match was on at that
+//      point — same owners, same forces, same roundNumber. A reconstruction
+//      that finishes but drifts is worse than one that hangs: it silently
+//      hands the player a different match than the one they were playing.
+//
+// The same replay machinery also backs "Revoir la partie" and shared-match
+// links, so this covers those too.
+const RESUME_SEEDS = [99331, 4242, 12345];
+let resumeOk = true;
+for (const seed of RESUME_SEEDS) {
+  try {
+    // A live match, recording the log the way a real player's taps would.
+    const live = buildSandbox();
+    vm.runInContext(src, live);
+    live.__sim.applyMapSize("medium");
+    live.__sim.applyDifficulty(0.91);
+    live.__sim.startGame(seed);
+    live.__sim.pickFaction(0);
+    if (!drainTaskQueue(live, 8000)) throw new Error("live match stalled at start");
+    const boardOf = (sandbox) => sandbox.__sim.territories.map((t) => t.owner + ":" + t.force).join(",");
+    const snapshots = [];
+    let turns = 0;
+    while (!live.__sim.gameOver && turns < MAX_TURNS) {
+      const mv = POLICIES.correct(live, 0);
+      snapshots.push({ n: live.__sim.moveLog.length, round: live.__sim.roundNumber, board: boardOf(live) });
+      if (mv) { live.__sim.logMove({ a: mv.from, b: mv.to }); live.__sim.attack(mv.from, mv.to); }
+      else { live.__sim.logMove({ end: true }); live.__sim.endTurn(); }
+      if (!drainTaskQueue(live, 8000)) throw new Error("live match stalled mid-turn");
+      turns++;
+    }
+    const log = live.__sim.moveLog.map((e) => ({ ...e }));
+    // 70% through — deep enough that several full AI rounds sit between the
+    // human's own logged moves, which is precisely what a reconstruction has
+    // to re-simulate (and precisely what used to freeze).
+    const cut = Math.max(1, Math.floor(log.length * 0.7));
+    const want = snapshots.find((x) => x.n === cut);
+    if (!want) throw new Error(`no live snapshot at move ${cut}`);
+
+    const resumed = buildSandbox();
+    vm.runInContext(src, resumed);
+    resumed.__sim.resumeSavedGameInner({
+      seed, difficulty: 0.91, mapSize: "medium", opponentCount: 3,
+      humanRoyId: 0, moveLog: log.slice(0, cut), dailyChallengeDate: null,
+    });
+    if (!drainTaskQueue(resumed, 300000)) {
+      resumeOk = false;
+      console.log(`FAIL resume: seed ${seed} never finished reconstructing — the page would freeze on "Reprendre la partie"`);
+      continue;
+    }
+    const gotBoard = boardOf(resumed);
+    const gotRound = resumed.__sim.roundNumber;
+    if (resumed.__sim.replaying) {
+      resumeOk = false;
+      console.log(`FAIL resume: seed ${seed} left the game stuck in replay mode instead of handing back a live match`);
+    } else if (gotBoard !== want.board || gotRound !== want.round) {
+      resumeOk = false;
+      console.log(`FAIL resume: seed ${seed} reconstructed a different match than the one saved` +
+        ` (round ${gotRound} vs ${want.round}, board ${gotBoard === want.board ? "identical" : "DIFFERENT"})`);
+    }
+  } catch (e) {
+    resumeOk = false;
+    console.log(`FAIL resume: seed ${seed}: ${e.message}`);
+  }
+}
+if (resumeOk) console.log(`resume from save: ok (${RESUME_SEEDS.length} matches reconstructed exactly)`);
+
 // Difficulty curve — named tiers, in easiest-to-hardest order, each with the
 // DIFFICULTY value applyDifficulty() expects (mirrors DIFFICULTY_LEVELS +
 // CTHULHU_LEVEL in index.html — kept as plain literals here rather than
@@ -430,7 +533,7 @@ for (const tier of TIER_WIN_RATE_TARGETS) {
   );
 }
 
-if (fail > 0 || !determinismOk || !difficultyOk) process.exit(1);
+if (fail > 0 || !determinismOk || !resumeOk || !difficultyOk) process.exit(1);
 
 // --tune: a much wider, purely informational win-rate table (all 3 skill
 // policies × all 5 named tiers, more games each) — for actually balancing
