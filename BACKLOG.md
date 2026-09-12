@@ -543,6 +543,24 @@ Sound (gamme par royaume), épée/bateau taille + alignement, portée d'attaque 
   7. **Garde-fous** : le lien reste borné par les contrôles de v2.52 (journal plafonné, chaque champ validé) ; la date est validée en forme **et** en réalité (« 2026-02-31 » glisse au 3 mars et est donc refusée) sans faire rejeter le lien entier ; plafond d'étapes comme pour la reconstruction ; en cas de doute **aucun score n'est affiché** plutôt qu'un score douteux ; le duel ne s'affiche que si le visiteur a gagné **ce jour-là** (comparer deux jours comparerait deux cartes).
   8. Fiche Astuces dédiée (`conseilsDuelP`, 5 langues) conformément à la règle de v2.43, et entrée de changelog.
 
+- [x] **Mesure d'équilibrage des pouvoirs (Excalibur, trêve)** — demandée par Pierre après la v2.61 : « d'abord quelques centaines, puis on voit ». 1 200 parties simulées, carte moyenne, politique « correct » (celle sur laquelle les cibles de paliers ont été validées), 60 parties par case, 5 paliers × 4 scénarios. Mesure seule, **aucun changement de code**.
+
+  **Écart de taux de victoire par rapport à une partie sans pouvoir, en points :**
+
+  | palier | Excalibur | trêve | les deux | nuls (sans pouvoir) |
+  |---|---|---|---|---|
+  | Gueux | +0 | +0 | +0 | 0/60 |
+  | Page | +11 | +0 | +11 | 15/60 |
+  | Écuyer | +5 | +0 | +5 | 25/60 |
+  | Templier | +1 | +0 | +1 | 42/60 |
+  | Cthulhu | +8 | +0 | +8 | 46/60 |
+
+  1. **La trêve ne change RIEN au taux de victoire. Zéro sur les cinq paliers.** Et pourtant elle est bel et bien jouée : 19 fois sur 60 chez les Gueux, jusqu'à 56 fois sur 60 chez Cthulhu — le politique de test la prend dès qu'il n'est plus le plus fort. Trois tours de paix avec UN seul seigneur pendant que les deux autres continuent déplacent la pression sans la lever. C'est un pouvoir de confort et de mise en scène diplomatique, pas de puissance. **Conclusion : rien à corriger, et c'est plutôt une bonne nouvelle** — un pouvoir qui se joue souvent sans fausser l'issue est exactement ce qu'on veut d'un troisième trophée.
+  2. **Excalibur pèse, mais modestement, et pas là où je l'attendais.** Mon hypothèse (« plus c'est serré, plus une attaque gagnée d'avance compte ») est fausse : le pic est à Page (+11), et le palier le plus dur en taux de victoire, Templier, ne bouge quasiment pas (+1). Le vrai facteur n'est pas la difficulté mais **la proportion de matchs nuls** : là où la partie se termine en blocage (42/60 à Templier, 46/60 à Cthulhu), une attaque gratuite déplace une province et le blocage se reforme. Cthulhu fait exception (+8, 46 nuls qui tombent à 40) — plausiblement parce que les traversées y sont gratuites, donc l'attaque offerte peut porter beaucoup plus loin ; non vérifié, hypothèse à confirmer si le sujet revient.
+  3. **Aucun palier ne sort de la bande du portail** (±28 points autour de la cible). Le plus gros écart, Page à 78 % contre une cible de 65 %, reste dedans — et c'est le deuxième palier le plus facile, celui où un joueur vient d'apprendre à gagner, alors que ces pouvoirs demandent des dizaines d'heures à débloquer. **Décision : on ne touche à rien.**
+  4. **Défaut du protocole, à retenir** : la première passe a rendu Cthulhu à 0 % partout (60 dépassements de budget sur 60). Cause — j'indexais `DIFFICULTY_LEVELS[4]`, or Cthulhu n'y est PAS (il a sa propre constante `CTHULHU_LEVEL`, ce que le commentaire du portail disait déjà noir sur blanc). Le palier était silencieusement vide et mon `catch` le comptait en dépassement. Relancé en passant les valeurs littérales, comme le fait `simulate.js`. Leçon : un palier à 0 % sur toute une ligne n'est pas un résultat, c'est une panne de mesure.
+  5. Harnais dans le bac à sable de session (`mesure_pouvoirs.js` + `simlib.js`, une copie de `simulate.js` tronquée en bibliothèque) — mesure ponctuelle, délibérément pas versionnée : le portail du dépôt garde son rôle de contrôle, pas d'atelier d'équilibrage.
+
 - [x] **v2.62 — Le défi du jour dicte ses dieux** (idée de Pierre, en réponse à la question d'équité posée en v2.61 — et meilleure que les trois sorties que je lui proposais).
   1. **L'arbitrage, verbatim** : « il faut activer des dieux spécifiques, ça peut donner envie à des joueurs de le débloquer après dans leur propre partie, mais la carte du jour te permet d'accéder à des pouvoirs soit pour toi soit ennemi même si tu n'as pas débloqué, c'est vraiment ponctuel juste sur la carte, comme ça tout le monde joue avec les mêmes règles — et des fois y a des cartes du jour où il y a aucun Dieu ».
   2. **Trois effets d'un seul mécanisme.** Le duel entre amis redevient une comparaison honnête (mêmes règles ce jour-là, Graal ou pas un seul trophée) ; c'est une vitrine (on goûte à Bellone un mardi, on va la débloquer ensuite) ; et les jours sans dieu redonnent au défi une pure question d'habileté.
