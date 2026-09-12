@@ -770,6 +770,45 @@
   /* Même famille visuelle que #loreOverlay/#conseilsOverlay — volontairement
      pas un style à part : c'est un écran d'explication de plus, pas un objet
      nouveau. Les boutons héritent de la règle dorée partagée plus bas. */
+  /* Même famille visuelle que les autres écrans d'explication. */
+  #godPickerOverlay {
+    position: fixed; inset: 0; z-index: 13; display: none;
+    align-items: center; justify-content: center; padding: 16px;
+    background: rgba(8, 6, 4, 0.78);
+  }
+  #godPickerOverlay .box { max-height: 88vh; overflow-y: auto; max-width: min(94vw, 460px); }
+  #godPickerOverlay h2 { margin: 0 0 10px; font-size: 20px; text-align: center; }
+  #godPickerOverlay p { font-size: 13px; line-height: 1.55; margin: 0 0 14px; }
+  .godPickerRow { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  /* Le nom du royaume est tronqué plutôt que de pousser les dieux hors de
+     l'écran : ce sont les icônes qui comptent ici, pas la longueur du nom. */
+  .godPickerName {
+    flex: 0 0 88px; font-size: 12px; line-height: 1.2;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .godPickerGods { display: flex; gap: 6px; flex: 1; justify-content: flex-end; }
+  /* Un dieu coupé se lit d'un coup d'œil : éteint et barré, pas seulement
+     un peu plus pâle — la nuance seule ne se voit pas sur un téléphone au
+     soleil. */
+  .godToggle {
+    width: 34px; height: 34px; padding: 0; min-width: 34px;
+    display: flex; align-items: center; justify-content: center; position: relative;
+  }
+  .godToggle img { width: 24px; height: 24px; object-fit: contain; }
+  .godToggle.off img { opacity: .3; filter: grayscale(1); }
+  .godToggle.off::after {
+    content: ""; position: absolute; left: 4px; right: 4px; top: 50%;
+    height: 2px; background: #c0392b; transform: rotate(-20deg);
+  }
+  /* Un dieu que ce royaume n'a de toute façon pas : montré, mais inerte —
+     le cacher ferait des lignes de longueurs différentes et donnerait
+     l'impression d'un bug. */
+  .godToggle.unavailable { opacity: .25; pointer-events: none; }
+  #godPickerGoBtn { width: 100%; margin-top: 6px; }
+  #godPickerOverlay .ghostBtn {
+    width: 100%; margin-top: 8px; background: none; border: none;
+    font-size: 12px; opacity: .75; text-decoration: underline; box-shadow: none;
+  }
   #installOverlay {
     position: fixed; inset: 0; z-index: 12; display: none;
     align-items: center; justify-content: center; padding: 16px;
@@ -791,6 +830,8 @@
   /* Excalibur armée : impossible de ne pas voir qu'elle l'est — le joueur
      doit savoir que sa prochaine attaque consommera le pouvoir. */
   #excaliburBtn.armed { box-shadow: 0 0 0 2px #fff, 0 0 10px 3px rgba(232, 196, 104, 0.9); }
+  #godPickerRow { margin: 12px 0 4px; }
+  #godPickerRow button { width: 100%; }
   #installRow { margin: 12px 0 4px; }
   #installRow button { width: 100%; }
   #conseilsOverlay {
@@ -1476,6 +1517,19 @@
   <!-- "Installer le jeu" — explique ce qu'est une application installée
        PUIS donne les étapes, différentes sur chaque plateforme. Voir
        openInstallOverlay(). -->
+  <!-- "Le Graal" (v2.61) — le panneau où le porteur compose les forces en
+       présence : une ligne par royaume en jeu (lui d'abord, puis chaque
+       adversaire), et sur chaque ligne les quatre dieux à cocher ou
+       décocher. Voir openGodPicker(). -->
+  <div id="godPickerOverlay">
+    <div class="box" id="godPickerBox">
+      <h2 id="godPickerTitleH2"></h2>
+      <p id="godPickerIntroP"></p>
+      <div id="godPickerRows"></div>
+      <button id="godPickerGoBtn"></button>
+      <button id="godPickerNeverBtn" class="ghostBtn"></button>
+    </div>
+  </div>
   <div id="installOverlay">
     <div class="box" id="installBox">
       <button id="closeInstall" aria-label="Fermer">✕</button>
@@ -1521,6 +1575,7 @@
         <p id="conseilsInstallP"></p>
         <p id="conseilsTrophyP"></p>
         <p id="conseilsPowersP"></p>
+        <p id="conseilsGraalP"></p>
         <p id="conseilsArtefactsP"></p>
       </div>
       <button id="closeConseils"></button>
@@ -1694,6 +1749,13 @@
       <!-- Masqué d'office quand le jeu tourne DÉJÀ en application installée
            (voir refreshInstallButton()) : proposer d'installer ce qui est
            installé n'a aucun sens et ferait douter de tout le reste. -->
+      <!-- "Le Graal" — l'accès permanent à la composition des forces, même
+           quand l'écran de début de partie a été mis en sourdine (formulation
+           de Pierre : « un bouton qui dit ne pas afficher, laisser le réglage
+           dans le menu »). Masqué tant que Le Graal n'est pas gagné. -->
+      <div id="godPickerRow" style="display:none;">
+        <button id="godPickerOpenBtn"></button>
+      </div>
       <div id="installRow" style="display:none;">
         <button id="installBtn"></button>
       </div>
@@ -1730,7 +1792,7 @@
 // before (CREATURE_IMG's own loadSprite() call, the changelog, etc.), not
 // redeclared.
 const CREATURE_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAANAAAADQCAYAAAB2pO90AAAC2klEQVR4nO3dQWoDMRAAwd3g/39ZOeQHahgroupuvF7TzGWQ3rXWw4z3fUde9lrrnfiend8z9WxTfr79APCfCQgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAg+336AE5y85LnzbJY855hAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEFx3MqlTOe/7PSf/pyYQBAKCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAiCd62RG9559pYimbOzgGoCQSAgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAguO5kUvbsLFJOLcdOPdvOZ0wgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAElkkZNbUYOvU9JhAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJAQBAICILrlkldJb9namHzZK65h2ECgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgrFl0pOvRD/Zbe/ttqVVEwgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAgEBMF1J5My57bF0B0mEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgq1lUlfJW6TkjwkEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJg7GTSnUXKqaXVqcXQk6+styC8xwSCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUHwccLmHO/tvhNdTSAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEASfkxf1OJsTUE0gSAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEY9fcw/OcfcroDhMIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgl9clHexCa709wAAAABJRU5ErkJggg==";
-const GAME_VERSION = "2.60";
+const GAME_VERSION = "2.61";
 document.getElementById("loadingKnight").src = CREATURE_IMG_SRC;
 document.getElementById("loadingVersion").textContent = `v${GAME_VERSION}`;
 document.getElementById("splashKnight").src = CREATURE_IMG_SRC;
@@ -4192,6 +4254,10 @@ function saveGameState() {
     localStorage.setItem(SAVED_GAME_KEY, JSON.stringify({
       seed: currentSeed, difficulty: gameStartDifficulty, mapSize: gameStartMapSize,
       opponentCount: gameStartOpponentCount, humanRoyId, moveLog, dailyChallengeDate,
+      // "Le Graal" (v2.61) : sans ça, reprendre une sauvegarde rejouerait le
+      // journal avec les dieux RÉGLÉS aujourd'hui et non ceux de la partie,
+      // et retomberait sur un autre plateau. Voir gameStartGodsOff.
+      godsOff: gameStartGodsOff,
       // Stamped so a save written under an OLDER version of the game (map
       // generation, combat rules, anything that could change what the
       // recorded moveLog even means) is never blindly replayed against
@@ -4856,8 +4922,183 @@ let lastAttackFinishedViaWater = false; // Neptune (id3) — see its own note in
 //     stays with the family forever, human or AI.
 //  3. Difficulty freebie: an AI-controlled royaume at the hardest visible
 //     tier or above already fights with every trick, unearned.
+// "Le Graal" (v2.61) — le dernier trophée, et le seul dont le pouvoir change
+// les règles de la partie elle-même plutôt que d'ajouter un coup.
+//
+// Deux états distincts, et la distinction est le cœur du sujet :
+//   - godsOffSetting : ce que le joueur a RÉGLÉ, une matrice
+//     [royaume][dieu] modifiable entre deux parties, conservée d'une session
+//     à l'autre. Quatre lignes : lui et ses trois adversaires possibles.
+//   - gameStartGodsOff : ce que la PARTIE EN COURS a figé à son démarrage.
+//     C'est cette copie-là que le jeu consulte (voir isGodActiveFor), jamais
+//     le réglage. Une partie se rejoue donc avec les dieux qu'elle a
+//     réellement connus, même si le réglage a changé depuis — sans quoi
+//     rejeux, sauvegardes et liens de partage mentiraient sur ce qui s'est
+//     passé, exactement le défaut corrigé en v2.55 et v2.56.
+// Le pouvoir n'existe que pour qui a gagné Le Graal : sans lui, la matrice
+// reste vide et rien ne change (voir graalPowerUnlocked()).
+function emptyGodsMatrix() {
+  return [[false, false, false, false], [false, false, false, false], [false, false, false, false], [false, false, false, false]];
+}
+let godsOffSetting = emptyGodsMatrix();
+try {
+  const raw = localStorage.getItem("kw_godsOff");
+  if (raw) {
+    const parsed = JSON.parse(raw);
+    // Validé case par case plutôt que gobé tel quel : un stockage local peut
+    // avoir été écrit par une version antérieure, tronqué, ou trafiqué à la
+    // main, et une matrice mal formée casserait isGodActiveFor() à chaque
+    // combat. Même rigueur que pour un lien de partage (v2.52).
+    if (Array.isArray(parsed)) {
+      for (let r = 0; r < 4; r++) {
+        for (let g = 0; g < 4; g++) {
+          godsOffSetting[r][g] = !!(Array.isArray(parsed[r]) && parsed[r][g]);
+        }
+      }
+    }
+  }
+} catch (e) { /* ignore */ }
+let gameStartGodsOff = emptyGodsMatrix();
+function graalPowerUnlocked() {
+  const { slots } = computeTrophySlots();
+  const graal = slots[slots.length - 1];
+  return !!(graal && graal.earned);
+}
+function saveGodsOffSetting() {
+  try { localStorage.setItem("kw_godsOff", JSON.stringify(godsOffSetting)); } catch (e) { /* ignore */ }
+}
+// Copie profonde : gameStartGodsOff ne doit PAS suivre les changements de
+// réglage faits après le démarrage — c'est toute la raison de son existence.
+// Toute matrice qui ARRIVE DE L'EXTÉRIEUR (sauvegarde, lien de partage)
+// passe par ici : mêmes garde-fous que pour le reste d'un lien partagé
+// (v2.52), puisqu'un lien peut être fabriqué par n'importe qui et qu'une
+// matrice mal formée casserait isGodActiveFor() à chaque combat.
+function sanitizeGodsMatrix(raw) {
+  const out = emptyGodsMatrix();
+  if (!Array.isArray(raw)) return out;
+  for (let r = 0; r < 4; r++) {
+    for (let g = 0; g < 4; g++) out[r][g] = !!(Array.isArray(raw[r]) && raw[r][g]);
+  }
+  return out;
+}
+function freezeGodsForThisMatch(matrix) {
+  gameStartGodsOff = (matrix || emptyGodsMatrix()).map((row) => row.slice());
+}
+// L'écran de composition (v2.61). Une ligne par royaume EN JEU — le joueur
+// d'abord, puis ses adversaires du moment (leur nombre varie, voir
+// opponentCount : afficher trois lignes quand il n'y a qu'un rival
+// donnerait l'impression d'un jeu mal réglé).
+//
+// Il s'ouvre au début de chaque partie, mais porte son propre bouton « ne
+// plus me le proposer » et reste accessible depuis les Réglages — formulation
+// exacte de Pierre. Découvrable pour qui ne le connaît pas, escamotable pour
+// qui veut enchaîner les parties sans une étape de plus.
+let godPickerSuppressed = false;
+try { godPickerSuppressed = localStorage.getItem("kw_godPickerOff") === "1"; } catch (e) { /* ignore */ }
+let godPickerOnGo = null;
+// Vrai seulement quand l'écran s'ouvre AU COUP D'ENVOI (depuis pickFaction).
+// Ouvert depuis les Réglages en pleine partie, il ne doit RIEN refiger : la
+// partie en cours garde les dieux avec lesquels elle a commencé, sinon sa
+// sauvegarde repartirait sur d'autres combats que ceux qui ont été joués —
+// exactement la classe de désaccord traitée en v2.55/v2.56.
+let godPickerIsKickoff = false;
+// Un dieu qu'un royaume n'a pas de toute façon ne se coupe pas : la case est
+// montrée inerte plutôt que masquée, pour que toutes les lignes gardent la
+// même forme.
+function godAvailableFor(royId, godIdx) {
+  if (royId === humanRoyId && godUnlockedPlayer[godIdx]) return true;
+  if (godUnlockedRoyaume[royId] && godUnlockedRoyaume[royId][godIdx]) return true;
+  return royId !== humanRoyId && (cthulhuActive() || DIFFICULTY >= DIFFICULTY_LEVELS[3].value);
+}
+function buildGodPickerRows() {
+  const wrap = document.getElementById("godPickerRows");
+  if (!wrap) return;
+  wrap.innerHTML = "";
+  // Le joueur en tête, puis les adversaires réellement en jeu.
+  const ids = [humanRoyId];
+  for (let r = 0; r < ROYAUME_COUNT - 1; r++) if (r !== humanRoyId) ids.push(r);
+  for (const royId of ids.slice(0, 1 + opponentCount)) {
+    const row = document.createElement("div");
+    row.className = "godPickerRow";
+    const name = document.createElement("span");
+    name.className = "godPickerName";
+    name.textContent = royId === humanRoyId ? t("godPickerYou") : ROYAUMES[royId].name.replace("Millon de ", "");
+    name.style.color = ROYAUMES[royId].color;
+    row.appendChild(name);
+    const gods = document.createElement("div");
+    gods.className = "godPickerGods";
+    for (let g = 0; g < 4; g++) {
+      const btn = document.createElement("button");
+      btn.className = "godToggle";
+      const available = godAvailableFor(royId, g);
+      if (!available) btn.classList.add("unavailable");
+      if (godsOffSetting[royId][g]) btn.classList.add("off");
+      btn.title = t(GOD_DISPLAY_KEYS[g]);
+      const img = document.createElement("img");
+      img.src = GOD_ICON_SRCS[g];
+      img.alt = t(GOD_DISPLAY_KEYS[g]);
+      btn.appendChild(img);
+      btn.addEventListener("click", () => {
+        godsOffSetting[royId][g] = !godsOffSetting[royId][g];
+        btn.classList.toggle("off", godsOffSetting[royId][g]);
+        saveGodsOffSetting();
+        sfxToggle();
+      });
+      gods.appendChild(btn);
+    }
+    row.appendChild(gods);
+    wrap.appendChild(row);
+  }
+}
+// Rend true si l'écran s'est ouvert. L'appelant enchaîne lui-même quand il
+// rend false (pouvoir non gagné, écran mis en sourdine, ou rejeu).
+function openGodPicker(onGo) {
+  if (!graalPowerUnlocked() || godPickerSuppressed || replaying) return false;
+  godPickerOnGo = onGo || null;
+  godPickerIsKickoff = true;
+  buildGodPickerRows();
+  document.getElementById("godPickerOverlay").style.display = "flex";
+  sfxMenuOpen();
+  return true;
+}
+function closeGodPicker() {
+  document.getElementById("godPickerOverlay").style.display = "none";
+  const go = godPickerOnGo;
+  const wasKickoff = godPickerIsKickoff;
+  godPickerOnGo = null;
+  godPickerIsKickoff = false;
+  if (wasKickoff) {
+    // Le réglage a pu changer pendant que l'écran était ouvert : la partie
+    // qui démarre doit repartir de la matrice à jour, pas de celle figée par
+    // startGame() avant le choix du camp. Voir gameStartGodsOff.
+    freezeGodsForThisMatch(graalPowerUnlocked() ? godsOffSetting : emptyGodsMatrix());
+    // pickFaction() a déjà sauvegardé AVANT que ces choix soient faits : on
+    // réécrit, sinon un rechargement juste après perdrait les dieux choisis
+    // et reprendrait la partie avec d'autres règles que celles affichées.
+    if (!replaying && !gameOver) saveGameState();
+  }
+  sfxMenuClose();
+  if (go) go();
+}
+document.getElementById("godPickerGoBtn").addEventListener("click", closeGodPicker);
+document.getElementById("godPickerNeverBtn").addEventListener("click", () => {
+  godPickerSuppressed = true;
+  try { localStorage.setItem("kw_godPickerOff", "1"); } catch (e) { /* ignore */ }
+  showToast(t("godPickerNeverToast"), 3400);
+  closeGodPicker();
+});
 function isGodActiveFor(royId, godIdx) {
   if (royId == null || royId < 0 || !ROYAUMES[royId] || ROYAUMES[royId].neutral) return false;
+  // "Le Graal" (v2.61) — le porteur du Graal compose lui-même les forces en
+  // présence : pour LUI et pour CHAQUE adversaire, quels dieux entrent dans
+  // la partie. Ce veto passe avant tout le reste, sinon un dieu coupé
+  // reviendrait par la porte du déblocage ou par le cadeau des paliers durs.
+  // On lit l'état FIGÉ AU DÉMARRAGE (gameStartGodsOff) et non le réglage
+  // courant : sans ça, changer d'avis entre deux parties ferait rejouer une
+  // partie enregistrée avec d'autres dieux que ceux qu'elle a connus, et le
+  // rejeu divergerait de la partie réelle (même classe de bug qu'en
+  // v2.55/v2.56). Voir gameStartGodsOff.
+  if (gameStartGodsOff[royId] && gameStartGodsOff[royId][godIdx]) return false;
   if (royId === humanRoyId && godUnlockedPlayer[godIdx]) return true;
   if (godUnlockedRoyaume[royId][godIdx]) return true;
   return royId !== humanRoyId && (cthulhuActive() || DIFFICULTY >= DIFFICULTY_LEVELS[3].value);
@@ -5506,6 +5747,13 @@ const UI_STRINGS = {
     es: "<strong>Los poderes de los artefactos</strong>: tres trofeos ya no son solo decorativos. <strong>Excalibur</strong> pone una espada en la barra inferior: desenváinala y tu próximo ataque está ganado de antemano, una vez por partida — puedes envainarla si cambias de idea. <strong>La espada blanca</strong> ofrece una tregua: toca el botón y luego una provincia del señor con quien quieres la paz; no te atacará durante 3 turnos, seguirá libre de golpear a tus rivales, y la paz se rompe en cuanto le ataques. <strong>El pergamino</strong> marca con un galón, del color de su reino, la provincia que cada señor está a punto de quitarte — lo justo para defender antes en vez de lamentarlo después.",
     de: "<strong>Die Macht der Artefakte</strong>: Drei Trophäen sind nicht mehr bloß Zierde. <strong>Excalibur</strong> legt ein Schwert in die untere Leiste: Zieh es, und dein nächster Angriff ist im Voraus gewonnen, einmal pro Partie — du kannst es wieder zurückstecken, wenn du es dir anders überlegst. <strong>Das weiße Schwert</strong> bietet einen Waffenstillstand: Tippe auf die Schaltfläche und dann auf eine Provinz des Fürsten, mit dem du Frieden willst; er greift dich 3 Züge lang nicht an, darf deine Rivalen weiter schlagen, und der Friede bricht in dem Moment, in dem du ihn angreifst. <strong>Das Pergament</strong> markiert mit einem Winkel in der Farbe seines Königreichs die Provinz, die dir jeder Fürst gleich nehmen will — genug, um vorher zu verteidigen, statt es hinterher zu bereuen.",
   },
+  conseilsGraalP: {
+    fr: "<strong>Le Graal</strong> : le dernier trophée vous donne le dernier mot sur les dieux. Au début de chaque partie, un panneau vous montre une ligne par seigneur — vous d'abord, puis vos adversaires — et quatre icônes de dieux par ligne. Touchez-en une pour barrer ce dieu : il n'accordera ni son bonus ni son prix, pour ce seigneur-là seulement. Vous pouvez ainsi vous priver de Cérès pour garder Le pouvoir des 12, ou couper Bellone chez le voisin qui vous écrase. Le réglage est figé au coup d'envoi : le changer en cours de route ne touchera que la partie suivante, et une partie reprise garde les dieux avec lesquels elle a commencé. Le bouton « Ne plus afficher » range le panneau dans les Réglages.",
+    en: "<strong>The Grail</strong>: the last trophy gives you the final word on the gods. At the start of each match, a panel shows one row per lord — you first, then your rivals — and four god icons per row. Tap one to strike that god out: it will grant neither its bonus nor its price, for that lord alone. So you can deny yourself Cérès to keep The power of 12, or cut Bellone from the neighbour who keeps crushing you. The setting is frozen at kick-off: changing it mid-match only affects the next one, and a resumed match keeps the gods it started with. The \"Don't show again\" button tucks the panel away into Settings.",
+    zh: "<strong>圣杯</strong>：最后一件战利品让你对神明拥有最终决定权。每局开始时，一块面板会为每位领主列出一行——先是你，再是你的对手——每行四个神明图标。点按其中一个即可将该神明划掉：他将不再赐予加成，也不再索取代价，且仅限于那位领主。你可以因此放弃刻瑞斯以保留「十二之力」，或切断那个一直压制你的邻居的贝洛娜。设置在开局时就已冻结：中途修改只影响下一局，而继续的对局保留开局时的神明配置。「不再显示」按钮会将面板收进设置中。",
+    es: "<strong>El Grial</strong>: el último trofeo te da la última palabra sobre los dioses. Al principio de cada partida, un panel muestra una fila por señor — tú primero, luego tus adversarios — y cuatro iconos de dioses por fila. Toca uno para tachar a ese dios: no otorgará ni su bonificación ni su precio, solo para ese señor. Así puedes privarte de Cérès para conservar El poder de los 12, o cortarle Bellone al vecino que te aplasta. El ajuste queda congelado al arrancar: cambiarlo a mitad de partida solo afectará a la siguiente, y una partida retomada conserva los dioses con los que empezó. El botón «No mostrar más» guarda el panel en los Ajustes.",
+    de: "<strong>Der Gral</strong>: Die letzte Trophäe gibt dir das letzte Wort über die Götter. Zu Beginn jeder Partie zeigt eine Tafel eine Zeile pro Fürst — zuerst dich, dann deine Gegner — und vier Göttersymbole je Zeile. Tippe eines an, um diesen Gott zu streichen: Er gewährt weder seinen Bonus noch seinen Preis, und das nur für diesen Fürsten. So kannst du auf Cérès verzichten, um Die Macht der 12 zu behalten, oder dem Nachbarn, der dich niederwalzt, Bellone abschneiden. Die Einstellung wird beim Anpfiff eingefroren: Sie mittendrin zu ändern wirkt erst auf die nächste Partie, und eine fortgesetzte Partie behält die Götter, mit denen sie begann. Die Schaltfläche «Nicht mehr anzeigen» räumt die Tafel in die Einstellungen.",
+  },
   conseilsTrophyP: {
     fr: "<strong>La salle des trophées</strong> : dans Le lore, <strong>touchez n'importe quelle case</strong> pour savoir comment la débloquer — et ce qu'elle rapporte. Toutes ne donnent pas un bonus : les quatre dieux et Le pouvoir des 12 changent vraiment vos combats, les autres marquent le chemin parcouru. Attention, chaque dieu a son prix : Cérès en particulier abaisse votre force maximale à 11, ce qui vous ferme définitivement Le pouvoir des 12.",
     en: "<strong>The trophy room</strong>: in Le lore, <strong>tap any slot</strong> to see how to unlock it — and what it grants. Not all of them grant anything: the four gods and The power of 12 genuinely change your battles, the others mark how far you've come. Careful, each god has its price: Cérès in particular lowers your maximum strength to 11, which permanently closes off The power of 12.",
@@ -5851,6 +6099,26 @@ const UI_STRINGS = {
     de: "🗡️ Excalibur verlässt endlich seinen Fels — zwölf Festungen sind gefallen.",
   },
   // Pouvoirs des trois artéfacts et du Graal (v2.60).
+  // "Le Graal" (v2.61) — composition des forces en présence.
+  godPickerTitle: { fr: "Les dieux de cette guerre", en: "The gods of this war", zh: "此战之神明", es: "Los dioses de esta guerra", de: "Die Götter dieses Krieges" },
+  godPickerIntro: {
+    fr: "Le Graal vous donne le dernier mot sur les dieux. Touchez une icône pour retirer ce dieu de la partie — pour vous comme pour n'importe lequel de vos adversaires. Un dieu barré n'accordera ni son bonus ni son prix. Vos choix sont conservés d'une partie à l'autre.",
+    en: "The Grail gives you the last word on the gods. Tap an icon to remove that god from the match — for yourself or for any of your rivals. A crossed-out god grants neither its bonus nor its price. Your choices are kept from one match to the next.",
+    zh: "圣杯让你对神明拥有最终决定权。点按图标即可将该神明移出本局——无论是你自己还是任何对手。被划掉的神明既不给予加成，也不索取代价。你的选择会在各局之间保留。",
+    es: "El Grial te da la última palabra sobre los dioses. Toca un icono para retirar ese dios de la partida — tanto para ti como para cualquiera de tus rivales. Un dios tachado no concede ni su bonificación ni su precio. Tus decisiones se conservan de una partida a otra.",
+    de: "Der Gral gibt dir das letzte Wort über die Götter. Tippe auf ein Symbol, um diesen Gott aus der Partie zu nehmen — für dich wie für jeden deiner Rivalen. Ein durchgestrichener Gott gewährt weder seinen Bonus noch seinen Preis. Deine Entscheidungen bleiben von Partie zu Partie erhalten.",
+  },
+  godPickerYou: { fr: "Vous", en: "You", zh: "你", es: "Tú", de: "Du" },
+  godPickerGo: { fr: "À la guerre", en: "To war", zh: "出征", es: "A la guerra", de: "In den Krieg" },
+  godPickerNever: { fr: "Ne plus afficher avant chaque partie", en: "Stop showing this before every match", zh: "不再于每局开始前显示", es: "No mostrar antes de cada partida", de: "Nicht mehr vor jeder Partie anzeigen" },
+  godPickerNeverToast: {
+    fr: "Entendu. Vous retrouverez ce panneau dans les Réglages, « Les dieux de cette guerre », quand vous voudrez.",
+    en: "Understood. You'll find this panel again in Settings, \"The gods of this war\", whenever you want.",
+    zh: "明白了。你随时可以在「设置」中的「此战之神明」重新找到此面板。",
+    es: "Entendido. Encontrarás este panel en Ajustes, «Los dioses de esta guerra», cuando quieras.",
+    de: "Verstanden. Du findest dieses Panel jederzeit unter Einstellungen, «Die Götter dieses Krieges».",
+  },
+  godPickerOpenBtn: { fr: "⚡ Les dieux de cette guerre", en: "⚡ The gods of this war", zh: "⚡ 此战之神明", es: "⚡ Los dioses de esta guerra", de: "⚡ Die Götter dieses Krieges" },
   excaliburHint: { fr: "Excalibur — une attaque infaillible, une seule fois", en: "Excalibur — one unfailing attack, once only", zh: "石中剑——必胜一击，仅限一次", es: "Excalibur — un ataque infalible, una sola vez", de: "Excalibur — ein unfehlbarer Angriff, nur einmal" },
   excaliburArmedHint: { fr: "Excalibur est tirée — votre prochaine attaque est gagnée", en: "Excalibur is drawn — your next attack is won", zh: "石中剑已出鞘——你的下一次进攻必胜", es: "Excalibur está desenvainada — tu próximo ataque está ganado", de: "Excalibur ist gezogen — dein nächster Angriff ist gewonnen" },
   excaliburArmedToast: {
@@ -7575,6 +7843,9 @@ function showWin(royId) {
     lastMatchArchive = {
       seed: currentSeed, difficulty: gameStartDifficulty, mapSize: gameStartMapSize,
       opponentCount: gameStartOpponentCount, humanRoyId, moveLog: moveLog.slice(),
+      // "Le Graal" (v2.61) — figé avec le reste : "Revoir la partie" doit
+      // rejouer les dieux de CETTE partie, pas ceux réglés plus tard.
+      godsOff: gameStartGodsOff.map((row) => row.slice()),
     };
     // the match is over — nothing left to "resume" on a future reload (see
     // saveGameState(): gameOver is already true by the time showWin() runs,
@@ -8052,7 +8323,7 @@ function statChartXAtClientX(clientX, clientY) {
 // back only the recorded human-seat choices — the AI and dice reproduce
 // identically since they're driven by the same seeded RNG stream. Shared by
 // both "revoir ma partie" (own match) and a shared match opened from a link.
-function playReplay(seed, difficulty, replayHumanRoyId, log, onFinish, replayMapSize, replayOpponentCount) {
+function playReplay(seed, difficulty, replayHumanRoyId, log, onFinish, replayMapSize, replayOpponentCount, replayGodsOff) {
   const levelToRestore = difficultyLevel;
   const cthulhuSelectedToRestore = cthulhuSelected; // see this function's own restore call below
   const humanToRestore = humanRoyId;
@@ -8092,6 +8363,10 @@ function playReplay(seed, difficulty, replayHumanRoyId, log, onFinish, replayMap
   // current setting for an older/foreign share link that predates this field.
   applyMapSize(replayMapSize || mapSizeToRestore);
   startGame(seed);
+  // "Le Graal" (v2.61) — les dieux que la partie d'origine a connus, et non
+  // ceux réglés par le spectateur : sans ça le rejeu déroulerait une autre
+  // partie que celle qu'on prétend montrer.
+  freezeGodsForThisMatch(replayGodsOff);
   // mirrors pickFaction()'s call for a fresh game — must run exactly once,
   // at the equivalent point in the sequence (humanRoyId already known,
   // territories/raw forces already generated), or the starting forces here
@@ -8257,7 +8532,7 @@ function startReplay() {
   playReplay(
     lastMatchArchive.seed, lastMatchArchive.difficulty, lastMatchArchive.humanRoyId, lastMatchArchive.moveLog.slice(),
     revealFinalBoard,
-    lastMatchArchive.mapSize, lastMatchArchive.opponentCount
+    lastMatchArchive.mapSize, lastMatchArchive.opponentCount, lastMatchArchive.godsOff
   );
 }
 
@@ -8318,7 +8593,14 @@ function buildShareUrl() {
   // partage ordinaire. C'est ce champ qui permet au destinataire de
   // RECALCULER le score annoncé au lieu de le croire : voir
   // verifyDailyClaim().
-  const payload = [currentSeed, diffField, humanRoyId, gameStartMapSize[0], moveLog.map(encodeMoveForShare), gameStartOpponentCount, dailyChallengeDate || undefined];
+  // 8e emplacement (v2.61) : les dieux coupés par le porteur du Graal. Même
+  // logique que la date du défi au 7e — ajouté en fin de tableau, donc un
+  // lien plus ancien se décode toujours (champ undefined = aucun dieu coupé,
+  // comportement d'origine). Indispensable pour que le destinataire rejoue
+  // la partie TELLE QU'ELLE A ÉTÉ JOUÉE, et donc pour que le score du défi
+  // du jour reste vérifiable (v2.56).
+  const anyGodOff = gameStartGodsOff.some((row) => row.some(Boolean));
+  const payload = [currentSeed, diffField, humanRoyId, gameStartMapSize[0], moveLog.map(encodeMoveForShare), gameStartOpponentCount, dailyChallengeDate || undefined, anyGodOff ? gameStartGodsOff.map((row) => row.map((v) => (v ? 1 : 0))) : undefined];
   const encoded = btoa(JSON.stringify(payload));
   const url = new URL(location.href);
   url.hash = ""; url.search = "";
@@ -8601,7 +8883,7 @@ function tryParseSharedReplay() {
   try {
     const encoded = new URLSearchParams(location.search).get("replay");
     if (!encoded) return null;
-    const [seed, diffField, humanRoyId, mapSizeLetter, log, sharedOpponentCount, sharedDailyDate] = JSON.parse(atob(encoded));
+    const [seed, diffField, humanRoyId, mapSizeLetter, log, sharedOpponentCount, sharedDailyDate, sharedGodsOff] = JSON.parse(atob(encoded));
     // Tout ce qui suit vient d'un lien que N'IMPORTE QUI peut fabriquer et
     // envoyer à un joueur (v2.52). JSON.parse ne peut produire que des
     // données, jamais du code — il n'y a donc aucun risque d'exécution ici —
@@ -8661,7 +8943,9 @@ function tryParseSharedReplay() {
         dailyDate = sharedDailyDate;
       }
     }
-    return { seed, difficulty, humanRoyId, log: log.map(decodeMoveFromShare), mapSize, opponentCount, dailyDate };
+    // sanitizeGodsMatrix() ramène tout à des booléens sur une matrice 4x4 —
+    // un lien fabriqué à la main ne peut donc pas y glisser autre chose.
+    return { seed, difficulty, humanRoyId, log: log.map(decodeMoveFromShare), mapSize, opponentCount, dailyDate, godsOff: sanitizeGodsMatrix(sharedGodsOff) };
   } catch (e) { return null; }
 }
 // ---------- Classement entre amis sur le défi du jour ----------
@@ -8708,6 +8992,10 @@ function verifyDailyClaim(payload) {
     opponentCount = payload.opponentCount;
     applyMapSize(payload.mapSize);
     startGame(payload.seed);
+    // Les dieux que la partie annoncée a réellement connus : sans ça on
+    // recompterait les tours d'une AUTRE partie et on refuserait un score
+    // pourtant honnête.
+    freezeGodsForThisMatch(payload.godsOff);
     // APRÈS startGame(), jamais avant : il remet ces deux drapeaux à false
     // lui-même. Les poser en amont — ce que faisait la première version de
     // ce code — laissait toute la vérification tourner au rythme d'un replay
@@ -8799,7 +9087,7 @@ document.getElementById("watchSharedReplay").addEventListener("click", () => {
   const payload = pendingSharedReplay;
   playReplay(payload.seed, payload.difficulty, payload.humanRoyId, payload.log, () => {
     startGame(); // drop the visitor into their own fresh game right after
-  }, payload.mapSize, payload.opponentCount);
+  }, payload.mapSize, payload.opponentCount, payload.godsOff);
 });
 // "Jouer cette carte" — same seed/map/difficulty/opponentCount as the
 // shared match, so the visitor faces the EXACT same starting position, but
@@ -10383,6 +10671,12 @@ function territoryAtClientPointTolerant(clientX, clientY) {
 // and kicks the turn sequence off.
 function pickFaction(royId) {
   humanRoyId = royId;
+  // "Le Graal" (v2.61) — la composition des forces s'ouvre ICI et non au
+  // lancement de la partie : avant le choix du camp, on ne sait pas encore
+  // quel siège est le joueur, donc quelles lignes afficher ni quels dieux
+  // lui appartiennent. openGodPicker() ne fait rien si le pouvoir n'est pas
+  // gagné, si l'écran a été mis en sourdine, ou pendant un rejeu.
+  openGodPicker();
   currentPlayer = royId; // whichever royaume is picked always plays first, not whatever seat happened to be numbered 0
   awaitingFactionPick = false;
   preloadLossMusic(); // a real match is actually starting now — see its own note
@@ -11064,6 +11358,10 @@ document.getElementById("settingsBtn").addEventListener("click", () => {
   settingsPanel.style.display = "flex";
   refreshMapCodeDisplay();
   refreshDailyChallengeButton();
+  // Le Graal peut se gagner EN COURS de session : sans ce rafraîchissement,
+  // sa ligne n'apparaîtrait qu'au prochain chargement de la page.
+  refreshGodPickerButton();
+  refreshInstallButton();
   sfxMenuOpen();
 });
 // "Défi du jour" state, shared by every place that shows a CTA for it (the
@@ -11486,6 +11784,10 @@ function refreshInstallSteps() {
     ol.appendChild(li);
   }
 }
+function refreshGodPickerButton() {
+  const row = document.getElementById("godPickerRow");
+  if (row) row.style.display = graalPowerUnlocked() ? "" : "none";
+}
 function refreshInstallButton() {
   const row = document.getElementById("installRow");
   if (row) row.style.display = isRunningInstalled() ? "none" : "";
@@ -11503,6 +11805,16 @@ function closeInstallOverlay() {
   document.getElementById("installOverlay").style.display = "none";
   sfxMenuClose();
 }
+document.getElementById("godPickerOpenBtn").addEventListener("click", () => {
+  // Ouverture volontaire : elle passe outre la mise en sourdine, sinon le
+  // joueur qui a coché « ne plus afficher » n'aurait plus AUCUN moyen de
+  // revenir sur ses choix — c'est précisément ce que ce bouton évite.
+  buildGodPickerRows();
+  godPickerIsKickoff = false; // réglage pour la PROCHAINE partie, pas pour celle-ci
+  document.getElementById("settingsPanel").style.display = "none";
+  document.getElementById("godPickerOverlay").style.display = "flex";
+  sfxMenuOpen();
+});
 document.getElementById("installBtn").addEventListener("click", openInstallOverlay);
 document.getElementById("closeInstall").addEventListener("click", closeInstallOverlay);
 document.getElementById("installGotItBtn").addEventListener("click", closeInstallOverlay);
@@ -11520,6 +11832,7 @@ document.getElementById("installNowBtn").addEventListener("click", async () => {
   } catch (e) { /* refusé ou déjà consommé — les étapes manuelles restent affichées juste au-dessus */ }
 });
 refreshInstallButton();
+refreshGodPickerButton();
 
 function refreshTrophyRoom() {
   const el = document.getElementById("trophyRoom");
@@ -11612,6 +11925,16 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // add a new entry at the top whenever a future change is worth telling
 // players about.
 const CHANGELOG = [
+  {
+    version: "2.61",
+    notes: [
+      "Le Graal, dernier trophée de la salle, devient un pouvoir : vous décidez quels dieux ont droit de cité dans la guerre, seigneur par seigneur.",
+      "Au début de chaque partie, un panneau affiche une ligne par seigneur — vous d'abord, puis vos adversaires — et quatre icônes de dieux. Touchez-en une pour barrer ce dieu : ni son bonus, ni son prix, pour ce seigneur-là.",
+      "De quoi se priver de Cérès pour garder Le pouvoir des 12, ou couper Bellone au voisin qui vous écrase.",
+      "Le réglage est figé au coup d'envoi : une partie reprise garde les dieux avec lesquels elle a commencé, et un lien partagé rejoue la partie telle qu'elle a été jouée.",
+      "« Ne plus afficher » range le panneau : il reste accessible dans les Réglages.",
+    ],
+  },
   {
     version: "2.60",
     notes: [
@@ -13008,6 +13331,11 @@ function applyUiLanguage() {
   document.getElementById("dailyChallengeSectionLabel").textContent = t("dailyChallengeSectionLabel");
   refreshDailyChallengeButton();
   refreshSplashDailyChallenge();
+  document.getElementById("godPickerOpenBtn").textContent = t("godPickerOpenBtn");
+  document.getElementById("godPickerTitleH2").textContent = t("godPickerTitle");
+  document.getElementById("godPickerIntroP").textContent = t("godPickerIntro");
+  document.getElementById("godPickerGoBtn").textContent = t("godPickerGo");
+  document.getElementById("godPickerNeverBtn").textContent = t("godPickerNever");
   document.getElementById("installBtn").textContent = t("installBtn");
   document.getElementById("installTitleH2").textContent = t("installTitle");
   document.getElementById("installWhatP").textContent = t("installWhat");
@@ -13072,6 +13400,7 @@ function applyUiLanguage() {
   document.getElementById("conseilsInstallP").innerHTML = t("conseilsInstallP");
   document.getElementById("conseilsTrophyP").innerHTML = t("conseilsTrophyP");
   document.getElementById("conseilsPowersP").innerHTML = t("conseilsPowersP");
+  document.getElementById("conseilsGraalP").innerHTML = t("conseilsGraalP");
   document.getElementById("conseilsArtefactsP").innerHTML = t("conseilsArtefactsP");
   // Share/truce/premium/surrender-confirm overlays — mostly static content,
   // set here rather than at the one moment each overlay opens (unlike
@@ -14116,6 +14445,10 @@ function startGame(seed) {
   // "L'épée blanche" — une seule trêve par partie, et aucune ne survit à la
   // partie précédente (voir TRUCE_ROUNDS).
   truceWithRoyaume = [0, 0, 0, 0, 0]; epeeBlancheUsedThisMatch = false; excaliburArmed = false; excaliburUsedThisMatch = false;
+  // "Le Graal" — la partie qui commence fige les dieux qu'elle connaîtra.
+  // Sans Le Graal gagné, le pouvoir n'existe pas et la matrice reste vide,
+  // donc le jeu se comporte exactement comme avant. Voir gameStartGodsOff.
+  freezeGodsForThisMatch(graalPowerUnlocked() ? godsOffSetting : emptyGodsMatrix());
   // "Dieux spéciaux par royaume" — per-match unlock tracking, fresh every
   // match (a comeback/flawless-run/territory-share/water-finish has to
   // happen IN this match to count — see checkGodUnlockOnWin()).
@@ -14344,6 +14677,11 @@ function resumeSavedGameInner(saved) {
   // never fire and the page hung for good. See `reconstructing`'s own note.
   reconstructing = true;
   forceInstantSkip = true;
+  // APRÈS startGame(), qui vient de figer les dieux du réglage courant : on
+  // écrase avec ceux que la partie sauvegardée a réellement connus. Une
+  // sauvegarde d'avant la v2.61 n'a pas ce champ — matrice vide, donc
+  // comportement d'origine, et les anciennes sauvegardes restent lisibles.
+  freezeGodsForThisMatch(sanitizeGodsMatrix(saved.godsOff));
   balanceStartingForces(); // mirrors pickFaction()'s own call — must run exactly once, at the same point in the sequence, or forces desync from the actual saved match
   const log = saved.moveLog;
   let i = 0;
