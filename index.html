@@ -982,18 +982,15 @@
      clous mal alignés", confirmed live: the right/bottom studs were being
      rendered around the icon's own center instead of the button's border). */
   #surrenderBtn svg:not(.hudStudSvg) { width: 24px; height: auto; color: #2b1d10; }
-  /* the least essential actions in the panel — a support link and two links
-     to the author's other prototypes, neither a game action — so a calm,
-     muted button style (not the loud gold gradient the real settings
-     buttons use), separated from "Partie en cours" by a thin rule above the
-     support link: still clearly tappable, just quieter than everything
-     above. The game links get their own second, smaller divider below that
-     ("un petit trait de séparation") — support link first, game links
-     beneath it, not the other way around. */
+  /* the least essential action in the panel — a support link, not a game
+     action — so a calm, muted button style (not the loud gold gradient the
+     real settings buttons use), separated from "Partie en cours" by a thin
+     rule above it: still clearly tappable, just quieter than everything
+     above. (Links to the author's other prototypes used to live here too —
+     removed now that the portfolio site itself is the place to switch
+     games.) */
   #supportLinkWrap { margin-top: 18px; padding-top: 14px; border-top: 1px solid rgba(43,29,16,.25); }
-  #gameLinksLabel { margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(43,29,16,.15); }
-  #gameLinksWrap { display: flex; flex-direction: column; gap: 8px; }
-  #supportLink, .gameLink {
+  #supportLink {
     display: flex; align-items: center; justify-content: center; gap: 8px;
     text-align: center; text-decoration: none; cursor: pointer;
     padding: 10px 20px; border-radius: 8px; border: 1px solid rgba(43,29,16,.3);
@@ -1763,15 +1760,6 @@
       <div id="supportLinkWrap">
         <a id="supportLink" href="https://ko-fi.com/knightwars" target="_blank" rel="noopener"></a>
       </div>
-      <!-- "juste avant les jeux, un petit titre du style 'plus de jeux'" —
-           même classe .fieldLabel que toutes les autres petites étiquettes
-           de section du panneau (Difficulté, Taille de la carte...), pas un
-           style ad hoc. -->
-      <div class="fieldLabel" id="gameLinksLabel"></div>
-      <div id="gameLinksWrap">
-        <a class="gameLink" href="https://pierremillon.github.io/Bastion-Orbit/">🏰 Bastion Orbit</a>
-        <a class="gameLink" href="https://pierremillon.github.io/Forge-Line/">🔥 Forge Line</a>
-      </div>
       </div>
     </div>
   </div>
@@ -1793,7 +1781,7 @@
 // before (CREATURE_IMG's own loadSprite() call, the changelog, etc.), not
 // redeclared.
 const CREATURE_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAANAAAADQCAYAAAB2pO90AAAC2klEQVR4nO3dQWoDMRAAwd3g/39ZOeQHahgroupuvF7TzGWQ3rXWw4z3fUde9lrrnfiend8z9WxTfr79APCfCQgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAg+336AE5y85LnzbJY855hAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEFx3MqlTOe/7PSf/pyYQBAKCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAiCd62RG9559pYimbOzgGoCQSAgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAguO5kUvbsLFJOLcdOPdvOZ0wgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAElkkZNbUYOvU9JhAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJAQBAICILrlkldJb9namHzZK65h2ECgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgrFl0pOvRD/Zbe/ttqVVEwgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAgEBMF1J5My57bF0B0mEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgq1lUlfJW6TkjwkEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJg7GTSnUXKqaXVqcXQk6+styC8xwSCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUHwccLmHO/tvhNdTSAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEASfkxf1OJsTUE0gSAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEY9fcw/OcfcroDhMIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgl9clHexCa709wAAAABJRU5ErkJggg==";
-const GAME_VERSION = "2.62";
+const GAME_VERSION = "2.63";
 document.getElementById("loadingKnight").src = CREATURE_IMG_SRC;
 document.getElementById("loadingVersion").textContent = `v${GAME_VERSION}`;
 document.getElementById("splashKnight").src = CREATURE_IMG_SRC;
@@ -5599,7 +5587,6 @@ const UI_STRINGS = {
   mapCodeInputPlaceholder: { fr: "ex. kf12oim1", en: "e.g. kf12oim1", zh: "例如 kf12oim1", es: "p. ej. kf12oim1", de: "z. B. kf12oim1" },
   loadMapCodeBtn: { fr: "Charger", en: "Load", zh: "加载", es: "Cargar", de: "Laden" },
   supportLinkLabel: { fr: "❤️ Soutenir le jeu 😊", en: "❤️ Support the game 😊", zh: "❤️ 支持游戏 😊", es: "❤️ Apoyar el juego 😊", de: "❤️ Das Spiel unterstützen 😊" },
-  gameLinksLabel: { fr: "Plus de jeux", en: "More games", zh: "更多游戏", es: "Más juegos", de: "Weitere Spiele" },
   changelogTitle: { fr: "📜 Notes de version", en: "📜 Release notes", zh: "📜 版本说明", es: "📜 Notas de versión", de: "📜 Versionshinweise" },
   changelogThanks: {
     fr: "Un ÉNORME MERCI à nos testeuses,<br><strong>Magaly</strong> et <strong>Joëlle</strong> !",
@@ -12109,6 +12096,12 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // players about.
 const CHANGELOG = [
   {
+    version: "2.63",
+    notes: [
+      "Retiré les liens vers Bastion Orbit et Forge Line dans les Réglages : le portfolio (pierremillon.github.io/pierremillon) est désormais l'endroit unique pour naviguer entre les jeux.",
+    ],
+  },
+  {
     version: "2.62",
     notes: [
       "Le défi du jour impose désormais ses propres dieux, les mêmes pour tout le monde : c'est la journée qui décide, plus votre salle des trophées.",
@@ -13542,7 +13535,6 @@ function applyUiLanguage() {
   document.getElementById("mapCodeInput").placeholder = t("mapCodeInputPlaceholder");
   document.getElementById("loadMapCode").textContent = t("loadMapCodeBtn");
   document.getElementById("supportLink").textContent = t("supportLinkLabel");
-  document.getElementById("gameLinksLabel").textContent = t("gameLinksLabel");
   document.getElementById("changelogTitleH2").textContent = t("changelogTitle");
   document.getElementById("changelogThanks").innerHTML = t("changelogThanks");
   document.getElementById("scrollTopChangelog").textContent = t("changelogScrollTop");

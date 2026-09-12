@@ -647,3 +647,8 @@ Sound (gamme par royaume), épée/bateau taille + alignement, portée d'attaque 
   6. Fiche Astuces dédiée (`conseilsDangerP`, 5 langues) conformément à la règle de v2.43.
   7. **Note de méthode git** : ce travail a été développé pendant que la PR v2.53 était en CI sur la MÊME branche. La resynchronisation post-merge (`reset --hard`) efface l'arbre — le travail non commité aurait été perdu. Sauvegardé en patch (`scratchpad/v254-danger.patch`) avant toute manipulation git, puis ré-appliqué après la resynchronisation. À refaire systématiquement dans cette situation.
 
+- [x] **v2.63 — Retrait des liens vers les autres jeux dans les Réglages** (demandé par Pierre : le portfolio, pierremillon.github.io/pierremillon, est maintenant l'endroit unique pour naviguer d'un projet à l'autre — chaque jeu n'a plus à porter ses propres liens vers ses voisins).
+  1. Retiré le bloc `#gameLinksWrap` (liens vers Bastion Orbit et Forge Line) sous le lien de soutien, dans les Réglages : HTML, CSS dédié, entrée i18n `gameLinksLabel` et l'appel JS qui la posait.
+  2. Le lien de soutien (`#supportLink`, Ko-fi) reste seul à cet endroit, avec le même style.
+  3. Pas de fiche Astuces : aucune mécanique de jeu n'est touchée, c'est un nettoyage de navigation.
+
