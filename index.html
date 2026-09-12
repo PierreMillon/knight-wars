@@ -1576,6 +1576,7 @@
         <p id="conseilsTrophyP"></p>
         <p id="conseilsPowersP"></p>
         <p id="conseilsGraalP"></p>
+        <p id="conseilsDailyGodsP"></p>
         <p id="conseilsArtefactsP"></p>
       </div>
       <button id="closeConseils"></button>
@@ -1792,7 +1793,7 @@
 // before (CREATURE_IMG's own loadSprite() call, the changelog, etc.), not
 // redeclared.
 const CREATURE_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAANAAAADQCAYAAAB2pO90AAAC2klEQVR4nO3dQWoDMRAAwd3g/39ZOeQHahgroupuvF7TzGWQ3rXWw4z3fUde9lrrnfiend8z9WxTfr79APCfCQgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAg+336AE5y85LnzbJY855hAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEFx3MqlTOe/7PSf/pyYQBAKCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAiCd62RG9559pYimbOzgGoCQSAgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAguO5kUvbsLFJOLcdOPdvOZ0wgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAElkkZNbUYOvU9JhAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJAQBAICILrlkldJb9namHzZK65h2ECgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgrFl0pOvRD/Zbe/ttqVVEwgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAgEBMF1J5My57bF0B0mEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgq1lUlfJW6TkjwkEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJg7GTSnUXKqaXVqcXQk6+styC8xwSCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUHwccLmHO/tvhNdTSAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEASfkxf1OJsTUE0gSAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEY9fcw/OcfcroDhMIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgl9clHexCa709wAAAABJRU5ErkJggg==";
-const GAME_VERSION = "2.61";
+const GAME_VERSION = "2.62";
 document.getElementById("loadingKnight").src = CREATURE_IMG_SRC;
 document.getElementById("loadingVersion").textContent = `v${GAME_VERSION}`;
 document.getElementById("splashKnight").src = CREATURE_IMG_SRC;
@@ -4984,6 +4985,131 @@ function sanitizeGodsMatrix(raw) {
 function freezeGodsForThisMatch(matrix) {
   gameStartGodsOff = (matrix || emptyGodsMatrix()).map((row) => row.slice());
 }
+
+// --- Les dieux du jour (v2.62) ---------------------------------------------
+//
+// Idée de Pierre : le défi du jour ne subit pas la composition du joueur, il
+// IMPOSE la sienne. « La carte du jour te permet d'accéder à des pouvoirs
+// soit pour toi soit ennemi même si tu n'as pas débloqué, c'est vraiment
+// ponctuel juste sur la carte, comme ça tout le monde joue avec les mêmes
+// règles — et des fois y a des cartes du jour où il y a aucun dieu. »
+//
+// Trois conséquences, toutes voulues :
+//   - le duel entre amis redevient une comparaison honnête : le même jour,
+//     tout le monde joue exactement les mêmes règles, que l'on possède Le
+//     Graal ou pas un seul trophée ;
+//   - c'est une vitrine : on goûte à Bellone un mardi, et on a envie d'aller
+//     la débloquer dans ses propres parties ;
+//   - certains jours n'ont aucun dieu, et le défi redevient une pure
+//     question d'habileté.
+//
+// La matrice est DÉRIVÉE de la date, jamais transportée : ni la sauvegarde
+// ni le lien de partage ne la portent. Deux raisons. D'abord elle est alors
+// infalsifiable — on ne peut pas s'inventer un jour à quatre dieux dans un
+// lien fabriqué à la main. Ensuite elle ne coûte aucun champ nouveau à
+// valider (voir sanitizeGodsMatrix et les garde-fous de v2.52).
+//
+// RÈGLE D'OR : ce tirage n'appelle PAS rngFloat(). Il a son propre
+// générateur, semé par la date, donc il ne consomme rien du flux aléatoire
+// de la partie. Sans ça, deux joueurs du même jour verraient des combats
+// différents et le classement vérifié se désaccorderait — la classe de bug
+// de v2.55/v2.56, encore elle.
+function dailyGodsRng(dateStr) {
+  let a = stringHashSeed("kw-daily-gods-" + dateStr);
+  return function () {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+// Quatre visages possibles pour une journée, plutôt qu'une bouillie de
+// tirages indépendants : un jour doit se RACONTER (« aujourd'hui, personne
+// n'a de dieu », « aujourd'hui tout le monde a Bellone »), sinon le joueur
+// ne perçoit qu'un bruit de fond et la mécanique passe inaperçue.
+const DAILY_GODS_SHAPES = ["none", "all", "one", "mixed"];
+function dailyGodsShapeFor(dateStr) {
+  const r = dailyGodsRng(dateStr);
+  const roll = r();
+  if (roll < 0.15) return { shape: "none" };
+  if (roll < 0.30) return { shape: "all" };
+  if (roll < 0.55) return { shape: "one", god: Math.floor(r() * 4) % 4 };
+  return { shape: "mixed" };
+}
+// Matrice ON (et non OFF comme godsOffSetting) : ici elle fait autorité dans
+// les DEUX sens — elle allume un dieu que le joueur n'a pas débloqué comme
+// elle en éteint un qu'il possède. Voir isGodActiveFor().
+function dailyGodsMatrixFor(dateStr) {
+  const out = emptyGodsMatrix();
+  const info = dailyGodsShapeFor(dateStr);
+  if (info.shape === "none") return out;
+  if (info.shape === "all") {
+    for (let rr = 0; rr < 4; rr++) for (let g = 0; g < 4; g++) out[rr][g] = true;
+    return out;
+  }
+  if (info.shape === "one") {
+    for (let rr = 0; rr < 4; rr++) out[rr][info.god] = true;
+    return out;
+  }
+  // "mixed" : un PETIT nombre de dons (2 à 5 cases sur 16), et non seize
+  // tirages indépendants. Mesuré : à 35 % par case, les quatre dieux
+  // finissaient en jeu quelque part 45 % du temps et au moins trois d'entre
+  // eux presque toujours — tous les jours mêlés se ressemblaient, et se
+  // résumaient de la même façon. Une journée doit se raconter (voir
+  // DAILY_GODS_SHAPES), donc elle doit d'abord être lisiblement clairsemée.
+  //
+  // On repart du générateur à la même graine et on saute le premier tirage
+  // (celui qui a choisi la forme), pour que la composition d'un jour donné
+  // reste la même à chaque calcul.
+  const r = dailyGodsRng(dateStr);
+  r();
+  const dons = 2 + Math.floor(r() * 4); // 2, 3, 4 ou 5
+  for (let k = 0; k < dons; k++) {
+    const rr = Math.floor(r() * 4) % 4;
+    const g = Math.floor(r() * 4) % 4;
+    out[rr][g] = true; // une case déjà allumée retombe dessus sans dommage — un don de moins ce jour-là, ce qui creuse encore la variété
+  }
+  return out;
+}
+// null hors défi du jour : c'est ce null qui rend la mécanique strictement
+// ponctuelle, comme Pierre l'a demandé. Dérivé, jamais chargé.
+let dailyGodsOn = null;
+// Point de passage UNIQUE pour dailyChallengeDate : la matrice du jour en
+// découle, et les oublier séparément mettrait la partie en cours en
+// désaccord avec les dieux qu'elle applique.
+// Une phrase pour dire de quoi la journée est faite. Sans elle, la mécanique
+// serait invisible : les dieux changent les combats en silence, et le joueur
+// ne saurait ni qu'on lui prête Bellone ni pourquoi son voisin encaisse
+// mieux que d'habitude.
+function dailyGodsSummaryFor(dateStr) {
+  const info = dailyGodsShapeFor(dateStr);
+  if (info.shape === "none") return t("dailyGodsNone");
+  if (info.shape === "all") return t("dailyGodsAll");
+  if (info.shape === "one") return tf("dailyGodsOne", { god: t(GOD_DISPLAY_KEYS[info.god]) });
+  // "mixed" : on sépare VOS dieux de ceux de vos rivaux, parce que c'est
+  // là qu'est l'information de décision — savoir que Bellone est en face et
+  // pas chez vous change la façon d'attaquer. Énumérer un tableau de seize
+  // cases ne se lirait pas ; le détail par seigneur se lit sur le terrain.
+  //
+  // Le siège du joueur au défi du jour est fixe (DAILY_CHALLENGE_ROYAUME),
+  // donc on sait de quelle ligne il s'agit même avant que la partie démarre.
+  const m = dailyGodsMatrixFor(dateStr);
+  const miens = [], leurs = [];
+  for (let g = 0; g < 4; g++) {
+    if (m[DAILY_CHALLENGE_ROYAUME][g]) miens.push(t(GOD_DISPLAY_KEYS[g]));
+    for (let rr = 0; rr < 4; rr++) {
+      if (rr !== DAILY_CHALLENGE_ROYAUME && m[rr][g]) { leurs.push(t(GOD_DISPLAY_KEYS[g])); break; }
+    }
+  }
+  if (!miens.length && !leurs.length) return t("dailyGodsNone");
+  if (!miens.length) return tf("dailyGodsThemOnly", { gods: leurs.join(", ") });
+  if (!leurs.length) return tf("dailyGodsYouOnly", { gods: miens.join(", ") });
+  return tf("dailyGodsSplit", { yours: miens.join(", "), theirs: leurs.join(", ") });
+}
+function setDailyChallengeDate(dateStr) {
+  dailyChallengeDate = dateStr || null;
+  dailyGodsOn = dailyChallengeDate ? dailyGodsMatrixFor(dailyChallengeDate) : null;
+}
 // L'écran de composition (v2.61). Une ligne par royaume EN JEU — le joueur
 // d'abord, puis ses adversaires du moment (leur nombre varie, voir
 // opponentCount : afficher trois lignes quand il n'y a qu'un rival
@@ -5053,6 +5179,10 @@ function buildGodPickerRows() {
 // Rend true si l'écran s'est ouvert. L'appelant enchaîne lui-même quand il
 // rend false (pouvoir non gagné, écran mis en sourdine, ou rejeu).
 function openGodPicker(onGo) {
+  // Sur le défi du jour (v2.62), la composition est imposée par la date :
+  // proposer de la modifier serait un mensonge, le choix n'aurait aucun
+  // effet (voir isGodActiveFor, où la matrice du jour passe devant tout).
+  if (dailyGodsOn) return false;
   if (!graalPowerUnlocked() || godPickerSuppressed || replaying) return false;
   godPickerOnGo = onGo || null;
   godPickerIsKickoff = true;
@@ -5089,6 +5219,15 @@ document.getElementById("godPickerNeverBtn").addEventListener("click", () => {
 });
 function isGodActiveFor(royId, godIdx) {
   if (royId == null || royId < 0 || !ROYAUMES[royId] || ROYAUMES[royId].neutral) return false;
+  // "Les dieux du jour" (v2.62) — sur le défi du jour, la composition est
+  // dictée par la date et fait autorité dans LES DEUX SENS : elle allume un
+  // dieu que ce seigneur n'a jamais débloqué, et elle en éteint un qu'il
+  // possède. C'est ce qui rend le duel entre amis honnête (mêmes règles pour
+  // tout le monde ce jour-là, Graal ou pas) et ce qui donne au joueur un
+  // avant-goût des dieux qu'il n'a pas encore. Rien d'autre ne doit pouvoir
+  // la contredire : ni le déblocage, ni le veto du Graal, ni le cadeau des
+  // paliers durs — d'où sa place tout en haut. Voir dailyGodsMatrixFor().
+  if (dailyGodsOn) return !!(dailyGodsOn[royId] && dailyGodsOn[royId][godIdx]);
   // "Le Graal" (v2.61) — le porteur du Graal compose lui-même les forces en
   // présence : pour LUI et pour CHAQUE adversaire, quels dieux entrent dans
   // la partie. Ce veto passe avant tout le reste, sinon un dieu coupé
@@ -5208,8 +5347,13 @@ function startDailyChallenge() {
   opponentCount = DAILY_CHALLENGE_OPPONENT_COUNT;
   const today = todayDateStrUTC();
   startGame(dailySeedFor(today));
-  dailyChallengeDate = today; // must come AFTER startGame() — see its own reset note
+  setDailyChallengeDate(today); // must come AFTER startGame() — see its own reset note ; pose aussi les dieux du jour (v2.62), AVANT pickFaction() dont balanceStartingForces() dépend déjà d'eux via effectiveForceCap()
   pickFaction(DAILY_CHALLENGE_ROYAUME);
+  // Annoncé APRÈS pickFaction() : celui-ci affiche déjà son propre message
+  // d'adaptation des forces, et deux bandeaux qui se chassent l'un l'autre
+  // ne se lisent ni l'un ni l'autre. Un délai laisse le premier vivre.
+  const resumeDuJour = dailyGodsSummaryFor(today);
+  setTimeout(() => { if (dailyChallengeDate === today && !gameOver) showToast(resumeDuJour, 4200); }, 2800);
 }
 // Recorded once, in showWin(), regardless of outcome (win/loss/truce/
 // surrender all "complete" the day's attempt — only a genuine win keeps the
@@ -5746,6 +5890,20 @@ const UI_STRINGS = {
     zh: "<strong>神器之力</strong>：三件战利品不再只是装饰。<strong>石中剑</strong>会在底部栏放置一把剑：拔出它，你的下一次进攻便必定成功，每局一次——若改变主意也可收回。<strong>白剑</strong>可提出停战：点按按钮，再点按你想议和的领主的省份；他将在 3 回合内不攻击你，仍可自由攻打你的对手，而一旦你出手，和平立刻破裂。<strong>羊皮卷</strong>会以对应王国的颜色标出每位领主即将夺取的省份——让你能事先防守，而非事后懊悔。",
     es: "<strong>Los poderes de los artefactos</strong>: tres trofeos ya no son solo decorativos. <strong>Excalibur</strong> pone una espada en la barra inferior: desenváinala y tu próximo ataque está ganado de antemano, una vez por partida — puedes envainarla si cambias de idea. <strong>La espada blanca</strong> ofrece una tregua: toca el botón y luego una provincia del señor con quien quieres la paz; no te atacará durante 3 turnos, seguirá libre de golpear a tus rivales, y la paz se rompe en cuanto le ataques. <strong>El pergamino</strong> marca con un galón, del color de su reino, la provincia que cada señor está a punto de quitarte — lo justo para defender antes en vez de lamentarlo después.",
     de: "<strong>Die Macht der Artefakte</strong>: Drei Trophäen sind nicht mehr bloß Zierde. <strong>Excalibur</strong> legt ein Schwert in die untere Leiste: Zieh es, und dein nächster Angriff ist im Voraus gewonnen, einmal pro Partie — du kannst es wieder zurückstecken, wenn du es dir anders überlegst. <strong>Das weiße Schwert</strong> bietet einen Waffenstillstand: Tippe auf die Schaltfläche und dann auf eine Provinz des Fürsten, mit dem du Frieden willst; er greift dich 3 Züge lang nicht an, darf deine Rivalen weiter schlagen, und der Friede bricht in dem Moment, in dem du ihn angreifst. <strong>Das Pergament</strong> markiert mit einem Winkel in der Farbe seines Königreichs die Provinz, die dir jeder Fürst gleich nehmen will — genug, um vorher zu verteidigen, statt es hinterher zu bereuen.",
+  },
+  // Les dieux du jour (v2.62) — résumé d'une journée, voir dailyGodsSummaryFor().
+  dailyGodsNone: { fr: "aucun dieu aujourd'hui", en: "no gods today", zh: "今日无神明", es: "hoy sin dioses", de: "heute ohne Götter" },
+  dailyGodsAll: { fr: "les quatre dieux pour tout le monde", en: "all four gods, for everyone", zh: "四位神明，人人皆有", es: "los cuatro dioses, para todos", de: "alle vier Götter, für jeden" },
+  dailyGodsOne: { fr: "{god} pour tout le monde", en: "{god} for everyone", zh: "{god}，人人皆有", es: "{god} para todos", de: "{god} für alle" },
+  dailyGodsYouOnly: { fr: "pour vous seul : {gods}", en: "for you alone: {gods}", zh: "仅你拥有：{gods}", es: "solo para ti: {gods}", de: "nur für dich: {gods}" },
+  dailyGodsThemOnly: { fr: "en face seulement : {gods}", en: "on their side only: {gods}", zh: "仅对手拥有：{gods}", es: "solo enfrente: {gods}", de: "nur auf ihrer Seite: {gods}" },
+  dailyGodsSplit: { fr: "vous : {yours} · en face : {theirs}", en: "you: {yours} · facing you: {theirs}", zh: "你：{yours} · 对手：{theirs}", es: "tú: {yours} · enfrente: {theirs}", de: "du: {yours} · gegen dich: {theirs}" },
+  conseilsDailyGodsP: {
+    fr: "<strong>Les dieux du jour</strong> : au défi du jour, ce n'est pas vous qui composez les dieux — c'est la journée. Chaque date impose la sienne, la même pour tout le monde : certains jours personne n'a de dieu, d'autres tout le monde a les quatre, d'autres encore un seul dieu pour tous ou une répartition inégale entre les seigneurs. La composition s'affiche sous le bouton du défi, avant de vous lancer. Deux conséquences : le duel avec un ami compare enfin deux parties jouées aux mêmes règles, quels que soient vos trophées respectifs ; et vous jouez avec des dieux que vous n'avez pas encore débloqués, de quoi savoir ce que vous manquez. Votre propre réglage du Graal reste intact pour vos parties normales.",
+    en: "<strong>The gods of the day</strong>: in the daily challenge, you don't compose the gods — the day does. Each date imposes its own, the same for everyone: some days nobody has a god, some days everyone has all four, others a single god for all or an uneven spread between lords. The composition is shown under the challenge button before you start. Two consequences: a duel with a friend finally compares two matches played under the same rules, whatever your respective trophies; and you play with gods you haven't unlocked yet, which tells you what you're missing. Your own Grail setting stays untouched for your normal matches.",
+    zh: "<strong>当日神明</strong>：在每日挑战中，神明的组合不由你决定，而由当天决定。每个日期都有自己的组合，且对所有人相同：有些日子无人拥有神明，有些日子人人拥有四位，还有些日子所有人共享同一位神明，或者领主之间分配不均。开始之前，组合会显示在挑战按钮下方。由此带来两点：与好友的对决终于是在相同规则下比较两局对战，无论各自拥有什么战利品；而且你能使用尚未解锁的神明，从而知道自己错过了什么。你自己的圣杯设置在普通对局中保持不变。",
+    es: "<strong>Los dioses del día</strong>: en el desafío diario no eres tú quien compone los dioses — es el día. Cada fecha impone la suya, la misma para todos: algunos días nadie tiene dios, otros todos tienen los cuatro, otros un solo dios para todos o un reparto desigual entre los señores. La composición se muestra bajo el botón del desafío, antes de empezar. Dos consecuencias: el duelo con un amigo compara por fin dos partidas jugadas con las mismas reglas, sean cuales sean vuestros trofeos; y juegas con dioses que aún no has desbloqueado, lo justo para saber qué te estás perdiendo. Tu propio ajuste del Grial queda intacto para tus partidas normales.",
+    de: "<strong>Die Götter des Tages</strong>: In der Tagesherausforderung stellst nicht du die Götter zusammen — der Tag tut es. Jedes Datum gibt seine eigenen vor, für alle dieselben: An manchen Tagen hat niemand einen Gott, an anderen haben alle vier, wieder an anderen gilt ein einziger Gott für alle oder eine ungleiche Verteilung unter den Fürsten. Die Zusammenstellung steht unter der Herausforderungs-Schaltfläche, bevor du startest. Zwei Folgen: Das Duell mit einer Freundin oder einem Freund vergleicht endlich zwei Partien unter denselben Regeln, unabhängig von euren Trophäen; und du spielst mit Göttern, die du noch nicht freigeschaltet hast, und weißt so, was dir entgeht. Deine eigene Gral-Einstellung bleibt für deine normalen Partien unberührt.",
   },
   conseilsGraalP: {
     fr: "<strong>Le Graal</strong> : le dernier trophée vous donne le dernier mot sur les dieux. Au début de chaque partie, un panneau vous montre une ligne par seigneur — vous d'abord, puis vos adversaires — et quatre icônes de dieux par ligne. Touchez-en une pour barrer ce dieu : il n'accordera ni son bonus ni son prix, pour ce seigneur-là seulement. Vous pouvez ainsi vous priver de Cérès pour garder Le pouvoir des 12, ou couper Bellone chez le voisin qui vous écrase. Le réglage est figé au coup d'envoi : le changer en cours de route ne touchera que la partie suivante, et une partie reprise garde les dieux avec lesquels elle a commencé. Le bouton « Ne plus afficher » range le panneau dans les Réglages.",
@@ -7846,6 +8004,9 @@ function showWin(royId) {
       // "Le Graal" (v2.61) — figé avec le reste : "Revoir la partie" doit
       // rejouer les dieux de CETTE partie, pas ceux réglés plus tard.
       godsOff: gameStartGodsOff.map((row) => row.slice()),
+      // "Les dieux du jour" (v2.62) — même raison : "Revoir la partie" doit
+      // rejouer la composition imposée par CE jour-là.
+      dailyDate: dailyChallengeDate,
     };
     // the match is over — nothing left to "resume" on a future reload (see
     // saveGameState(): gameOver is already true by the time showWin() runs,
@@ -8323,7 +8484,7 @@ function statChartXAtClientX(clientX, clientY) {
 // back only the recorded human-seat choices — the AI and dice reproduce
 // identically since they're driven by the same seeded RNG stream. Shared by
 // both "revoir ma partie" (own match) and a shared match opened from a link.
-function playReplay(seed, difficulty, replayHumanRoyId, log, onFinish, replayMapSize, replayOpponentCount, replayGodsOff) {
+function playReplay(seed, difficulty, replayHumanRoyId, log, onFinish, replayMapSize, replayOpponentCount, replayGodsOff, replayDailyDate) {
   const levelToRestore = difficultyLevel;
   const cthulhuSelectedToRestore = cthulhuSelected; // see this function's own restore call below
   const humanToRestore = humanRoyId;
@@ -8367,6 +8528,12 @@ function playReplay(seed, difficulty, replayHumanRoyId, log, onFinish, replayMap
   // ceux réglés par le spectateur : sans ça le rejeu déroulerait une autre
   // partie que celle qu'on prétend montrer.
   freezeGodsForThisMatch(replayGodsOff);
+  // "Les dieux du jour" (v2.62) — startGame() vient d'effacer la date du
+  // défi, donc la composition imposée par la journée avec elle. On la
+  // repose ici, sinon le rejeu d'une partie du défi du jour déroulerait des
+  // combats que la partie d'origine n'a pas connus. Redérivée de la date,
+  // jamais lue dans le lien : voir dailyGodsMatrixFor().
+  setDailyChallengeDate(replayDailyDate || null);
   // mirrors pickFaction()'s call for a fresh game — must run exactly once,
   // at the equivalent point in the sequence (humanRoyId already known,
   // territories/raw forces already generated), or the starting forces here
@@ -8532,7 +8699,7 @@ function startReplay() {
   playReplay(
     lastMatchArchive.seed, lastMatchArchive.difficulty, lastMatchArchive.humanRoyId, lastMatchArchive.moveLog.slice(),
     revealFinalBoard,
-    lastMatchArchive.mapSize, lastMatchArchive.opponentCount, lastMatchArchive.godsOff
+    lastMatchArchive.mapSize, lastMatchArchive.opponentCount, lastMatchArchive.godsOff, lastMatchArchive.dailyDate
   );
 }
 
@@ -8996,6 +9163,12 @@ function verifyDailyClaim(payload) {
     // recompterait les tours d'une AUTRE partie et on refuserait un score
     // pourtant honnête.
     freezeGodsForThisMatch(payload.godsOff);
+    // Et surtout la composition du jour (v2.62), qui fait autorité par-dessus
+    // et se REDÉRIVE de la date annoncée — jamais lue dans le lien. Un lien
+    // fabriqué à la main ne peut donc pas s'offrir un jour à quatre dieux
+    // pour justifier un score. dailyClaimParamsMatch() a déjà vérifié que la
+    // date et la graine se correspondent.
+    setDailyChallengeDate(payload.dailyDate);
     // APRÈS startGame(), jamais avant : il remet ces deux drapeaux à false
     // lui-même. Les poser en amont — ce que faisait la première version de
     // ce code — laissait toute la vérification tourner au rythme d'un replay
@@ -9050,6 +9223,12 @@ function verifyDailyClaim(payload) {
       replaying = false;
       reconstructing = false;
       forceInstantSkip = false;
+      // On efface la date du défi posée pour la vérification (v2.62) : sans
+      // ça le visiteur se retrouverait, sans l'avoir demandé, dans une
+      // partie qui se croit être le défi du jour — avec ses dieux imposés et
+      // son score enregistré. La vérification emprunte l'état du jeu, elle
+      // doit le rendre tel qu'elle l'a trouvé.
+      setDailyChallengeDate(null);
       soundEnabled = soundWasEnabled;
       resolve(result);
     }
@@ -9087,7 +9266,7 @@ document.getElementById("watchSharedReplay").addEventListener("click", () => {
   const payload = pendingSharedReplay;
   playReplay(payload.seed, payload.difficulty, payload.humanRoyId, payload.log, () => {
     startGame(); // drop the visitor into their own fresh game right after
-  }, payload.mapSize, payload.opponentCount, payload.godsOff);
+  }, payload.mapSize, payload.opponentCount, payload.godsOff, payload.dailyDate);
 });
 // "Jouer cette carte" — same seed/map/difficulty/opponentCount as the
 // shared match, so the visitor faces the EXACT same starting position, but
@@ -11388,6 +11567,10 @@ function renderDailyChallengeCta(btn, statusEl) {
   } else {
     statusEl.textContent = streak > 0 ? tf("dailyChallengeStatusStreak", { streak }) : t("dailyChallengeStatusIntro");
   }
+  // La composition du jour (v2.62), annoncée avant de se lancer : c'est une
+  // information de décision, pas une décoration — savoir que personne n'a de
+  // dieu aujourd'hui change la façon d'aborder la partie.
+  statusEl.textContent += " · " + dailyGodsSummaryFor(todayDateStrUTC());
 }
 // "Défi du jour" — refreshed here (rather than only once at boot) so the
 // label/status/streak are never stale: the date can roll over, or a
@@ -11925,6 +12108,16 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // add a new entry at the top whenever a future change is worth telling
 // players about.
 const CHANGELOG = [
+  {
+    version: "2.62",
+    notes: [
+      "Le défi du jour impose désormais ses propres dieux, les mêmes pour tout le monde : c'est la journée qui décide, plus votre salle des trophées.",
+      "Certains jours personne n'a de dieu, d'autres tout le monde a les quatre, d'autres encore un seul dieu pour tous ou une répartition inégale entre les seigneurs.",
+      "Vous jouez donc avec des dieux que vous n'avez pas encore débloqués — et vos adversaires aussi. De quoi savoir ce que vous manquez avant d'aller le chercher.",
+      "Le duel avec un ami compare enfin deux parties jouées aux mêmes règles, quels que soient vos trophées respectifs.",
+      "La composition du jour s'affiche sous le bouton du défi, avant de vous lancer. Votre propre réglage du Graal reste intact pour vos parties normales.",
+    ],
+  },
   {
     version: "2.61",
     notes: [
@@ -13401,6 +13594,7 @@ function applyUiLanguage() {
   document.getElementById("conseilsTrophyP").innerHTML = t("conseilsTrophyP");
   document.getElementById("conseilsPowersP").innerHTML = t("conseilsPowersP");
   document.getElementById("conseilsGraalP").innerHTML = t("conseilsGraalP");
+  document.getElementById("conseilsDailyGodsP").innerHTML = t("conseilsDailyGodsP");
   document.getElementById("conseilsArtefactsP").innerHTML = t("conseilsArtefactsP");
   // Share/truce/premium/surrender-confirm overlays — mostly static content,
   // set here rather than at the one moment each overlay opens (unlike
@@ -14525,7 +14719,7 @@ function startGame(seed) {
   if (activeRoyaumes < ROYAUME_COUNT - 1) mergeDownToActiveRoyaumes(activeRoyaumes);
   if (!replaying) {
     statHistory = []; moveLog = []; gameStartDifficulty = DIFFICULTY; gameStartMapSize = mapSize; gameStartOpponentCount = opponentCount;
-    dailyChallengeDate = null; // startDailyChallenge() sets this AFTER calling startGame() — see its own note
+    setDailyChallengeDate(null); // startDailyChallenge() sets this AFTER calling startGame() — see its own note ; efface aussi les dieux du jour (v2.62)
     recordRoundSnapshot();
     // overwrites any stale autosave from a previously-abandoned match the
     // instant a genuinely new one starts (map code load, "Nouvelle guerre",
@@ -14658,7 +14852,7 @@ function resumeSavedGameInner(saved) {
     opponentCount = saved.opponentCount;
     applyMapSize(saved.mapSize);
     startGame(saved.seed);
-    dailyChallengeDate = saved.dailyChallengeDate || null; // startGame() just reset it to null — see its own note
+    setDailyChallengeDate(saved.dailyChallengeDate || null); // startGame() just reset it to null — see its own note. Les dieux du jour se REDÉRIVENT de la date (v2.62) : rien à charger, donc rien à falsifier
     return;
   }
   const soundWasEnabled = soundEnabled;
@@ -14682,6 +14876,15 @@ function resumeSavedGameInner(saved) {
   // sauvegarde d'avant la v2.61 n'a pas ce champ — matrice vide, donc
   // comportement d'origine, et les anciennes sauvegardes restent lisibles.
   freezeGodsForThisMatch(sanitizeGodsMatrix(saved.godsOff));
+  // "Les dieux du jour" (v2.62) — et par-dessus, la composition imposée par
+  // la journée, que startGame() vient elle aussi d'effacer. Sans cette
+  // ligne, reprendre une partie du défi du jour la rejouerait SANS ses
+  // dieux : mêmes coups rejoués, autres combats, plateau reconstruit
+  // différent de celui que le joueur avait quitté. Trouvé en mesurant, pas
+  // en relisant. Redérivée de la date, jamais lue dans la sauvegarde.
+  // AVANT balanceStartingForces(), qui dépend déjà des dieux via
+  // effectiveForceCap() (Cérès abaisse le plafond à 11).
+  setDailyChallengeDate(saved.dailyChallengeDate || null);
   balanceStartingForces(); // mirrors pickFaction()'s own call — must run exactly once, at the same point in the sequence, or forces desync from the actual saved match
   const log = saved.moveLog;
   let i = 0;
@@ -14752,7 +14955,7 @@ function resumeSavedGameInner(saved) {
     gameStartDifficulty = saved.difficulty;
     gameStartMapSize = saved.mapSize;
     gameStartOpponentCount = saved.opponentCount;
-    dailyChallengeDate = saved.dailyChallengeDate || null;
+    setDailyChallengeDate(saved.dailyChallengeDate || null); // redérive aussi les dieux du jour (v2.62)
     document.getElementById("rerollBtn").style.display = "none";
     document.getElementById("settingsBtn").style.display = "";
     const endturnEl = document.getElementById("endturn");

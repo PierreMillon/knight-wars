@@ -69,6 +69,13 @@ globalThis.__sim = {
   // apart from an ordinary draw by ownership alone; this flag is the only
   // signal.
   get mercyGranted() { return mercyGranted; },
+  // "Les dieux du jour" (v2.62) — le défi du jour impose sa propre
+  // composition de dieux, dérivée de la date. Elle change l'issue des
+  // combats, donc une sauvegarde du défi doit se reconstruire avec elle :
+  // c'est exactement ce que vérifie le troisième cas de la reprise ci-dessous.
+  setDailyChallengeDate: setDailyChallengeDate,
+  dailyGodsMatrixFor: dailyGodsMatrixFor,
+  get dailyGodsOn() { return dailyGodsOn; },
 };
 `;
 
@@ -479,7 +486,79 @@ for (const seed of RESUME_SEEDS) {
     console.log(`FAIL resume: seed ${seed}: ${e.message}`);
   }
 }
+// Quatrième cas, à part : une sauvegarde du DÉFI DU JOUR (v2.62). Sa
+// composition de dieux est imposée par la date et change l'issue des
+// combats — si la reconstruction ne la repose pas, elle rejoue les mêmes
+// coups sous d'autres règles et retombe sur un autre plateau. C'est
+// précisément le défaut trouvé en construisant la v2.62 (le chemin de
+// reprise qui reconstruit vraiment ne reposait pas la date), et ce cas
+// existe pour qu'il ne puisse pas revenir en silence.
+//
+// La date est choisie pour que la journée ait bel et bien des dieux : un
+// jour "sans dieu" passerait le test sans rien exercer.
+let dailyResumeOk = true;
+try {
+  const probe = buildSandbox();
+  vm.runInContext(src, probe);
+  let dailyDate = null;
+  for (let d = 1; d <= 28 && !dailyDate; d++) {
+    const candidate = `2026-06-${String(d).padStart(2, "0")}`;
+    const m = probe.__sim.dailyGodsMatrixFor(candidate);
+    if (m.some((row) => row.some(Boolean))) dailyDate = candidate;
+  }
+  if (!dailyDate) throw new Error("aucune date d'essai n'a de dieux — le tirage est-il cassé ?");
+
+  const seed = 99331;
+  const live = buildSandbox();
+  vm.runInContext(src, live);
+  live.__sim.applyMapSize("medium");
+  live.__sim.applyDifficulty(0.91);
+  live.__sim.startGame(seed);
+  // APRÈS startGame() (qui l'efface) et AVANT pickFaction() (dont
+  // balanceStartingForces() dépend déjà des dieux) — même ordre que
+  // startDailyChallenge() dans index.html.
+  live.__sim.setDailyChallengeDate(dailyDate);
+  live.__sim.pickFaction(0);
+  if (!drainTaskQueue(live, 8000)) throw new Error("la partie du défi s'est bloquée au démarrage");
+  const boardOf = (sandbox) => sandbox.__sim.territories.map((t) => t.owner + ":" + t.force).join(",");
+  const snaps = [];
+  let turns = 0;
+  while (!live.__sim.gameOver && turns < MAX_TURNS) {
+    const mv = POLICIES.correct(live, 0);
+    snaps.push({ n: live.__sim.moveLog.length, round: live.__sim.roundNumber, board: boardOf(live) });
+    if (mv) { live.__sim.logMove({ a: mv.from, b: mv.to }); live.__sim.attack(mv.from, mv.to); }
+    else { live.__sim.logMove({ end: true }); live.__sim.endTurn(); }
+    if (!drainTaskQueue(live, 8000)) throw new Error("la partie du défi s'est bloquée en cours");
+    turns++;
+  }
+  const log = live.__sim.moveLog.map((e) => ({ ...e }));
+  const cut = Math.max(1, Math.floor(log.length * 0.7));
+  const want = snaps.find((x) => x.n === cut);
+  if (!want) throw new Error(`aucun instantané au coup ${cut}`);
+
+  const resumed = buildSandbox();
+  vm.runInContext(src, resumed);
+  resumed.__sim.resumeSavedGameInner({
+    seed, difficulty: 0.91, mapSize: "medium", opponentCount: 3,
+    humanRoyId: 0, moveLog: log.slice(0, cut), dailyChallengeDate: dailyDate,
+  });
+  if (!drainTaskQueue(resumed, 300000)) {
+    dailyResumeOk = false;
+    console.log(`FAIL daily resume: ${dailyDate} n'a jamais fini de se reconstruire`);
+  } else if (!resumed.__sim.dailyGodsOn) {
+    dailyResumeOk = false;
+    console.log(`FAIL daily resume: ${dailyDate} reconstruit SANS les dieux du jour — la partie reprise ne joue pas les mêmes règles`);
+  } else if (boardOf(resumed) !== want.board || resumed.__sim.roundNumber !== want.round) {
+    dailyResumeOk = false;
+    console.log(`FAIL daily resume: ${dailyDate} a reconstruit une autre partie` +
+      ` (manche ${resumed.__sim.roundNumber} au lieu de ${want.round}, plateau ${boardOf(resumed) === want.board ? "identique" : "DIFFÉRENT"})`);
+  }
+} catch (e) {
+  dailyResumeOk = false;
+  console.log(`FAIL daily resume: ${e.message}`);
+}
 if (resumeOk) console.log(`resume from save: ok (${RESUME_SEEDS.length} matches reconstructed exactly)`);
+if (dailyResumeOk) console.log("resume a daily-challenge save (with its imposed gods): ok");
 
 // Difficulty curve — named tiers, in easiest-to-hardest order, each with the
 // DIFFICULTY value applyDifficulty() expects (mirrors DIFFICULTY_LEVELS +
@@ -533,7 +612,7 @@ for (const tier of TIER_WIN_RATE_TARGETS) {
   );
 }
 
-if (fail > 0 || !determinismOk || !resumeOk || !difficultyOk) process.exit(1);
+if (fail > 0 || !determinismOk || !resumeOk || !dailyResumeOk || !difficultyOk) process.exit(1);
 
 // --tune: a much wider, purely informational win-rate table (all 3 skill
 // policies × all 5 named tiers, more games each) — for actually balancing
