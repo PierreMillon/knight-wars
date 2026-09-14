@@ -1821,7 +1821,7 @@
 // before (CREATURE_IMG's own loadSprite() call, the changelog, etc.), not
 // redeclared.
 const CREATURE_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAANAAAADQCAYAAAB2pO90AAAC2klEQVR4nO3dQWoDMRAAwd3g/39ZOeQHahgroupuvF7TzGWQ3rXWw4z3fUde9lrrnfiend8z9WxTfr79APCfCQgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAg+336AE5y85LnzbJY855hAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEFx3MqlTOe/7PSf/pyYQBAKCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAiCd62RG9559pYimbOzgGoCQSAgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAguO5kUvbsLFJOLcdOPdvOZ0wgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAElkkZNbUYOvU9JhAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJAQBAICILrlkldJb9namHzZK65h2ECgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgrFl0pOvRD/Zbe/ttqVVEwgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAgEBMF1J5My57bF0B0mEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgq1lUlfJW6TkjwkEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJg7GTSnUXKqaXVqcXQk6+styC8xwSCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUHwccLmHO/tvhNdTSAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEASfkxf1OJsTUE0gSAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEY9fcw/OcfcroDhMIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgl9clHexCa709wAAAABJRU5ErkJggg==";
-const GAME_VERSION = "2.63";
+const GAME_VERSION = "2.64";
 document.getElementById("loadingKnight").src = CREATURE_IMG_SRC;
 document.getElementById("loadingVersion").textContent = `v${GAME_VERSION}`;
 document.getElementById("splashKnight").src = CREATURE_IMG_SRC;
@@ -3545,6 +3545,40 @@ function computeWaterRoutes() {
   for (const t of territories) t.waterRoutes = new Map(); // targetTerritoryId -> { cost, path }
   const hasWater = Object.keys(hexes).some((k) => hexes[k].isWater);
   if (!hasWater) return;
+  // --- Borne de coût (v2.64) -------------------------------------------
+  // MESURÉ : générer une carte moyenne coûtait 473 à 886 ms, une petite 13 —
+  // et presque tout partait ici. Cause : cette recherche part de CHAQUE
+  // province vers toutes les autres, et quand elle ne peut pas toutes les
+  // atteindre (une île isolée, un royaume enclavé) elle épuise son budget
+  // MAX_ROUTE_SEARCH_HEXES à explorer le vide de fond, qui est de la mer
+  // ouverte sans fin (voir hexAt()). Mesuré : 144 000 cases dépilées pour
+  // une seule carte, soit près des 6 000 autorisées par province.
+  //
+  // Or une route que PERSONNE ne peut payer ne sert à rien. Une province
+  // plafonne à FORCE_CAP (12) et la traversée est un échec sec dès que le
+  // coût atteint la force engagée (voir attack(), branche « noyés en
+  // chemin ») : il faut donc un coût effectif de 11 au plus pour qu'un seul
+  // soldat arrive. Neptune retire 1 au coût (voir effectiveWaterCost), donc
+  // le coût BRUT le plus élevé encore jouable est 12. Au-delà, la route
+  // existerait dans la mémoire du jeu sans qu'aucun seigneur, avec aucun
+  // dieu, ne puisse jamais l'emprunter.
+  //
+  // Cthulhu fait exception : il annule complètement le coût des traversées
+  // (« Chtulhu active les attaques longue distance sans perte »), donc à ce
+  // palier toute distance reste jouable et la borne est levée. DIFFICULTY
+  // est déjà posé quand startGame() nous appelle, et il fait partie de
+  // l'état rejoué (lien de partage, sauvegarde, vérification de score) —
+  // la borne est donc aussi déterministe que le reste.
+  // Marge de 2 au-dessus du coût brut jouable le plus élevé (12). Elle n'est
+  // PAS de la prudence vague : mesurée. Borner pile à 12 laissait 5 routes
+  // sur 3 988 sortir avec un chemin différent — même coût, même nombre de
+  // sauts, seulement une dernière case d'eau autre, parce que retirer des
+  // candidats du tas change l'ordre où deux chemins EX ÆQUO sont départagés
+  // (voir pathStraightnessDeviation). Cosmétique, mais à +2 il n'en reste
+  // AUCUNE : les 3 988 routes payables sont identiques au bit près, sur 3
+  // tailles de carte, 5 graines et les deux régimes (Écuyer et Cthulhu).
+  // Deux cases d'océan de plus explorées, et on ne change rien du tout.
+  const maxUsefulWaterCost = cthulhuActive() ? Infinity : FORCE_CAP + 2;
   for (const startT of territories) {
     const dist = new Map(); // hexKey -> { hop, cost } of the best-ranked way reaching that water hex
     // hexKey -> the PREVIOUS water hexKey on its own best-ranked path (absent
@@ -3576,6 +3610,7 @@ function computeWaterRoutes() {
         const nh = hexAt(nq, nr);
         if (nh.isWater) {
           const c = nh.waterCost || 2; // void has no stored waterCost — defaults to open-sea cost, same fallback computeWaterTailDecay() already uses
+          if (c > maxUsefulWaterCost) continue; // hors de portée de toute garnison — voir maxUsefulWaterCost
           const d = dist.get(nk);
           if (!d || betterRoute(1, c, d.hop, d.cost)) { dist.set(nk, { hop: 1, cost: c }); heapPush(frontier, [1, c, nk]); }
         }
@@ -3610,6 +3645,10 @@ function computeWaterRoutes() {
         const nh = hexAt(nq, nr); // see the same note above — void counts as open sea here too
         if (nh.isWater) {
           const nc = cost + (nh.waterCost || 2), nhop = hop + 1;
+          // C'est cette ligne qui borne réellement la recherche : au-delà,
+          // on n'explore plus l'océan, faute d'y trouver quoi que ce soit
+          // d'atteignable. Voir maxUsefulWaterCost.
+          if (nc > maxUsefulWaterCost) continue;
           const nd = dist.get(nk);
           if (!nd || betterRoute(nhop, nc, nd.hop, nd.cost)) {
             dist.set(nk, { hop: nhop, cost: nc });
@@ -12162,6 +12201,14 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // add a new entry at the top whenever a future change is worth telling
 // players about.
 const CHANGELOG = [
+  {
+    version: "2.64",
+    notes: [
+      "Les cartes apparaissent instantanément. Une carte moyenne demandait jusqu'à 886 ms au jeu — un demi-seconde de téléphone figé à chaque « Nouveau royaume », à chaque nouvelle guerre, à chaque défi du jour. C'est tombé à une vingtaine de millisecondes.",
+      "Ouvrir le lien de partage d'un ami ne fige plus la page : le plus long blocage passe de 1,3 seconde à un quart de seconde.",
+      "Rien ne change dans le jeu lui-même : les mêmes cartes, les mêmes routes maritimes, les mêmes combats. Le jeu passait simplement son temps à calculer des traversées que personne n'aurait jamais pu payer.",
+    ],
+  },
   {
     version: "2.63",
     notes: [
