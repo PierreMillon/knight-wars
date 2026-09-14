@@ -563,6 +563,24 @@
      chart. Hidden entirely (rather than left as a stray empty flex gap) on
      the handful of one-sentence lines that had nothing left to split off —
      same treatment #winSubtext already needed, most endings leave it empty too. */
+  /* « Réglages avancés » (v2.63) — volontairement discret : c'est une porte,
+     pas un réglage. Même famille visuelle que .settingsSectionLabel (les
+     petites étiquettes de section du panneau) plutôt qu'un vrai bouton, pour
+     qu'il ne rivalise pas avec la difficulté ou les curseurs au-dessus. */
+  /* Sélecteur volontairement spécifique (#settingsPanel #advancedToggle) :
+     le style doré commun à tous les boutons du panneau gagnait sinon, et
+     cette porte ressortait plus que la difficulté elle-même — exactement
+     l'inverse de ce qu'on veut. */
+  #settingsPanel #advancedToggle {
+    display: block; width: 100%; margin: 16px 0 0; padding: 9px 10px;
+    background: rgba(90, 65, 25, .07); background-image: none;
+    border: 1px solid rgba(120, 90, 40, .3); box-shadow: none;
+    border-radius: 6px; color: inherit; font: inherit; font-size: 13px;
+    font-weight: 400; letter-spacing: .04em; text-align: center;
+    cursor: pointer; opacity: .8;
+  }
+  #settingsPanel #advancedToggle:hover { opacity: 1; }
+  #advancedSettings { margin-top: 10px; }
   #wintextRest, #winSubtext, #gueuxNote, #cthulhuHintNote, #godUnlockNote { margin: 0; }
   #wintextRest:empty, #winSubtext:empty, #gueuxNote:empty, #cthulhuHintNote:empty, #godUnlockNote:empty { display: none; }
   #gueuxNote { margin-top: -6px; font-size: 13px; font-style: italic; opacity: .8; }
@@ -1631,27 +1649,6 @@
           <button id="cthulhuLevelBtn" class="levelBtn" style="display:none;"><span class="diffIcons"><img alt=""></span><span class="levelBtnText"></span></button>
         </div>
       </div>
-      <div class="fieldGroup">
-        <div class="fieldLabel" id="mapSizeFieldLabel"></div>
-        <div id="mapSizeLevels" class="levelRow">
-          <button data-mapsize="small" class="levelBtn"></button>
-          <button data-mapsize="medium" class="levelBtn"></button>
-          <button data-mapsize="large" class="levelBtn"></button>
-          <button data-mapsize="huge" class="levelBtn"></button>
-        </div>
-      </div>
-      <!-- independent of map size — any combination is possible (a small
-           map with 4 opponents, a big one with a single rival...); the
-           territory count scales to fit whichever is picked (see
-           applyMapSize()). -->
-      <div class="fieldGroup">
-        <div class="fieldLabel" id="opponentCountFieldLabel"></div>
-        <div id="opponentCountLevels" class="levelRow">
-          <button data-opponents="1" class="levelBtn">1</button>
-          <button data-opponents="2" class="levelBtn">2</button>
-          <button data-opponents="3" class="levelBtn">3</button>
-        </div>
-      </div>
       <!-- was a plain on/off toggle — "curseur pour le volume du son qui
            devient bruitage" — a real slider now, 0 doubling as "off" so
            soundEnabled (checked all over playTone()'s call sites) stays
@@ -1683,6 +1680,59 @@
            gauche" — four playable royaumes (ROYAUMES 0-3), four hatch
            patterns, one each; see buildHatchPatterns()/render()'s own note. -->
       <label style="display:block; margin-top:10px;"><input type="checkbox" id="colorblindToggle"> <span id="colorblindLabelText"></span></label>
+
+      <!-- Tier 3: lore/rules reference, read-only overlays — no risk of
+           accidentally ending or restarting anything by tapping these.
+           Same row (reusing .winButtons' flex row) since both are the same
+           kind of thing and the panel doesn't need two separate full rows
+           for two short button labels. -->
+      <div class="settingsSectionLabel" id="helpSectionLabelDiv"></div>
+      <div class="winButtons">
+        <button id="conseilsBtn"></button>
+        <button id="loreBtn"></button>
+      </div>
+
+      <!-- « Réglages avancés » (v2.63) — l'épuration demandée par Pierre :
+           « réglage avancé qui reste ouvert ou fermé selon ». Le panneau
+           comptait 12 sections et 21 éléments touchables, tous au même
+           niveau : un débutant qui cherche à couper le son traversait la
+           taille de carte, le nombre d'adversaires et un code de carte
+           avant d'y arriver.
+           Reste en haut ce qui sert TOUT DE SUITE et à TOUT LE MONDE : la
+           difficulté, le son, la musique, la langue (des drapeaux — le seul
+           réglage encore utilisable quand on ne sait pas lire le menu), le
+           mode daltonien (le jeu est entièrement codé par couleurs), et les
+           deux écrans de lecture.
+           Descend ici tout ce qui se règle une fois ou se découvre plus
+           tard. Rien n'est supprimé.
+           L'état ouvert/fermé est RETENU (kw_advancedOpen) : un vétéran qui
+           l'ouvre une fois le retrouve ouvert, un débutant ne le voit
+           jamais s'ouvrir tout seul — l'effet « l'écran s'enrichit avec le
+           joueur » sans dévoilement progressif à gérer. -->
+      <button id="advancedToggle" aria-expanded="false" aria-controls="advancedSettings"></button>
+      <div id="advancedSettings" style="display:none;">
+
+      <div class="fieldGroup">
+        <div class="fieldLabel" id="mapSizeFieldLabel"></div>
+        <div id="mapSizeLevels" class="levelRow">
+          <button data-mapsize="small" class="levelBtn"></button>
+          <button data-mapsize="medium" class="levelBtn"></button>
+          <button data-mapsize="large" class="levelBtn"></button>
+          <button data-mapsize="huge" class="levelBtn"></button>
+        </div>
+      </div>
+      <!-- independent of map size — any combination is possible (a small
+           map with 4 opponents, a big one with a single rival...); the
+           territory count scales to fit whichever is picked (see
+           applyMapSize()). -->
+      <div class="fieldGroup">
+        <div class="fieldLabel" id="opponentCountFieldLabel"></div>
+        <div id="opponentCountLevels" class="levelRow">
+          <button data-opponents="1" class="levelBtn">1</button>
+          <button data-opponents="2" class="levelBtn">2</button>
+          <button data-opponents="3" class="levelBtn">3</button>
+        </div>
+      </div>
       <label style="display:block; margin-top:10px;"><input type="checkbox" id="attackForecastToggle"> <span id="attackForecastLabelText"></span></label>
 
       <!-- Tier 2 used to be here: an "Affichage" section holding only the
@@ -1705,17 +1755,6 @@
       <div class="fieldGroup">
         <button id="dailyChallengeBtn" style="width:100%; box-sizing:border-box;"></button>
         <div id="dailyChallengeStatus"></div>
-      </div>
-
-      <!-- Tier 3: lore/rules reference, read-only overlays — no risk of
-           accidentally ending or restarting anything by tapping these.
-           Same row (reusing .winButtons' flex row) since both are the same
-           kind of thing and the panel doesn't need two separate full rows
-           for two short button labels. -->
-      <div class="settingsSectionLabel" id="helpSectionLabelDiv"></div>
-      <div class="winButtons">
-        <button id="conseilsBtn"></button>
-        <button id="loreBtn"></button>
       </div>
 
       <!-- a short, portable code for the exact map in play — not a full
@@ -1773,6 +1812,7 @@
         <a class="gameLink" href="https://pierremillon.github.io/Forge-Line/">🔥 Forge Line</a>
       </div>
       </div>
+      </div>
     </div>
   </div>
 </div>
@@ -1793,7 +1833,7 @@
 // before (CREATURE_IMG's own loadSprite() call, the changelog, etc.), not
 // redeclared.
 const CREATURE_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAANAAAADQCAYAAAB2pO90AAAC2klEQVR4nO3dQWoDMRAAwd3g/39ZOeQHahgroupuvF7TzGWQ3rXWw4z3fUde9lrrnfiend8z9WxTfr79APCfCQgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAg+336AE5y85LnzbJY855hAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEFx3MqlTOe/7PSf/pyYQBAKCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAiCd62RG9559pYimbOzgGoCQSAgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAguO5kUvbsLFJOLcdOPdvOZ0wgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAElkkZNbUYOvU9JhAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJAQBAICILrlkldJb9namHzZK65h2ECgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgrFl0pOvRD/Zbe/ttqVVEwgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAgEBMF1J5My57bF0B0mEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgq1lUlfJW6TkjwkEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJg7GTSnUXKqaXVqcXQk6+styC8xwSCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUHwccLmHO/tvhNdTSAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEASfkxf1OJsTUE0gSAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEY9fcw/OcfcroDhMIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgl9clHexCa709wAAAABJRU5ErkJggg==";
-const GAME_VERSION = "2.62";
+const GAME_VERSION = "2.63";
 document.getElementById("loadingKnight").src = CREATURE_IMG_SRC;
 document.getElementById("loadingVersion").textContent = `v${GAME_VERSION}`;
 document.getElementById("splashKnight").src = CREATURE_IMG_SRC;
@@ -5898,6 +5938,10 @@ const UI_STRINGS = {
   dailyGodsYouOnly: { fr: "pour vous seul : {gods}", en: "for you alone: {gods}", zh: "仅你拥有：{gods}", es: "solo para ti: {gods}", de: "nur für dich: {gods}" },
   dailyGodsThemOnly: { fr: "en face seulement : {gods}", en: "on their side only: {gods}", zh: "仅对手拥有：{gods}", es: "solo enfrente: {gods}", de: "nur auf ihrer Seite: {gods}" },
   dailyGodsSplit: { fr: "vous : {yours} · en face : {theirs}", en: "you: {yours} · facing you: {theirs}", zh: "你：{yours} · 对手：{theirs}", es: "tú: {yours} · enfrente: {theirs}", de: "du: {yours} · gegen dich: {theirs}" },
+  // « Réglages avancés » (v2.63). Le chevron dit l'état, pas l'action : ▾
+  // fermé (il y a quelque chose dessous), ▴ ouvert.
+  advancedSettingsOpen: { fr: "Réglages avancés ▾", en: "Advanced settings ▾", zh: "高级设置 ▾", es: "Ajustes avanzados ▾", de: "Erweiterte Einstellungen ▾" },
+  advancedSettingsClose: { fr: "Réglages avancés ▴", en: "Advanced settings ▴", zh: "高级设置 ▴", es: "Ajustes avanzados ▴", de: "Erweiterte Einstellungen ▴" },
   conseilsDailyGodsP: {
     fr: "<strong>Les dieux du jour</strong> : au défi du jour, ce n'est pas vous qui composez les dieux — c'est la journée. Chaque date impose la sienne, la même pour tout le monde : certains jours personne n'a de dieu, d'autres tout le monde a les quatre, d'autres encore un seul dieu pour tous ou une répartition inégale entre les seigneurs. La composition s'affiche sous le bouton du défi, avant de vous lancer. Deux conséquences : le duel avec un ami compare enfin deux parties jouées aux mêmes règles, quels que soient vos trophées respectifs ; et vous jouez avec des dieux que vous n'avez pas encore débloqués, de quoi savoir ce que vous manquez. Votre propre réglage du Graal reste intact pour vos parties normales.",
     en: "<strong>The gods of the day</strong>: in the daily challenge, you don't compose the gods — the day does. Each date imposes its own, the same for everyone: some days nobody has a god, some days everyone has all four, others a single god for all or an uneven spread between lords. The composition is shown under the challenge button before you start. Two consequences: a duel with a friend finally compares two matches played under the same rules, whatever your respective trophies; and you play with gods you haven't unlocked yet, which tells you what you're missing. Your own Grail setting stays untouched for your normal matches.",
@@ -11533,6 +11577,28 @@ if (typeof ResizeObserver !== "undefined") {
     if (el) hudStudObserver.observe(el);
   }
 }
+// « Réglages avancés » (v2.63) — l'état est RETENU d'une ouverture du menu à
+// la suivante, et d'une session à l'autre : « réglage avancé qui reste ouvert
+// ou fermé selon » (Pierre). C'est ce qui fait que le menu s'adapte au joueur
+// sans qu'on ait à deviner son niveau : celui qui a besoin des avancés les
+// ouvre une fois et ne les rouvre plus jamais ; celui qui n'en a pas besoin
+// ne les voit jamais.
+let advancedSettingsOpen = false;
+try { advancedSettingsOpen = localStorage.getItem("kw_advancedOpen") === "1"; } catch (e) { /* ignore */ }
+function refreshAdvancedSettings() {
+  const btn = document.getElementById("advancedToggle");
+  const box = document.getElementById("advancedSettings");
+  if (!btn || !box) return;
+  box.style.display = advancedSettingsOpen ? "" : "none";
+  btn.textContent = t(advancedSettingsOpen ? "advancedSettingsClose" : "advancedSettingsOpen");
+  btn.setAttribute("aria-expanded", advancedSettingsOpen ? "true" : "false");
+}
+document.getElementById("advancedToggle").addEventListener("click", () => {
+  advancedSettingsOpen = !advancedSettingsOpen;
+  try { localStorage.setItem("kw_advancedOpen", advancedSettingsOpen ? "1" : "0"); } catch (e) { /* ignore */ }
+  refreshAdvancedSettings();
+  sfxToggle();
+});
 document.getElementById("settingsBtn").addEventListener("click", () => {
   settingsPanel.style.display = "flex";
   refreshMapCodeDisplay();
@@ -11541,6 +11607,7 @@ document.getElementById("settingsBtn").addEventListener("click", () => {
   // sa ligne n'apparaîtrait qu'au prochain chargement de la page.
   refreshGodPickerButton();
   refreshInstallButton();
+  refreshAdvancedSettings();
   sfxMenuOpen();
 });
 // "Défi du jour" state, shared by every place that shows a CTA for it (the
@@ -12108,6 +12175,15 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // add a new entry at the top whenever a future change is worth telling
 // players about.
 const CHANGELOG = [
+  {
+    version: "2.63",
+    notes: [
+      "Le menu a maigri de moitié. Il tient maintenant sur un écran sans faire défiler : la difficulté, le son, la musique, la langue, le mode daltonien, les Astuces et Le lore.",
+      "Tout le reste est descendu derrière « Réglages avancés » : la taille de la carte, le nombre d'adversaires, le pronostic d'attaque, le défi du jour, le code de la carte, les dieux du Graal, l'installation et les liens. Rien n'a été supprimé.",
+      "Le dépliant retient son état : si vous l'ouvrez, vous le retrouverez ouvert la prochaine fois, et les fois d'après.",
+      "Le défi du jour reste accessible d'un seul geste depuis l'écran d'accueil, comme avant.",
+    ],
+  },
   {
     version: "2.62",
     notes: [
@@ -13595,6 +13671,7 @@ function applyUiLanguage() {
   document.getElementById("conseilsPowersP").innerHTML = t("conseilsPowersP");
   document.getElementById("conseilsGraalP").innerHTML = t("conseilsGraalP");
   document.getElementById("conseilsDailyGodsP").innerHTML = t("conseilsDailyGodsP");
+  refreshAdvancedSettings(); // l'étiquette du dépliant porte son propre texte traduit (v2.63)
   document.getElementById("conseilsArtefactsP").innerHTML = t("conseilsArtefactsP");
   // Share/truce/premium/surrender-confirm overlays — mostly static content,
   // set here rather than at the one moment each overlay opens (unlike
