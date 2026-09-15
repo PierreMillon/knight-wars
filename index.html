@@ -952,6 +952,16 @@
     width: 30px; height: 30px; padding: 0; border-radius: 50%; box-sizing: border-box;
     font-size: 20px; line-height: 1; display: flex; align-items: center; justify-content: center;
   }
+  /* « Le tutoriel » (v2.68) — les titres de palier. Ils doivent se voir en
+     faisant défiler sans lire : c'est tout leur intérêt, sinon la page
+     reste le mur de paragraphes qu'elle était. D'où le filet doré, la
+     capitale et l'espace au-dessus. Le premier n'en prend pas : il suit
+     déjà la liste des royaumes. */
+  #conseilsOverlay .conseilsStep {
+    margin: 22px 0 10px; padding-top: 10px; border-top: 1px solid #a97e2a;
+    font-size: 13px; font-weight: 700; letter-spacing: .04em; text-align: center;
+  }
+  #conseilsOverlay #conseilsStep1 { margin-top: 10px; }
   #conseilsOverlay h2 { margin: 0 0 10px; font-size: 20px; text-align: center; }
   #conseilsOverlay .conseilsIntro { font-size: 13px; font-style: italic; opacity: .8; line-height: 1.5; margin: 0 0 16px; text-align: center; }
   #conseilsOverlay button { display: block; margin: 0 auto; }
@@ -1606,7 +1616,7 @@
        Tout le contenu existait déjà (la grille, et la condition de chaque
        case en 5 langues) — il était simplement introuvable : au fond du
        parchemin du lore, et lisible seulement une case à la fois, ce qui
-       obligeait à toucher les 24 cases pour savoir ce qu'il restait.
+       obligeait à toucher les 21 cases pour savoir ce qu'il restait.
        Deux zones, une seule source : computeTrophySlots(). En haut la
        vitrine (le plaisir des cases qui s'allument), en dessous « Ce qu'il
        vous reste » — les cases non obtenues écrites en toutes lettres avec
@@ -1679,6 +1689,12 @@
       <button id="backConseilsToSettings" aria-label="Retour aux réglages">‹</button>
       <h2 id="conseilsTitleH2"></h2>
       <p class="conseilsIntro" id="conseilsIntro1P"></p>
+      <!-- Le palier ① couvre le vocabulaire (village/province/royaume/pays),
+           le but du jeu et les couleurs des maisons EN PLUS des quatre fiches
+           de règles qui suivent — sinon son propre titre ment : il annonce
+           « tout ce qu'il faut savoir » alors que trois blocs indispensables
+           se trouveraient au-dessus de lui, hors du parcours numéroté. -->
+      <div class="conseilsStep" id="conseilsStep1"></div>
       <div id="conseilsHierarchy">
         <div class="hLevel hVillage"><span class="hName" id="hVillageName"></span><span class="hDesc" id="hVillageDesc"></span></div>
         <div class="hLevel hProvince"><span class="hName" id="hProvinceName"></span><span class="hDesc" id="hProvinceDesc"></span></div>
@@ -1694,25 +1710,54 @@
         <div class="fieldLabel" id="royaumesListLabel"></div>
         <div id="royaumesList"></div>
       </div>
+      <!-- « Le tutoriel » (v2.68) — idée de Pierre : « on met les explications
+           au tout début de la page des astuces, qui va se transformer en
+           Tutoriel, et comme ça on explique très simplement étape par étape
+           comment ça marche, toutes les règles, en laissant des petites
+           questions ouvertes sur les astuces et les Easter eggs ».
+           Le défaut n'était pas le contenu des 19 fiches — elles sont bonnes
+           et déjà en 5 langues — mais LEUR ORDRE : chacune était ajoutée à
+           la suite au moment de sa livraison, donc la page suivait l'ordre
+           des versions et non celui de l'apprentissage. Un débutant lisait
+           Le pouvoir des 12, le sacrifice à l'océan et Cthulhu AVANT de
+           savoir ce qu'est le pronostic d'attaque.
+           Quatre paliers désormais, du strict nécessaire au facultatif. Le
+           premier suffit pour jouer : c'est l'engagement « 30 secondes pour
+           apprendre les règles ». Les trois autres se lisent quand l'envie
+           vient — « une vie pour le maîtriser ».
+           Aucune fiche n'est réécrite ni supprimée : elles sont RANGÉES.
+           Réécrire 19 fiches en 5 langues pour un chantier de rangement,
+           c'est 95 traductions risquées pour zéro gain de clarté. -->
       <div id="conseilsMechanics">
         <p id="conseilsCombatP"></p>
         <p id="conseilsReinforceP"></p>
-        <p id="conseilsPower12P"></p>
-        <p id="conseilsSacrificeP"></p>
-        <p id="conseilsCthulhuP"></p>
-        <p id="conseilsGodsP"></p>
-        <p id="conseilsGueuxP"></p>
-        <p id="conseilsDailyChallengeP"></p>
         <p id="conseilsForecastP"></p>
         <p id="conseilsDangerP"></p>
-        <p id="conseilsDuelP"></p>
-        <p id="conseilsInstallP"></p>
+        <!-- 2. Ce qui sépare un coup légal d'un bon coup. -->
+        <div class="conseilsStep" id="conseilsStep2"></div>
+        <p id="conseilsPower12P"></p>
+        <p id="conseilsGueuxP"></p>
+        <p id="conseilsStatsNumbersP"></p>
         <p id="conseilsTrophyP"></p>
+        <!-- 3. Tout ce qui existe autour de la partie elle-même. -->
+        <div class="conseilsStep" id="conseilsStep3"></div>
+        <p id="conseilsGodsP"></p>
         <p id="conseilsPowersP"></p>
         <p id="conseilsGraalP"></p>
+        <p id="conseilsDailyChallengeP"></p>
         <p id="conseilsDailyGodsP"></p>
-        <p id="conseilsStatsNumbersP"></p>
+        <p id="conseilsDuelP"></p>
         <p id="conseilsMapLabP"></p>
+        <p id="conseilsInstallP"></p>
+        <!-- 4. Les secrets, en dernier et annoncés comme tels. Leur contenu
+             n'est PAS retiré : Pierre veut « laisser des petites questions
+             ouvertes », mais reprendre une explication déjà donnée aux
+             joueurs est un arbitrage qui lui revient, pas un effet de bord
+             d'un rangement. Le titre du palier fait le travail : il prévient
+             qu'on quitte les règles pour ce qui se trouve en jouant. -->
+        <div class="conseilsStep" id="conseilsStep4"></div>
+        <p id="conseilsSacrificeP"></p>
+        <p id="conseilsCthulhuP"></p>
         <p id="conseilsArtefactsP"></p>
       </div>
       <button id="closeConseils"></button>
@@ -1960,7 +2005,7 @@
 // before (CREATURE_IMG's own loadSprite() call, the changelog, etc.), not
 // redeclared.
 const CREATURE_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAANAAAADQCAYAAAB2pO90AAAC2klEQVR4nO3dQWoDMRAAwd3g/39ZOeQHahgroupuvF7TzGWQ3rXWw4z3fUde9lrrnfiend8z9WxTfr79APCfCQgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAg+336AE5y85LnzbJY855hAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEFx3MqlTOe/7PSf/pyYQBAKCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAiCd62RG9559pYimbOzgGoCQSAgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAguO5kUvbsLFJOLcdOPdvOZ0wgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAElkkZNbUYOvU9JhAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJAQBAICILrlkldJb9namHzZK65h2ECgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgrFl0pOvRD/Zbe/ttqVVEwgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAgEBMF1J5My57bF0B0mEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgq1lUlfJW6TkjwkEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJg7GTSnUXKqaXVqcXQk6+styC8xwSCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUHwccLmHO/tvhNdTSAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEASfkxf1OJsTUE0gSAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEY9fcw/OcfcroDhMIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgl9clHexCa709wAAAABJRU5ErkJggg==";
-const GAME_VERSION = "2.67";
+const GAME_VERSION = "2.68";
 document.getElementById("loadingKnight").src = CREATURE_IMG_SRC;
 document.getElementById("loadingVersion").textContent = `v${GAME_VERSION}`;
 document.getElementById("splashKnight").src = CREATURE_IMG_SRC;
@@ -5829,7 +5874,10 @@ const UI_STRINGS = {
   // ("nom commun aux 3 jeux", confirmed explicitly); en/zh/es/de already
   // meant "tips" rather than "advice/counsel", so only the French word
   // itself actually changes here.
-  conseilsBtnLabel: { fr: "🎓 Astuces", en: "🎓 Tips", zh: "🎓 提示", es: "🎓 Consejos", de: "🎓 Tipps" },
+  // v2.68 : la page devient le Tutoriel — « la page des astuces va se
+  // transformer en Tutoriel ». Le nom change parce que le contenu change de
+  // nature : ce n'est plus un sac d'astuces, c'est un parcours ordonné.
+  conseilsBtnLabel: { fr: "🎓 Tutoriel", en: "🎓 Tutorial", zh: "🎓 教程", es: "🎓 Tutorial", de: "🎓 Tutorial" },
   loreBtnLabel: { fr: "📜 Le lore", en: "📜 Lore", zh: "📜 背景故事", es: "📜 Trasfondo", de: "📜 Hintergrundgeschichte" },
   mapCodeLabel: { fr: "Code de cette carte — touchez pour copier", en: "Code for this map — tap to copy", zh: "本地图代码——点击复制", es: "Código de este mapa — toca para copiar", de: "Code dieser Karte — zum Kopieren tippen" },
   mapCodeCopied: { fr: "Copié !", en: "Copied!", zh: "已复制！", es: "¡Copiado!", de: "Kopiert!" },
@@ -5945,13 +5993,16 @@ const UI_STRINGS = {
     de: "<strong>Neptun</strong>, Gott des Meeres, antwortet jedem, der eine ganze Belagerung mit einem letzten Sturmangriff aus den Wellen besiegelt hat. Das Wasser weicht seither etwas schneller zurück: Jede Überquerung kostet eine Stärke weniger. Doch seine Küsten bleiben zur offenen See gewandt, eine Stärke weniger für den, der vom Meer aus angreift.",
   },
   // "Conseils" (tips) overlay.
-  conseilsTitle: { fr: "🎓 Astuces", en: "🎓 Tips", zh: "🎓 提示", es: "🎓 Consejos", de: "🎓 Tipps" },
+  conseilsTitle: { fr: "🎓 Tutoriel", en: "🎓 Tutorial", zh: "🎓 教程", es: "🎓 Tutorial", de: "🎓 Tutorial" },
+  // v2.68 : l'accroche annonce le parcours au lieu de le laisser deviner.
+  // Elle donne surtout la permission de s'arrêter tôt : sans ça, quatre
+  // paliers ressemblent à quatre devoirs.
   conseilsIntro1: {
-    fr: "Ce que le jeu ne vous dit jamais franchement — les règles qui décident vraiment de chaque bataille.",
-    en: "What the game never tells you outright — the rules that actually decide every battle.",
-    zh: "游戏从不明说的事——真正决定每场战斗胜负的规则。",
-    es: "Lo que el juego nunca te dice claramente — las reglas que realmente deciden cada batalla.",
-    de: "Was das Spiel dir nie offen sagt — die Regeln, die jede Schlacht wirklich entscheiden.",
+    fr: "Ce que le jeu ne vous dit jamais franchement — les règles qui décident vraiment de chaque bataille. Quatre paliers : le premier suffit pour jouer, les autres attendront que l'envie vienne.",
+    en: "What the game never tells you outright — the rules that actually decide every battle. Four steps: the first is enough to play, the rest can wait until you want them.",
+    zh: "游戏从不明说的事——真正决定每场战斗胜负的规则。共四级：第一级就够你上手，其余的等你想看时再看。",
+    es: "Lo que el juego nunca te dice claramente — las reglas que realmente deciden cada batalla. Cuatro niveles: con el primero basta para jugar, los demás esperarán a que te apetezca.",
+    de: "Was das Spiel dir nie offen sagt — die Regeln, die jede Schlacht wirklich entscheiden. Vier Stufen: Die erste reicht zum Spielen, die übrigen warten, bis du Lust darauf hast.",
   },
   hLevelVillageName: { fr: "Village", en: "Village", zh: "村庄", es: "Aldea", de: "Dorf" },
   hLevelVillageDesc: {
@@ -5993,6 +6044,38 @@ const UI_STRINGS = {
     de: "Das Ziel des Spiels ist das Gleichgewicht, das <em>du</em> willst — das Land unter mehreren Königreichen aufteilen oder es vollständig beherrschen, je nach Lust und Laune. Im letzteren Fall: Jedes Dorf muss demselben Königreich gehören. Ein Dorf, mehrere Dörfer, für ein einziges Königreich. Ein Land, ein Königreich, ein Lehnsherr.",
   },
   royaumesListLabel: { fr: "Les royaumes", en: "The kingdoms", zh: "各王国", es: "Los reinos", de: "Die Königreiche" },
+  // « Le tutoriel » (v2.68) — les quatre paliers. Chaque titre dit à qui il
+  // s'adresse et ce qu'on gagne à le lire, pas seulement ce qu'il contient :
+  // un joueur doit pouvoir s'arrêter après le premier en sachant qu'il ne
+  // rate rien d'indispensable.
+  conseilsStep1: {
+    fr: "① Pour jouer — c'est tout ce qu'il faut savoir",
+    en: "① To play — this is all you need to know",
+    zh: "① 开始游玩——你只需知道这些",
+    es: "① Para jugar — esto es todo lo que hace falta saber",
+    de: "① Zum Spielen — mehr musst du nicht wissen",
+  },
+  conseilsStep2: {
+    fr: "② Pour bien jouer — ce qui sépare un coup permis d'un bon coup",
+    en: "② To play well — what separates a legal move from a good one",
+    zh: "② 玩得更好——合法的一步与好的一步之差",
+    es: "② Para jugar bien — lo que separa una jugada permitida de una buena",
+    de: "② Um gut zu spielen — was einen erlaubten Zug von einem guten trennt",
+  },
+  conseilsStep3: {
+    fr: "③ Tout ce qu'il y a autour",
+    en: "③ Everything around the match itself",
+    zh: "③ 对局之外的一切",
+    es: "③ Todo lo que hay alrededor",
+    de: "③ Alles rundherum",
+  },
+  conseilsStep4: {
+    fr: "④ Ce qui se trouve en jouant — mieux vaut peut-être ne pas lire",
+    en: "④ What you find by playing — perhaps better left unread",
+    zh: "④ 在游玩中自行发现的——或许不读为好",
+    es: "④ Lo que se encuentra jugando — quizá mejor no leerlo",
+    de: "④ Was man beim Spielen findet — vielleicht besser ungelesen",
+  },
   conseilsCombatP: {
     fr: "<strong>Le combat</strong> : la plus grande force gagne toujours, sauf tout près de l'égalité — à force égale, l'attaquant a une chance sur 3 de l'emporter quand même ; à un seul de moins que le défenseur, une chance sur 5. Sinon aucun hasard : c'est toujours la plus grande force qui gagne.",
     en: "<strong>Combat</strong>: the greater strength always wins, except very close to a tie — at equal strength, the attacker still has a 1-in-3 chance of winning; one less than the defender, a 1-in-5 chance. Otherwise no randomness at all: the greater strength always wins.",
@@ -12639,6 +12722,15 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // players about.
 const CHANGELOG = [
   {
+    version: "2.68",
+    notes: [
+      "Les Astuces deviennent le Tutoriel. Même contenu, mais rangé dans l'ordre où on l'apprend et non dans l'ordre où il a été ajouté au jeu : on y lisait Le pouvoir des 12, le sacrifice à l'océan et Cthulhu avant même de savoir ce qu'est le pronostic d'attaque.",
+      "Quatre paliers, annoncés dès l'ouverture. Le premier suffit pour jouer : le vocabulaire, le but, les couleurs des maisons, le combat, les renforts, le pronostic et le danger. Vous pouvez vous arrêter là sans rien rater d'indispensable.",
+      "Le deuxième sépare un coup permis d'un bon coup, le troisième rassemble tout ce qui existe autour de la partie, et le quatrième prévient honnêtement qu'il vaut peut-être mieux ne pas le lire.",
+      "Aucune fiche n'a été supprimée ni réécrite.",
+    ],
+  },
+  {
     version: "2.67",
     notes: [
       "La salle des trophées a sa propre porte dans les Réglages : « 🏆 Trophées ». Elle vivait jusqu'ici tout en bas du parchemin du lore — il fallait savoir qu'elle existait, puis traverser toute la chronique pour l'atteindre.",
@@ -14168,6 +14260,8 @@ function applyUiLanguage() {
   document.getElementById("conseilsDuelP").innerHTML = t("conseilsDuelP");
   document.getElementById("conseilsInstallP").innerHTML = t("conseilsInstallP");
   document.getElementById("conseilsTrophyP").innerHTML = t("conseilsTrophyP");
+  // Les quatre titres de palier du tutoriel (v2.68).
+  for (let i = 1; i <= 4; i++) document.getElementById(`conseilsStep${i}`).textContent = t(`conseilsStep${i}`);
   document.getElementById("conseilsPowersP").innerHTML = t("conseilsPowersP");
   document.getElementById("conseilsGraalP").innerHTML = t("conseilsGraalP");
   document.getElementById("conseilsDailyGodsP").innerHTML = t("conseilsDailyGodsP");
