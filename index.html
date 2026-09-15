@@ -2005,7 +2005,7 @@
 // before (CREATURE_IMG's own loadSprite() call, the changelog, etc.), not
 // redeclared.
 const CREATURE_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAANAAAADQCAYAAAB2pO90AAAC2klEQVR4nO3dQWoDMRAAwd3g/39ZOeQHahgroupuvF7TzGWQ3rXWw4z3fUde9lrrnfiend8z9WxTfr79APCfCQgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAg+336AE5y85LnzbJY855hAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEFx3MqlTOe/7PSf/pyYQBAKCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAiCd62RG9559pYimbOzgGoCQSAgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAguO5kUvbsLFJOLcdOPdvOZ0wgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAElkkZNbUYOvU9JhAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJAQBAICILrlkldJb9namHzZK65h2ECgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgrFl0pOvRD/Zbe/ttqVVEwgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAgEBMF1J5My57bF0B0mEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgq1lUlfJW6TkjwkEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJg7GTSnUXKqaXVqcXQk6+styC8xwSCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUHwccLmHO/tvhNdTSAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEASfkxf1OJsTUE0gSAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEY9fcw/OcfcroDhMIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgl9clHexCa709wAAAABJRU5ErkJggg==";
-const GAME_VERSION = "2.68";
+const GAME_VERSION = "2.69";
 document.getElementById("loadingKnight").src = CREATURE_IMG_SRC;
 document.getElementById("loadingVersion").textContent = `v${GAME_VERSION}`;
 document.getElementById("splashKnight").src = CREATURE_IMG_SRC;
@@ -6108,19 +6108,31 @@ const UI_STRINGS = {
   // toute mécanique nouvelle ou modifiée doit avoir son paragraphe (ajouté
   // ou mis à jour) ici, dans conseilsMechanics — jamais seulement dans Le
   // lore, qui reste volontairement évocateur/ambigu par endroits.
+  // « Ce qui se trouve en jouant » (v2.69) — arbitrage de Pierre : rendre les
+  // trois fiches secrètes ALLUSIVES, « en laissant des petites questions
+  // ouvertes sur les astuces et les Easter eggs ».
+  // Ce qui est retiré : les comptes exacts et la marche à suivre pas à pas.
+  // Ce qui reste : que la chose EXISTE, à peu près où chercher, et le geste
+  // lui-même quand c'est une mécanique et non un secret (envoyer un village
+  // au large est une mécanique ; ce qu'elle réveille est un secret).
+  // Rien n'est perdu pour autant : la Salle des trophées porte la condition
+  // exacte de chaque case, et ces trois fiches y renvoient explicitement.
+  // Le tutoriel tente, la salle répond — c'est la division voulue depuis
+  // v2.67. La voix est celle du reste du lore : des chroniqueurs qui
+  // rapportent ce qu'on raconte, pas une documentation qui affirme.
   conseilsSacrificeP: {
-    fr: "<strong>Le sacrifice en mer</strong> : envoyez un village à son maximum (12 de force) directement en pleine mer, assez loin pour qu'il tombe à 1 de force à l'arrivée — c'est une offrande, pas une attaque. Faites-le 3 fois dans la même partie, au niveau de difficulté le plus dur (Templier) : une pieuvre géante se révèle sur la carte, et un niveau de difficulté caché supplémentaire vient d'apparaître dans les réglages.",
-    en: "<strong>The sea sacrifice</strong>: send a village at its maximum (12 strength) straight into open sea, far enough that it drops to 1 strength on arrival — it's an offering, not an attack. Do it 3 times in the same match, at the hardest difficulty (Templar): a giant octopus reveals itself on the map, and an extra hidden difficulty level appears in the settings.",
-    zh: "<strong>海上献祭</strong>：将一个满兵力（12）的村庄直接送入远海，足够远以至于抵达时兵力降到1——这是一次献祭，不是进攻。在同一局游戏中、最高难度（圣殿骑士）下完成3次：一只巨型章鱼会在地图上现身，设置中也会出现一个额外的隐藏难度等级。",
-    es: "<strong>El sacrificio en el mar</strong>: envía una aldea a su máximo (12 de fuerza) directamente a mar abierto, lo bastante lejos como para que caiga a 1 de fuerza al llegar — es una ofrenda, no un ataque. Hazlo 3 veces en la misma partida, en la dificultad más alta (Templario): un pulpo gigante se revela en el mapa, y aparece un nivel de dificultad oculto adicional en los ajustes.",
-    de: "<strong>Das Meeresopfer</strong>: Schicke ein Dorf auf seinem Maximum (12 Stärke) direkt in offene See, weit genug, dass es bei der Ankunft auf 1 Stärke fällt — das ist eine Opfergabe, kein Angriff. Mach das 3-mal in derselben Partie, auf dem höchsten Schwierigkeitsgrad (Templer): Ein riesiger Oktopus zeigt sich auf der Karte, und in den Einstellungen erscheint eine zusätzliche versteckte Schwierigkeitsstufe.",
+    fr: "<strong>Le sacrifice en mer</strong> : un village peut être lancé droit vers le large, là où il n'y a personne à combattre. Ce n'est pas une attaque — les hommes ne reviennent pas, et l'offrande n'est entière que si elle part à pleine force et arrive exsangue. Les chroniqueurs assurent que quelque chose, en dessous, tient le compte ; que le compte ne vaut que dans une même guerre ; et que rien ne remonte jamais pour les seigneurs qui se ménagent. Le nombre exact, la salle des trophées le donne à qui préfère savoir.",
+    en: "<strong>The sea sacrifice</strong>: a village can be sent straight out to open water, where there is nobody to fight. It is not an attack — the men do not come back, and the offering only counts in full if it leaves at full strength and arrives drained. The chroniclers hold that something below keeps count; that the count only holds within a single war; and that nothing ever rises for lords who spare themselves. The exact number is in the trophy room, for whoever would rather know.",
+    zh: "<strong>海上献祭</strong>：一个村庄可以被径直送往远海，那里无人可战。这不是进攻——将士不会归来，而唯有满兵力出发、力竭而至，献祭才算完整。编年史家坚称，海面之下有什么在计数；这个数只在同一场战争之内有效；而对惜力自保的领主，海中永远不会有任何东西升起。确切的数目，荣誉殿堂会告诉想知道的人。",
+    es: "<strong>El sacrificio en el mar</strong>: una aldea puede ser lanzada directamente hacia mar abierto, allí donde no hay nadie contra quien luchar. No es un ataque — los hombres no vuelven, y la ofrenda solo cuenta entera si parte a plena fuerza y llega exangüe. Los cronistas sostienen que algo, abajo, lleva la cuenta; que la cuenta solo vale dentro de una misma guerra; y que nada emerge jamás para los señores que se reservan. El número exacto lo da la sala de trofeos, a quien prefiera saberlo.",
+    de: "<strong>Das Meeresopfer</strong>: Ein Dorf kann geradewegs aufs offene Meer geschickt werden, dorthin, wo es niemanden zu bekämpfen gibt. Es ist kein Angriff — die Männer kehren nicht zurück, und die Gabe zählt nur ganz, wenn sie mit voller Stärke aufbricht und ausgeblutet ankommt. Die Chronisten halten fest, dass etwas dort unten mitzählt; dass die Zählung nur innerhalb eines Krieges gilt; und dass für Fürsten, die sich schonen, nie etwas aufsteigt. Die genaue Zahl nennt der Trophäenraum jenem, der es lieber wissen will.",
   },
   conseilsCthulhuP: {
-    fr: "<strong>Cthulhu</strong> : le palier de difficulté caché le plus dur du jeu, au-delà de Templier. D'abord, gagnez assez de parties — un indice (« parchemin crypté ») apparaît sur un écran de victoire, au hasard, généralement entre la 5ᵉ et la 10ᵉ victoire. Une fois cet indice vu, faites un 4ᵉ sacrifice en mer (voir ci-dessus) dans une même partie à Templier. Une fois débloqué : plus aucune perte de force en traversant la mer, et une portée de traversée illimitée — mais l'adversaire aussi devient sans pitié à ce niveau.",
-    en: "<strong>Cthulhu</strong>: the hardest hidden difficulty tier in the game, beyond Templar. First, win enough matches — a hint (\"encrypted scroll\") appears on a win screen, at random, usually between the 5th and 10th win. Once that hint has appeared, do a 4th sea sacrifice (see above) in a single match at Templar. Once unlocked: no more strength lost crossing the sea, and unlimited crossing range — but the opponent turns merciless at this level too.",
-    zh: "<strong>克苏鲁</strong>：游戏中最难的隐藏难度等级，超越圣殿骑士。首先需要赢得足够多的对局——一条提示（「加密卷轴」）会随机出现在某次胜利画面上，通常在第5到第10次胜利之间。看到该提示后，在圣殿骑士难度的同一局游戏中完成第4次海上献祭（见上文）。解锁后：渡海不再损失兵力，且渡海距离不再受限——但对手在此难度下也会变得毫不留情。",
-    es: "<strong>Cthulhu</strong>: el nivel de dificultad oculto más duro del juego, más allá de Templario. Primero, gana suficientes partidas — una pista (\"pergamino cifrado\") aparece en una pantalla de victoria, al azar, normalmente entre la 5ª y la 10ª victoria. Una vez vista esa pista, haz un 4º sacrificio en el mar (ver arriba) en una misma partida en Templario. Una vez desbloqueado: ya no se pierde fuerza al cruzar el mar, y el alcance de la travesía es ilimitado — pero el adversario también se vuelve despiadado en este nivel.",
-    de: "<strong>Cthulhu</strong>: die härteste versteckte Schwierigkeitsstufe des Spiels, jenseits von Templer. Gewinne zuerst genug Partien — ein Hinweis (\"verschlüsselte Schriftrolle\") erscheint zufällig auf einem Siegbildschirm, meist zwischen dem 5. und 10. Sieg. Sobald dieser Hinweis erschienen ist, mach ein 4. Meeresopfer (siehe oben) in derselben Partie auf Templer-Stufe. Einmal freigeschaltet: kein Stärkeverlust mehr beim Überqueren des Meeres, und unbegrenzte Reichweite — aber der Gegner wird auf dieser Stufe ebenfalls gnadenlos.",
+    fr: "<strong>Ce qui dort plus bas</strong> : la pieuvre n'est pas le fond de la mer, seulement ce qu'on en voit. Il arrive qu'un seigneur vaincu vous remette un parchemin que personne dans le pays ne sait lire. Ceux qui l'ont reçu, et qui ont continué d'offrir au-delà du raisonnable, rapportent qu'on leur a répondu — et qu'un palier de guerre dont aucun réglage ne parlait est apparu chez eux le lendemain. On dit aussi que la mer, à ce niveau-là, cesse tout à fait de coûter quelque chose. Les conditions précises sont dans la salle des trophées.",
+    en: "<strong>What sleeps deeper</strong>: the octopus is not the bottom of the sea, only the part of it you get to see. It happens that a beaten lord hands you a scroll nobody in the land can read. Those who received it, and kept offering past all reason, report being answered — and that a tier of war no setting had ever mentioned appeared in their hands the next day. It is also said that the sea, at that level, stops costing anything at all. The precise conditions are in the trophy room.",
+    zh: "<strong>更深处沉睡之物</strong>：章鱼并非海的底部，只是海所肯让你看见的部分。有时，一位战败的领主会交给你一卷国中无人能读的卷轴。那些收下它、又继续献祭至不可理喻之地步的人说，深处曾回应过他们——翌日，一个任何设置都未曾提及的战争等级出现在他们手中。也有人说，到了那个等级，渡海将彻底不再需要付出代价。确切的条件，尽在荣誉殿堂。",
+    es: "<strong>Lo que duerme más abajo</strong>: el pulpo no es el fondo del mar, solo la parte que se te deja ver. Ocurre que un señor vencido te entrega un pergamino que nadie en el país sabe leer. Quienes lo recibieron, y siguieron ofreciendo más allá de toda razón, cuentan que les respondieron — y que un nivel de guerra del que ningún ajuste hablaba apareció en sus manos al día siguiente. También se dice que el mar, a ese nivel, deja por completo de costar algo. Las condiciones precisas están en la sala de trofeos.",
+    de: "<strong>Was tiefer schläft</strong>: Der Oktopus ist nicht der Grund des Meeres, nur der Teil davon, den man zu sehen bekommt. Es kommt vor, dass ein besiegter Fürst dir eine Schriftrolle überreicht, die niemand im Land zu lesen versteht. Wer sie empfing und über alle Vernunft hinaus weiter opferte, berichtet, es sei ihm geantwortet worden — und dass am nächsten Tag eine Kriegsstufe in seinen Händen lag, von der keine Einstellung je gesprochen hatte. Man sagt auch, das Meer höre auf dieser Stufe gänzlich auf, etwas zu kosten. Die genauen Bedingungen stehen im Trophäenraum.",
   },
   conseilsGodsP: {
     fr: "<strong>Les dieux</strong> : chacun se gagne par un exploit précis, avec n'importe quel royaume — une fois obtenu, son bonus reste acquis pour vous à chaque partie suivante, peu importe la maison choisie (la maison qui a accompli l'exploit le garde aussi, elle, pour de bon). Chaque don a un prix.<ul class='conseilsGodsList'><li><strong>Vulcain</strong> : redescendez à votre toute dernière province, puis renversez le siège quand même — +1 défense sur chaque province, mais -1 renfort à chaque fin de tour.</li><li><strong>Bellone</strong> : gagnez un siège entier sans jamais céder une seule province — +1 attaque, mais -1 défense.</li><li><strong>Cérès</strong> : laissez chaque maison rivale vivre jusqu'au bout, puis balayez-les toutes en une seule charge continue — +1 renfort à chaque fin de tour, mais aucune province ne dépasse jamais 11 de force.</li><li><strong>Neptune</strong> : achevez un siège par une dernière charge venue de la mer — -1 de coût sur chaque traversée, mais -1 défense contre une attaque venant de la mer.</li></ul>",
@@ -6160,11 +6172,11 @@ const UI_STRINGS = {
   // traitement que conseilsGodsP/conseilsCthulhuP, qui expliquent déjà
   // leurs propres conditions de déblocage.
   conseilsArtefactsP: {
-    fr: "<strong>Les trois artefacts</strong> : le parchemin s'obtient à l'instant précis où un Seigneur vous remet le parchemin crypté. Excalibur, plantée dans son rocher, ne se libère qu'après avoir arraché <strong>douze</strong> provinces défendues à la force maximale (12) — cumulées sur toutes vos parties, pas en une seule. L'épée blanche, elle, se gagne en terminant une partie sur un statu-quo.",
-    en: "<strong>The three artifacts</strong>: the scroll is earned the moment a Lord hands you the encrypted parchment. Excalibur, set in its stone, comes free only after you have torn away <strong>twelve</strong> provinces defended at maximum strength (12) — counted across all your matches, not within one. The white sword is earned by ending a match in a stalemate.",
-    zh: "<strong>三件圣物</strong>：当某位领主将密文羊皮卷交给你的那一刻，你便获得羊皮卷。插在石中的王者之剑，唯有在你夺下<strong>十二</strong>个以最大兵力（12）防守的省份之后才会松动——跨越你所有对局累计，而非一局之内。白剑则通过以僵局结束一场对局来获得。",
-    es: "<strong>Los tres artefactos</strong>: el pergamino se obtiene en el instante en que un Señor te entrega el pergamino cifrado. Excalibur, clavada en su roca, solo se libera tras arrancar <strong>doce</strong> provincias defendidas a la fuerza máxima (12), acumuladas a lo largo de todas tus partidas, no en una sola. La espada blanca se gana terminando una partida en tablas.",
-    de: "<strong>Die drei Artefakte</strong>: Die Schriftrolle erhältst du in dem Moment, in dem ein Fürst dir die verschlüsselte Pergamentrolle überreicht. Excalibur, im Stein steckend, löst sich erst, nachdem du <strong>zwölf</strong> Provinzen entrissen hast, die mit maximaler Stärke (12) verteidigt wurden — über all deine Partien hinweg gezählt, nicht in einer einzigen. Das weiße Schwert verdienst du dir, indem du eine Partie mit einem Patt beendest.",
+    fr: "<strong>Les trois artefacts</strong> : un parchemin chiffré, une épée blanche et Excalibur, encore prise dans sa pierre. Le parchemin change de mains à la fin de certaines guerres, sans qu'on sache lesquelles à l'avance. L'épée blanche revient à qui termine une guerre que plus personne ne pouvait gagner. Excalibur ne cède qu'à force d'arracher des provinces défendues au maximum — beaucoup, et pas dans la même partie. La salle des trophées tient ce dernier compte pour vous, au fur et à mesure.",
+    en: "<strong>The three artifacts</strong>: an encrypted scroll, a white sword, and Excalibur, still set in its stone. The scroll changes hands at the end of certain wars, with no telling which beforehand. The white sword goes to whoever ends a war nobody could win any more. Excalibur yields only to the tearing away of provinces defended at maximum strength — many of them, and not within one match. The trophy room keeps that last count for you, as you go.",
+    zh: "<strong>三件圣物</strong>：一卷密文羊皮、一柄白剑，以及仍嵌在石中的王者之剑。羊皮卷会在某些战争结束时易手，而事先无人知晓是哪几场。白剑归于终结了一场再无人能取胜的战争的人。王者之剑唯有靠夺下以最大兵力防守的省份才会松动——要很多座，且不在同一局之内。最后这个数目，荣誉殿堂会为你逐次记下。",
+    es: "<strong>Los tres artefactos</strong>: un pergamino cifrado, una espada blanca y Excalibur, todavía clavada en su roca. El pergamino cambia de manos al final de ciertas guerras, sin que se sepa de antemano cuáles. La espada blanca corresponde a quien termina una guerra que ya nadie podía ganar. Excalibur solo cede a fuerza de arrancar provincias defendidas al máximo — muchas, y no en la misma partida. La sala de trofeos lleva esa última cuenta por ti, sobre la marcha.",
+    de: "<strong>Die drei Artefakte</strong>: eine verschlüsselte Schriftrolle, ein weißes Schwert und Excalibur, noch immer im Stein. Die Schriftrolle wechselt am Ende gewisser Kriege den Besitzer, ohne dass man vorher wüsste, welcher. Das weiße Schwert fällt dem zu, der einen Krieg beendet, den niemand mehr gewinnen konnte. Excalibur gibt erst nach, wenn genug Provinzen entrissen wurden, die mit maximaler Stärke verteidigt waren — viele, und nicht in derselben Partie. Diese letzte Zählung führt der Trophäenraum laufend für dich.",
   },
   // "Province en danger" (v2.54) — pendant défensif du pronostic, voir
   // drawDangerMarkers(). Même règle publique, lue dans l'autre sens.
@@ -6722,19 +6734,24 @@ const UI_STRINGS = {
     es: "Ganar un ataque lanzado por mar. Sin bonificación: es la propia herramienta de guerra.",
     de: "Einen über See geführten Angriff gewinnen. Kein Bonus: Es ist das Kriegswerkzeug selbst.",
   },
+  // v2.69 : la condition disait « faire surgir la pieuvre trois fois » sans
+  // jamais dire COMMENT la faire surgir — le geste lui-même n'était expliqué
+  // que dans la fiche du Tutoriel, devenue allusive. Sans ce complément, la
+  // promesse de v2.67 (« un seul endroit où on sait quoi débloquer ET
+  // comment ») serait fausse pour les deux cases les plus difficiles du jeu.
   trophyHowPieuvre: {
-    fr: "Faire surgir la pieuvre trois fois, toutes parties confondues. Aucun bonus de combat : elle prend la place de l'icône des Réglages.",
-    en: "Make the octopus surface three times, across all your matches. No combat bonus: it takes over the Settings icon.",
-    zh: "在所有对局中累计让章鱼现身三次。无战斗加成：它会取代设置图标。",
-    es: "Hacer emerger al pulpo tres veces, sumando todas tus partidas. Sin bonificación de combate: ocupa el icono de Ajustes.",
-    de: "Den Tintenfisch dreimal auftauchen lassen, über alle Partien hinweg. Kein Kampfbonus: Er übernimmt das Einstellungssymbol.",
+    fr: "Le rituel : lancer un village à pleine force (12) droit vers le large, assez loin pour qu'il arrive à 1 — une offrande, pas une attaque. Trois fois dans une même partie, au palier Templier. Aucun bonus de combat : la pieuvre prend la place de l'icône des Réglages.",
+    en: "The ritual: send a village at full strength (12) straight out to open sea, far enough that it arrives at 1 — an offering, not an attack. Three times in the same match, at the Templar tier. No combat bonus: the octopus takes the place of the Settings icon.",
+    zh: "仪式：将一个满兵力（12）的村庄直送远海，远到抵达时只剩 1——这是献祭，不是进攻。在同一局中重复三次，于圣殿骑士难度。无战斗加成：章鱼会取代设置图标的位置。",
+    es: "El ritual: lanzar una aldea a plena fuerza (12) directamente hacia mar abierto, lo bastante lejos como para que llegue a 1 — una ofrenda, no un ataque. Tres veces en la misma partida, en el nivel Templario. Sin bonificación de combate: el pulpo ocupa el lugar del icono de Ajustes.",
+    de: "Das Ritual: ein Dorf mit voller Stärke (12) geradewegs aufs offene Meer schicken, weit genug, dass es mit 1 ankommt — eine Opfergabe, kein Angriff. Dreimal in derselben Partie, auf der Templer-Stufe. Kein Kampfbonus: Der Oktopus nimmt den Platz des Einstellungs-Symbols ein.",
   },
   trophyHowCthulhu: {
-    fr: "Accomplir quatre rituels de l'océan dans une même partie, au palier Templier, après avoir reçu le parchemin. → Débloque le palier de difficulté caché.",
-    en: "Complete four ocean rituals in a single match, at Templar tier, after receiving the parchment. → Unlocks the hidden difficulty tier.",
-    zh: "在获得羊皮卷后，于「圣殿骑士」难度的同一局中完成四次海洋仪式。→ 解锁隐藏难度等级。",
-    es: "Completar cuatro rituales del océano en una misma partida, en nivel Templario, tras recibir el pergamino. → Desbloquea el nivel de dificultad oculto.",
-    de: "Vier Ozean-Rituale in einer einzigen Partie auf der Templer-Stufe vollenden, nachdem du das Pergament erhalten hast. → Schaltet die verborgene Schwierigkeitsstufe frei.",
+    fr: "Accomplir un quatrième rituel de l'océan (voir la pieuvre, juste avant) dans une même partie, au palier Templier, et seulement après avoir reçu le parchemin chiffré des mains d'un seigneur. → Débloque le palier de difficulté caché.",
+    en: "Perform a fourth ocean ritual (see the octopus, just before) in a single match, at the Templar tier, and only after a lord has handed you the encrypted scroll. → Unlocks the hidden difficulty tier.",
+    zh: "在同一局中完成第四次海洋仪式（见前一格的章鱼），于圣殿骑士难度，且必须在某位领主将密文卷轴交予你之后。→ 解锁隐藏难度等级。",
+    es: "Realizar un cuarto ritual del océano (ver el pulpo, justo antes) en una misma partida, en el nivel Templario, y solo después de que un señor te haya entregado el pergamino cifrado. → Desbloquea el nivel de dificultad oculto.",
+    de: "Ein viertes Meeresritual (siehe Oktopus, direkt davor) in derselben Partie vollziehen, auf der Templer-Stufe, und erst nachdem dir ein Fürst die verschlüsselte Schriftrolle überreicht hat. → Schaltet die versteckte Schwierigkeitsstufe frei.",
   },
   trophyHowPower12: {
     fr: "Amener toutes vos provinces à 12 en même temps, trois fois, toutes parties confondues. → Victoire garantie quand vous attaquez à 12 contre 12 par voie terrestre, et les chiffres détaillés dans les statistiques.",
@@ -12721,6 +12738,15 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // add a new entry at the top whenever a future change is worth telling
 // players about.
 const CHANGELOG = [
+  {
+    version: "2.69",
+    notes: [
+      "Le dernier palier du Tutoriel ne donne plus la marche à suivre. Le sacrifice en mer, ce qui dort plus bas et les trois artefacts sont désormais racontés comme on raconte une rumeur : ce qui existe, à peu près où chercher, et rien de plus.",
+      "Le geste lui-même reste expliqué — envoyer un village au large est une règle du jeu, pas un secret. Ce qui est retiré, ce sont les comptes exacts et l'ordre des opérations.",
+      "Rien n'est perdu pour autant : la salle des trophées porte la condition précise de chaque case, et les trois fiches y renvoient. Si vous butez, la réponse est à une entrée de menu.",
+      "La salle y gagne d'ailleurs : la pieuvre et Cthulhu disaient combien de rituels accomplir sans jamais dire en quoi consiste un rituel. C'est écrit maintenant.",
+    ],
+  },
   {
     version: "2.68",
     notes: [
