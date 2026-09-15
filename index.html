@@ -1670,6 +1670,10 @@
       <div id="mapLabError"></div>
       <div id="mapLabButtons">
         <button id="mapLabRoll"></button>
+        <!-- « Partager une carte » (v2.70) — sa place est ici et nulle part
+             ailleurs : c'est le seul écran où une carte existe comme objet
+             qu'on regarde, avant d'y avoir joué. Voir shareMap(). -->
+        <button id="mapLabShare"></button>
         <button id="mapLabGo"></button>
       </div>
     </div>
@@ -1748,6 +1752,7 @@
         <p id="conseilsDailyGodsP"></p>
         <p id="conseilsDuelP"></p>
         <p id="conseilsMapLabP"></p>
+        <p id="conseilsMapShareP"></p>
         <p id="conseilsInstallP"></p>
         <!-- 4. Les secrets, en dernier et annoncés comme tels. Leur contenu
              n'est PAS retiré : Pierre veut « laisser des petites questions
@@ -2005,7 +2010,7 @@
 // before (CREATURE_IMG's own loadSprite() call, the changelog, etc.), not
 // redeclared.
 const CREATURE_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAANAAAADQCAYAAAB2pO90AAAC2klEQVR4nO3dQWoDMRAAwd3g/39ZOeQHahgroupuvF7TzGWQ3rXWw4z3fUde9lrrnfiend8z9WxTfr79APCfCQgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAg+336AE5y85LnzbJY855hAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEFx3MqlTOe/7PSf/pyYQBAKCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAiCd62RG9559pYimbOzgGoCQSAgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAguO5kUvbsLFJOLcdOPdvOZ0wgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAElkkZNbUYOvU9JhAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJAQBAICILrlkldJb9namHzZK65h2ECgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgrFl0pOvRD/Zbe/ttqVVEwgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAgEBMF1J5My57bF0B0mEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgq1lUlfJW6TkjwkEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJg7GTSnUXKqaXVqcXQk6+styC8xwSCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUHwccLmHO/tvhNdTSAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEASfkxf1OJsTUE0gSAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEY9fcw/OcfcroDhMIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgl9clHexCa709wAAAABJRU5ErkJggg==";
-const GAME_VERSION = "2.69";
+const GAME_VERSION = "2.70";
 document.getElementById("loadingKnight").src = CREATURE_IMG_SRC;
 document.getElementById("loadingVersion").textContent = `v${GAME_VERSION}`;
 document.getElementById("splashKnight").src = CREATURE_IMG_SRC;
@@ -6260,6 +6265,16 @@ const UI_STRINGS = {
   mapLabGo: { fr: "⚔️ Celle-ci", en: "⚔️ This one", zh: "⚔️ 就这张", es: "⚔️ Esta", de: "⚔️ Diese hier" },
   mapLabApply: { fr: "Charger", en: "Load", zh: "载入", es: "Cargar", de: "Laden" },
   mapLabBadCode: { fr: "Ce code ne mène à aucune carte.", en: "That code leads to no map.", zh: "该代码没有对应的地图。", es: "Ese código no lleva a ningún mapa.", de: "Dieser Code führt zu keiner Karte." },
+  // Fiche dédiée (v2.70), règle de v2.43 : le partage d'une carte est une
+  // mécanique nouvelle et non un rangement. Placée au palier ③ juste après
+  // l'atelier, dont elle est le prolongement direct.
+  conseilsMapShareP: {
+    fr: "<strong>Partager une carte</strong> : dans l'atelier des cartes, « 🔗 Partager » envoie un lien vers la carte affichée — sans l'avoir jouée. Celui qui l'ouvre tombe sur le terrain exact : même graine, même taille, même difficulté, même nombre d'adversaires. Le lien ne transporte rien d'autre que le code de la carte : c'est le même objet, sous une autre forme. Un ami sans le jeu installé y arrive quand même, la page se charge toute seule.",
+    en: "<strong>Sharing a map</strong>: in the map workshop, “🔗 Share” sends a link to the map on screen — without having played it. Whoever opens it lands on the exact same ground: same seed, same size, same difficulty, same number of rivals. The link carries nothing but the map code: it is the same object in another form. A friend without the game installed still gets there, the page loads on its own.",
+    zh: "<strong>分享地图</strong>：在地图工坊中，「🔗 分享」会发送一条指向当前地图的链接——无需先玩过它。打开链接的人会落在完全相同的地形上：同一随机种子、同样的大小、同样的难度、同样的对手数量。链接除了地图代码之外不携带任何东西：它就是同一个东西的另一种形态。没有装过游戏的朋友照样能打开，页面会自行加载。",
+    es: "<strong>Compartir un mapa</strong>: en el taller de mapas, «🔗 Compartir» envía un enlace al mapa en pantalla — sin haberlo jugado. Quien lo abra caerá en el terreno exacto: la misma semilla, el mismo tamaño, la misma dificultad, el mismo número de rivales. El enlace no transporta nada más que el código del mapa: es el mismo objeto bajo otra forma. Un amigo que no tenga el juego instalado llega igualmente, la página se carga sola.",
+    de: "<strong>Eine Karte teilen</strong>: In der Kartenwerkstatt verschickt „🔗 Teilen“ einen Link zur angezeigten Karte — ohne sie gespielt zu haben. Wer ihn öffnet, landet auf genau demselben Boden: gleicher Startwert, gleiche Größe, gleicher Schwierigkeitsgrad, gleiche Zahl von Rivalen. Der Link trägt nichts außer dem Kartencode: Es ist dasselbe Objekt in anderer Form. Auch ein Freund ohne installiertes Spiel kommt an, die Seite lädt von selbst.",
+  },
   conseilsMapLabP: {
     fr: "<strong>L'atelier des cartes</strong> : dans les Réglages avancés, tirez des cartes et regardez leur <strong>code se réécrire</strong> sous vos yeux. Le code n'est pas une bouillie : il se lit en quatre morceaux — la graine, la taille, la difficulté, le nombre de rivaux — et l'atelier vous les montre séparés. Sous chaque carte, quatre mesures prises sur le terrain réellement tiré : combien de provinces, combien d'îles, combien de traversées maritimes payables, et la plus grosse position de départ. Une seule île, c'est une guerre de front ; quatre îles, c'est une guerre de marins — vous le savez avant d'engager le premier soldat. Et vous pouvez écrire un code à la main pour retomber sur une carte précise, ou en explorer une voisine en changeant un seul caractère.",
     en: "<strong>The map workshop</strong>: in Advanced settings, draw maps and watch their <strong>code rewrite itself</strong> before your eyes. The code isn't gibberish: it reads in four pieces — the seed, the size, the difficulty, the number of rivals — and the workshop shows them apart. Under each map, four measurements taken on the terrain actually drawn: how many provinces, how many islands, how many payable sea crossings, and the largest starting position. One island means a war of fronts; four islands means a war of sailors — and you know it before committing a single soldier. You can also type a code by hand to land on an exact map, or explore a neighbouring one by changing a single character.",
@@ -6289,7 +6304,7 @@ const UI_STRINGS = {
     en: "<strong>The trophy room</strong>: in the Settings, \"🏆 Trophies\". It is the one place that shows what you have left to unlock and how: the display case at the top, then \"What's left for you\" below it, every missing slot written out with its condition. <strong>Tap any slot</strong> to see what it grants. Not all of them grant anything: the four gods and The power of 12 genuinely change your battles, the others mark how far you've come. Careful, each god has its price: Cérès in particular lowers your maximum strength to 11, which permanently closes off The power of 12.",
     zh: "<strong>战利品室</strong>：在「设置」中的「🏆 荣誉」。这是唯一能看清还差什么、以及如何取得的地方：上方是陈列柜，下方是「你还差的」，每一个缺失的格子都写明了条件。<strong>点按任意格子</strong>即可查看它带来什么。并非全都有加成：四位神明与「十二之力」会真正改变你的战斗，其余则记录你走过的路。注意，每位神明都有代价：尤其是刻瑞斯会将你的最大力量降至 11，从而永久关闭「十二之力」。",
     es: "<strong>La sala de trofeos</strong>: en los Ajustes, «🏆 Trofeos». Es el único sitio donde se ve qué te queda por desbloquear y cómo: la vitrina arriba y, debajo, «Lo que te queda», con cada casilla pendiente escrita junto a su condición. <strong>Toca cualquier casilla</strong> para ver qué otorga. No todas otorgan algo: los cuatro dioses y El poder de los 12 cambian de verdad tus combates, las demás marcan el camino recorrido. Ojo, cada dios tiene su precio: Cérès en particular baja tu fuerza máxima a 11, lo que te cierra definitivamente El poder de los 12.",
-    de: "<strong>Die Trophäenhalle</strong>: in den Einstellungen unter „🏆 Trophäen\". Sie ist der einzige Ort, an dem du siehst, was dir noch fehlt und wie du es bekommst: oben die Vitrine, darunter „Was dir noch fehlt\" mit jedem offenen Feld und seiner Bedingung. <strong>Tippe auf ein beliebiges Feld</strong>, um zu sehen, was es bringt. Nicht alle bringen etwas: Die vier Götter und Die Macht der 12 verändern deine Kämpfe wirklich, die übrigen markieren den zurückgelegten Weg. Achtung, jeder Gott hat seinen Preis: Besonders Cérès senkt deine Maximalstärke auf 11 und verschließt dir damit dauerhaft Die Macht der 12.",
+    de: "<strong>Die Trophäenhalle</strong>: in den Einstellungen unter „🏆 Trophäen“. Sie ist der einzige Ort, an dem du siehst, was dir noch fehlt und wie du es bekommst: oben die Vitrine, darunter „Was dir noch fehlt“ mit jedem offenen Feld und seiner Bedingung. <strong>Tippe auf ein beliebiges Feld</strong>, um zu sehen, was es bringt. Nicht alle bringen etwas: Die vier Götter und Die Macht der 12 verändern deine Kämpfe wirklich, die übrigen markieren den zurückgelegten Weg. Achtung, jeder Gott hat seinen Preis: Besonders Cérès senkt deine Maximalstärke auf 11 und verschließt dir damit dauerhaft Die Macht der 12.",
   },
   conseilsInstallP: {
     fr: "<strong>Installer le jeu</strong> : dans les Réglages, « Installer le jeu » explique comment poser Knight Wars sur votre écran d'accueil. Le jeu s'ouvre alors en plein écran, sans la barre du navigateur, et se lance d'une seule touche. Rien à télécharger sur un magasin d'applications, aucun compte : c'est la page elle-même qui s'installe. Le jeu a besoin du réseau à chaque lancement.",
@@ -6415,6 +6430,29 @@ const UI_STRINGS = {
   // « La salle des trophées » (v2.67) — sa porte dans le menu, et la liste
   // de ce qu'il reste. Le libellé du bouton reprend l'emoji du titre de la
   // salle pour qu'on reconnaisse la même chose des deux côtés.
+  // « Partager une carte » (v2.70).
+  mapLabShare: { fr: "🔗 Partager", en: "🔗 Share", zh: "🔗 分享", es: "🔗 Compartir", de: "🔗 Teilen" },
+  mapShareText: {
+    fr: "Je t'envoie une carte de Knight Wars. Même terrain, mêmes règles — à toi de faire mieux :",
+    en: "Here's a Knight Wars map for you. Same ground, same rules — do better than me:",
+    zh: "给你一张《骑士战争》的地图。同样的地形，同样的规则——看你能不能做得更好：",
+    es: "Te mando un mapa de Knight Wars. El mismo terreno, las mismas reglas — a ver si lo haces mejor:",
+    de: "Hier ist eine Knight-Wars-Karte für dich. Gleicher Boden, gleiche Regeln — mach es besser als ich:",
+  },
+  mapShareCopied: {
+    fr: "Lien copié.",
+    en: "Link copied.",
+    zh: "链接已复制。",
+    es: "Enlace copiado.",
+    de: "Link kopiert.",
+  },
+  mapShareFallback: {
+    fr: "Copiez ce lien pour envoyer la carte :",
+    en: "Copy this link to send the map:",
+    zh: "复制此链接即可发送地图：",
+    es: "Copia este enlace para enviar el mapa:",
+    de: "Kopiere diesen Link, um die Karte zu senden:",
+  },
   trophyBtnLabel: { fr: "🏆 Trophées", en: "🏆 Trophies", zh: "🏆 荣誉", es: "🏆 Trofeos", de: "🏆 Trophäen" },
   trophyTodoLabel: {
     fr: "Ce qu'il vous reste ({n})",
@@ -9506,6 +9544,54 @@ document.getElementById("loadMapCode").addEventListener("click", () => {
   applyMapSize(parsed.mapSize);
   if (!reloadIfUpdateAvailable()) withLoadingFeedback(() => startGame(parsed.seed));
 });
+// « Partager une carte » (v2.70) — remarque de Pierre laissée ouverte en
+// v2.66 : « le menu de partage il est pas juste quand on a joué à [la
+// carte], il devrait être aussi ». Jusqu'ici le partage n'existait qu'à
+// l'écran de victoire : pour envoyer une carte à un ami, il fallait l'avoir
+// gagnée d'abord.
+//
+// Et ça règle du même coup le doublon reporté en v2.63 (« on traitera le
+// côté doublon plus tard ») : le lien NE RÉINVENTE RIEN, il transporte le
+// code de carte tel quel. Un seul concept, deux façons de le porter — un
+// code court qu'on dicte ou qu'on tape, un lien qu'on touche. Ils ne
+// peuvent pas diverger puisque c'est le même texte.
+//
+// Conséquence de sécurité, et c'est la vraie raison de ce choix : le lien
+// passe par parseMapCode(), déjà durci et borné champ par champ (difficulté
+// 0-3, taille dans MAP_SIZE_BY_LETTER, adversaires 1-3, graine finie et
+// positive). Un lien de carte fabriqué à la main n'a donc aucune surface
+// que le code de carte n'avait pas déjà. À comparer avec ?replay=, qui
+// transporte un journal de coups entier et a demandé toute une batterie de
+// validations (voir tryParseSharedReplay juste en dessous).
+function buildMapShareUrl() {
+  const url = new URL(location.href);
+  url.hash = ""; url.search = "";
+  url.searchParams.set("carte", buildMapCode());
+  return url.toString();
+}
+function tryParseSharedMap() {
+  // ?replay= l'emporte : il est plus précis (il porte une partie jouée, pas
+  // seulement le terrain). Les deux ensemble ne devraient pas arriver, mais
+  // un lien bricolé à la main peut très bien les cumuler.
+  if (new URLSearchParams(location.search).get("replay")) return null;
+  const code = new URLSearchParams(location.search).get("carte");
+  if (!code) return null;
+  return parseMapCode(code);
+}
+async function shareMap() {
+  sfxShare();
+  const url = buildMapShareUrl();
+  const text = t("mapShareText");
+  if (navigator.share) {
+    try { await navigator.share({ title: "Knight Wars", text, url }); return; } catch (e) { /* annulé ou non supporté — on retombe sur le presse-papier */ }
+  }
+  try {
+    await navigator.clipboard.writeText(`${text} ${url}`);
+    mapLabFlash(t("mapShareCopied"));
+  } catch (e) {
+    prompt(t("mapShareFallback"), url);
+  }
+}
 function tryParseSharedReplay() {
   try {
     const encoded = new URLSearchParams(location.search).get("replay");
@@ -12495,7 +12581,10 @@ function mapLabRefresh() {
   document.getElementById("mapLabFacts").textContent = mapLabFacts();
   const input = document.getElementById("mapLabInput");
   if (document.activeElement !== input) input.value = code;
-  document.getElementById("mapLabError").textContent = "";
+  const errEl = document.getElementById("mapLabError");
+  errEl.textContent = "";
+  errEl.style.color = ""; // mapLabFlash() la reteint en vert — voir sa note
+  clearTimeout(mapLabFlashTimer);
 }
 function openMapLab() {
   // On repart d'une carte fraîche AVANT le choix du camp : l'atelier ne sert
@@ -12520,6 +12609,20 @@ document.getElementById("mapLabRoll").addEventListener("click", () => {
 });
 // Mettre les doigts dans le code. Un code refusé ne casse rien : on le dit et
 // on laisse le joueur corriger, au lieu de recharger une carte au hasard.
+// Message passager dans l'atelier (v2.70). Réutilise la ligne de message
+// d'erreur plutôt que d'en ajouter une seconde : une seule zone de retour,
+// donc la mise en page ne bouge jamais. La couleur est celle d'un message
+// d'erreur, d'où le retour à la normale ET l'effacement au bout de 1,4 s.
+let mapLabFlashTimer = null;
+function mapLabFlash(msg) {
+  const el = document.getElementById("mapLabError");
+  if (!el) return;
+  el.textContent = msg;
+  el.style.color = "#5d7a4a";
+  clearTimeout(mapLabFlashTimer);
+  mapLabFlashTimer = setTimeout(() => { el.textContent = ""; el.style.color = ""; }, 1400);
+}
+document.getElementById("mapLabShare").addEventListener("click", () => { shareMap(); });
 function mapLabApplyCode() {
   const raw = document.getElementById("mapLabInput").value;
   const parsed = parseMapCode(raw);
@@ -12738,6 +12841,15 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // add a new entry at the top whenever a future change is worth telling
 // players about.
 const CHANGELOG = [
+  {
+    version: "2.70",
+    notes: [
+      "On peut enfin partager une carte sans l'avoir jouée. Dans l'atelier des cartes, « 🔗 Partager » envoie un lien vers la carte affichée : celui qui l'ouvre tombe sur le terrain exact, même graine, même taille, même difficulté, même nombre d'adversaires.",
+      "Jusqu'ici le partage n'existait qu'à l'écran de victoire : pour montrer une carte à un ami, il fallait la gagner d'abord.",
+      "Le lien ne transporte rien d'autre que le code de la carte — c'est le même objet sous une autre forme. Un code se dicte, un lien se touche, et les deux mènent au même endroit.",
+      "Un lien reçu passe devant la reprise de votre propre partie : elle n'est pas perdue, simplement pas reprise automatiquement.",
+    ],
+  },
   {
     version: "2.69",
     notes: [
@@ -14286,6 +14398,8 @@ function applyUiLanguage() {
   document.getElementById("conseilsDuelP").innerHTML = t("conseilsDuelP");
   document.getElementById("conseilsInstallP").innerHTML = t("conseilsInstallP");
   document.getElementById("conseilsTrophyP").innerHTML = t("conseilsTrophyP");
+  document.getElementById("conseilsMapShareP").innerHTML = t("conseilsMapShareP");
+  document.getElementById("mapLabShare").textContent = t("mapLabShare");
   // Les quatre titres de palier du tutoriel (v2.68).
   for (let i = 1; i <= 4; i++) document.getElementById(`conseilsStep${i}`).textContent = t(`conseilsStep${i}`);
   document.getElementById("conseilsPowersP").innerHTML = t("conseilsPowersP");
@@ -15721,9 +15835,16 @@ function tryLoadSavedGame() {
 // change ever makes it possible, retry once with a brand new random seed
 // (bypassing whatever specific seed/localStorage state caused it) rather
 // than leaving a blank map behind the HUD with no way out at all.
+// « Partager une carte » (v2.70) — la graine du lien reçu, en attente du
+// geste du joueur. Consommée UNE SEULE FOIS : « Nouvelle guerre » ensuite
+// doit redonner une carte neuve, sinon le lien d'un ami enfermerait son
+// destinataire sur ce terrain à chaque partie suivante.
+let pendingSharedMapSeed = null;
 function startFreshGameSafely() {
   try {
-    startGame();
+    const seed = pendingSharedMapSeed;
+    pendingSharedMapSeed = null;
+    startGame(seed === null ? undefined : seed); // startGame(undefined) est strictement le cas « carte au hasard »
   } catch (e) {
     try { localStorage.removeItem(SAVED_GAME_KEY); } catch (e2) { /* ignore */ }
     try { startGame(randomSeed()); } catch (e3) { /* truly out of options — at least the HUD still shows "Changer la carte" to retry by hand */ }
@@ -15759,8 +15880,38 @@ function showSplashScreen(hasSavedGame) {
   document.getElementById("splashNewGameBtn").style.display = hasSavedGame ? "" : "none";
 }
 const pendingSharedReplay = tryParseSharedReplay();
-const pendingSavedGame = pendingSharedReplay ? null : tryLoadSavedGame(); // a shared link takes priority over resuming your own match
-if (pendingSharedReplay) {
+// « Partager une carte » (v2.70). Même priorité qu'un lien de rejeu : un
+// lien reçu passe devant la reprise de sa propre partie — on vient de
+// toucher le lien d'un ami, c'est CE terrain qu'on veut voir. La sauvegarde
+// n'est pas perdue pour autant, elle n'est simplement pas reprise
+// automatiquement. tryParseSharedMap() rend déjà null quand ?replay= est
+// présent, donc les deux ne peuvent pas se déclencher ensemble.
+const pendingSharedMap = pendingSharedReplay ? null : tryParseSharedMap();
+const pendingSavedGame = (pendingSharedReplay || pendingSharedMap) ? null : tryLoadSavedGame(); // a shared link takes priority over resuming your own match
+if (pendingSharedMap) {
+  // Pas d'écran intermédiaire ici, contrairement au lien de rejeu : il n'y a
+  // rien à regarder avant de jouer, et rien à vérifier — juste un terrain.
+  // L'écran « À l'attaque ! » habituel reste donc en place et sert de geste
+  // utilisateur (indispensable pour que le son démarre).
+  //
+  // Et SURTOUT : on ne démarre PAS la partie ici. L'invariant du splash est
+  // écrit juste sous startFreshGameSafely() — « startGame()/resumeSavedGame()
+  // ne s'exécutent plus que depuis l'un de ces 3 appuis, jamais
+  // automatiquement au démarrage ». Une première version de ce lot appelait
+  // startGame(seed) ici : la carte de l'ami s'affichait bien, puis l'appui
+  // sur « À l'attaque ! » rappelait startGame() SANS graine et la remplaçait
+  // par une carte au hasard. Le lien semblait marcher et ne menait nulle
+  // part. On mémorise donc la graine, et c'est l'appui qui la consomme.
+  applyDifficulty(pendingSharedMap.difficulty);
+  opponentCount = pendingSharedMap.opponentCount;
+  refreshOpponentCountButtons();
+  applyMapSize(pendingSharedMap.mapSize);
+  pendingSharedMapSeed = pendingSharedMap.seed;
+  // On nettoie l'URL comme pour ?replay= : sans ça, « Nouvelle guerre »
+  // suivi d'un rechargement ramènerait de force la carte de l'ami, et le
+  // joueur ne pourrait plus jamais repartir de zéro sans éditer son adresse.
+  history.replaceState(null, "", location.pathname);
+} else if (pendingSharedReplay) {
   // Already its own gesture-gated screen ("▶ Voir sa partie" / "⚔ Jouer
   // maintenant", both real taps) — #splashScreen would otherwise sit right
   // on top of it (see its own z-index note) since it defaults to visible;
