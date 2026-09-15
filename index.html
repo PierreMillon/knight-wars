@@ -742,6 +742,42 @@
      is meant for the lone blazon above, not a horizontal pair */
   #loreSoldiers { display: flex; justify-content: center; align-items: flex-end; gap: 28px; margin: 0 0 16px; }
   #loreSoldiers img { width: 54px; height: auto; margin: 0; image-rendering: pixelated; }
+  /* « La salle des trophées » (v2.67) — son propre écran. Même famille
+     visuelle que #loreOverlay/#conseilsOverlay, y compris la flèche de
+     retour en cercle : la même remarque de spécificité s'applique ici que
+     sur #backLoreToSettings (voir sa propre note), d'où les deux ID. */
+  #trophyOverlay {
+    position: absolute; inset: 0; display: none;
+    align-items: center; justify-content: center;
+    background: rgba(10,8,6,.88); text-align: left; z-index: 10;
+  }
+  #trophyOverlay .box { max-height: 80vh; overflow-y: auto; max-width: min(94vw, 560px); position: relative; padding-top: 34px; }
+  #trophyOverlay button { display: block; margin: 0 auto; }
+  #trophyOverlay button#backTrophyToSettings {
+    position: absolute; top: 10px; left: 10px; margin: 0; z-index: 1;
+    width: 30px; height: 30px; padding: 0; border-radius: 50%; box-sizing: border-box;
+    font-size: 20px; line-height: 1; display: flex; align-items: center; justify-content: center;
+  }
+  /* « Ce qu'il vous reste » — la moitié qui manquait : la grille seule
+     obligeait à toucher chaque case pour savoir ce qu'elle demandait, donc
+     à toucher les 24 pour savoir ce qu'il restait. Ici tout ce qui n'est
+     pas encore obtenu est écrit en toutes lettres, condition comprise.
+     Même source que la grille (computeTrophySlots()) : les deux ne peuvent
+     pas se contredire. */
+  #trophyTodoLabel { margin: 4px 0 8px; text-align: center; }
+  #trophyTodo { display: flex; flex-direction: column; gap: 10px; margin: 0 0 16px; }
+  .trophyTodoRow { display: flex; gap: 10px; align-items: flex-start; }
+  .trophyTodoRow img { width: 28px; height: 28px; object-fit: contain; flex: 0 0 28px; margin: 0; image-rendering: pixelated; }
+  .trophyTodoRow .trophyTodoText { font-size: 13px; line-height: 1.5; }
+  .trophyTodoRow .trophyTodoName { font-weight: 700; display: block; }
+  .trophyTodoRow .trophyTodoHow { opacity: .9; }
+  /* Tout est obtenu : une seule ligne, centrée — pas une liste vide. */
+  #trophyTodo .trophyTodoAllDone { font-size: 13px; line-height: 1.5; text-align: center; opacity: .9; }
+  /* Trois boutons de lecture depuis v2.67 : sur un téléphone ils ne tiennent
+     pas sur une ligne, donc la rangée passe à la ligne au lieu d'écraser
+     les libellés. */
+  #helpButtonsRow { flex-wrap: wrap; }
+  #helpButtonsRow button { flex: 1 1 auto; }
   #trophyRoomLabel { margin: 18px 0 6px; text-align: center; }
   #trophyRoomCount { font-size: 13px; font-weight: 400; opacity: .65; }
   /* real grid (wraps to as many rows as needed), unlike #loreRoyaumesJoues'
@@ -771,7 +807,7 @@
      (.trophySlot img) no matter which is declared later, so it silently won
      and every trophy overflowed its 38×38 case. Re-scoped under #loreOverlay
      to out-specificity it instead. */
-  #loreOverlay .trophySlot img { width: 30px; height: 30px; object-fit: contain; margin: 0; }
+  #trophyOverlay .trophySlot img { width: 30px; height: 30px; object-fit: contain; margin: 0; }
   .trophySlot.earned img { box-shadow: 0 0 0 2px #e8c468; }
   .trophySlot .trophyEmoji { font-size: 26px; line-height: 1; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; }
   .trophySlot.earned .trophyEmoji { box-shadow: 0 0 0 2px #e8c468; }
@@ -1553,23 +1589,38 @@
            boat had no duplicate anywhere in the Lore; it moved down into
            the trophy grid itself as a real square slot (see
            refreshTrophyRoom()) instead of a floating decorative row. -->
-      <!-- "Salle des trophées" — see refreshTrophyRoom() — one slot per
-           real unlock the game currently tracks, always shown (icon or
-           emoji placeholder, never a blank silhouette), dimmed until
-           actually earned, same visual language as #loreRoyaumesJoues just
-           without a name label under each icon — "pour l'instant je veux
-           toutes les voir... peut-être qu'elles sont un peu grisées tant
-           qu'on a pas activé". Distinct from #loreRoyaumesJoues (the maisons
-           jouées row up top, in the intro) — that one stays exactly where
-           it is, this is a separate, later addition at the very bottom. -->
-      <!-- "Un compteur de complétion visible — genre '14/18 débloqués'" —
-           a plain completion count, set by refreshTrophyRoom() alongside
-           the grid itself. -->
+      <!-- La Salle des trophées vivait ICI, tout en bas du parchemin (v2.58
+           à v2.66). Elle est partie dans son propre écran (#trophyOverlay,
+           v2.67) : « on doit vraiment avoir un seul endroit où on sait ce
+           qu'on doit débloquer, comment débloquer ». Au fond d'un long
+           parchemin, elle n'était pas cet endroit-là — il fallait déjà
+           savoir qu'elle existait, puis traverser toute la chronique.
+           Le lore garde l'histoire ; la salle garde la référence. -->
+      <button id="closeLore"></button>
+    </div>
+  </div>
+  <!-- « La salle des trophées » (v2.67) — arbitrage de Pierre : « le système
+       des cartes des trophées, normalement c'est la même chose, on doit
+       vraiment avoir un SEUL endroit où on sait ce qu'on doit débloquer,
+       comment débloquer ».
+       Tout le contenu existait déjà (la grille, et la condition de chaque
+       case en 5 langues) — il était simplement introuvable : au fond du
+       parchemin du lore, et lisible seulement une case à la fois, ce qui
+       obligeait à toucher les 24 cases pour savoir ce qu'il restait.
+       Deux zones, une seule source : computeTrophySlots(). En haut la
+       vitrine (le plaisir des cases qui s'allument), en dessous « Ce qu'il
+       vous reste » — les cases non obtenues écrites en toutes lettres avec
+       leur condition. Aucune des deux ne peut contredire l'autre. -->
+  <div id="trophyOverlay">
+    <div class="box" id="trophyBox">
+      <button id="backTrophyToSettings" aria-label="Retour aux réglages">‹</button>
       <div class="fieldLabel" id="trophyRoomLabel"><span id="trophyRoomLabelText"></span> <span id="trophyRoomCount"></span></div>
       <div id="trophyRoom"></div>
       <!-- Ce que dit la case touchée (v2.58). Vide au repos : voir refreshTrophyRoom(). -->
       <p id="trophyHowText"></p>
-      <button id="closeLore"></button>
+      <div class="fieldLabel" id="trophyTodoLabel"></div>
+      <div id="trophyTodo"></div>
+      <button id="closeTrophy"></button>
     </div>
   </div>
   <!-- "Installer le jeu" — explique ce qu'est une application installée
@@ -1753,10 +1804,17 @@
            Same row (reusing .winButtons' flex row) since both are the same
            kind of thing and the panel doesn't need two separate full rows
            for two short button labels. -->
+      <!-- Trois portes de lecture depuis v2.67 : les Astuces (les règles),
+           Le lore (l'histoire) et la Salle des trophées (ce qu'il reste à
+           débloquer, et comment). La salle était jusqu'ici au fond du
+           parchemin du lore — donc introuvable pour qui ne savait pas
+           qu'elle existait. La rangée passe en wrap : trois libellés courts
+           ne tiennent pas sur une seule ligne de téléphone. -->
       <div class="settingsSectionLabel" id="helpSectionLabelDiv"></div>
-      <div class="winButtons">
+      <div class="winButtons" id="helpButtonsRow">
         <button id="conseilsBtn"></button>
         <button id="loreBtn"></button>
+        <button id="trophyBtn"></button>
       </div>
 
       <!-- « Réglages avancés » (v2.63) — l'épuration demandée par Pierre :
@@ -1902,7 +1960,7 @@
 // before (CREATURE_IMG's own loadSprite() call, the changelog, etc.), not
 // redeclared.
 const CREATURE_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAANAAAADQCAYAAAB2pO90AAAC2klEQVR4nO3dQWoDMRAAwd3g/39ZOeQHahgroupuvF7TzGWQ3rXWw4z3fUde9lrrnfiend8z9WxTfr79APCfCQgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAg+336AE5y85LnzbJY855hAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEFx3MqlTOe/7PSf/pyYQBAKCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAiCd62RG9559pYimbOzgGoCQSAgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAguO5kUvbsLFJOLcdOPdvOZ0wgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAElkkZNbUYOvU9JhAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJAQBAICILrlkldJb9namHzZK65h2ECgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgrFl0pOvRD/Zbe/ttqVVEwgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAgEBMF1J5My57bF0B0mEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgq1lUlfJW6TkjwkEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJg7GTSnUXKqaXVqcXQk6+styC8xwSCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUHwccLmHO/tvhNdTSAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEASfkxf1OJsTUE0gSAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEY9fcw/OcfcroDhMIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgl9clHexCa709wAAAABJRU5ErkJggg==";
-const GAME_VERSION = "2.66";
+const GAME_VERSION = "2.67";
 document.getElementById("loadingKnight").src = CREATURE_IMG_SRC;
 document.getElementById("loadingVersion").textContent = `v${GAME_VERSION}`;
 document.getElementById("splashKnight").src = CREATURE_IMG_SRC;
@@ -6128,12 +6186,15 @@ const UI_STRINGS = {
     es: "<strong>El Grial</strong>: el último trofeo te da la última palabra sobre los dioses. Al principio de cada partida, un panel muestra una fila por señor — tú primero, luego tus adversarios — y cuatro iconos de dioses por fila. Toca uno para tachar a ese dios: no otorgará ni su bonificación ni su precio, solo para ese señor. Así puedes privarte de Cérès para conservar El poder de los 12, o cortarle Bellone al vecino que te aplasta. El ajuste queda congelado al arrancar: cambiarlo a mitad de partida solo afectará a la siguiente, y una partida retomada conserva los dioses con los que empezó. El botón «No mostrar más» guarda el panel en los Ajustes.",
     de: "<strong>Der Gral</strong>: Die letzte Trophäe gibt dir das letzte Wort über die Götter. Zu Beginn jeder Partie zeigt eine Tafel eine Zeile pro Fürst — zuerst dich, dann deine Gegner — und vier Göttersymbole je Zeile. Tippe eines an, um diesen Gott zu streichen: Er gewährt weder seinen Bonus noch seinen Preis, und das nur für diesen Fürsten. So kannst du auf Cérès verzichten, um Die Macht der 12 zu behalten, oder dem Nachbarn, der dich niederwalzt, Bellone abschneiden. Die Einstellung wird beim Anpfiff eingefroren: Sie mittendrin zu ändern wirkt erst auf die nächste Partie, und eine fortgesetzte Partie behält die Götter, mit denen sie begann. Die Schaltfläche «Nicht mehr anzeigen» räumt die Tafel in die Einstellungen.",
   },
+  // v2.67 : la salle a quitté le fond du parchemin du lore pour sa propre
+  // porte dans les Réglages — la fiche doit dire où aller, sinon elle envoie
+  // le joueur exactement là où la salle n'est plus.
   conseilsTrophyP: {
-    fr: "<strong>La salle des trophées</strong> : dans Le lore, <strong>touchez n'importe quelle case</strong> pour savoir comment la débloquer — et ce qu'elle rapporte. Toutes ne donnent pas un bonus : les quatre dieux et Le pouvoir des 12 changent vraiment vos combats, les autres marquent le chemin parcouru. Attention, chaque dieu a son prix : Cérès en particulier abaisse votre force maximale à 11, ce qui vous ferme définitivement Le pouvoir des 12.",
-    en: "<strong>The trophy room</strong>: in Le lore, <strong>tap any slot</strong> to see how to unlock it — and what it grants. Not all of them grant anything: the four gods and The power of 12 genuinely change your battles, the others mark how far you've come. Careful, each god has its price: Cérès in particular lowers your maximum strength to 11, which permanently closes off The power of 12.",
-    zh: "<strong>战利品室</strong>：在「传说」中<strong>点按任意格子</strong>即可查看解锁方式及其效果。并非全都有加成：四位神明与「十二之力」会真正改变你的战斗，其余则记录你走过的路。注意，每位神明都有代价：尤其是刻瑞斯会将你的最大力量降至 11，从而永久关闭「十二之力」。",
-    es: "<strong>La sala de trofeos</strong>: en El lore, <strong>toca cualquier casilla</strong> para ver cómo desbloquearla — y qué otorga. No todas otorgan algo: los cuatro dioses y El poder de los 12 cambian de verdad tus combates, las demás marcan el camino recorrido. Ojo, cada dios tiene su precio: Cérès en particular baja tu fuerza máxima a 11, lo que te cierra definitivamente El poder de los 12.",
-    de: "<strong>Die Trophäenhalle</strong>: Tippe in Le lore <strong>auf ein beliebiges Feld</strong>, um zu sehen, wie es freigeschaltet wird — und was es bringt. Nicht alle bringen etwas: Die vier Götter und Die Macht der 12 verändern deine Kämpfe wirklich, die übrigen markieren den zurückgelegten Weg. Achtung, jeder Gott hat seinen Preis: Besonders Cérès senkt deine Maximalstärke auf 11 und verschließt dir damit dauerhaft Die Macht der 12.",
+    fr: "<strong>La salle des trophées</strong> : dans les Réglages, « 🏆 Trophées ». C'est le seul endroit où l'on voit ce qu'il reste à débloquer et comment : la vitrine en haut, puis « Ce qu'il vous reste » en dessous, chaque case manquante écrite avec sa condition. <strong>Touchez n'importe quelle case</strong> pour savoir ce qu'elle rapporte. Toutes ne donnent pas un bonus : les quatre dieux et Le pouvoir des 12 changent vraiment vos combats, les autres marquent le chemin parcouru. Attention, chaque dieu a son prix : Cérès en particulier abaisse votre force maximale à 11, ce qui vous ferme définitivement Le pouvoir des 12.",
+    en: "<strong>The trophy room</strong>: in the Settings, \"🏆 Trophies\". It is the one place that shows what you have left to unlock and how: the display case at the top, then \"What's left for you\" below it, every missing slot written out with its condition. <strong>Tap any slot</strong> to see what it grants. Not all of them grant anything: the four gods and The power of 12 genuinely change your battles, the others mark how far you've come. Careful, each god has its price: Cérès in particular lowers your maximum strength to 11, which permanently closes off The power of 12.",
+    zh: "<strong>战利品室</strong>：在「设置」中的「🏆 荣誉」。这是唯一能看清还差什么、以及如何取得的地方：上方是陈列柜，下方是「你还差的」，每一个缺失的格子都写明了条件。<strong>点按任意格子</strong>即可查看它带来什么。并非全都有加成：四位神明与「十二之力」会真正改变你的战斗，其余则记录你走过的路。注意，每位神明都有代价：尤其是刻瑞斯会将你的最大力量降至 11，从而永久关闭「十二之力」。",
+    es: "<strong>La sala de trofeos</strong>: en los Ajustes, «🏆 Trofeos». Es el único sitio donde se ve qué te queda por desbloquear y cómo: la vitrina arriba y, debajo, «Lo que te queda», con cada casilla pendiente escrita junto a su condición. <strong>Toca cualquier casilla</strong> para ver qué otorga. No todas otorgan algo: los cuatro dioses y El poder de los 12 cambian de verdad tus combates, las demás marcan el camino recorrido. Ojo, cada dios tiene su precio: Cérès en particular baja tu fuerza máxima a 11, lo que te cierra definitivamente El poder de los 12.",
+    de: "<strong>Die Trophäenhalle</strong>: in den Einstellungen unter „🏆 Trophäen\". Sie ist der einzige Ort, an dem du siehst, was dir noch fehlt und wie du es bekommst: oben die Vitrine, darunter „Was dir noch fehlt\" mit jedem offenen Feld und seiner Bedingung. <strong>Tippe auf ein beliebiges Feld</strong>, um zu sehen, was es bringt. Nicht alle bringen etwas: Die vier Götter und Die Macht der 12 verändern deine Kämpfe wirklich, die übrigen markieren den zurückgelegten Weg. Achtung, jeder Gott hat seinen Preis: Besonders Cérès senkt deine Maximalstärke auf 11 und verschließt dir damit dauerhaft Die Macht der 12.",
   },
   conseilsInstallP: {
     fr: "<strong>Installer le jeu</strong> : dans les Réglages, « Installer le jeu » explique comment poser Knight Wars sur votre écran d'accueil. Le jeu s'ouvre alors en plein écran, sans la barre du navigateur, et se lance d'une seule touche. Rien à télécharger sur un magasin d'applications, aucun compte : c'est la page elle-même qui s'installe. Le jeu a besoin du réseau à chaque lancement.",
@@ -6256,6 +6317,24 @@ const UI_STRINGS = {
     de: "Gegnerstärke an den Schwierigkeitsgrad angepasst: {name}",
   },
   trophyRoomLabel: { fr: "🏆 Salle des trophées", en: "🏆 Trophy room", zh: "🏆 荣誉殿堂", es: "🏆 Sala de trofeos", de: "🏆 Trophäenraum" },
+  // « La salle des trophées » (v2.67) — sa porte dans le menu, et la liste
+  // de ce qu'il reste. Le libellé du bouton reprend l'emoji du titre de la
+  // salle pour qu'on reconnaisse la même chose des deux côtés.
+  trophyBtnLabel: { fr: "🏆 Trophées", en: "🏆 Trophies", zh: "🏆 荣誉", es: "🏆 Trofeos", de: "🏆 Trophäen" },
+  trophyTodoLabel: {
+    fr: "Ce qu'il vous reste ({n})",
+    en: "What's left for you ({n})",
+    zh: "你还差的（{n}）",
+    es: "Lo que te queda ({n})",
+    de: "Was dir noch fehlt ({n})",
+  },
+  trophyAllDone: {
+    fr: "Plus rien. Vous avez tout débloqué — Le Graal compris.",
+    en: "Nothing left. You have unlocked everything — the Grail included.",
+    zh: "一样不剩。你已解锁全部——圣杯也在内。",
+    es: "No queda nada. Lo has desbloqueado todo, el Grial incluido.",
+    de: "Nichts mehr. Du hast alles freigeschaltet — den Gral eingeschlossen.",
+  },
   // "Presque débloqué" post-win teaser (v2.49) — see graalNearMissCount()'s
   // own note. Singular/plural split, same convention as gueuxNoteGain(N).
   trophyNearMiss1: {
@@ -6630,12 +6709,17 @@ const UI_STRINGS = {
     es: "Desbloquear las otras veinte casillas. Te quedan {n}.",
     de: "Die anderen zwanzig Felder freischalten. Dir fehlen noch {n}.",
   },
+  // v2.67 : « Ce qu'il vous reste », juste en dessous, dit déjà la condition
+  // de TOUTES les cases manquantes. L'invite ne doit donc plus annoncer ça
+  // comme le seul chemin — sinon la liste ressemble à un doublon au lieu de
+  // la réponse principale. Ce que le toucher ajoute, et lui seul : relire
+  // une case DÉJÀ obtenue, que la liste ne montre plus.
   trophyTapHint: {
-    fr: "Touchez une case pour savoir comment la débloquer.",
-    en: "Tap a slot to see how to unlock it.",
-    zh: "点按格子即可查看解锁方式。",
-    es: "Toca una casilla para ver cómo desbloquearla.",
-    de: "Tippe auf ein Feld, um zu sehen, wie es freigeschaltet wird.",
+    fr: "Touchez une case pour la relire — y compris celles déjà obtenues.",
+    en: "Tap a slot to read it again — including the ones you already have.",
+    zh: "点按格子可再次查看——包括已经取得的。",
+    es: "Toca una casilla para releerla, incluidas las que ya tienes.",
+    de: "Tippe auf ein Feld, um es nachzulesen — auch die bereits erhaltenen.",
   },
   trophyGraal: { fr: "Le Graal", en: "The Grail", zh: "圣杯", es: "El Grial", de: "Der Gral" },
   // Classement entre amis sur le défi du jour — voir verifyDailyClaim().
@@ -12450,10 +12534,33 @@ function refreshTrophyRoom() {
   }
   const countEl = document.getElementById("trophyRoomCount");
   if (countEl) countEl.textContent = `${slots.filter((s) => s.earned).length}/${slots.length}`;
+  // « Ce qu'il vous reste » (v2.67). La grille dit CE QUI manque ; elle ne
+  // disait COMMENT qu'une case à la fois, au toucher — pour faire le tour
+  // il fallait donc toucher les 24 cases une par une. Ici les cases non
+  // obtenues sont écrites en toutes lettres, condition comprise, dans le
+  // même ordre que la grille pour qu'on passe de l'une à l'autre sans
+  // chercher. Même appel à computeTrophySlots() que la grille juste
+  // au-dessus : aucune seconde comptabilité à tenir à jour.
+  const todoEl = document.getElementById("trophyTodo");
+  if (todoEl) {
+    const todo = slots.filter((s) => !s.earned);
+    todoEl.innerHTML = todo.length
+      ? todo.map((s) => `
+        <div class="trophyTodoRow">
+          ${s.emoji ? `<span class="trophyEmoji">${s.emoji}</span>` : `<img src="${s.img}" alt="">`}
+          <div class="trophyTodoText"><span class="trophyTodoName">${s.name}</span><span class="trophyTodoHow">${s.how || ""}</span></div>
+        </div>
+      `).join("")
+      : `<p class="trophyTodoAllDone">${t("trophyAllDone")}</p>`;
+    const todoLabelEl = document.getElementById("trophyTodoLabel");
+    // Le Graal est la dernière case et sa condition est « toutes les autres » :
+    // tant qu'il reste UNE case, il en reste donc au moins deux. Le titre
+    // annonce le nombre réel pour qu'on sache d'un coup d'oeil où on en est.
+    if (todoLabelEl) todoLabelEl.textContent = todo.length ? tf("trophyTodoLabel", { n: todo.length }) : "";
+  }
 }
 refreshTrophyRoom();
 document.getElementById("loreBtn").addEventListener("click", () => {
-  refreshTrophyRoom();
   // #loreOverlay and #settingsPanel share the same z-index (10); DOM order
   // alone would otherwise leave #settingsPanel (declared later) painted on
   // top, so opening Le lore from within Réglages showed nothing at all —
@@ -12467,6 +12574,27 @@ function closeLore() {
   document.getElementById("loreOverlay").style.display = "none";
   sfxMenuClose();
 }
+// « La salle des trophées » (v2.67) — sa propre porte dans le menu. Même
+// z-index (10) que #settingsPanel, donc le même masquage explicite du
+// panneau que loreBtn/conseilsBtn juste à côté : sans lui l'écran s'ouvre
+// bel et bien, mais entièrement caché derrière les Réglages.
+document.getElementById("trophyBtn").addEventListener("click", () => {
+  refreshTrophyRoom();
+  settingsPanel.style.display = "none";
+  document.getElementById("trophyOverlay").style.display = "flex";
+  sfxMenuOpen();
+});
+function closeTrophyRoom() {
+  document.getElementById("trophyOverlay").style.display = "none";
+  sfxMenuClose();
+}
+document.getElementById("closeTrophy").addEventListener("click", closeTrophyRoom);
+enableSwipeToDismiss(document.getElementById("trophyBox"), document.getElementById("trophyBox"), closeTrophyRoom);
+document.getElementById("backTrophyToSettings").addEventListener("click", () => {
+  document.getElementById("trophyOverlay").style.display = "none";
+  settingsPanel.style.display = "flex";
+  sfxToggle();
+});
 document.getElementById("closeLore").addEventListener("click", closeLore);
 enableSwipeToDismiss(document.getElementById("loreBox"), document.getElementById("loreBox"), closeLore);
 // Le lore is also only ever opened from within Réglages — same shortcut
@@ -12510,6 +12638,15 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // add a new entry at the top whenever a future change is worth telling
 // players about.
 const CHANGELOG = [
+  {
+    version: "2.67",
+    notes: [
+      "La salle des trophées a sa propre porte dans les Réglages : « 🏆 Trophées ». Elle vivait jusqu'ici tout en bas du parchemin du lore — il fallait savoir qu'elle existait, puis traverser toute la chronique pour l'atteindre.",
+      "Nouvelle rubrique « Ce qu'il vous reste » sous la vitrine : chaque case non obtenue y est écrite en toutes lettres, avec la condition pour la décrocher. Plus besoin de toucher les cases une par une pour faire le tour de ce qui manque.",
+      "Le titre annonce le compte : on sait d'un coup d'œil combien il en reste avant Le Graal.",
+      "C'est désormais le seul endroit à consulter pour savoir quoi débloquer et comment. Le lore garde l'histoire, la salle garde la référence.",
+    ],
+  },
   {
     version: "2.66",
     notes: [
@@ -13975,6 +14112,8 @@ function applyUiLanguage() {
   refreshInstallSteps();
   document.getElementById("conseilsBtn").textContent = t("conseilsBtnLabel");
   document.getElementById("loreBtn").textContent = t("loreBtnLabel");
+  document.getElementById("trophyBtn").textContent = t("trophyBtnLabel");
+  document.getElementById("closeTrophy").textContent = t("closeBtn");
   document.getElementById("mapCodeFieldLabel").textContent = t("mapCodeLabel");
   document.getElementById("mapCodeLoadFieldLabel").textContent = t("mapCodeLoadLabel");
   document.getElementById("mapCodeInput").placeholder = t("mapCodeInputPlaceholder");
