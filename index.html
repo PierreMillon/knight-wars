@@ -386,6 +386,18 @@
      updateGroups()'s own note on why an absolute number wasn't pulling its
      weight next to the sort order already conveying the same thing. */
   .chip .n { display: inline-block; text-align: left; font-weight: 700; min-width: 2.3em; }
+  /* Les chiffres gagnés (v2.65) — délibérément plus petits et plus pâles que
+     la force : c'est une lecture d'appoint pour qui la cherche, pas une
+     information de premier plan. Un pourcentage avait été retiré d'ici
+     précisément parce qu'il rivalisait avec le reste. */
+  .chip .pcts {
+    font-size: 10px; opacity: .62; letter-spacing: .02em;
+    /* chiffres en chasse fixe et police système : la police médiévale du jeu
+       n'a ni toutes les formes ni des chiffres alignés, et ce petit relevé
+       doit rester lisible et stable pendant qu'il change à chaque tour. */
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-variant-numeric: tabular-nums;
+  }
   /* one small icon per god currently active for this royaume — see
      updateGroups()'s own note. Empty (no width) when none are active, so a
      row with no bonuses yet doesn't leave a visible gap. */
@@ -1592,6 +1604,7 @@
         <p id="conseilsPowersP"></p>
         <p id="conseilsGraalP"></p>
         <p id="conseilsDailyGodsP"></p>
+        <p id="conseilsStatsNumbersP"></p>
         <p id="conseilsArtefactsP"></p>
       </div>
       <button id="closeConseils"></button>
@@ -1790,6 +1803,11 @@
            quand l'écran de début de partie a été mis en sourdine (formulation
            de Pierre : « un bouton qui dit ne pas afficher, laisser le réglage
            dans le menu »). Masqué tant que Le Graal n'est pas gagné. -->
+      <!-- Les chiffres des statistiques (v2.65) — masqué tant que Le pouvoir
+           des 12 n'est pas gagné, comme la ligne du Graal juste en dessous :
+           proposer d'éteindre ce qu'on n'a pas encore ferait fuiter la
+           récompense avant l'heure. -->
+      <label id="statsNumbersRow" style="display:none; margin-top:10px;"><input type="checkbox" id="statsNumbersToggle"> <span id="statsNumbersLabelText"></span></label>
       <div id="godPickerRow" style="display:none;">
         <button id="godPickerOpenBtn"></button>
       </div>
@@ -1821,7 +1839,7 @@
 // before (CREATURE_IMG's own loadSprite() call, the changelog, etc.), not
 // redeclared.
 const CREATURE_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAANAAAADQCAYAAAB2pO90AAAC2klEQVR4nO3dQWoDMRAAwd3g/39ZOeQHahgroupuvF7TzGWQ3rXWw4z3fUde9lrrnfiend8z9WxTfr79APCfCQgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAg+336AE5y85LnzbJY855hAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEFx3MqlTOe/7PSf/pyYQBAKCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAiCd62RG9559pYimbOzgGoCQSAgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAguO5kUvbsLFJOLcdOPdvOZ0wgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAElkkZNbUYOvU9JhAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJAQBAICILrlkldJb9namHzZK65h2ECgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgrFl0pOvRD/Zbe/ttqVVEwgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAgEBMF1J5My57bF0B0mEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgq1lUlfJW6TkjwkEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJg7GTSnUXKqaXVqcXQk6+styC8xwSCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUHwccLmHO/tvhNdTSAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEASfkxf1OJsTUE0gSAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEY9fcw/OcfcroDhMIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgl9clHexCa709wAAAABJRU5ErkJggg==";
-const GAME_VERSION = "2.64";
+const GAME_VERSION = "2.65";
 document.getElementById("loadingKnight").src = CREATURE_IMG_SRC;
 document.getElementById("loadingVersion").textContent = `v${GAME_VERSION}`;
 document.getElementById("splashKnight").src = CREATURE_IMG_SRC;
@@ -5027,6 +5045,38 @@ try {
   }
 } catch (e) { /* ignore */ }
 let gameStartGodsOff = emptyGodsMatrix();
+// --- Les chiffres des statistiques (v2.65) ---------------------------------
+//
+// Idée de Pierre : « peut-être qu'on les gagne, les statistiques ; ça sera le
+// résultat d'un trophée, et qu'on pourra activer à partir du menu — si on
+// avait les chiffres, ça pourrait aider les joueurs les plus
+// perfectionnistes. »
+//
+// Rattaché au POUVOIR DES 12, et pas à un trophée neuf : la salle ne peut pas
+// accueillir une case de plus sans durcir Le Graal, qui exige que TOUTES les
+// autres soient gagnées — l'ajouter le retirerait à qui l'a déjà.
+// Le pouvoir des 12 est de toute façon le bon : il se gagne en amenant toutes
+// ses provinces à 12 en même temps, trois fois. C'est littéralement le
+// trophée du perfectionniste, et il débloque ici les instruments qui mesurent
+// la perfection.
+//
+// À noter : le pourcentage de complétion de force EXISTE déjà à l'écran —
+// c'est le remplissage en horloge de la pastille de couleur (voir
+// updateGroups()). Ce qu'on ajoute, ce n'est pas l'information, c'est sa
+// valeur exacte. Un pourcentage avait d'ailleurs été RETIRÉ de ce bandeau à
+// la demande de Pierre (« supprime le pourcentage des stats en haut à
+// gauche ») : il revient sous un contrat différent — gagné, facultatif, et
+// invisible pour qui ne l'a pas.
+function statsNumbersUnlocked() { return marsBlessingUnlocked; }
+// Allumé par défaut une fois gagné : le trophée doit se voir le jour où on
+// l'obtient, sinon la récompense reste lettre morte. Le joueur peut
+// l'éteindre dans les réglages avancés.
+let statsNumbersOn = true;
+try {
+  const raw = localStorage.getItem("kw_statsNumbers");
+  if (raw !== null) statsNumbersOn = raw === "1";
+} catch (e) { /* ignore */ }
+function statsNumbersVisible() { return statsNumbersUnlocked() && statsNumbersOn && !replaying; }
 function graalPowerUnlocked() {
   const { slots } = computeTrophySlots();
   const graal = slots[slots.length - 1];
@@ -5968,6 +6018,14 @@ const UI_STRINGS = {
   // fermé (il y a quelque chose dessous), ▴ ouvert.
   advancedSettingsOpen: { fr: "Réglages avancés ▾", en: "Advanced settings ▾", zh: "高级设置 ▾", es: "Ajustes avanzados ▾", de: "Erweiterte Einstellungen ▾" },
   advancedSettingsClose: { fr: "Réglages avancés ▴", en: "Advanced settings ▴", zh: "高级设置 ▴", es: "Ajustes avanzados ▴", de: "Erweiterte Einstellungen ▴" },
+  statsNumbersLabel: { fr: "Chiffres détaillés dans les statistiques", en: "Detailed figures in the stats", zh: "统计中显示详细数字", es: "Cifras detalladas en las estadísticas", de: "Genaue Zahlen in der Statistik" },
+  conseilsStatsNumbersP: {
+    fr: "<strong>Les chiffres des statistiques</strong> : en gagnant <strong>Le pouvoir des 12</strong>, vous ajoutez deux nombres à chaque ligne du bandeau en haut à gauche. <strong>un pourcentage</strong> — la part de la carte que ce seigneur tient — et <strong>une fraction</strong> — ses forces sur le total qu'il pourrait avoir, soit la valeur exacte de l'horloge qui remplit sa pastille de couleur, que vous lisiez jusqu'ici à l'œil. La fraction dit mieux qu'un pourcentage ce qu'il vous reste à faire : « 47/60 », c'est treize soldats qui manquent. Rien de nouveau n'est révélé : ces deux informations étaient déjà à l'écran, en gros. Vous les obtenez au chiffre près, ce qui change tout quand on vise le sans-faute : on sait si l'on a vraiment 100 % ou seulement presque. Se coupe dans les Réglages avancés.",
+    en: "<strong>The stat figures</strong>: by earning <strong>The power of 12</strong>, you add two numbers to each row of the top-left bar. <strong>a percentage</strong> — the share of the map that lord holds — and <strong>a fraction</strong> — their forces over the total they could have, which is the exact value of the clock filling their colour dot, something you could only eyeball until now. The fraction says more than a percentage about what you have left to do: \"47/60\" is thirteen soldiers missing. Nothing new is revealed: both were already on screen, roughly. You get them to the digit, which changes everything when you're chasing a flawless run: you know whether you truly have 100% or merely nearly. Can be switched off in Advanced settings.",
+    zh: "<strong>统计数字</strong>：获得<strong>「十二之力」</strong>后，左上角状态栏的每一行都会多出两个数字。<strong>一个百分比</strong>——该领主占据的地图比例——以及<strong>一个分数</strong>——其现有兵力与可能拥有的总量之比，也就是填充其色点的那个时钟的精确数值，此前你只能凭眼估量。分数比百分比更能说明你还差多少：「47/60」就是还缺十三个士兵。这不会揭示任何新信息：两者本就已显示在屏幕上，只是很粗略。如今你能精确到个位，而这在追求完美时至关重要：你能知道自己究竟是满了 100%，还是只差一点。可在「高级设置」中关闭。",
+    es: "<strong>Las cifras de las estadísticas</strong>: al ganar <strong>El poder de los 12</strong>, añades dos números a cada línea de la barra superior izquierda. <strong>un porcentaje</strong> — la parte del mapa que ese señor controla — y <strong>una fracción</strong> — sus fuerzas sobre el total que podría tener, es decir el valor exacto del reloj que rellena su punto de color, que hasta ahora solo podías estimar a ojo. La fracción dice mejor que un porcentaje lo que te queda por hacer: «47/60» son trece soldados que faltan. No se revela nada nuevo: ambas cosas ya estaban en pantalla, a grandes rasgos. Ahora las tienes al dígito, lo que lo cambia todo cuando buscas la partida perfecta: sabes si de verdad tienes el 100% o solo casi. Se puede desactivar en Ajustes avanzados.",
+    de: "<strong>Die Zahlen der Statistik</strong>: Mit <strong>Die Macht der 12</strong> bekommt jede Zeile der Leiste oben links zwei Zahlen dazu. <strong>einen Prozentsatz</strong> — den Anteil der Karte, den dieser Fürst hält — und <strong>einen Bruch</strong> — seine Streitkräfte im Verhältnis zu dem, was er haben könnte, also den genauen Wert der Uhr, die seinen Farbpunkt füllt und die du bisher nur schätzen konntest. Der Bruch sagt besser als ein Prozentsatz, was dir noch fehlt: «47/60» sind dreizehn fehlende Soldaten. Nichts Neues wird preisgegeben: Beides stand bereits auf dem Bildschirm, nur grob. Jetzt hast du es auf die Ziffer genau, und das ändert alles, wenn du eine makellose Partie anstrebst: Du weißt, ob du wirklich 100% hast oder nur beinahe. Abschaltbar in den erweiterten Einstellungen.",
+  },
   conseilsDailyGodsP: {
     fr: "<strong>Les dieux du jour</strong> : au défi du jour, ce n'est pas vous qui composez les dieux — c'est la journée. Chaque date impose la sienne, la même pour tout le monde : certains jours personne n'a de dieu, d'autres tout le monde a les quatre, d'autres encore un seul dieu pour tous ou une répartition inégale entre les seigneurs. La composition s'affiche sous le bouton du défi, avant de vous lancer. Deux conséquences : le duel avec un ami compare enfin deux parties jouées aux mêmes règles, quels que soient vos trophées respectifs ; et vous jouez avec des dieux que vous n'avez pas encore débloqués, de quoi savoir ce que vous manquez. Votre propre réglage du Graal reste intact pour vos parties normales.",
     en: "<strong>The gods of the day</strong>: in the daily challenge, you don't compose the gods — the day does. Each date imposes its own, the same for everyone: some days nobody has a god, some days everyone has all four, others a single god for all or an uneven spread between lords. The composition is shown under the challenge button before you start. Two consequences: a duel with a friend finally compares two matches played under the same rules, whatever your respective trophies; and you play with gods you haven't unlocked yet, which tells you what you're missing. Your own Grail setting stays untouched for your normal matches.",
@@ -6429,11 +6487,11 @@ const UI_STRINGS = {
     de: "Vier Ozean-Rituale in einer einzigen Partie auf der Templer-Stufe vollenden, nachdem du das Pergament erhalten hast. → Schaltet die verborgene Schwierigkeitsstufe frei.",
   },
   trophyHowPower12: {
-    fr: "Amener toutes vos provinces à 12 en même temps, trois fois, toutes parties confondues. → Victoire garantie quand vous attaquez à 12 contre 12 par voie terrestre.",
-    en: "Bring all your provinces to 12 at once, three times, across all your matches. → Guaranteed win when you attack 12 against 12 by land.",
-    zh: "在所有对局中累计三次让你的所有省份同时达到 12。→ 以 12 对 12 从陆路进攻时必胜。",
-    es: "Llevar todas tus provincias a 12 a la vez, tres veces, sumando todas tus partidas. → Victoria garantizada cuando atacas 12 contra 12 por tierra.",
-    de: "Alle deine Provinzen dreimal gleichzeitig auf 12 bringen, über alle Partien hinweg. → Garantierter Sieg, wenn du auf dem Landweg 12 gegen 12 angreifst.",
+    fr: "Amener toutes vos provinces à 12 en même temps, trois fois, toutes parties confondues. → Victoire garantie quand vous attaquez à 12 contre 12 par voie terrestre, et les chiffres détaillés dans les statistiques.",
+    en: "Bring all your provinces to 12 at once, three times, across all your matches. → Guaranteed win when you attack 12 against 12 by land, plus the detailed figures in the stats.",
+    zh: "在所有对局中累计三次让你的所有省份同时达到 12。→ 以 12 对 12 从陆路进攻时必胜，并解锁统计中的详细数字。",
+    es: "Llevar todas tus provincias a 12 a la vez, tres veces, sumando todas tus partidas. → Victoria garantizada cuando atacas 12 contra 12 por tierra, y las cifras detalladas en las estadísticas.",
+    de: "Alle deine Provinzen dreimal gleichzeitig auf 12 bringen, über alle Partien hinweg. → Garantierter Sieg, wenn du auf dem Landweg 12 gegen 12 angreifst, dazu die genauen Zahlen in der Statistik.",
   },
   trophyHowDifficulty: {
     fr: "Remporter au moins une partie au palier {level}. Aucun bonus : c'est une marque au tableau.",
@@ -10562,7 +10620,7 @@ function updateGroups() {
     if (!rowEl) {
       rowEl = document.createElement("span");
       rowEl.className = "chip";
-      rowEl.innerHTML = `<span class="swatch"></span><span class="n"></span><span class="chipGods"></span>`;
+      rowEl.innerHTML = `<span class="swatch"></span><span class="n"></span><span class="pcts"></span><span class="chipGods"></span>`;
       groupRowEls[r.roy.id] = rowEl;
     }
     // "un cercle de couleurs... la coloration à l'intérieur fonctionne
@@ -10585,6 +10643,27 @@ function updateGroups() {
     // ("supprime (nous)"), same cleanup as the chart legend's own "Nous,"
     // just above (see recolorBlazonDiagonal()'s neighboring note).
     rowEl.querySelector(".n").textContent = r.force;
+    // Les chiffres (v2.65), pour qui a gagné Le pouvoir des 12 — voir
+    // statsNumbersUnlocked(). Deux valeurs, chacune avec son propre glyphe
+    // pour qu'aucune légende ne soit nécessaire : ⬢ la part de la carte
+    // tenue, ⚔ le remplissage des forces (la valeur exacte de l'horloge
+    // juste à gauche). L'ordre suit la demande de Pierre : « pourcentage de
+    // la carte conquise, pourcentage de complétion du total max de force ».
+    const pctsEl = rowEl.querySelector(".pcts");
+    if (statsNumbersVisible()) {
+      const partCarte = territories.length ? Math.round((r.territoryCount / territories.length) * 100) : 0;
+      // Deux FORMES différentes plutôt que deux glyphes : un pourcentage
+      // pour la part de carte, une fraction pour les forces. Aucune icône,
+      // donc rien qui dépende d'une police — première version essayée avec
+      // ⬢ et ⚔ : la police médiévale ne les a pas, et ⚔ retombait sur un
+      // signe de multiplication, ce qui donnait « ×17% », illisible.
+      // La fraction est en prime plus utile qu'un pourcentage arrondi à qui
+      // vise le sans-faute : « 47/60 » dit combien de points il manque.
+      pctsEl.textContent = `${partCarte}% ${r.force}/${theoreticalMax}`;
+      pctsEl.style.display = "";
+    } else {
+      pctsEl.style.display = "none";
+    }
     // "Il faut qu'il y ait une miniature de l'icône qui s'affiche sous le
     // blason de la maison... que moi en tant que joueur ça soit affiché
     // quelque part que je sache quelles icônes j'ai et quels bonus ça
@@ -11632,6 +11711,7 @@ document.getElementById("settingsBtn").addEventListener("click", () => {
   // Le Graal peut se gagner EN COURS de session : sans ce rafraîchissement,
   // sa ligne n'apparaîtrait qu'au prochain chargement de la page.
   refreshGodPickerButton();
+  refreshStatsNumbersRow();
   refreshInstallButton();
   refreshAdvancedSettings();
   sfxMenuOpen();
@@ -12060,6 +12140,20 @@ function refreshInstallSteps() {
     ol.appendChild(li);
   }
 }
+// Comme refreshGodPickerButton() : la ligne n'apparaît qu'une fois le
+// trophée gagné, et Le pouvoir des 12 peut se gagner EN COURS de session.
+function refreshStatsNumbersRow() {
+  const row = document.getElementById("statsNumbersRow");
+  if (row) row.style.display = statsNumbersUnlocked() ? "" : "none";
+  const box = document.getElementById("statsNumbersToggle");
+  if (box) box.checked = statsNumbersOn;
+}
+document.getElementById("statsNumbersToggle").addEventListener("change", (e) => {
+  statsNumbersOn = e.target.checked;
+  try { localStorage.setItem("kw_statsNumbers", statsNumbersOn ? "1" : "0"); } catch (err) { /* ignore */ }
+  updateGroups();
+  sfxToggle();
+});
 function refreshGodPickerButton() {
   const row = document.getElementById("godPickerRow");
   if (row) row.style.display = graalPowerUnlocked() ? "" : "none";
@@ -12201,6 +12295,15 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // add a new entry at the top whenever a future change is worth telling
 // players about.
 const CHANGELOG = [
+  {
+    version: "2.65",
+    notes: [
+      "Les chiffres des statistiques se gagnent. Remportez Le pouvoir des 12 — toutes vos provinces à 12 en même temps, trois fois — et chaque ligne du bandeau en haut à gauche affiche deux nombres de plus.",
+      "Un pourcentage : la part de la carte que ce seigneur tient. Une fraction : ses forces sur le total qu'il pourrait avoir. C'est la valeur exacte de l'horloge qui remplit sa pastille de couleur, que vous lisiez jusqu'ici à l'œil.",
+      "Rien de caché n'est révélé : ces deux informations étaient déjà à l'écran, en gros. Vous les obtenez au chiffre près — « 47/60 », ce sont treize soldats qui manquent.",
+      "Se coupe dans les Réglages avancés, et reste invisible tant que le trophée n'est pas gagné.",
+    ],
+  },
   {
     version: "2.64",
     notes: [
@@ -13705,6 +13808,8 @@ function applyUiLanguage() {
   document.getElementById("conseilsPowersP").innerHTML = t("conseilsPowersP");
   document.getElementById("conseilsGraalP").innerHTML = t("conseilsGraalP");
   document.getElementById("conseilsDailyGodsP").innerHTML = t("conseilsDailyGodsP");
+  document.getElementById("conseilsStatsNumbersP").innerHTML = t("conseilsStatsNumbersP");
+  document.getElementById("statsNumbersLabelText").textContent = t("statsNumbersLabel");
   refreshAdvancedSettings(); // l'étiquette du dépliant porte son propre texte traduit (v2.63)
   document.getElementById("conseilsArtefactsP").innerHTML = t("conseilsArtefactsP");
   // Share/truce/premium/surrender-confirm overlays — mostly static content,
