@@ -801,6 +801,37 @@
      pas un style à part : c'est un écran d'explication de plus, pas un objet
      nouveau. Les boutons héritent de la règle dorée partagée plus bas. */
   /* Même famille visuelle que les autres écrans d'explication. */
+  /* L'atelier des cartes (v2.66) — voir son balisage pour pourquoi c'est une
+     feuille basse sans voile sombre : la carte doit rester lisible pendant
+     qu'on tire. */
+  #mapLabSheet {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 13; display: none;
+    padding: 10px; justify-content: center;
+  }
+  #mapLabSheet .box { max-width: min(94vw, 460px); width: 100%; max-height: 62vh; overflow-y: auto; }
+  #mapLabSheet h2 { margin: 0 0 8px; font-size: 17px; text-align: center; }
+  /* Le code, décomposé : chaque segment porte son étiquette sous lui, pour
+     qu'on VOIE que le code n'est pas une bouillie mais quatre informations.
+     C'est là toute la pédagogie de l'écran. */
+  #mapLabCodeParts { display: flex; gap: 6px; justify-content: center; margin-bottom: 10px; flex-wrap: wrap; }
+  .mapLabPart { text-align: center; }
+  .mapLabPartVal {
+    display: block; font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 17px; font-weight: 700; letter-spacing: .06em;
+    padding: 4px 8px; border-radius: 5px; background: rgba(90, 65, 25, .12);
+    border: 1px solid rgba(120, 90, 40, .3);
+  }
+  .mapLabPartLabel { display: block; font-size: 9px; opacity: .65; margin-top: 3px; letter-spacing: .02em; }
+  #mapLabFacts { font-size: 12px; line-height: 1.5; text-align: center; opacity: .85; margin-bottom: 10px; }
+  #mapLabEditRow { display: flex; gap: 6px; margin-bottom: 6px; }
+  #mapLabInput {
+    flex: 1; min-width: 0; font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-size: 14px; padding: 7px 8px;
+  }
+  #mapLabApply { flex: 0 0 auto; font-size: 12px; padding: 7px 12px; }
+  #mapLabError { font-size: 11px; min-height: 14px; margin-bottom: 8px; text-align: center; color: #b4553f; }
+  #mapLabButtons { display: flex; gap: 8px; }
+  #mapLabButtons button { flex: 1; }
   #godPickerOverlay {
     position: fixed; inset: 0; z-index: 13; display: none;
     align-items: center; justify-content: center; padding: 16px;
@@ -1557,6 +1588,31 @@
       <button id="godPickerNeverBtn" class="ghostBtn"></button>
     </div>
   </div>
+  <!-- « L'atelier des cartes » (v2.66) — idée de Pierre : « générer une carte
+       depuis le menu en voyant le code bouger, et mettre les doigts dans le
+       code avec explication des résultats ».
+       Feuille EN BAS et non boîte centrée : tout l'intérêt est de voir la
+       carte changer pendant qu'on tire, donc l'écran doit rester dégagé.
+       Sans fond sombre par-dessus le jeu, pour la même raison.
+       Il n'existe que parce que la v2.64 a rendu la génération instantanée :
+       à 600 ms par tirage, regarder le code bouger aurait été un supplice. -->
+  <div id="mapLabSheet">
+    <div class="box" id="mapLabBox">
+      <button id="closeMapLab" aria-label="Fermer">✕</button>
+      <h2 id="mapLabTitleH2"></h2>
+      <div id="mapLabCodeParts"></div>
+      <div id="mapLabFacts"></div>
+      <div id="mapLabEditRow">
+        <input id="mapLabInput" type="text" spellcheck="false" autocapitalize="off" autocomplete="off">
+        <button id="mapLabApply"></button>
+      </div>
+      <div id="mapLabError"></div>
+      <div id="mapLabButtons">
+        <button id="mapLabRoll"></button>
+        <button id="mapLabGo"></button>
+      </div>
+    </div>
+  </div>
   <div id="installOverlay">
     <div class="box" id="installBox">
       <button id="closeInstall" aria-label="Fermer">✕</button>
@@ -1605,6 +1661,7 @@
         <p id="conseilsGraalP"></p>
         <p id="conseilsDailyGodsP"></p>
         <p id="conseilsStatsNumbersP"></p>
+        <p id="conseilsMapLabP"></p>
         <p id="conseilsArtefactsP"></p>
       </div>
       <button id="closeConseils"></button>
@@ -1807,6 +1864,12 @@
            des 12 n'est pas gagné, comme la ligne du Graal juste en dessous :
            proposer d'éteindre ce qu'on n'a pas encore ferait fuiter la
            récompense avant l'heure. -->
+      <!-- L'atelier des cartes (v2.66) — visible pour tout le monde : c'est
+           une porte vers la compréhension du jeu, pas une récompense. Elle
+           est en avancé parce qu'on n'en a pas besoin pour jouer. -->
+      <div id="mapLabRow" style="margin-top:10px;">
+        <button id="mapLabOpenBtn" style="width:100%; box-sizing:border-box;"></button>
+      </div>
       <label id="statsNumbersRow" style="display:none; margin-top:10px;"><input type="checkbox" id="statsNumbersToggle"> <span id="statsNumbersLabelText"></span></label>
       <div id="godPickerRow" style="display:none;">
         <button id="godPickerOpenBtn"></button>
@@ -1839,7 +1902,7 @@
 // before (CREATURE_IMG's own loadSprite() call, the changelog, etc.), not
 // redeclared.
 const CREATURE_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAANAAAADQCAYAAAB2pO90AAAC2klEQVR4nO3dQWoDMRAAwd3g/39ZOeQHahgroupuvF7TzGWQ3rXWw4z3fUde9lrrnfiend8z9WxTfr79APCfCQgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAg+336AE5y85LnzbJY855hAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEFx3MqlTOe/7PSf/pyYQBAKCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAiCd62RG9559pYimbOzgGoCQSAgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAguO5kUvbsLFJOLcdOPdvOZ0wgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAElkkZNbUYOvU9JhAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJAQBAICILrlkldJb9namHzZK65h2ECgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgrFl0pOvRD/Zbe/ttqVVEwgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAgEBMF1J5My57bF0B0mEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgq1lUlfJW6TkjwkEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJg7GTSnUXKqaXVqcXQk6+styC8xwSCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUHwccLmHO/tvhNdTSAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEASfkxf1OJsTUE0gSAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEY9fcw/OcfcroDhMIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgl9clHexCa709wAAAABJRU5ErkJggg==";
-const GAME_VERSION = "2.65";
+const GAME_VERSION = "2.66";
 document.getElementById("loadingKnight").src = CREATURE_IMG_SRC;
 document.getElementById("loadingVersion").textContent = `v${GAME_VERSION}`;
 document.getElementById("splashKnight").src = CREATURE_IMG_SRC;
@@ -6026,6 +6089,31 @@ const UI_STRINGS = {
     es: "<strong>Las cifras de las estadísticas</strong>: al ganar <strong>El poder de los 12</strong>, añades dos números a cada línea de la barra superior izquierda. <strong>un porcentaje</strong> — la parte del mapa que ese señor controla — y <strong>una fracción</strong> — sus fuerzas sobre el total que podría tener, es decir el valor exacto del reloj que rellena su punto de color, que hasta ahora solo podías estimar a ojo. La fracción dice mejor que un porcentaje lo que te queda por hacer: «47/60» son trece soldados que faltan. No se revela nada nuevo: ambas cosas ya estaban en pantalla, a grandes rasgos. Ahora las tienes al dígito, lo que lo cambia todo cuando buscas la partida perfecta: sabes si de verdad tienes el 100% o solo casi. Se puede desactivar en Ajustes avanzados.",
     de: "<strong>Die Zahlen der Statistik</strong>: Mit <strong>Die Macht der 12</strong> bekommt jede Zeile der Leiste oben links zwei Zahlen dazu. <strong>einen Prozentsatz</strong> — den Anteil der Karte, den dieser Fürst hält — und <strong>einen Bruch</strong> — seine Streitkräfte im Verhältnis zu dem, was er haben könnte, also den genauen Wert der Uhr, die seinen Farbpunkt füllt und die du bisher nur schätzen konntest. Der Bruch sagt besser als ein Prozentsatz, was dir noch fehlt: «47/60» sind dreizehn fehlende Soldaten. Nichts Neues wird preisgegeben: Beides stand bereits auf dem Bildschirm, nur grob. Jetzt hast du es auf die Ziffer genau, und das ändert alles, wenn du eine makellose Partie anstrebst: Du weißt, ob du wirklich 100% hast oder nur beinahe. Abschaltbar in den erweiterten Einstellungen.",
   },
+  // L'atelier des cartes (v2.66).
+  mapLabOpenBtn: { fr: "🗺️ L'atelier des cartes", en: "🗺️ The map workshop", zh: "🗺️ 地图工坊", es: "🗺️ El taller de mapas", de: "🗺️ Die Kartenwerkstatt" },
+  mapLabTitle: { fr: "L'atelier des cartes", en: "The map workshop", zh: "地图工坊", es: "El taller de mapas", de: "Die Kartenwerkstatt" },
+  mapLabPartSeed: { fr: "la graine", en: "the seed", zh: "种子", es: "la semilla", de: "der Keim" },
+  mapLabPartSize: { fr: "la taille", en: "the size", zh: "尺寸", es: "el tamaño", de: "die Größe" },
+  mapLabPartDiff: { fr: "la difficulté", en: "difficulty", zh: "难度", es: "la dificultad", de: "die Stufe" },
+  mapLabPartFoes: { fr: "les rivaux", en: "rivals", zh: "对手数", es: "los rivales", de: "die Rivalen" },
+  mapLabFacts: {
+    fr: "{provinces} provinces · {iles} île(s) · {traversees} traversées · plus gros départ : {plusGros}",
+    en: "{provinces} provinces · {iles} island(s) · {traversees} crossings · largest start: {plusGros}",
+    zh: "{provinces} 个省份 · {iles} 座岛 · {traversees} 条航路 · 最大起始：{plusGros}",
+    es: "{provinces} provincias · {iles} isla(s) · {traversees} travesías · mayor inicio: {plusGros}",
+    de: "{provinces} Provinzen · {iles} Insel(n) · {traversees} Überfahrten · größter Start: {plusGros}",
+  },
+  mapLabRoll: { fr: "🔀 Tirer une carte", en: "🔀 Draw a map", zh: "🔀 抽一张地图", es: "🔀 Sacar un mapa", de: "🔀 Karte ziehen" },
+  mapLabGo: { fr: "⚔️ Celle-ci", en: "⚔️ This one", zh: "⚔️ 就这张", es: "⚔️ Esta", de: "⚔️ Diese hier" },
+  mapLabApply: { fr: "Charger", en: "Load", zh: "载入", es: "Cargar", de: "Laden" },
+  mapLabBadCode: { fr: "Ce code ne mène à aucune carte.", en: "That code leads to no map.", zh: "该代码没有对应的地图。", es: "Ese código no lleva a ningún mapa.", de: "Dieser Code führt zu keiner Karte." },
+  conseilsMapLabP: {
+    fr: "<strong>L'atelier des cartes</strong> : dans les Réglages avancés, tirez des cartes et regardez leur <strong>code se réécrire</strong> sous vos yeux. Le code n'est pas une bouillie : il se lit en quatre morceaux — la graine, la taille, la difficulté, le nombre de rivaux — et l'atelier vous les montre séparés. Sous chaque carte, quatre mesures prises sur le terrain réellement tiré : combien de provinces, combien d'îles, combien de traversées maritimes payables, et la plus grosse position de départ. Une seule île, c'est une guerre de front ; quatre îles, c'est une guerre de marins — vous le savez avant d'engager le premier soldat. Et vous pouvez écrire un code à la main pour retomber sur une carte précise, ou en explorer une voisine en changeant un seul caractère.",
+    en: "<strong>The map workshop</strong>: in Advanced settings, draw maps and watch their <strong>code rewrite itself</strong> before your eyes. The code isn't gibberish: it reads in four pieces — the seed, the size, the difficulty, the number of rivals — and the workshop shows them apart. Under each map, four measurements taken on the terrain actually drawn: how many provinces, how many islands, how many payable sea crossings, and the largest starting position. One island means a war of fronts; four islands means a war of sailors — and you know it before committing a single soldier. You can also type a code by hand to land on an exact map, or explore a neighbouring one by changing a single character.",
+    zh: "<strong>地图工坊</strong>：在「高级设置」中抽取地图，并亲眼看着它的<strong>代码不断重写</strong>。代码并非乱码，它由四部分组成——种子、尺寸、难度、对手数量——工坊会把它们分开展示。每张地图下方还有四项基于实际生成地形的测量：多少个省份、多少座岛、多少条付得起的航路，以及最大的起始领地。一座岛意味着正面战争，四座岛则意味着海上战争——在投入第一个士兵之前你就已知晓。你也可以手动输入代码以精确抵达某张地图，或只改动一个字符去探索相邻的一张。",
+    es: "<strong>El taller de mapas</strong>: en Ajustes avanzados, saca mapas y observa cómo su <strong>código se reescribe</strong> ante tus ojos. El código no es un galimatías: se lee en cuatro piezas — la semilla, el tamaño, la dificultad, el número de rivales — y el taller te las muestra por separado. Bajo cada mapa, cuatro medidas tomadas sobre el terreno realmente generado: cuántas provincias, cuántas islas, cuántas travesías marítimas pagables y la mayor posición de salida. Una sola isla es una guerra de frentes; cuatro islas, una guerra de marinos — y lo sabes antes de comprometer al primer soldado. También puedes escribir un código a mano para caer en un mapa exacto, o explorar uno vecino cambiando un solo carácter.",
+    de: "<strong>Die Kartenwerkstatt</strong>: Ziehe in den erweiterten Einstellungen Karten und sieh zu, wie sich ihr <strong>Code vor deinen Augen neu schreibt</strong>. Der Code ist kein Kauderwelsch: Er liest sich in vier Teilen — der Keim, die Größe, die Stufe, die Zahl der Rivalen — und die Werkstatt zeigt sie getrennt. Unter jeder Karte stehen vier Messungen am tatsächlich gezogenen Gelände: wie viele Provinzen, wie viele Inseln, wie viele bezahlbare Überfahrten und die größte Startposition. Eine einzige Insel heißt Frontenkrieg, vier Inseln heißen Seefahrerkrieg — und du weißt es, bevor du den ersten Soldaten einsetzt. Du kannst auch einen Code von Hand eintippen, um auf einer bestimmten Karte zu landen, oder eine benachbarte erkunden, indem du ein einziges Zeichen änderst.",
+  },
   conseilsDailyGodsP: {
     fr: "<strong>Les dieux du jour</strong> : au défi du jour, ce n'est pas vous qui composez les dieux — c'est la journée. Chaque date impose la sienne, la même pour tout le monde : certains jours personne n'a de dieu, d'autres tout le monde a les quatre, d'autres encore un seul dieu pour tous ou une répartition inégale entre les seigneurs. La composition s'affiche sous le bouton du défi, avant de vous lancer. Deux conséquences : le duel avec un ami compare enfin deux parties jouées aux mêmes règles, quels que soient vos trophées respectifs ; et vous jouez avec des dieux que vous n'avez pas encore débloqués, de quoi savoir ce que vous manquez. Votre propre réglage du Graal reste intact pour vos parties normales.",
     en: "<strong>The gods of the day</strong>: in the daily challenge, you don't compose the gods — the day does. Each date imposes its own, the same for everyone: some days nobody has a god, some days everyone has all four, others a single god for all or an uneven spread between lords. The composition is shown under the challenge button before you start. Two consequences: a duel with a friend finally compares two matches played under the same rules, whatever your respective trophies; and you play with gods you haven't unlocked yet, which tells you what you're missing. Your own Grail setting stays untouched for your normal matches.",
@@ -9106,6 +9194,66 @@ const MAX_SHARED_LOG_MOVES = 5000;
 // + one difficulty digit + one opponent-count digit, with no separators —
 // the last three characters are always exactly those three fields, so
 // decoding just peels them off the end.
+// --- L'atelier des cartes (v2.66) -------------------------------------------
+//
+// Idée de Pierre : « générer une carte depuis le menu en voyant le code
+// bouger, et mettre les doigts dans le code avec explication des résultats ».
+//
+// Deux moitiés, et la seconde est la plus importante. Voir le code se
+// réécrire pendant qu'on tire, c'est joli. Comprendre CE QUE ÇA DONNE, c'est
+// ce qui fait la différence entre regarder et apprendre. D'où mapLabFacts() :
+// quatre mesures prises sur la carte réellement générée, pas des promesses.
+//
+// Cet écran n'existe que parce que la v2.64 a rendu la génération
+// instantanée (600 ms → 20 ms). À l'ancienne vitesse, tirer une carte pour
+// voir aurait été un supplice, et l'idée n'aurait pas tenu.
+//
+// Nombre d'ÎLES : composantes connexes des provinces par voie terrestre.
+// C'est la mesure qui raconte le plus une carte — une seule île, c'est une
+// guerre de front ; quatre îles, c'est une guerre de marins.
+function mapLabIslandCount() {
+  const vus = new Set();
+  let iles = 0;
+  for (const t of territories) {
+    if (vus.has(t.id)) continue;
+    iles++;
+    const pile = [t.id];
+    vus.add(t.id);
+    while (pile.length) {
+      const cur = territories[pile.pop()];
+      for (const nId of cur.neighbors) {
+        if (!vus.has(nId) && territories[nId]) { vus.add(nId); pile.push(nId); }
+      }
+    }
+  }
+  return iles;
+}
+// Traversées possibles : paires de provinces reliées par la mer et par
+// personne d'autre. On compte les PAIRES (chaque route est enregistrée des
+// deux côtés), et seulement celles qu'une garnison pleine pourrait payer —
+// une route hors de portée n'est pas une traversée, c'est un décor.
+function mapLabCrossingCount() {
+  let n = 0;
+  for (const t of territories) {
+    for (const [dest, r] of t.waterRoutes) {
+      if (dest > t.id && r.cost < FORCE_CAP) n++;
+    }
+  }
+  return n;
+}
+function mapLabFacts() {
+  const provinces = territories.length;
+  const iles = mapLabIslandCount();
+  const traversees = mapLabCrossingCount();
+  // La plus grosse province de départ : dit d'un coup si la carte est
+  // équilibrée ou si quelqu'un commence en position de force.
+  let plusGros = 0;
+  for (let r = 0; r < ROYAUME_COUNT - 1; r++) {
+    const n = territories.reduce((acc, t) => acc + (t.owner === r ? 1 : 0), 0);
+    if (n > plusGros) plusGros = n;
+  }
+  return tf("mapLabFacts", { provinces, iles, traversees, plusGros });
+}
 function buildMapCode() {
   let diffIdx = DIFFICULTY_LEVELS.findIndex((l) => l.value === gameStartDifficulty);
   if (diffIdx === -1) diffIdx = difficultyLevel; // defensive fallback — see buildShareUrl()'s own note
@@ -12142,6 +12290,73 @@ function refreshInstallSteps() {
 }
 // Comme refreshGodPickerButton() : la ligne n'apparaît qu'une fois le
 // trophée gagné, et Le pouvoir des 12 peut se gagner EN COURS de session.
+// --- L'atelier : affichage et commandes (v2.66) ------------------------------
+// Le code se décompose en QUATRE segments étiquetés, dans l'ordre exact où
+// buildMapCode() les écrit. C'est ce découpage qui transforme « 1k3ym23 » en
+// quelque chose qu'on peut comprendre puis modifier à la main.
+function mapLabRefresh() {
+  const code = buildMapCode();
+  const sizeChar = gameStartMapSize[0] || "m";
+  let diffIdx = DIFFICULTY_LEVELS.findIndex((l) => l.value === gameStartDifficulty);
+  if (diffIdx === -1) diffIdx = difficultyLevel;
+  const parts = [
+    { val: currentSeed.toString(36), label: t("mapLabPartSeed") },
+    { val: sizeChar, label: t("mapLabPartSize") },
+    { val: String(diffIdx), label: t("mapLabPartDiff") },
+    { val: String(gameStartOpponentCount), label: t("mapLabPartFoes") },
+  ];
+  document.getElementById("mapLabCodeParts").innerHTML = parts
+    .map((p) => `<span class="mapLabPart"><span class="mapLabPartVal">${p.val}</span><span class="mapLabPartLabel">${p.label}</span></span>`)
+    .join("");
+  document.getElementById("mapLabFacts").textContent = mapLabFacts();
+  const input = document.getElementById("mapLabInput");
+  if (document.activeElement !== input) input.value = code;
+  document.getElementById("mapLabError").textContent = "";
+}
+function openMapLab() {
+  // On repart d'une carte fraîche AVANT le choix du camp : l'atelier ne sert
+  // qu'à composer le terrain, jamais à changer une partie en cours.
+  if (!awaitingFactionPick) startGame();
+  document.getElementById("mapLabSheet").style.display = "flex";
+  mapLabRefresh();
+  sfxMenuOpen();
+}
+function closeMapLab() {
+  document.getElementById("mapLabSheet").style.display = "none";
+  sfxMenuClose();
+}
+document.getElementById("closeMapLab").addEventListener("click", closeMapLab);
+document.getElementById("mapLabGo").addEventListener("click", closeMapLab);
+document.getElementById("mapLabRoll").addEventListener("click", () => {
+  mapHistory.push(currentSeed);
+  while (mapHistory.length > 2) mapHistory.shift();
+  sfxRerollMap();
+  startGame();
+  mapLabRefresh();
+});
+// Mettre les doigts dans le code. Un code refusé ne casse rien : on le dit et
+// on laisse le joueur corriger, au lieu de recharger une carte au hasard.
+function mapLabApplyCode() {
+  const raw = document.getElementById("mapLabInput").value;
+  const parsed = parseMapCode(raw);
+  if (!parsed) {
+    document.getElementById("mapLabError").textContent = t("mapLabBadCode");
+    sfxToggle();
+    return;
+  }
+  applyDifficulty(parsed.difficulty);
+  opponentCount = parsed.opponentCount;
+  applyMapSize(parsed.mapSize);
+  startGame(parsed.seed);
+  mapLabRefresh();
+  sfxRerollMap();
+}
+document.getElementById("mapLabApply").addEventListener("click", mapLabApplyCode);
+document.getElementById("mapLabInput").addEventListener("keydown", (e) => { if (e.key === "Enter") mapLabApplyCode(); });
+document.getElementById("mapLabOpenBtn").addEventListener("click", () => {
+  closeSettingsPanel();
+  openMapLab();
+});
 function refreshStatsNumbersRow() {
   const row = document.getElementById("statsNumbersRow");
   if (row) row.style.display = statsNumbersUnlocked() ? "" : "none";
@@ -12295,6 +12510,15 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // add a new entry at the top whenever a future change is worth telling
 // players about.
 const CHANGELOG = [
+  {
+    version: "2.66",
+    notes: [
+      "L'atelier des cartes, dans les Réglages avancés : tirez des cartes et regardez leur code se réécrire sous vos yeux.",
+      "Le code n'est pas une bouillie. Il se lit en quatre morceaux — la graine, la taille, la difficulté, le nombre de rivaux — et l'atelier vous les montre séparés, chacun avec son nom.",
+      "Sous chaque carte, quatre mesures prises sur le terrain réellement tiré : combien de provinces, combien d'îles, combien de traversées maritimes, et la plus grosse position de départ. Une seule île, c'est une guerre de front ; quatre îles, c'est une guerre de marins.",
+      "Vous pouvez écrire un code à la main pour retomber sur une carte précise, ou en explorer une voisine en changeant un seul caractère.",
+    ],
+  },
   {
     version: "2.65",
     notes: [
@@ -13809,6 +14033,12 @@ function applyUiLanguage() {
   document.getElementById("conseilsGraalP").innerHTML = t("conseilsGraalP");
   document.getElementById("conseilsDailyGodsP").innerHTML = t("conseilsDailyGodsP");
   document.getElementById("conseilsStatsNumbersP").innerHTML = t("conseilsStatsNumbersP");
+  document.getElementById("conseilsMapLabP").innerHTML = t("conseilsMapLabP");
+  document.getElementById("mapLabOpenBtn").textContent = t("mapLabOpenBtn");
+  document.getElementById("mapLabTitleH2").textContent = t("mapLabTitle");
+  document.getElementById("mapLabRoll").textContent = t("mapLabRoll");
+  document.getElementById("mapLabGo").textContent = t("mapLabGo");
+  document.getElementById("mapLabApply").textContent = t("mapLabApply");
   document.getElementById("statsNumbersLabelText").textContent = t("statsNumbersLabel");
   refreshAdvancedSettings(); // l'étiquette du dépliant porte son propre texte traduit (v2.63)
   document.getElementById("conseilsArtefactsP").innerHTML = t("conseilsArtefactsP");
