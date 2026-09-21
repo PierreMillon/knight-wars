@@ -55,6 +55,44 @@ ce qu'il contredit » juste après.
 - [ ] Assistance joueurs pour les bugs, PAS pour modifier le jeu de base ; si la demande
       est trop différente, proposer un nouveau jeu.
 
+- [x] **v2.71 — Retrait des gueux** (arbitrage de Pierre, et sa raison ne doit pas se perdre :
+  « le but du jeu c'est pas de rattraper le mauvais choix, de compenser. Le hasard, c'est de
+  lutter contre le hasard avec une bonne stratégie »).
+  1. **Ce n'est PAS l'argument d'équilibrage qui a tranché — il était faux.** La mesure de
+     600 parties (juste en dessous) avait montré que les gueux ne cassaient aucun palier.
+     C'est un argument de conception : une réserve accumulée permet d'ACHETER la réparation
+     d'une erreur, ce que ce jeu ne devrait pas offrir. Aucune mesure ne pouvait le dire.
+  2. **Ils survivent comme récit, pas comme ressource** (demande de Pierre en cours de
+     chantier : « ça reste une explication mais ça change rien en gameplay »). L'écran de fin
+     dit « Des paysans se rallient à votre cause » ou « Vos gens vous quittent ». Rien ne
+     s'accumule, rien ne se dépense. Deux langues seulement, conformément au gel des langues.
+  3. **Ce qui a été volontairement CONSERVÉ** : `applyGueuxEffect()` et les branches d'encodage
+     et de décodage du coup `{gueux}`. Des liens de partage circulent déjà avec ce coup dedans ;
+     un décodeur qui l'oublierait ne les casserait pas franchement — il les rejouerait de
+     travers, en silence, exactement le défaut documenté pour le sacrifice en mer. Vérifié de
+     bout en bout : un lien fabriqué sur la version en ligne (province 1 → 2 par un gueux) est
+     reconnu et rejoué par la version qui n'a plus la mécanique.
+  4. **Piège de nommage, le plus gros du lot** : le fichier contenait 212 fois « gueux », mais
+     le PALIER DE DIFFICULTÉ le plus facile s'appelle aussi Gueux (`diffGueux`, `#sideGueux`,
+     `GUEUX_IMG_SRC`). Une suppression naïve renommait la difficulté et effaçait un dessin.
+     109 occurrences retirées côté ressource, zéro côté difficulté.
+  5. **Le défaut qui a failli passer, et comment il se cachait** : `peaceGueuxGained` restait
+     remis à zéro dans `startGame()` alors que sa déclaration était partie. `startGame()` est
+     appelé depuis `startFreshGameSafely()`, qui l'entoure de DEUX `try/catch` silencieux — le
+     jeu ne générait donc plus aucune carte, sans la moindre erreur affichée. Trouvé en
+     comparant avec la version en ligne dans les mêmes conditions : 7 provinces là-bas, 0 ici.
+     **Leçon : un `try/catch` qui avale tout transforme une erreur de référence en écran vide.**
+  6. **Leçon d'outillage** : j'avais l'occurrence sous les yeux et je ne l'ai pas vue — mes
+     `grep` passaient par `cut -c1-90`, et `peaceGueuxGained = 0;` était au-delà de la colonne
+     90 d'une longue ligne de remise à zéro. Ne jamais tronquer la sortie d'une recherche qui
+     sert à prouver qu'il ne reste RIEN.
+  7. Aucune case de la Salle des trophées ne dépendait des gueux : personne ne perd son Graal.
+     La fiche du Tutoriel disparaît (ce n'est plus une mécanique) et le palier ② en compte donc
+     une de moins.
+  8. **Conséquence restée ouverte** : « proposer la paix » rapportait un gueux par rival vivant
+     et « se rendre » en coûtait un. Ces deux boutons ne paient plus rien. À trancher par
+     Pierre : la paix garde-t-elle une raison d'exister ?
+
 ### Mesure des gueux (2026-09-21) — l'hypothèse qui les accusait est fausse
 
 J'avais avancé que les gueux « cassaient silencieusement la courbe de difficulté », au motif
