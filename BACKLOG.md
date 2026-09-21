@@ -5,7 +5,7 @@ Copié tel quel pour suivi. Statut ajouté en préfixe au fur et à mesure :
 
 ---
 
-## La logique d'Oronet — doctrine pour un jeu mobile (posée par Pierre, 2026-09-21)
+## La logique de projet — doctrine pour un jeu mobile (posée par Pierre, 2026-09-21)
 
 Ce n'est PAS un chantier Knight Wars. C'est la charte d'un futur jeu mobile, notée ici
 parce que le BACKLOG est la mémoire du projet et qu'il n'y a pas encore d'autre endroit.
