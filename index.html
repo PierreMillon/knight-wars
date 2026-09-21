@@ -734,6 +734,31 @@
      pas encore obtenu est écrit en toutes lettres, condition comprise.
      Même source que la grille (computeTrophySlots()) : les deux ne peuvent
      pas se contredire. */
+  /* La carte à collectionner (v2.73). Le « côté carte » vient entièrement
+     de la présentation — cadre doré, illustration à quatre fois sa taille de
+     grille, retournement à l'apparition — et non d'un texte supplémentaire :
+     une ligne de lore par case aurait coûté 42 traductions pour ce premier
+     lot. Elles pourront s'ajouter plus tard, case par case, sans rien
+     refaire. */
+  #trophyCard {
+    margin: 0 0 14px; padding: 14px 12px 12px; text-align: center;
+    border: 1px solid #a97e2a; border-radius: 10px;
+    background: linear-gradient(180deg, rgba(232,196,104,.13), rgba(169,126,42,.05));
+    box-shadow: 0 0 0 1px rgba(232,196,104,.35) inset;
+    animation: trophyCardFlip .32s ease-out;
+  }
+  @keyframes trophyCardFlip {
+    from { transform: rotateY(88deg) scale(.92); opacity: 0; }
+    to   { transform: rotateY(0deg) scale(1); opacity: 1; }
+  }
+  /* L'illustration est le sujet : 120 px contre 30 dans la grille. */
+  #trophyOverlay #trophyCardImg {
+    display: block; width: 120px; height: 120px; object-fit: contain;
+    margin: 0 auto 10px; image-rendering: pixelated;
+  }
+  #trophyCardName { font-size: 17px; font-weight: 700; margin-bottom: 6px; }
+  #trophyCardHow { font-size: 13px; line-height: 1.5; opacity: .9; }
+  #trophyCardDate { font-size: 12px; font-style: italic; opacity: .7; margin-top: 8px; }
   #trophyTodoLabel { margin: 4px 0 8px; text-align: center; }
   #trophyTodo { display: flex; flex-direction: column; gap: 10px; margin: 0 0 16px; }
   .trophyTodoRow { display: flex; gap: 10px; align-items: flex-start; }
@@ -1596,6 +1621,17 @@
       <div class="fieldLabel" id="trophyRoomLabel"><span id="trophyRoomLabelText"></span> <span id="trophyRoomCount"></span></div>
       <div id="trophyRoom"></div>
       <!-- Ce que dit la case touchée (v2.58). Vide au repos : voir refreshTrophyRoom(). -->
+      <!-- La carte à collectionner (v2.73) — n'apparaît que sur une case
+           GAGNÉE. Le plaisir de collection vient de ce qu'on possède, pas
+           des trous : c'est pour ça qu'on n'a pas vidé les cases non
+           obtenues (voir le BACKLOG, et le coffre que Pierre avait lui-même
+           fait retirer). -->
+      <div id="trophyCard" hidden>
+        <img id="trophyCardImg" alt="">
+        <div id="trophyCardName"></div>
+        <div id="trophyCardHow"></div>
+        <div id="trophyCardDate"></div>
+      </div>
       <p id="trophyHowText"></p>
       <div class="fieldLabel" id="trophyTodoLabel"></div>
       <div id="trophyTodo"></div>
@@ -1978,7 +2014,7 @@
 // before (CREATURE_IMG's own loadSprite() call, the changelog, etc.), not
 // redeclared.
 const CREATURE_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAANAAAADQCAYAAAB2pO90AAAC2klEQVR4nO3dQWoDMRAAwd3g/39ZOeQHahgroupuvF7TzGWQ3rXWw4z3fUde9lrrnfiend8z9WxTfr79APCfCQgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAg+336AE5y85LnzbJY855hAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEFx3MqlTOe/7PSf/pyYQBAKCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAiCd62RG9559pYimbOzgGoCQSAgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAguO5kUvbsLFJOLcdOPdvOZ0wgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAElkkZNbUYOvU9JhAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJAQBAICILrlkldJb9namHzZK65h2ECgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgrFl0pOvRD/Zbe/ttqVVEwgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAgEBMF1J5My57bF0B0mEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgq1lUlfJW6TkjwkEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJg7GTSnUXKqaXVqcXQk6+styC8xwSCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUHwccLmHO/tvhNdTSAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEASfkxf1OJsTUE0gSAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEY9fcw/OcfcroDhMIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgl9clHexCa709wAAAABJRU5ErkJggg==";
-const GAME_VERSION = "2.72";
+const GAME_VERSION = "2.73";
 document.getElementById("loadingKnight").src = CREATURE_IMG_SRC;
 document.getElementById("loadingVersion").textContent = `v${GAME_VERSION}`;
 document.getElementById("splashKnight").src = CREATURE_IMG_SRC;
@@ -6399,6 +6435,17 @@ const UI_STRINGS = {
     zh: "你还差的（{n}）",
     es: "Lo que te queda ({n})",
     de: "Was dir noch fehlt ({n})",
+  },
+  // La carte à collectionner (v2.73). Deux libellés seulement : le « côté
+  // carte » vient du cadre et de l'illustration agrandie, pas d'un texte
+  // par case. Deux langues, voir le gel des langues dans CLAUDE.md.
+  trophyCardOn: {
+    fr: "Obtenu le {date}.",
+    en: "Earned on {date}.",
+  },
+  trophyCardBefore: {
+    fr: "Obtenu de longue date — avant que le pays ne tienne ses registres.",
+    en: "Earned long ago — before the land kept its records.",
   },
   trophyAllDone: {
     fr: "Plus rien. Vous avez tout débloqué — Le Graal compris.",
@@ -12363,15 +12410,15 @@ function computeTrophySlots() {
   // appearing only once earned, no exceptions. All 4 gods now have their
   // own dedicated sprite — Cérès (wheat stalk) and Neptune (trident) were
   // the last two still on emoji placeholders.
-  const slots = GOD_NAMES.map((name, i) => ({ earned: godUnlockedPlayer[i], name: t(GOD_DISPLAY_KEYS[i]), img: GOD_ICON_SRCS[i], how: t(GOD_HOW_KEYS[i]) }));
+  const slots = GOD_NAMES.map((name, i) => ({ id: "god" + i, earned: godUnlockedPlayer[i], name: t(GOD_DISPLAY_KEYS[i]), img: GOD_ICON_SRCS[i], how: t(GOD_HOW_KEYS[i]) }));
   // The boat used to sit in its own decorative row above this title
   // (#loreWarTools, now removed — "déplacée en dessous dans un carré"); it
   // was never gated by any unlock before, so it stays always-earned here
   // too, just relocated into a real square slot like everything else.
-  slots.push({ earned: boatUnlocked, name: t("trophyBoat"), img: BOAT_IMG_SRC, how: t("trophyHowBoat") });
-  slots.push({ earned: pieuvreUnlocked, name: t("trophyPieuvre"), img: OCTOPUS_IMG_SRC, how: t("trophyHowPieuvre") });
-  slots.push({ earned: cthulhuUnlocked, name: t("trophyCthulhuName"), img: CTHULHU_IMG_SRC, how: t("trophyHowCthulhu") });
-  slots.push({ earned: marsBlessingUnlocked, name: t("trophyPower12"), img: SWORD_DIAGONAL_IMG_SRC, how: t("trophyHowPower12") });
+  slots.push({ id: "boat", earned: boatUnlocked, name: t("trophyBoat"), img: BOAT_IMG_SRC, how: t("trophyHowBoat") });
+  slots.push({ id: "pieuvre", earned: pieuvreUnlocked, name: t("trophyPieuvre"), img: OCTOPUS_IMG_SRC, how: t("trophyHowPieuvre") });
+  slots.push({ id: "cthulhu", earned: cthulhuUnlocked, name: t("trophyCthulhuName"), img: CTHULHU_IMG_SRC, how: t("trophyHowCthulhu") });
+  slots.push({ id: "power12", earned: marsBlessingUnlocked, name: t("trophyPower12"), img: SWORD_DIAGONAL_IMG_SRC, how: t("trophyHowPower12") });
   // "Un enfant qui porte un écu" — Page's own dedicated sprite, replacing
   // the plain white sword placeholder used until now. Shifted from index 0
   // to index 1 (and the gueux bust brought in at index 0) to match "on
@@ -12379,7 +12426,7 @@ function computeTrophySlots() {
   // DIFF_ICON_SRCS's own note on the same rename-vs-icon mismatch.
   const DIFF_TROPHY_IMG = [GUEUX_BUST_IMG_SRC, PAGE_IMG_SRC, FIGURE2_IMG_SRC, CREATURE_IMG_SRC];
   DIFFICULTY_LEVELS.forEach((lvl, i) => {
-    slots.push({ earned: difficultyTierWon[i], name: tf("trophyVictoryPrefix", { level: t(DIFFICULTY_DISPLAY_KEYS[i]) }), img: DIFF_TROPHY_IMG[i], how: tf("trophyHowDifficulty", { level: t(DIFFICULTY_DISPLAY_KEYS[i]) }) });
+    slots.push({ id: "diff" + i, earned: difficultyTierWon[i], name: tf("trophyVictoryPrefix", { level: t(DIFFICULTY_DISPLAY_KEYS[i]) }), img: DIFF_TROPHY_IMG[i], how: tf("trophyHowDifficulty", { level: t(DIFFICULTY_DISPLAY_KEYS[i]) }) });
   });
   // "Ajoute une case par blason pour les familles" — one slot per royaume,
   // same condition/art as the #loreRoyaumesJoues row above (royaumePlayed,
@@ -12387,27 +12434,27 @@ function computeTrophySlots() {
   // same progress, inside the trophy grid itself rather than only the
   // dedicated row up top.
   ROYAUMES.slice(0, ROYAUME_COUNT - 1).forEach((roy) => {
-    slots.push({ earned: royaumePlayed[roy.id], name: roy.name.replace("Millon de ", ""), img: recolorBlazonDiagonal(roy.color) || BLAZON_IMG_SRC, how: tf("trophyHowFamily", { name: roy.name.replace("Millon de ", "") }) });
+    slots.push({ id: "roy" + roy.id, earned: royaumePlayed[roy.id], name: roy.name.replace("Millon de ", ""), img: recolorBlazonDiagonal(roy.color) || BLAZON_IMG_SRC, how: tf("trophyHowFamily", { name: roy.name.replace("Millon de ", "") }) });
   });
   // "Trophée pour vaincre toutes les familles, chacune avec tous les bonus
   // débloqués" — the ultimate one, computed live (see allRoyaumesFullyBlessed()).
-  slots.push({ earned: allRoyaumesFullyBlessed(), name: t("trophyAllFamilies"), img: YINYANG_IMG_SRC, how: t("trophyHowAllFamilies") });
+  slots.push({ id: "allFamilies", earned: allRoyaumesFullyBlessed(), name: t("trophyAllFamilies"), img: YINYANG_IMG_SRC, how: t("trophyHowAllFamilies") });
   // Excalibur, le parchemin et l'épée blanche — jusqu'en v2.51 affichés sans
   // aucune condition ("on verra la mécanique plus tard"), donc gris à vie et
   // pour cette raison exclus du décompte du Graal. Maintenant qu'ils ont
   // chacun une vraie condition (voir EXCALIBUR_CAP_KILLS_NEEDED), ils sont
   // poussés AVANT Le Graal et comptent donc pour lui, comme tous les autres :
   // laisser trois cases gagnables hors du 100 % ferait mentir le Graal.
-  slots.push({ earned: excaliburUnlocked(), name: t("trophyExcalibur"), img: EXCALIBUR_IMG_SRC, how: tf("trophyHowExcalibur", { done: excaliburCapKills, need: EXCALIBUR_CAP_KILLS_NEEDED }) });
-  slots.push({ earned: parcheminUnlocked, name: t("trophyParchemin"), img: PARCHEMIN_IMG_SRC, how: t("trophyHowParchemin") });
-  slots.push({ earned: epeeBlancheUnlocked, name: t("trophySwordBlanche"), img: SWORD_IMG_SRC, how: t("trophyHowSwordBlanche") });
+  slots.push({ id: "excalibur", earned: excaliburUnlocked(), name: t("trophyExcalibur"), img: EXCALIBUR_IMG_SRC, how: tf("trophyHowExcalibur", { done: excaliburCapKills, need: EXCALIBUR_CAP_KILLS_NEEDED }) });
+  slots.push({ id: "parchemin", earned: parcheminUnlocked, name: t("trophyParchemin"), img: PARCHEMIN_IMG_SRC, how: t("trophyHowParchemin") });
+  slots.push({ id: "sword", earned: epeeBlancheUnlocked, name: t("trophySwordBlanche"), img: SWORD_IMG_SRC, how: t("trophyHowSwordBlanche") });
   // Le Graal — "100% de tout avoir débloqué, le dernier à débloquer" : a
   // meta-trophy earned only once every OTHER slot above is already earned
   // (checked against the preceding slots, never against itself). Poussé en
   // tout dernier maintenant que plus aucune case n'est en attente de
   // mécanique — ce qui correspond enfin à sa description d'origine.
   const remainingBeforeGraal = slots.filter((s) => !s.earned).length;
-  slots.push({ earned: slots.every((s) => s.earned), name: t("trophyGraal"), img: GRAAL_IMG_SRC, how: tf("trophyHowGraal", { n: remainingBeforeGraal }) });
+  slots.push({ id: "graal", earned: slots.every((s) => s.earned), name: t("trophyGraal"), img: GRAAL_IMG_SRC, how: tf("trophyHowGraal", { n: remainingBeforeGraal }) });
   return { slots, remainingBeforeGraal };
 }
 // Post-win "presque débloqué" teaser (v2.49) — see its own use in showWin().
@@ -12627,10 +12674,66 @@ document.getElementById("installNowBtn").addEventListener("click", async () => {
 refreshInstallButton();
 refreshGodPickerButton();
 
+// --- Date d'obtention des trophées (v2.73) ---------------------------
+// Rien ne la stockait jusqu'ici, et il n'existe AUCUN événement unique
+// « ce trophée vient d'être gagné » : chaque case se recalcule à la volée
+// depuis des drapeaux éparpillés (godUnlockedPlayer, boatUnlocked,
+// difficultyTierWon…). On relève donc la transition nous-mêmes, en
+// comparant l'ensemble obtenu à celui qu'on avait relevé la fois d'avant.
+//
+// Le piège, et la raison du marqueur "avant" : au TOUT PREMIER passage
+// après la mise à jour, tout ce que le joueur possède déjà apparaît comme
+// « nouvellement obtenu ». Le dater d'aujourd'hui serait un mensonge —
+// certains ont des mois. Ces cases-là sont donc marquées "avant", et la
+// carte dit honnêtement qu'elle ne connaît pas la date.
+const TROPHY_DATES_KEY = "kw_trophyDates";
+let trophyDates = {};
+try { trophyDates = JSON.parse(localStorage.getItem(TROPHY_DATES_KEY) || "{}") || {}; } catch (e) { trophyDates = {}; }
+// Faux uniquement pendant le TOUT PREMIER relevé : ce qui existait avant la
+// mise à jour est marqué "avant", et tout ce qui se gagne ensuite — y compris
+// dans la même session — reçoit une vraie date.
+let trophyHistoryStarted = Object.keys(trophyDates).length > 0;
+function recordTrophyDates(slots) {
+  let change = false;
+  for (const sl of slots) {
+    if (!sl.earned || !sl.id || trophyDates[sl.id]) continue;
+    // Premier relevé de l'historique : on ne date pas rétroactivement.
+    trophyDates[sl.id] = trophyHistoryStarted ? todayDateStrUTC() : "avant";
+    change = true;
+  }
+  if (change) { try { localStorage.setItem(TROPHY_DATES_KEY, JSON.stringify(trophyDates)); } catch (e) { /* ignore */ } }
+  trophyHistoryStarted = true;
+}
+// Ce que la carte affiche sous le nom : une vraie date, ou l'aveu qu'on ne
+// l'a pas. Jamais une date inventée.
+function trophyDateLine(sl) {
+  const d = trophyDates[sl.id];
+  if (!d) return "";
+  return d === "avant" ? t("trophyCardBefore") : tf("trophyCardOn", { date: d });
+}
+// Affiche la carte d'une case gagnée, ou la range (null). L'animation de
+// retournement se rejoue à chaque ouverture : on retire puis remet le noeud
+// dans le flux, sinon le navigateur ne relance pas une animation CSS sur un
+// élément déjà visible — et c'est justement le retournement qui fait la
+// sensation de "carte", pas le texte.
+function showTrophyCard(sl) {
+  const card = document.getElementById("trophyCard");
+  if (!card) return;
+  if (!sl) { card.hidden = true; return; }
+  const img = document.getElementById("trophyCardImg");
+  if (sl.img) { img.src = sl.img; img.hidden = false; } else { img.hidden = true; }
+  document.getElementById("trophyCardName").textContent = sl.name;
+  document.getElementById("trophyCardHow").textContent = sl.how || "";
+  document.getElementById("trophyCardDate").textContent = trophyDateLine(sl);
+  card.hidden = true;
+  void card.offsetWidth; // force le navigateur à reprendre l'animation à zéro
+  card.hidden = false;
+}
 function refreshTrophyRoom() {
   const el = document.getElementById("trophyRoom");
   if (!el) return;
   const { slots } = computeTrophySlots();
+  recordTrophyDates(slots);
   el.innerHTML = slots.map((s, i) => `
     <div class="trophySlot${s.earned ? " earned" : ""}" title="${s.name}" data-slot="${i}">
       ${s.emoji ? `<span class="trophyEmoji">${s.emoji}</span>` : `<img src="${s.img}" alt="${s.name}">`}
@@ -12651,7 +12754,14 @@ function refreshTrophyRoom() {
         if (!picked) return;
         for (const other of el.querySelectorAll(".trophySlot.trophyPicked")) other.classList.remove("trophyPicked");
         slotEl.classList.add("trophyPicked");
+        // Une case GAGNÉE s'ouvre en carte (v2.73) : l'illustration en grand,
+        // le nom, la condition qu'il a fallu remplir, et la date. Une case
+        // NON obtenue garde exactement le comportement de v2.58 — son nom et
+        // sa condition dans la ligne de texte. C'est ce qui préserve la
+        // promesse de v2.67 : la salle reste la référence, la carte est la
+        // récompense.
         howEl.textContent = picked.how ? `${picked.name} — ${picked.how}` : picked.name;
+        showTrophyCard(picked.earned ? picked : null);
         sfxToggle();
       });
     }
@@ -12703,6 +12813,7 @@ function closeLore() {
 // panneau que loreBtn/conseilsBtn juste à côté : sans lui l'écran s'ouvre
 // bel et bien, mais entièrement caché derrière les Réglages.
 document.getElementById("trophyBtn").addEventListener("click", () => {
+  showTrophyCard(null); // on rouvre la salle sur la vitrine, pas sur la dernière carte lue
   refreshTrophyRoom();
   settingsPanel.style.display = "none";
   document.getElementById("trophyOverlay").style.display = "flex";
@@ -12762,6 +12873,14 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // add a new entry at the top whenever a future change is worth telling
 // players about.
 const CHANGELOG = [
+  {
+    version: "2.73",
+    notes: [
+      "Les trophées deviennent des cartes à collectionner. Touchez une case que vous avez gagnée : elle s'ouvre en carte, illustration en grand, avec ce qu'il a fallu faire pour la décrocher.",
+      "Chaque carte porte sa date d'obtention. Celles que vous aviez déjà disent honnêtement « obtenu de longue date » — le jeu ne va pas inventer une date qu'il n'a jamais notée.",
+      "Les cases que vous n'avez pas encore gagnées ne changent pas : leur nom et leur condition s'affichent comme avant. La carte est la récompense, pas la consigne.",
+    ],
+  },
   {
     version: "2.72",
     notes: [
