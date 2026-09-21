@@ -50,7 +50,7 @@ Les trois raisons de l'arbitrage, dans l'ordre où elles ont pesé :
    demandait cinq textes avant de pouvoir livrer. Mesuré : les traductions pèsent 66 Ko
    compressés sur 387, soit 17 % — réel, mais jamais ce qui ralentissait le travail.
 3. **L'anglais seul a été écarté** parce que Pierre écrit son lore en français, et que la
-   blague est la première chose qui meurt en traduction. Sa propre doctrine Oronet dit
+   blague est la première chose qui meurt en traduction. Sa propre doctrine de projet dit
    « français ET anglais ».
 
 **Conséquence technique à appliquer au prochain lot qui ajoute du contenu** : `tLang()` retombe

@@ -166,7 +166,7 @@
      meaning, so its background is the player's own royaume color, not the
      shared parchment gold every other HUD button gets (see each button's
      own background rule below). */
-  #settingsBtn, #endturn, #rerollBtn, #gueuxBadge, #surrenderBtn,
+  #settingsBtn, #endturn, #rerollBtn, #surrenderBtn,
   #replayPauseBtn, #replayResumeHereBtn, #prevMapBtn {
     /* "Je valide" — dégradé radial + clous dorés (velours clouté), la 3e
        variante du preview HUD. Rayon des coins divisé par 3 (voir le
@@ -281,36 +281,6 @@
     display: flex; justify-content: space-between; align-items: center; gap: 8px;
     pointer-events: none; /* the row itself is just a layout shell — each child re-enables it */
   }
-  #gueuxBadge {
-    /* standalone now, right under #settingsBtn (top-right) — no longer a
-       flex child of #bottomHudRow, see its own note in the markup. Same
-       right edge as #settingsBtn, stacked just below its 34px height. */
-    position: absolute; top: calc(8px + 34px + 6px + env(safe-area-inset-top, 0px)); right: 10px;
-    display: flex; align-items: center; justify-content: center; pointer-events: auto; cursor: pointer;
-    background: radial-gradient(circle at 35% 28%, #fff3c4, #e8c468 55%, #a97e2a 100%);
-    color: #2b1d10; font-size: 12px; padding: 0 12px; font-weight: 700;
-    min-height: 34px; box-sizing: border-box;
-    transition: box-shadow .15s, opacity .15s;
-    /* "le chiffre des gueux à ajouter doit avoir la même police que les
-       stats" — this button inherits the shared HUD serif (Georgia) from the
-       #settingsBtn/#endturn/... rule above, meant for button LABELS, but a
-       lone digit in that serif reads as the letter "O" rather than "0" —
-       overridden back to the same bold sans-serif the top-left force/
-       territory numbers (.chip .n) already use, so the same digit looks
-       like the same digit in both places. */
-    font-family: -apple-system, system-ui, sans-serif;
-  }
-  /* no longer needs to reserve a flex slot for a sibling now that it's
-     standalone — a plain display:none is enough once it's not sharing a
-     row with anything else. */
-  #gueuxBadge.gueuxHidden { display: none; }
-  /* armed: tap a territory to spend one gueux as a reinforcement there */
-  #gueuxBadge.gueuxArmed { border-color: #e8c468; box-shadow: 0 0 0 2px rgba(232,196,104,.55), 0 0 10px rgba(232,196,104,.6); }
-  /* armed via long-press: tap a territory to spend GUEUX_GROUP_COST on it
-     AND every neighbor you already own — a distinct blue glow (same accent
-     already used for an "active"/selected state elsewhere, e.g. the
-     settings level buttons) so the two armed modes never look alike. */
-  #gueuxBadge.gueuxArmedGroup { border-color: #1c3f8f; box-shadow: 0 0 0 2px rgba(28,63,143,.55), 0 0 10px rgba(28,63,143,.6); }
   #endturn:disabled { background: #5a5044 !important; color: #f2ede2 !important; opacity: .6; }
   #topBar {
     position: absolute; left: 0; top: 0;
@@ -1320,7 +1290,6 @@
   <button id="settingsBtn" aria-label="Réglages"><img id="settingsBtnImg" alt=""></button>
   <!-- moved out of #bottomHudRow, standalone, right under #settingsBtn —
        "déplace le compteur de gueux en dessous du bouton de menu". -->
-  <div id="gueuxBadge"></div>
   <!-- one flex row for the three bottom buttons — flexbox's own
        space-between guarantees they never overlap regardless of how wide
        any one of them gets (endturn's text/hint especially varies a lot),
@@ -1740,7 +1709,6 @@
         <!-- 2. Ce qui sépare un coup légal d'un bon coup. -->
         <div class="conseilsStep" id="conseilsStep2"></div>
         <p id="conseilsPower12P"></p>
-        <p id="conseilsGueuxP"></p>
         <p id="conseilsStatsNumbersP"></p>
         <p id="conseilsTrophyP"></p>
         <!-- 3. Tout ce qui existe autour de la partie elle-même. -->
@@ -2010,7 +1978,7 @@
 // before (CREATURE_IMG's own loadSprite() call, the changelog, etc.), not
 // redeclared.
 const CREATURE_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAANAAAADQCAYAAAB2pO90AAAC2klEQVR4nO3dQWoDMRAAwd3g/39ZOeQHahgroupuvF7TzGWQ3rXWw4z3fUde9lrrnfiend8z9WxTfr79APCfCQgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAg+336AE5y85LnzbJY855hAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEFx3MqlTOe/7PSf/pyYQBAKCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAiCd62RG9559pYimbOzgGoCQSAgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAguO5kUvbsLFJOLcdOPdvOZ0wgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAElkkZNbUYOvU9JhAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJAQBAICILrlkldJb9namHzZK65h2ECgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgrFl0pOvRD/Zbe/ttqVVEwgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAgEBMF1J5My57bF0B0mEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgq1lUlfJW6TkjwkEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJg7GTSnUXKqaXVqcXQk6+styC8xwSCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUHwccLmHO/tvhNdTSAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEASfkxf1OJsTUE0gSAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEY9fcw/OcfcroDhMIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgl9clHexCa709wAAAABJRU5ErkJggg==";
-const GAME_VERSION = "2.70";
+const GAME_VERSION = "2.71";
 document.getElementById("loadingKnight").src = CREATURE_IMG_SRC;
 document.getElementById("loadingVersion").textContent = `v${GAME_VERSION}`;
 document.getElementById("splashKnight").src = CREATURE_IMG_SRC;
@@ -4197,7 +4165,6 @@ let truceWinnerId = -1;
 let truceEnded = false; // showWin() uses different flavor text for a truce than an outright win
 let humanSurrendered = false; // showWin() uses a distinct, mocking flavor line for a self-inflicted loss
 let mercyGranted = false; // the human accepted the last rival's surrender instead of finishing them off in combat — showWin() uses its own distinct line
-let peaceGueuxGained = 0; // showWin() mentions this in gueuxNote when > 0 — see proposePeace()
 
 // One click, no confirmation, immediate — ends the match right now as a
 // loss for the human. Whichever AI royaume currently holds the most
@@ -4213,13 +4180,6 @@ function surrenderGame() {
   }
   gameOver = true;
   humanSurrendered = true;
-  surrenderCostAGueux = false;
-  if (gueuxCount > 0) {
-    gueuxCount--;
-    surrenderCostAGueux = true;
-    try { localStorage.setItem("kw_gueuxCount", String(gueuxCount)); } catch (e) { /* ignore */ }
-    refreshGueuxBadge();
-  }
   showWin(winnerId);
 }
 
@@ -4239,12 +4199,6 @@ function proposePeace() {
   gameOver = true;
   truceEnded = true;
   truceWinnerId = -1;
-  peaceGueuxGained = livingRivals;
-  if (livingRivals > 0) {
-    gueuxCount += livingRivals;
-    try { localStorage.setItem("kw_gueuxCount", String(gueuxCount)); } catch (e) { /* ignore */ }
-    refreshGueuxBadge();
-  }
   showWin(truceWinnerId);
 }
 
@@ -4401,44 +4355,29 @@ function scheduleTurn(fn, delay) {
 // moment is the one instant-battles shouldn't fully zero out.
 const REINFORCE_PAUSE_MS = 160;
 
-// meta-progression: one persistent "gueux" earned per victory, always on
-// (used to be an opt-in setting — removed per request, the toggle wasn't
-// pulling its weight). Spendable in any later match: tap the badge to arm
-// it, then tap one of your own territories (below the force cap) to spend
-// one gueux as an instant +1 reinforcement there. Surrendering costs one.
-const metaProgressEnabled = true;
-let gueuxCount = 0;
-try { gueuxCount = Number(localStorage.getItem("kw_gueuxCount")) || 0; } catch (e) { /* ignore */ }
-// "Boutique de gueux plus profonde" (v2.47, proposition — voir BACKLOG.md)
-// — jusqu'ici un seul geste possible (+1 force, 1 gueux) ; les roguelikes
-// qui fidélisent bien (Slay the Spire, Hades) donnent un vrai choix de
-// dépense plutôt qu'un bouton unique. Ajouté un second geste, plus coûteux
-// mais plus large : "renfort de groupe" (+1 force sur la province touchée
-// ET chacune de ses provinces voisines qui vous appartiennent déjà). Tenu
-// volontairement à SEULEMENT 2 options pour cette première version — pas
-// un vrai magasin à onglets, juste un deuxième bouton — voir Astuces
-// (conseilsGueuxP) pour l'explication complète des deux.
-const GUEUX_GROUP_COST = 3;
-// null (rien d'armé) | "single" (comportement d'origine) | "group" (le
-// nouveau) — armé par un tap (single) ou un appui long (group) sur le
-// badge ; consommé par le tap suivant sur une de vos provinces.
-let placingGueuxMode = null;
-// Set by surrenderGame() right before it calls showWin(), true only when
-// the surrender actually had a gueux to take (gueuxCount was > 0) — showWin()
-// itself computes the win side (always knowable there, no ordering issue),
-// but the surrender side needs this since by the time showWin() runs the
-// count's already been decremented, with nothing left in it to tell
-// "cost one" apart from "had none to begin with".
-let surrenderCostAGueux = false;
-
+// LES GUEUX ONT ÉTÉ RETIRÉS (2026-09-21, arbitrage de Pierre).
+// Sa raison, et elle ne dépend d'aucune mesure : « le but du jeu c'est pas
+// de rattraper le mauvais choix, de compenser. Le hasard, c'est de lutter
+// contre le hasard avec une bonne stratégie. » Une réserve accumulée entre
+// parties permettait précisément d'acheter la réparation d'une erreur.
+// La mesure qui a précédé (600 parties, voir BACKLOG.md) avait montré
+// qu'ils ne déséquilibraient PAS la difficulté — l'argument d'équilibrage
+// était faux, celui de conception ne l'est pas.
+// Ce qui SURVIT volontairement, juste en dessous : de quoi relire un coup
+// de gueux déjà inscrit dans un lien de partage ou une sauvegarde. Des
+// liens circulent ; un décodeur qui oublierait ce coup ne les casserait pas
+// franchement, il les rejouerait de travers, en silence.
 // same visual pulse as a combat reinforcement — reused here for a gueux spend
 function reinforceTerritory(tId) {
   territories[tId].force = Math.min(effectiveForceCap(territories[tId].owner), territories[tId].force + 1);
   triggerPulse({ [tId]: 1 });
 }
-// Just the territory-force side of a gueux spend, no bookkeeping — shared
-// by the live spend (spendGueux() below, which also debits gueuxCount) and
-// replay/resume playback (which only ever reproduces the force change,
+// Le seul reste vivant des gueux : l'effet sur les forces, appelé UNIQUEMENT
+// par la relecture d'un coup déjà enregistré (lien de partage, sauvegarde,
+// vérification d'un défi du jour). Plus rien ne crée de nouveau coup de ce
+// type. Ne jamais le supprimer : un ancien lien ne casserait pas
+// franchement, il rejouerait de travers, en silence.
+// Playback (which only ever reproduces the force change,
 // never spends the viewer's own stock — see moveLog's own {gueux} case).
 // "group": also reinforces every neighbor ALREADY owned by the same
 // royaume at that exact point in the match — recomputed fresh from
@@ -4453,13 +4392,6 @@ function applyGueuxEffect(tId, mode) {
       if (territories[nId].owner === territories[tId].owner) reinforceTerritory(nId);
     }
   }
-}
-function spendGueux(tId, mode) {
-  const cost = mode === "group" ? GUEUX_GROUP_COST : 1;
-  if (gueuxCount < cost) return;
-  gueuxCount -= cost;
-  try { localStorage.setItem("kw_gueuxCount", String(gueuxCount)); } catch (e) { /* ignore */ }
-  applyGueuxEffect(tId, mode);
 }
 
 /* ---------- MATCH HISTORY (stats graph + replay) ---------- */
@@ -6156,13 +6088,7 @@ const UI_STRINGS = {
     es: "<strong>Los dioses</strong>: cada uno se gana con una hazaña concreta, con cualquier reino — una vez obtenido, su bonificación queda contigo en cada partida siguiente, sea cual sea la casa elegida (la casa que logró la hazaña también la conserva, para siempre). Cada don tiene un precio.<ul class='conseilsGodsList'><li><strong>Vulcano</strong>: retrocede hasta tu última provincia y aun así revierte el asedio — +1 defensa en cada provincia, pero -1 refuerzo al final de cada turno.</li><li><strong>Belona</strong>: gana un asedio entero sin ceder jamás ni una sola provincia — +1 ataque, pero -1 defensa.</li><li><strong>Ceres</strong>: deja vivir a cada casa rival hasta el final, y luego bárrelas todas en una sola carga continua — +1 refuerzo al final de cada turno, pero ninguna provincia supera nunca los 11 de fuerza.</li><li><strong>Neptuno</strong>: termina un asedio con una última carga surgida del mar — -1 de coste en cada travesía, pero -1 defensa contra un ataque que venga del mar.</li></ul>",
     de: "<strong>Die Götter</strong>: Jeder wird durch eine bestimmte Heldentat verdient, mit jedem beliebigen Königreich — einmal erhalten, bleibt der Bonus dir in jeder folgenden Partie erhalten, welches Haus du auch wählst (das Haus, das die Heldentat vollbracht hat, behält ihn ebenfalls für immer). Jede Gabe hat ihren Preis.<ul class='conseilsGodsList'><li><strong>Vulkan</strong>: bis auf deine letzte Provinz zurückweichen und die Belagerung trotzdem wenden — +1 Verteidigung auf jeder Provinz, aber -1 Verstärkung am Ende jedes Zuges.</li><li><strong>Bellona</strong>: eine ganze Belagerung gewinnen, ohne je auch nur eine Provinz aufzugeben — +1 Angriff, aber -1 Verteidigung.</li><li><strong>Ceres</strong>: jedes rivalisierende Haus bis zum Ende leben lassen und sie dann alle in einem durchgehenden Sturmangriff hinwegfegen — +1 Verstärkung am Ende jedes Zuges, aber keine Provinz überschreitet je 11 Stärke.</li><li><strong>Neptun</strong>: eine Belagerung mit einem letzten Sturmangriff aus dem Meer beenden — -1 Kosten bei jeder Überquerung, aber -1 Verteidigung gegen einen Angriff, der vom Meer kommt.</li></ul>",
   },
-  conseilsGueuxP: {
-    fr: "<strong>Les gueux</strong> sont une réserve d'une partie à l'autre : vous en gagnez un à chaque victoire. Deux façons de les dépenser : touchez le badge puis une de vos provinces pour lui donner +1 de force sur-le-champ (coûte 1 gueux) ; ou maintenez le badge enfoncé environ une seconde pour armer un renfort de groupe qui donne +1 à la province touchée ET à chacune de ses provinces voisines déjà à vous (coûte 3 gueux — à réserver pour un vrai front à consolider d'un coup). Attention : une défaite (conquête ou abandon) vide entièrement la réserve.",
-    en: "<strong>Beggars</strong> are a reserve carried from one match to the next: you gain one on every victory. Two ways to spend them: tap the badge then one of your provinces to give it +1 strength on the spot (costs 1 beggar); or hold the badge down for about a second to arm a group reinforcement that gives +1 to the tapped province AND every neighboring province already yours (costs 3 beggars — save it for a whole front you want to shore up at once). Careful: a defeat (conquest or surrender) empties the reserve entirely.",
-    zh: "<strong>乞丐</strong>是跨局累积的储备：每次获胜你都会获得一个。有两种使用方式：点击徽章、再点击你的一个省份，使其立刻获得+1兵力（花费1个乞丐）；或长按徽章约一秒，来激活群体增援——使被点击的省份及其每一个已属于你的相邻省份都获得+1兵力（花费3个乞丐——适合用来一次性加固整条战线）。注意：一次失败（被征服或投降）会将储备清空。",
-    es: "<strong>Los mendigos</strong> son una reserva que se mantiene de una partida a otra: ganas uno con cada victoria. Dos formas de gastarlos: toca la insignia y luego una de tus provincias para darle +1 de fuerza al instante (cuesta 1 mendigo); o mantén pulsada la insignia durante aproximadamente un segundo para armar un refuerzo de grupo que da +1 a la provincia tocada Y a cada provincia vecina que ya sea tuya (cuesta 3 mendigos — resérvalo para consolidar todo un frente de una vez). Cuidado: una derrota (conquista o rendición) vacía la reserva por completo.",
-    de: "<strong>Bettler</strong> sind eine Reserve, die von einer Partie zur nächsten mitgenommen wird: Du erhältst einen bei jedem Sieg. Zwei Arten, sie auszugeben: Tippe auf das Abzeichen und dann auf eine deiner Provinzen, um ihr sofort +1 Stärke zu geben (kostet 1 Bettler); oder halte das Abzeichen etwa eine Sekunde lang gedrückt, um eine Gruppenverstärkung zu aktivieren, die der angetippten Provinz UND jeder bereits dir gehörenden Nachbarprovinz +1 gibt (kostet 3 Bettler — hebe sie dir für eine ganze Front auf, die du auf einmal stärken willst). Achtung: Eine Niederlage (Eroberung oder Kapitulation) leert die Reserve vollständig.",
-  },
+
   // "Défi du jour" (v2.44/v2.45) n'avait encore jamais eu sa propre fiche
   // Astuces — comblé ici en même temps que sa mise en avant sur l'écran
   // titre (v2.48), plutôt que de laisser ce trou de doc traîner encore.
@@ -6524,14 +6450,7 @@ const UI_STRINGS = {
   // Cthulhu", voir cette même note pour pourquoi il n'y a pas de palier
   // intermédiaire possible entre la pieuvre et Cthulhu).
   toastRitualProgress: { fr: "🐙 Sacrifice {n}/3", en: "🐙 Sacrifice {n}/3", zh: "🐙 献祭 {n}/3", es: "🐙 Sacrificio {n}/3", de: "🐙 Opfer {n}/3" },
-  // "Boutique de gueux plus profonde" (v2.47) — voir GUEUX_GROUP_COST's own note.
-  toastGueuxGroupNeedsMore: {
-    fr: "Renfort de groupe : {cost} gueux nécessaires.",
-    en: "Group reinforcement: {cost} beggars needed.",
-    zh: "群体增援：需要 {cost} 个乞丐。",
-    es: "Refuerzo de grupo: se necesitan {cost} mendigos.",
-    de: "Gruppenverstärkung: {cost} Bettler nötig.",
-  },
+
   // Combat log messages (logMsg) — templates filled via tf().
   logSeaLoss: { fr: "{name} perd des soldats en mer.", en: "{name} loses soldiers at sea.", zh: "{name} 在海上损失了士兵。", es: "{name} pierde soldados en el mar.", de: "{name} verliert Soldaten auf See." },
   logSeaAttackFail: {
@@ -6549,20 +6468,22 @@ const UI_STRINGS = {
   logYouPlay: { fr: "Vous jouez {name}.", en: "You are playing {name}.", zh: "你正在扮演 {name}。", es: "Juegas con {name}.", de: "Du spielst {name}." },
   logChooseCampPrompt: { fr: "Choisissez votre camp : touchez une province.", en: "Choose your side: tap a province.", zh: "选择你的阵营：点击一个省份。", es: "Elige tu bando: toca una provincia.", de: "Wähle deine Seite: Tippe auf eine Provinz." },
   logNewGame: { fr: "Nouvelle partie.", en: "New game.", zh: "新的一局。", es: "Nueva partida.", de: "Neues Spiel." },
-  gueuxNoteGain: { fr: "Vous gagnez un gueux.", en: "You gain a beggar.", zh: "你获得了一个乞丐。", es: "Ganas un mendigo.", de: "Du erhältst einen Bettler." },
-  gueuxNoteLose: { fr: "Vous perdez un gueux.", en: "You lose a beggar.", zh: "你失去了一个乞丐。", es: "Pierdes un mendigo.", de: "Du verlierst einen Bettler." },
-  gueuxNoteGainN: { fr: "Vous gagnez {n} gueux.", en: "You gain {n} beggars.", zh: "你获得了 {n} 个乞丐。", es: "Ganas {n} mendigos.", de: "Du erhältst {n} Bettler." },
-  // showWin() one-off flavor lines (mercy/truce/grind) — the pick-one-of-N
-  // pools (VICTORY_LINES, LOSS_OPENERS, SURRENDER_LINES, HOBBIES) live as
-  // their own arrays right where showWin() uses them, not in this table —
-  // see pickLine()/pickLineF()'s own note on why.
-  mercyLine: {
-    fr: "Votre clémence vous honore, seigneur, ou bien est-ce de la faiblesse ? Seul le temps le dira — espérons qu'ils ne fomentent pas de rébellion.",
-    en: "Your mercy honors you, my lord, or is it weakness? Only time will tell — let's hope they don't plot a rebellion.",
-    zh: "阁下的仁慈令您增光，抑或那不过是软弱？唯有时间能给出答案——但愿他们不会图谋叛乱。",
-    es: "Vuestra clemencia os honra, señor, ¿o acaso es debilidad? Solo el tiempo lo dirá — esperemos que no tramen una rebelión.",
-    de: "Eure Gnade ehrt Euch, mein Herr, oder ist es Schwäche? Nur die Zeit wird es zeigen — hoffen wir, dass sie keine Rebellion planen.",
+  // Les gueux ne sont plus une ressource (retirés le 2026-09-21) mais ils
+  // restent une EXPLICATION : « ça reste une explication mais ça change rien
+  // en gameplay » (Pierre). Une victoire rallie des paysans, une défaite en
+  // fait fuir — le joueur comprend ce que sa bataille a coûté ou rapporté au
+  // pays, sans que rien ne s'accumule ni ne se dépense.
+  // Deux langues seulement : contenu neuf, voir le gel des langues dans
+  // CLAUDE.md. zh/es/de liront l'anglais via le repli.
+  gueuxNoteGain: {
+    fr: "Des paysans se rallient à votre cause.",
+    en: "Peasants rally to your cause.",
   },
+  gueuxNoteLose: {
+    fr: "Vos gens vous quittent.",
+    en: "Your people are leaving you.",
+  },
+
   truceMatchNulLine: {
     fr: "Match nul — la paix, l'affaire des gueux.",
     en: "A draw — peace, the business of beggars.",
@@ -8507,26 +8428,11 @@ function showWin(royId) {
   recordDailyChallengeResult(royId); // no-op unless this match was actually started via startDailyChallenge() — see dailyChallengeDate's own note
   if (royId === humanRoyId) {
     sfxVictory(royId);
-    if (metaProgressEnabled) {
-      gueuxCount++;
-      try { localStorage.setItem("kw_gueuxCount", String(gueuxCount)); } catch (e) { /* ignore */ }
-      refreshGueuxBadge();
-    }
   } else if (truceEnded) {
     sfxTruce();
   } else if (humanLost) {
     sfxDefeat(humanRoyId);
     playLossMusic(); // "peu importe les conditions... si on abandonne ou si on perd" — same humanLost condition covers both already
-    // "Quand on perd une partie, on doit perdre tous les gueux qu'on avait"
-    // — the reserve is a real stake now, not a one-way ratchet: a defeat
-    // (outright loss OR surrender, both covered by humanLost — see its own
-    // note above) wipes it out entirely, same metaProgressEnabled gate as
-    // earning one.
-    if (metaProgressEnabled && gueuxCount > 0) {
-      gueuxCount = 0;
-      try { localStorage.setItem("kw_gueuxCount", String(gueuxCount)); } catch (e) { /* ignore */ }
-      refreshGueuxBadge();
-    }
   }
   // royId is -1 on a truce (see declareStalemateTruce()/truceWinnerId) — every
   // branch below that actually names a royaume is built lazily, inside the
@@ -8589,19 +8495,17 @@ function showWin(royId) {
   // "vous gagnez/perdez un gueux" — only when THIS ending actually changed
   // the count: a real win (mercyGranted included — same branch above), or
   // a surrender that had at least one to spend. A plain elimination loss or
-  // a truce never touches gueuxCount, so this stays empty/hidden then.
-  let gueuxNoteText = "";
-  if (royId === humanRoyId && metaProgressEnabled) gueuxNoteText = t("gueuxNoteGain");
-  else if (humanLost && humanSurrendered && surrenderCostAGueux) gueuxNoteText = t("gueuxNoteLose");
-  else if (truceEnded && peaceGueuxGained > 0) {
-    gueuxNoteText = peaceGueuxGained > 1
-      ? tf("gueuxNoteGainN", { n: peaceGueuxGained })
-      : t("gueuxNoteGain");
-  }
-  document.getElementById("gueuxNote").textContent = gueuxNoteText;
+
   // The hint itself — deliberately vague, names a rival seigneur (picked
   // deterministically off the seed, same convention as every other flavor
   // line here) rather than explaining what it means.
+  // Ligne de récit (2026-09-21) : ce que la bataille a changé pour le pays.
+  // Aucun effet de jeu — voir gueuxNoteGain's own note. Une trêve ne rallie
+  // ni ne disperse personne, donc elle reste muette.
+  let gueuxNoteText = "";
+  if (royId === humanRoyId) gueuxNoteText = t("gueuxNoteGain");
+  else if (humanLost) gueuxNoteText = t("gueuxNoteLose");
+  document.getElementById("gueuxNote").textContent = gueuxNoteText;
   document.getElementById("cthulhuHintNote").textContent = cthulhuHintFired
     ? tf("cthulhuHintLine", { name: ROYAUMES[(currentSeed + royId) % (ROYAUME_COUNT - 1)].name.replace("Millon de ", "") })
     : "";
@@ -9175,7 +9079,7 @@ function startReplay() {
 // match: 440 chars in the old encoded URL down to 96 in the new one.
 function encodeMoveForShare(action) {
   if (action.end) return [1];
-  // 3rd slot: 1 for "group" (see GUEUX_GROUP_COST's own note), 0/absent for
+  // 3rd slot: 1 pour le renfort de groupe, 0/absent pour la dépense simple —
   // the original single-territory spend — an older link with only 2 slots
   // here still decodes fine (decodeMoveFromShare's own tuple[2] undefined
   // falls back to "single" below), so nothing already shared ever breaks.
@@ -11483,10 +11387,9 @@ function handlePointer(clientX, clientY) {
   const t = territoryAtClientPointTolerant(clientX, clientY);
   if (!t) {
     // a tap or drag-release landing on open water instead of a real target.
-    // awaitingFactionPick and placingGueuxMode each already have their own
-    // unrelated meaning for a tap that resolves to nothing, so neither
-    // branch below fires while either applies.
-    if (!awaitingFactionPick && !placingGueuxMode) {
+    // awaitingFactionPick a sa propre signification pour un tap qui ne
+    // résout rien, donc la branche ci-dessous ne part pas tant qu'il tient.
+    if (!awaitingFactionPick) {
       // Landscape hides the entire persistent HUD for a distraction-free
       // view (see applyLandscapeHud()) — #endturn included — so the whole
       // visible "ocean" takes over its job instead: not just water hexes
@@ -11546,17 +11449,6 @@ function handlePointer(clientX, clientY) {
   }
   if (aiRunning || currentPlayer !== humanRoyId) return;
   const tId = t.id;
-
-  if (placingGueuxMode) {
-    if (t.owner === currentPlayer && t.force < effectiveForceCap(t.owner)) {
-      logMove({ gueux: tId, mode: placingGueuxMode });
-      spendGueux(tId, placingGueuxMode);
-    }
-    placingGueuxMode = null;
-    refreshGueuxBadge();
-    render();
-    return;
-  }
 
   // "L'épée blanche" — quand la trêve est armée, le toucher sert à désigner
   // le rival, pas à sélectionner une province. Testé AVANT la sélection
@@ -12099,7 +11991,7 @@ function layoutButtonStuds(btn) {
 // guarded — simulate.js runs this same file in a minimal (non-browser) DOM
 // stub with no ResizeObserver, purely for game-logic determinism checks; the
 // studs are a rendering-only concern with nothing to verify there.
-const HUD_STUD_BUTTON_IDS = ["settingsBtn", "endturn", "rerollBtn", "gueuxBadge", "surrenderBtn",
+const HUD_STUD_BUTTON_IDS = ["settingsBtn", "endturn", "rerollBtn", "surrenderBtn",
   "replayPauseBtn", "replayResumeHereBtn", "prevMapBtn", "reviewBackBtn", "reviewReplayBtn"];
 if (typeof ResizeObserver !== "undefined") {
   const hudStudObserver = new ResizeObserver((entries) => {
@@ -12851,6 +12743,16 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // add a new entry at the top whenever a future change is worth telling
 // players about.
 const CHANGELOG = [
+  {
+    version: "2.71",
+    notes: [
+      "Les gueux ne sont plus une réserve. Plus de badge, plus de compteur, plus de renfort à acheter entre deux batailles.",
+      "La raison est simple : le jeu doit se gagner en luttant contre le hasard par la stratégie, pas en rattrapant une mauvaise décision avec un stock accumulé la veille.",
+      "Ils restent dans le récit. Une victoire rallie des paysans à votre cause, une défaite fait fuir vos gens — l'écran de fin vous le dit, mais plus rien ne s'accumule.",
+      "Si vous aviez une réserve, elle disparaît. Vous l'aviez gagnée, et on vous la retire : c'est le prix d'un jeu plus net.",
+      "Les liens de partage déjà envoyés continuent de se rejouer normalement, y compris ceux où un gueux avait été dépensé.",
+    ],
+  },
   {
     version: "2.70",
     notes: [
@@ -14401,7 +14303,6 @@ function applyUiLanguage() {
   document.getElementById("conseilsSacrificeP").innerHTML = t("conseilsSacrificeP");
   document.getElementById("conseilsCthulhuP").innerHTML = t("conseilsCthulhuP");
   document.getElementById("conseilsGodsP").innerHTML = t("conseilsGodsP");
-  document.getElementById("conseilsGueuxP").innerHTML = t("conseilsGueuxP");
   document.getElementById("conseilsDailyChallengeP").innerHTML = t("conseilsDailyChallengeP");
   document.getElementById("conseilsForecastP").innerHTML = t("conseilsForecastP");
   document.getElementById("conseilsDangerP").innerHTML = t("conseilsDangerP");
@@ -14523,55 +14424,6 @@ attackForecastToggle.addEventListener("change", () => {
   sfxToggle();
 });
 
-// Two ways to arm the badge now (see GUEUX_GROUP_COST's own note): a plain
-// tap arms "single" (unchanged from before), a ~500ms hold arms "group" —
-// same iOS-callout-suppression rules already applied globally (see the
-// -webkit-touch-callout note near the top of this file) keep a long-press
-// here from ever popping a native copy/select menu instead.
-{
-  let gueuxLongPressTimer = null;
-  let gueuxLongPressFired = false;
-  const gueuxBadgeEl = document.getElementById("gueuxBadge");
-  function gueuxBadgeGuardsPass() {
-    return !(replaying || gameOver || awaitingFactionPick || currentPlayer !== humanRoyId || aiRunning);
-  }
-  function cancelGueuxLongPress() {
-    if (gueuxLongPressTimer) { clearTimeout(gueuxLongPressTimer); gueuxLongPressTimer = null; }
-  }
-  gueuxBadgeEl.addEventListener("pointerdown", () => {
-    if (!gueuxBadgeGuardsPass()) return;
-    gueuxLongPressFired = false;
-    gueuxLongPressTimer = setTimeout(() => {
-      gueuxLongPressTimer = null;
-      gueuxLongPressFired = true;
-      if (gueuxCount >= GUEUX_GROUP_COST) {
-        placingGueuxMode = "group";
-        sfxToggle();
-        refreshGueuxBadge();
-      } else {
-        showToast(tf("toastGueuxGroupNeedsMore", { cost: GUEUX_GROUP_COST }));
-      }
-    }, 500);
-  });
-  gueuxBadgeEl.addEventListener("pointerup", () => {
-    const wasLongPress = gueuxLongPressFired;
-    cancelGueuxLongPress();
-    if (wasLongPress || !gueuxBadgeGuardsPass()) return;
-    // plain tap: toggle "single" armed/disarmed, same behavior as before
-    // this badge could also be long-pressed
-    if (placingGueuxMode) {
-      placingGueuxMode = null;
-    } else if (gueuxCount > 0) {
-      placingGueuxMode = "single";
-    } else {
-      return;
-    }
-    sfxToggle();
-    refreshGueuxBadge();
-  });
-  gueuxBadgeEl.addEventListener("pointercancel", cancelGueuxLongPress);
-  gueuxBadgeEl.addEventListener("pointerleave", cancelGueuxLongPress);
-}
 
 // static (never changes mid-game), so populated once — each royaume's fixed
 // personality, so the player knows what to expect from whichever 3 of the 4
@@ -14754,8 +14606,6 @@ document.querySelectorAll("#opponentCountLevels .levelBtn").forEach((btn) => {
 function updateStatus() {
   document.getElementById("status").textContent =
     `Tour : ${ROYAUMES[currentPlayer].name}` + (currentPlayer === humanRoyId ? " (toi)" : "");
-  // a gueux armed for placement doesn't carry across a turn change
-  if (placingGueuxMode) { placingGueuxMode = null; refreshGueuxBadge(); }
   updateEndTurnButton();
   // once it's the human's turn again, drop back to the persisted "batailles
   // instantanées" setting — a manual tap-to-skip during the AI's turn is a
@@ -14793,7 +14643,6 @@ function shadeColor(hex, amt) {
 // color current.
 function applyHudFactionColors() {
   const settingsEl = document.getElementById("settingsBtn");
-  const gueuxEl = document.getElementById("gueuxBadge");
   const surrenderEl = document.getElementById("surrenderBtn");
   // "passe leur couleur de noir à celle qu'on choisit en choisissant la
   // faction" — the desktop-only side-art (gueux/chevalier) are plain black
@@ -14803,8 +14652,7 @@ function applyHudFactionColors() {
   const sideGueuxEl = document.getElementById("sideGueux");
   const sideKnightEl = document.getElementById("sideKnight");
   if (awaitingFactionPick) {
-    for (const el of [settingsEl, gueuxEl, surrenderEl]) el.style.background = "";
-    gueuxEl.style.color = "";
+    for (const el of [settingsEl, surrenderEl]) el.style.background = "";
     surrenderEl.querySelector("svg").style.color = "";
     sideGueuxEl.style.backgroundColor = "";
     sideKnightEl.style.backgroundColor = "";
@@ -14813,8 +14661,7 @@ function applyHudFactionColors() {
   const base = ROYAUMES[humanRoyId].color;
   const grad = `radial-gradient(circle at 35% 28%, ${shadeColor(base, 0.45)}, ${base} 55%, ${shadeColor(base, -0.35)} 100%)`;
   const textColor = textColorFor(base);
-  for (const el of [settingsEl, gueuxEl, surrenderEl]) el.style.background = grad;
-  gueuxEl.style.color = textColor;
+  for (const el of [settingsEl, surrenderEl]) el.style.background = grad;
   surrenderEl.querySelector("svg").style.color = textColor;
   sideGueuxEl.style.backgroundColor = base;
   sideKnightEl.style.backgroundColor = base;
@@ -15295,24 +15142,6 @@ function showForcedSwimToast(fromId = 0) {
   }, 4400); // doubled per request (was 2200) — now matches showOceanTapEasterEgg()'s own already-doubled hold
 }
 
-function refreshGueuxBadge() {
-  const el = document.getElementById("gueuxBadge");
-  el.classList.toggle("gueuxHidden", replaying);
-  // `el.textContent = ...` used to wipe out ALL children, including the
-  // gold-stud <svg> layoutButtonStuds() adds as a sibling — every refresh
-  // (every turn) was silently deleting the studs, only ever redrawn again
-  // by coincidence if some LATER resize happened to refire the observer
-  // ("le bouton doit respecter le nouveau HUD", reported live: the badge
-  // sometimes showed a bare, stud-less box). A single persistent text node,
-  // updated in place, leaves the svg alone.
-  let numEl = el.querySelector(".gueuxNum");
-  if (!numEl) { numEl = document.createElement("span"); numEl.className = "gueuxNum"; el.appendChild(numEl); }
-  numEl.textContent = `${gueuxCount}`;
-  el.classList.toggle("gueuxArmed", placingGueuxMode === "single");
-  el.classList.toggle("gueuxArmedGroup", placingGueuxMode === "group");
-  el.style.opacity = gueuxCount > 0 ? "1" : ".5";
-}
-refreshGueuxBadge();
 
 /* ---------- OFFLINE + AUTO-UPDATE ---------- */
 // The PWA itself (installable icon, manifest.json's own "standalone"
@@ -15477,7 +15306,7 @@ function startGame(seed) {
   // happen IN this match to count — see checkGodUnlockOnWin()).
   wasDownToOneTerritory = false; neverLostATerritory = true; ceresFlawlessRun = true; lastAttackWasChained = false; maxHumanTerritoryShare = 0; lastAttackFinishedViaWater = false;
   lastConqueredId = null; lastConqueredRoyId = -1;
-  allCappedStreak = 0; lastStalemateFingerprint = null; truceEnded = false; truceWinnerId = -1; humanSurrendered = false; mercyGranted = false; peaceGueuxGained = 0;
+  allCappedStreak = 0; lastStalemateFingerprint = null; truceEnded = false; truceWinnerId = -1; humanSurrendered = false; mercyGranted = false;
   mercyOfferShownAtRound = null;
   document.getElementById("enemySurrenderBtn").style.display = "none";
   forceInstantSkip = false; // leftover from a manual "La guerre fait rage" tap in a just-abandoned match shouldn't carry over
@@ -15539,7 +15368,6 @@ function startGame(seed) {
   endturnHideEl.style.visibility = endturnVisible() ? "" : "hidden";
   endturnHideEl.style.pointerEvents = endturnVisible() ? "" : "none";
   document.getElementById("settingsBtn").style.display = replaying ? "none" : "";
-  refreshGueuxBadge();
   generateHexGrid();
   generateTerritories();
   computeWaterRoutes();

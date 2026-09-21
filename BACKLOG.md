@@ -5,7 +5,7 @@ Copié tel quel pour suivi. Statut ajouté en préfixe au fur et à mesure :
 
 ---
 
-## La logique d'Oronet — doctrine pour un jeu mobile (posée par Pierre, 2026-09-21)
+## La logique de projet — doctrine pour un jeu mobile (posée par Pierre, 2026-09-21)
 
 Ce n'est PAS un chantier Knight Wars. C'est la charte d'un futur jeu mobile, notée ici
 parce que le BACKLOG est la mémoire du projet et qu'il n'y a pas encore d'autre endroit.
@@ -54,6 +54,92 @@ ce qu'il contredit » juste après.
 - [ ] Tester avec une communauté intéressée.
 - [ ] Assistance joueurs pour les bugs, PAS pour modifier le jeu de base ; si la demande
       est trop différente, proposer un nouveau jeu.
+
+- [x] **v2.71 — Retrait des gueux** (arbitrage de Pierre, et sa raison ne doit pas se perdre :
+  « le but du jeu c'est pas de rattraper le mauvais choix, de compenser. Le hasard, c'est de
+  lutter contre le hasard avec une bonne stratégie »).
+  1. **Ce n'est PAS l'argument d'équilibrage qui a tranché — il était faux.** La mesure de
+     600 parties (juste en dessous) avait montré que les gueux ne cassaient aucun palier.
+     C'est un argument de conception : une réserve accumulée permet d'ACHETER la réparation
+     d'une erreur, ce que ce jeu ne devrait pas offrir. Aucune mesure ne pouvait le dire.
+  2. **Ils survivent comme récit, pas comme ressource** (demande de Pierre en cours de
+     chantier : « ça reste une explication mais ça change rien en gameplay »). L'écran de fin
+     dit « Des paysans se rallient à votre cause » ou « Vos gens vous quittent ». Rien ne
+     s'accumule, rien ne se dépense. Deux langues seulement, conformément au gel des langues.
+  3. **Ce qui a été volontairement CONSERVÉ** : `applyGueuxEffect()` et les branches d'encodage
+     et de décodage du coup `{gueux}`. Des liens de partage circulent déjà avec ce coup dedans ;
+     un décodeur qui l'oublierait ne les casserait pas franchement — il les rejouerait de
+     travers, en silence, exactement le défaut documenté pour le sacrifice en mer. Vérifié de
+     bout en bout : un lien fabriqué sur la version en ligne (province 1 → 2 par un gueux) est
+     reconnu et rejoué par la version qui n'a plus la mécanique.
+  4. **Piège de nommage, le plus gros du lot** : le fichier contenait 212 fois « gueux », mais
+     le PALIER DE DIFFICULTÉ le plus facile s'appelle aussi Gueux (`diffGueux`, `#sideGueux`,
+     `GUEUX_IMG_SRC`). Une suppression naïve renommait la difficulté et effaçait un dessin.
+     109 occurrences retirées côté ressource, zéro côté difficulté.
+  5. **Le défaut qui a failli passer, et comment il se cachait** : `peaceGueuxGained` restait
+     remis à zéro dans `startGame()` alors que sa déclaration était partie. `startGame()` est
+     appelé depuis `startFreshGameSafely()`, qui l'entoure de DEUX `try/catch` silencieux — le
+     jeu ne générait donc plus aucune carte, sans la moindre erreur affichée. Trouvé en
+     comparant avec la version en ligne dans les mêmes conditions : 7 provinces là-bas, 0 ici.
+     **Leçon : un `try/catch` qui avale tout transforme une erreur de référence en écran vide.**
+  6. **Leçon d'outillage** : j'avais l'occurrence sous les yeux et je ne l'ai pas vue — mes
+     `grep` passaient par `cut -c1-90`, et `peaceGueuxGained = 0;` était au-delà de la colonne
+     90 d'une longue ligne de remise à zéro. Ne jamais tronquer la sortie d'une recherche qui
+     sert à prouver qu'il ne reste RIEN.
+  7. Aucune case de la Salle des trophées ne dépendait des gueux : personne ne perd son Graal.
+     La fiche du Tutoriel disparaît (ce n'est plus une mécanique) et le palier ② en compte donc
+     une de moins.
+  8. **Conséquence restée ouverte** : « proposer la paix » rapportait un gueux par rival vivant
+     et « se rendre » en coûtait un. Ces deux boutons ne paient plus rien. À trancher par
+     Pierre : la paix garde-t-elle une raison d'exister ?
+
+### Mesure des gueux (2026-09-21) — l'hypothèse qui les accusait est fausse
+
+J'avais avancé que les gueux « cassaient silencieusement la courbe de difficulté », au motif
+que le portail mesure les 5 paliers avec une réserve de zéro. Mesuré, c'est **largement faux**,
+et c'est mon argument de retrait le plus fort qui n'y survit pas.
+
+Protocole : carte moyenne, n=40 parties par cellule, mêmes graines dans toute une ligne.
+Politique de dépense **explicite et assumée** — un gueux n'est dépensé QUE pour débloquer un
+tour autrement bloqué (la politique « correct » refuse d'attaquer à perte ; à −1 d'écart, un
+gueux sur l'attaquant rend le coup jouable). C'est l'usage le plus rentable, donc une BORNE
+HAUTE de ce que les gueux peuvent faire.
+
+```
+palier      0 gueux        5 gueux        15 gueux
+            %vict (dép.)   %vict (dép.)   %vict (dép.)
+Gueux       83 %  (0,0)    83 %  (4,6)    83 %  (9,7)
+Page        63 %  (0,0)    68 %  (4,4)    65 %  (7,9)
+Écuyer      40 %  (0,0)    50 %  (3,3)    50 %  (5,1)
+Templier    15 %  (0,0)    20 %  (1,7)    20 %  (2,0)
+Cthulhu     28 %  (0,0)    28 %  (0,9)    28 %  (0,9)
+```
+
+**Contrôle de validité** : la colonne 0 gueux affiche 0,0 dépense partout — la mesure fait bien
+ce qu'elle prétend, la réserve est réellement contraignante.
+
+Trois lectures, par ordre de solidité :
+
+1. **La taille de la réserve n'est jamais le facteur limitant.** 5 gueux donnent le même
+   résultat que 15 sur les cinq paliers. Ce qui manque n'est pas la réserve, ce sont les
+   occasions de la dépenser utilement. Robuste.
+2. **La dépense s'effondre quand la difficulté monte** : 9,7 dépenses par partie au palier
+   Gueux, 0,9 à Cthulhu. Plus le palier est dur, plus les écarts de force dépassent 1, et
+   moins un gueux peut y changer quoi que ce soit. C'est un mécanisme, pas un taux — donc
+   solide indépendamment du bruit.
+3. **L'effet sur les victoires est borné et non concluant.** Le plus gros écart est Écuyer
+   (40 % → 50 %), soit environ 1,3 écart-type à n=40 : suggestif, pas significatif. Templier
+   gagne 5 points, Gueux et Cthulhu zéro. **Aucun palier n'est cassé.**
+
+**Conséquence pour la décision de retrait** : l'argument « ils faussent l'équilibrage » tombe.
+Ne restent que « double emploi avec les trophées » et le coût d'existence — plus faibles que ce
+qu'ils apportent (le seul lien entre deux parties, le seul enjeu réel d'une défaite, et le sens
+des boutons paix/reddition). **Recommandation : les garder.**
+
+**Piège de méthode à retenir** : le portail ne dépense jamais un gueux, sa politique ne connaît
+que attack/endTurn. Mesurer « avec 15 gueux » sans écrire soi-même la politique de dépense
+aurait donné exactement le même chiffre qu'avec 0 — un résultat faux présenté comme un résultat
+nul. Outil réutilisable : `scratchpad/mesure_gueux.js` + `simlib_gueux.js`.
 
 ### Décision prise le 2026-09-21 : les cartes à collectionner
 
