@@ -1978,7 +1978,7 @@
 // before (CREATURE_IMG's own loadSprite() call, the changelog, etc.), not
 // redeclared.
 const CREATURE_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAANAAAADQCAYAAAB2pO90AAAC2klEQVR4nO3dQWoDMRAAwd3g/39ZOeQHahgroupuvF7TzGWQ3rXWw4z3fUde9lrrnfiend8z9WxTfr79APCfCQgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAg+336AE5y85LnzbJY855hAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEFx3MqlTOe/7PSf/pyYQBAKCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAiCd62RG9559pYimbOzgGoCQSAgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAguO5kUvbsLFJOLcdOPdvOZ0wgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAElkkZNbUYOvU9JhAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJAQBAICILrlkldJb9namHzZK65h2ECgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgrFl0pOvRD/Zbe/ttqVVEwgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAgEBMF1J5My57bF0B0mEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgq1lUlfJW6TkjwkEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJg7GTSnUXKqaXVqcXQk6+styC8xwSCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUHwccLmHO/tvhNdTSAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEASfkxf1OJsTUE0gSAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEY9fcw/OcfcroDhMIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgl9clHexCa709wAAAABJRU5ErkJggg==";
-const GAME_VERSION = "2.71";
+const GAME_VERSION = "2.72";
 document.getElementById("loadingKnight").src = CREATURE_IMG_SRC;
 document.getElementById("loadingVersion").textContent = `v${GAME_VERSION}`;
 document.getElementById("splashKnight").src = CREATURE_IMG_SRC;
@@ -4164,6 +4164,12 @@ let lastStalemateFingerprint = null; // dice-mode-only: territories.map(owner) f
 let truceWinnerId = -1;
 let truceEnded = false; // showWin() uses different flavor text for a truce than an outright win
 let humanSurrendered = false; // showWin() uses a distinct, mocking flavor line for a self-inflicted loss
+// Une paix PROPOSÉE par le joueur, à distinguer de la trêve que le jeu
+// finit par imposer sur une impasse : les deux posaient exactement les
+// mêmes drapeaux (truceEnded + truceWinnerId = -1), donc l'écran de fin ne
+// pouvait pas dire des choses différentes. Or ce n'est pas le même acte —
+// l'un est une décision, l'autre un constat.
+let peaceProposed = false;
 let mercyGranted = false; // the human accepted the last rival's surrender instead of finishing them off in combat — showWin() uses its own distinct line
 
 // One click, no confirmation, immediate — ends the match right now as a
@@ -4192,13 +4198,10 @@ function surrenderGame() {
 // royaume still alive to fight on.
 function proposePeace() {
   if (gameOver || awaitingFactionPick || replaying) return;
-  let livingRivals = 0;
-  for (let r = 0; r < ROYAUME_COUNT - 1; r++) {
-    if (r !== humanRoyId && isAlive(r)) livingRivals++;
-  }
   gameOver = true;
   truceEnded = true;
   truceWinnerId = -1;
+  peaceProposed = true;
   showWin(truceWinnerId);
 }
 
@@ -6483,6 +6486,14 @@ const UI_STRINGS = {
     fr: "Vos gens vous quittent.",
     en: "Your people are leaving you.",
   },
+  gueuxNoteSurrender: {
+    fr: "Vous rendez les armes. Vos gens s'en vont sans un reproche — c'est le pire.",
+    en: "You lay down your arms. Your people leave without a word of reproach — which is worse.",
+  },
+  gueuxNotePeace: {
+    fr: "La paix est scellée. Vos gens rentrent aux champs, un peu déçus du spectacle.",
+    en: "Peace is sealed. Your people head back to their fields, a little disappointed by the show.",
+  },
 
   truceMatchNulLine: {
     fr: "Match nul — la paix, l'affaire des gueux.",
@@ -8499,12 +8510,20 @@ function showWin(royId) {
   // The hint itself — deliberately vague, names a rival seigneur (picked
   // deterministically off the seed, same convention as every other flavor
   // line here) rather than explaining what it means.
-  // Ligne de récit (2026-09-21) : ce que la bataille a changé pour le pays.
-  // Aucun effet de jeu — voir gueuxNoteGain's own note. Une trêve ne rallie
-  // ni ne disperse personne, donc elle reste muette.
+  // Ligne de récit : ce que la bataille a changé pour le pays. Aucun effet
+  // de jeu — voir gueuxNoteGain's own note. Quatre fins, quatre messages
+  // (demande de Pierre : « quand on pose la paix, quand on abandonne, du
+  // coup c'est le message qui change ») : gagner rallie, être conquis
+  // disperse, RENDRE LES ARMES n'est pas être conquis, et une paix qu'on a
+  // proposée soi-même ne coûte personne.
+  // La trêve IMPOSÉE sur une impasse reste muette ici : elle a déjà son
+  // propre écran (truceText) et sa propre réplique de fin
+  // (truceMatchNulLine), et ce n'est pas un acte du joueur.
   let gueuxNoteText = "";
   if (royId === humanRoyId) gueuxNoteText = t("gueuxNoteGain");
+  else if (humanLost && humanSurrendered) gueuxNoteText = t("gueuxNoteSurrender");
   else if (humanLost) gueuxNoteText = t("gueuxNoteLose");
+  else if (truceEnded && peaceProposed) gueuxNoteText = t("gueuxNotePeace");
   document.getElementById("gueuxNote").textContent = gueuxNoteText;
   document.getElementById("cthulhuHintNote").textContent = cthulhuHintFired
     ? tf("cthulhuHintLine", { name: ROYAUMES[(currentSeed + royId) % (ROYAUME_COUNT - 1)].name.replace("Millon de ", "") })
@@ -12744,6 +12763,15 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // players about.
 const CHANGELOG = [
   {
+    version: "2.72",
+    notes: [
+      "Rendre les armes et proposer la paix ne disent plus la même chose que perdre. Chaque fin a désormais son propre mot sur l'écran de fin.",
+      "Vous rendez les armes : vos gens s'en vont sans un reproche — c'est le pire.",
+      "Vous proposez la paix : elle est scellée, et vos gens rentrent aux champs, un peu déçus du spectacle.",
+      "Le jeu fait enfin la différence entre une paix que vous avez choisie et une trêve qu'il vous impose sur une impasse. Jusqu'ici les deux étaient la même chose pour lui.",
+    ],
+  },
+  {
     version: "2.71",
     notes: [
       "Les gueux ne sont plus une réserve. Plus de badge, plus de compteur, plus de renfort à acheter entre deux batailles.",
@@ -15306,7 +15334,7 @@ function startGame(seed) {
   // happen IN this match to count — see checkGodUnlockOnWin()).
   wasDownToOneTerritory = false; neverLostATerritory = true; ceresFlawlessRun = true; lastAttackWasChained = false; maxHumanTerritoryShare = 0; lastAttackFinishedViaWater = false;
   lastConqueredId = null; lastConqueredRoyId = -1;
-  allCappedStreak = 0; lastStalemateFingerprint = null; truceEnded = false; truceWinnerId = -1; humanSurrendered = false; mercyGranted = false;
+  allCappedStreak = 0; lastStalemateFingerprint = null; truceEnded = false; truceWinnerId = -1; humanSurrendered = false; peaceProposed = false; mercyGranted = false;
   mercyOfferShownAtRound = null;
   document.getElementById("enemySurrenderBtn").style.display = "none";
   forceInstantSkip = false; // leftover from a manual "La guerre fait rage" tap in a just-abandoned match shouldn't carry over
