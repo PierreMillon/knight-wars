@@ -5,6 +5,87 @@ Copié tel quel pour suivi. Statut ajouté en préfixe au fur et à mesure :
 
 ---
 
+## La logique d'Oronet — doctrine pour un jeu mobile (posée par Pierre, 2026-09-21)
+
+Ce n'est PAS un chantier Knight Wars. C'est la charte d'un futur jeu mobile, notée ici
+parce que le BACKLOG est la mémoire du projet et qu'il n'y a pas encore d'autre endroit.
+Elle sert aussi de grille de lecture pour Knight Wars : voir « Ce que Knight Wars respecte,
+ce qu'il contredit » juste après.
+
+**Le jeu**
+- [ ] Une seule mécanique.
+- [ ] Design minimaliste : flat design, low poly, pixel art, fil de fer.
+- [ ] Accessible à un enfant de 3 ans ; le TERMINER demande une maîtrise de geek.
+- [ ] Lore sur fond d'humour et de culture absurde.
+- [ ] Effets sonores et visuels *juicy*.
+- [ ] Musique hypnotique.
+- [ ] Style graphique filaire façon vieux moniteur, adapté à tout profil de handicap visuel.
+
+**La forme**
+- [ ] Traduction français et anglais (deux langues, pas cinq).
+- [ ] Adaptatif au téléphone pliant, format plutôt carré.
+- [ ] Affichable uniquement sur smartphone. Sur les autres formats, il s'affiche en
+      responsive comme sur un autre smartphone. Portage plus tard si budget.
+- [ ] Build en un seul fichier léger.
+- [ ] Optimisation batterie.
+
+**L'apprentissage**
+- [ ] Tuto clair PAR LA MÉCANIQUE DE JEU, sans explication écrite.
+- [ ] Gérer la difficulté en RETIRANT des mécaniques, pas en ajoutant.
+- [ ] Affiner en supprimant les mécaniques inutiles.
+
+**La technique**
+- [ ] Mode hors ligne, sauvegarde locale, aucun serveur.
+- [ ] Mise à jour automatique, et le cas échéant un bouton à cliquer dès le début.
+- [ ] Sauvegarde maintenue malgré une mise à jour automatique poussée à distance.
+- [ ] Mode multijoueur sans serveur.
+- [ ] Mode application à installer depuis le web sur téléphone, expliqué en intro.
+- [ ] Check sécurité, notamment injection de macro dans la barre de mémoire de partie.
+
+**L'argent et l'audience**
+- [ ] Pub *fake* pour débloquer une difficulté supplémentaire toutes les 24 h ou semaine.
+- [ ] Mise en place des pubs réelles, avec option payante pour les supprimer.
+- [ ] Conformité RGPD depuis la page principale des jeux.
+- [ ] Passer par une plateforme pour la visibilité, puis les stores.
+- [ ] Créer un catalogue de jeux perso sur une page.
+
+**La méthode**
+- [ ] Retours de NON-joueurs, et test A/B en option de menu avant de trancher.
+- [ ] Tester avec une communauté intéressée.
+- [ ] Assistance joueurs pour les bugs, PAS pour modifier le jeu de base ; si la demande
+      est trop différente, proposer un nouveau jeu.
+
+### Ce que Knight Wars respecte, ce qu'il contredit (état mesuré au 2026-09-21)
+
+Respecté : un seul fichier · sauvegarde locale sans serveur · multijoueur sans serveur
+(le duel par lien, vérifié côté client) · mise à jour automatique avec sauvegarde
+préservée · installation depuis le web expliquée · catalogue perso (le portfolio, v2.63)
+· effets juicy · musique · RGPD par défaut (aucune mesure d'audience à ce jour).
+
+Contredit, mesuré :
+1. **20 mécaniques, pas une** (une fiche de tutoriel par mécanique : combat, renforts,
+   pronostic, danger, pouvoir des 12, gueux, chiffres, trophées, dieux, pouvoirs, Graal,
+   défi du jour, dieux du jour, duel, atelier, partage de carte, installation, sacrifice,
+   Cthulhu, artefacts).
+2. **Pas de mode hors ligne.** Le service worker est activement DÉSENREGISTRÉ au
+   démarrage depuis v2.4x (il causait les écrans noirs/blancs/roses) ; `sw.js` dort dans
+   le dépôt, inutilisé. Le jeu a besoin du réseau à chaque lancement, et la fiche Astuces
+   le dit.
+3. **La difficulté s'obtient en AJOUTANT des règles**, pas en en retirant : Cthulhu ajoute
+   la traversée gratuite et la portée illimitée.
+4. **Le tutoriel est écrit**, pas joué : 20 fiches de texte (v2.68), là où la doctrine
+   veut que la mécanique enseigne d'elle-même.
+5. **Cinq langues au lieu de deux.** Chaque mécanique nouvelle coûte 5 traductions ; le
+   fichier pèse 1,06 Mo brut / 388 Ko gzip, contre 355 Ko en début de série.
+6. **Format pliant carré jamais testé.** Tous les essais navigateur de cette série sont en
+   390 × 844.
+7. **Batterie jamais mesurée.**
+8. **Pas de retours de non-joueurs, pas d'A/B, pas de communauté de test.**
+9. **Pas de canal d'assistance joueurs.**
+10. **Pas de pub fake, pas de pub réelle, pas d'option payante.**
+
+---
+
 [x] Depuis le menu, cliquer sur la zone en haut de map fait retourner à la map.
 
 [x] Ajoute un bouton carte précédente quand on génère aléatoirement trop vite.
