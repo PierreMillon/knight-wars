@@ -5731,7 +5731,17 @@ try {
 // Every {fr,en,zh,es,de} object below is looked up the same way — pulled
 // out once here so UI_STRINGS/AI_PERSONALITIES/the flavor-line pools can
 // all share it instead of repeating entry[uiLang] || entry.fr everywhere.
-function tLang(entry) { return entry[uiLang] || entry.fr; }
+// Repli sur l'ANGLAIS quand la langue du joueur n'a pas ce texte, et seulement
+// ensuite sur le français (arbitrage de Pierre, 2026-09-21 : « quand le texte
+// n'est pas disponible dans la langue d'origine, il faut que ça retombe sur
+// l'anglais »). Jusqu'ici on retombait directement sur le français : un joueur
+// chinois croisant un texte neuf aurait lu du français.
+// Aucun effet aujourd'hui — mesuré : les 279 clés sont complètes dans les 5
+// langues. C'est le filet du gel des langues (voir CLAUDE.md) : à partir du
+// premier texte écrit en fr+en seulement, zh/es/de liront l'anglais.
+// entry.fr reste le dernier recours : lui seul est garanti présent, c'est la
+// langue dans laquelle le lore est écrit.
+function tLang(entry) { return entry[uiLang] || entry.en || entry.fr; }
 // Picks the SAME index across every language for a pool of alternative
 // flavor lines (VICTORY_LINES, LOSS_OPENERS, etc.) — the seed-derived index
 // callers already compute doesn't change with uiLang, so a replay/shared
