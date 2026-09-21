@@ -55,6 +55,41 @@ ce qu'il contredit » juste après.
 - [ ] Assistance joueurs pour les bugs, PAS pour modifier le jeu de base ; si la demande
       est trop différente, proposer un nouveau jeu.
 
+### Décision prise le 2026-09-21 : les cartes à collectionner
+
+Pierre a tranché en QCM, en connaissance de la contrepartie annoncée dans l'option
+(« c'est AJOUTER une mécanique au moment où on parle d'en retirer ») : on construit les
+cartes à collectionner.
+
+**Ce qui a été établi en amont, et qui contraint le chantier :**
+- La grille de collection EXISTE déjà à 90 % — c'est la Salle des trophées (21 cases,
+  illustration, nom, condition, anneau doré). Le seul écart avec l'idée d'origine de
+  Pierre (« des petits carrés VIDES ») est la case masquée.
+- **Cette case masquée, c'est Pierre lui-même qui l'a fait retirer**, en direct : le
+  coffre a été construit puis annulé (« garde un coffre... revenir aux emoji partout »,
+  « oublie le côté opaque... entoure-les juste quand débloqués »). Voir la note en tête de
+  `computeTrophySlots()`.
+- Depuis, deux versions s'appuient dessus : v2.67 a fait de la salle « le seul endroit où
+  l'on sait quoi débloquer et comment », et v2.69 a retiré les recettes du Tutoriel PARCE
+  QUE la salle les portait. **Vider les cases casserait les deux.**
+- D'où la forme retenue : on n'enlève rien à la grille, on enrichit ce qu'on POSSÈDE.
+  Le plaisir de collection vient des cartes qu'on a, pas des trous.
+
+**Forme à construire :**
+- Une case GAGNÉE s'ouvre en carte : illustration en grand, nom, condition, date
+  d'obtention. Une case NON gagnée garde le comportement actuel (nom + condition dans la
+  ligne de texte) — c'est ce qui préserve la promesse de v2.67.
+- Deux versions chiffrées, à trancher par Pierre : avec une ligne de lore absurde par case
+  (21 × 5 langues = **105 traductions**), ou sans (le « côté carte » vient du cadre, de
+  l'illustration agrandie et d'une animation de retournement — 2 libellés à traduire).
+  Les lignes de lore peuvent s'ajouter plus tard, case par case, sans rien refaire.
+- **Piège identifié avant d'écrire une ligne** : la date d'obtention n'existe pas, rien ne
+  la stocke aujourd'hui. On peut commencer à l'enregistrer, mais tous les trophées déjà
+  gagnés n'en auront jamais. La carte doit donc savoir dire « gagné, date inconnue » sans
+  avoir l'air cassée.
+
+**Pas commencé** : Pierre a demandé qu'on ne mette rien en production sur ce tour.
+
 ### Ce que Knight Wars respecte, ce qu'il contredit (état mesuré au 2026-09-21)
 
 Respecté : un seul fichier · sauvegarde locale sans serveur · multijoueur sans serveur
