@@ -55,6 +55,69 @@ ce qu'il contredit » juste après.
 - [ ] Assistance joueurs pour les bugs, PAS pour modifier le jeu de base ; si la demande
       est trop différente, proposer un nouveau jeu.
 
+- [x] **v2.73 — Les cartes à collectionner** (choix de Pierre en QCM, forme arrêtée avant de
+  coder — voir « Décision prise le 2026-09-21 » plus bas).
+  1. **Une case GAGNÉE s'ouvre en carte** : illustration à 120 px (contre 30 dans la grille),
+     nom, condition remplie, date. Une case NON obtenue garde exactement le comportement de
+     v2.58 — c'est ce qui préserve la promesse de v2.67 : la salle reste la référence, la carte
+     est la récompense.
+  2. **Version « juste » retenue**, pas la version « chère » : le côté carte vient du cadre, de
+     l'illustration agrandie et du retournement à l'apparition, pas d'une ligne de lore par case
+     (qui aurait coûté 42 traductions depuis le gel des langues, 105 avant). Les lignes de lore
+     pourront s'ajouter plus tard, case par case, sans rien refaire.
+  3. **Le vrai travail était la date, et il n'existait aucun événement « ce trophée vient d'être
+     gagné »** : chaque case se recalcule à la volée depuis des drapeaux éparpillés. La
+     transition est donc relevée par comparaison avec l'état précédent, mémorisée dans
+     `kw_trophyDates`.
+  4. **Piège central, traité explicitement** : au tout premier passage après la mise à jour, tout
+     ce que le joueur possède déjà apparaît comme « nouvellement obtenu ». Le dater d'aujourd'hui
+     aurait été un mensonge — certains trophées ont des mois. Ces cases reçoivent le marqueur
+     `"avant"` et la carte dit « Obtenu de longue date — avant que le pays ne tienne ses
+     registres ». Vérifié : 4 cases existantes → toutes `"avant"`, aucune datée d'aujourd'hui.
+  5. **Défaut corrigé dans ma propre première écriture** : le drapeau de premier relevé était
+     calculé une fois au chargement et restait faux toute la session — un trophée gagné JUSTE
+     APRÈS la mise à jour aurait été marqué « de longue date ». Il bascule désormais après le
+     premier relevé. Vérifié : un trophée gagné en cours de session reçoit bien la date du jour.
+  6. **Identifiant stable ajouté à chaque case** (`god0..3`, `boat`, `pieuvre`, `cthulhu`,
+     `power12`, `diff0..3`, `roy0..2`, `allFamilies`, `excalibur`, `parchemin`, `sword`,
+     `graal`). Le nom ne pouvait pas servir de clé : il est traduit, donc il change avec la
+     langue du joueur.
+  7. La salle se rouvre toujours sur la vitrine, jamais sur la dernière carte lue.
+
+- [x] **Mesure du format pliant et carré (2026-09-21)** — point de la logique de projet
+  (« adaptatif au téléphone pliant de format plutôt carré »), jamais vérifié jusqu'ici : tous les
+  essais navigateur de la série étaient en 390 × 844.
+
+  Six formats testés, du téléphone au carré strict : **aucun débordement, aucun chevauchement,
+  aucune erreur**, et la carte remplit l'écran partout.
+
+  ```
+  téléphone (référence)       390×844   échelle 1,561
+  pliant fermé (couverture)   374×958   échelle 1,611
+  pliant ouvert Z Fold        904×1088  échelle 2,113
+  pliant ouvert Pixel Fold    841×1010  échelle 1,914
+  carré strict               1000×1000  échelle 1,914
+  carré large                1200×1200  échelle 2,367
+  ```
+
+  1. **Le jeu s'affiche PLUS GRAND sur un pliant, pas plus petit** : les hexagones y sont ~35 %
+     plus gros que sur téléphone. `resize()` ajuste l'échelle aux extents réels de la carte
+     générée, donc l'espace supplémentaire profite à la lisibilité.
+  2. **La même graine donne la même carte sur les cinq écrans** — vérifié explicitement (même
+     code `l62us03`, mêmes 7 provinces, plateau identique case par case). Seule l'échelle change.
+     **C'est ce qui rend les codes de carte, les liens partagés et le défi du jour honnêtes**, et
+     c'est aussi pourquoi la carte ne peut PAS « remplir la largeur » d'un écran large : il
+     faudrait générer une carte plus large, donc donner des cartes différentes selon le
+     téléphone. Non négociable.
+  3. **Ce qui reste inutilisé, c'est la largeur**, occupée par le décor latéral (le gueux et le
+     cavalier, `@media (min-width: 900px)`) — exactement sa raison d'être.
+  4. **Piège de mesure, encore le même** : ma sonde annonçait « décor latéral : non » alors que
+     la capture d'écran le montrait clairement. Elle testait `offsetParent`, qui vaut `null` sur
+     ces éléments. **Une sonde de visibilité qui contredit la capture a tort, pas la capture.**
+  5. Fausse piste écartée : le léger recouvrement entre la bannière du tutoriel et les pastilles
+     de statistiques existe AUSSI en 390 × 844 — ce n'est pas un défaut du format large, et la
+     bannière est temporaire.
+
 - [x] **v2.72 — Chaque fin a son mot** (suite directe de v2.71, arbitrage de Pierre : « quand on
   pose la paix, quand on abandonne, du coup c'est le message qui change »). Même résolution que
   pour les gueux : ce qui payait ne paie plus, ce qui reste, c'est ce que ça raconte.
