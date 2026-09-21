@@ -55,6 +55,28 @@ ce qu'il contredit » juste après.
 - [ ] Assistance joueurs pour les bugs, PAS pour modifier le jeu de base ; si la demande
       est trop différente, proposer un nouveau jeu.
 
+- [x] **v2.72 — Chaque fin a son mot** (suite directe de v2.71, arbitrage de Pierre : « quand on
+  pose la paix, quand on abandonne, du coup c'est le message qui change »). Même résolution que
+  pour les gueux : ce qui payait ne paie plus, ce qui reste, c'est ce que ça raconte.
+  1. **Constat qui a rendu le chantier nécessaire** : `proposePeace()` et
+     `declareStalemateTruce()` posaient EXACTEMENT les mêmes drapeaux (`truceEnded` +
+     `truceWinnerId = -1`). L'écran de fin ne pouvait donc pas dire deux choses différentes,
+     alors que ce ne sont pas le même acte — l'un est une décision du joueur, l'autre un
+     constat du jeu. Ajout de `peaceProposed`, remis à zéro en début de partie.
+  2. **Quatre fins, quatre messages** : gagner rallie des paysans · être conquis les disperse ·
+     RENDRE LES ARMES n'est pas être conquis (« vos gens s'en vont sans un reproche — c'est le
+     pire ») · une paix qu'on a proposée soi-même ne coûte personne (« vos gens rentrent aux
+     champs, un peu déçus du spectacle »).
+  3. **La trêve IMPOSÉE reste volontairement muette** sur cette ligne : elle a déjà son propre
+     écran (`truceText`) et sa propre réplique de fin (`truceMatchNulLine`), et ce n'est pas un
+     acte du joueur. Vérifié : chaîne vide, pas de ligne fantôme.
+  4. **Code mort retiré au passage** : `proposePeace()` comptait encore les rivaux vivants pour
+     créditer des gueux qui n'existent plus depuis v2.71.
+  5. Deux langues (fr/en) conformément au gel des langues ; zh/es/de lisent l'anglais via le
+     repli posé le même jour.
+  6. Les cinq fins vérifiées une par une en navigateur réel, plus la remise à zéro du drapeau
+     entre deux parties. Aucune erreur JS.
+
 - [x] **v2.71 — Retrait des gueux** (arbitrage de Pierre, et sa raison ne doit pas se perdre :
   « le but du jeu c'est pas de rattraper le mauvais choix, de compenser. Le hasard, c'est de
   lutter contre le hasard avec une bonne stratégie »).
