@@ -53,12 +53,11 @@ Les trois raisons de l'arbitrage, dans l'ordre où elles ont pesé :
    blague est la première chose qui meurt en traduction. Sa propre doctrine de projet dit
    « français ET anglais ».
 
-**Conséquence technique à appliquer au prochain lot qui ajoute du contenu** : `tLang()` retombe
-aujourd'hui sur le FRANÇAIS quand une langue manque (`entry[uiLang] || entry.fr`). Un joueur
-chinois croisant un texte neuf lirait donc du français. Le repli doit passer par l'anglais
-d'abord : `entry[uiLang] || entry.en || entry.fr`. Pas livré seul — il n'a d'effet qu'à partir
-du premier texte écrit en 2 langues, et une version dont le changelog n'a rien à dire au joueur
-n'a pas lieu d'être.
+**Conséquence technique — FAITE, livrée le 2026-09-21** : `tLang()` retombait sur le FRANÇAIS
+quand une langue manquait, donc un joueur chinois croisant un texte neuf aurait lu du français.
+Le repli passe désormais par l'anglais d'abord (`entry[uiLang] || entry.en || entry.fr`), le
+français restant le dernier recours puisqu'il est le seul garanti présent. Rien à refaire : tout
+texte écrit en fr+en est déjà lisible par les cinq langues.
 
 **Contrepartie assumée** : avec le temps le jeu devient un patchwork, l'ancien contenu en cinq
 langues et le nouveau en deux. Pierre l'a choisi en connaissance de cause.
