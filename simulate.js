@@ -612,7 +612,23 @@ for (const tier of TIER_WIN_RATE_TARGETS) {
   );
 }
 
-if (fail > 0 || !determinismOk || !resumeOk || !dailyResumeOk || !difficultyOk) process.exit(1);
+// sw.js est un fichier GÉNÉRÉ (voir build-sw.js). Le portail refuse de
+// passer s'il est périmé, et c'est le coeur de la correction du hors ligne :
+// le cache a été coupé en v1.98 parce que le numéro de version du worker
+// était incrémenté à la main, donc oublié, donc le navigateur ne voyait
+// jamais de worker neuf, donc les correctifs n'atteignaient jamais les
+// téléphones. Une règle tenue à la main n'est pas une règle — celle-ci est
+// vérifiée mécaniquement, comme tout le reste ici.
+let swOk = true;
+try {
+  require("child_process").execFileSync(process.execPath, [require("path").join(__dirname, "build-sw.js"), "--check"], { stdio: "pipe" });
+  console.log("sw.js (généré) : à jour");
+} catch (e) {
+  swOk = false;
+  console.log("sw.js (généré) : PÉRIMÉ — lancer `node build-sw.js` et committer le résultat");
+}
+
+if (fail > 0 || !determinismOk || !resumeOk || !dailyResumeOk || !difficultyOk || !swOk) process.exit(1);
 
 // --tune: a much wider, purely informational win-rate table (all 3 skill
 // policies × all 5 named tiers, more games each) — for actually balancing
