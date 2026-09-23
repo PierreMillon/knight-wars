@@ -2014,7 +2014,7 @@
 // before (CREATURE_IMG's own loadSprite() call, the changelog, etc.), not
 // redeclared.
 const CREATURE_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAANAAAADQCAYAAAB2pO90AAAC2klEQVR4nO3dQWoDMRAAwd3g/39ZOeQHahgroupuvF7TzGWQ3rXWw4z3fUde9lrrnfiend8z9WxTfr79APCfCQgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAg+336AE5y85LnzbJY855hAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEFx3MqlTOe/7PSf/pyYQBAKCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAiCd62RG9559pYimbOzgGoCQSAgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAguO5kUvbsLFJOLcdOPdvOZ0wgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAElkkZNbUYOvU9JhAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJAQBAICILrlkldJb9namHzZK65h2ECgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgrFl0pOvRD/Zbe/ttqVVEwgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAgEBMF1J5My57bF0B0mEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgq1lUlfJW6TkjwkEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJg7GTSnUXKqaXVqcXQk6+styC8xwSCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUHwccLmHO/tvhNdTSAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEASfkxf1OJsTUE0gSAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEY9fcw/OcfcroDhMIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgl9clHexCa709wAAAABJRU5ErkJggg==";
-const GAME_VERSION = "2.73";
+const GAME_VERSION = "2.74";
 document.getElementById("loadingKnight").src = CREATURE_IMG_SRC;
 document.getElementById("loadingVersion").textContent = `v${GAME_VERSION}`;
 document.getElementById("splashKnight").src = CREATURE_IMG_SRC;
@@ -12874,6 +12874,15 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // players about.
 const CHANGELOG = [
   {
+    version: "2.74",
+    notes: [
+      "Le jeu fonctionne de nouveau sans réseau. Une fois ouvert une première fois, il se lance en avion, dans le métro, n'importe où.",
+      "Le cache hors ligne avait été coupé il y a longtemps après une série d'écrans noirs et blancs. Le coupable n'était pas le cache : c'est que le jeu n'avait aucun moyen de savoir qu'une nouvelle version existait, et les correctifs n'arrivaient jamais sur les téléphones.",
+      "C'est réparé à la source : chaque publication porte désormais son empreinte, et un correctif arrive dès le lancement suivant.",
+      "Sur iPhone, Safari efface ce qui est gardé en mémoire après sept jours sans ouvrir le jeu. Le hors ligne y est donc au mieux, jamais garanti — aucun jeu web ne peut faire autrement.",
+    ],
+  },
+  {
     version: "2.73",
     notes: [
       "Les trophées deviennent des cartes à collectionner. Touchez une case que vous avez gagnée : elle s'ouvre en carte, illustration en grand, avec ce qu'il a fallu faire pour la décrocher.",
@@ -15291,38 +15300,42 @@ function showForcedSwimToast(fromId = 0) {
 
 
 /* ---------- OFFLINE + AUTO-UPDATE ---------- */
-// The PWA itself (installable icon, manifest.json's own "standalone"
-// full-screen display) stays — only its OFFLINE-CACHING layer (sw.js) is
-// gone: "je veux laisser le PWA mais enlève ce qui crée des bugs, c'est la
-// mise en cache non accessible hors réseau ?" — yes, confirmed: every
-// symptom reported this session (a black screen, then black-then-white,
-// then pink/magenta, then a blank map with the HUD still fine) traced back
-// to the same underlying shape, a stuck/stale service worker — never to
-// the installable-app part itself. Every fix attempted at the caching
-// layer (a nav timeout + cache fallback in sw.js, an explicit
-// registration.update() on every visibility change, an auto-reload on
-// controllerchange, the unregister-and-purge escape hatch still wired into
-// the fatal-error banner above) narrowed the failure window without ever
-// closing it for good. Rather than keep patching a caching layer that
-// isn't earning its keep, this now does the opposite of registering one:
-// unregisters ANY service worker already installed for this origin and
-// purges Cache Storage, unconditionally, every load — so a device that
-// installed one of the earlier, buggier PWA builds self-heals back to a
-// plain installed app with no caching layer of its own (ordinary browser
-// HTTP caching only) the next time it's opened, without needing the
-// player to find and tap anything by hand. One real trade-off: the game
-// no longer works with truly zero network (airplane mode) — it needs at
-// least some connectivity on each launch to fetch the page fresh, same as
-// any ordinary website. sw.js itself is left in the repo, unused, in case
-// offline support gets revisited later — re-enabling is just restoring the
-// register() call that used to be here.
+// Le hors ligne est RÉTABLI (2026-09-23), après avoir corrigé la vraie
+// cause et pas ses symptômes.
+//
+// Histoire, parce qu'elle explique la forme du correctif : le cache a été
+// coupé en v1.98 (« trop de bugs d'affichage liés au cache hors-ligne »),
+// après v1.14/1.21/1.38/1.41 — écrans blancs, écrans noirs puis blancs,
+// icône bloquée sur une ancienne version. Le diagnostic de l'époque
+// accusait le cache. Il visait à côté : le coupable était que le FICHIER du
+// worker ne changeait jamais d'une publication à l'autre (son numéro était
+// incrémenté à la main), donc le navigateur ne voyait jamais de worker
+// neuf, donc les correctifs n'arrivaient jamais sur les téléphones. Et pour
+// compenser ça, l'ancien worker faisait courir le réseau contre le cache à
+// chaque navigation — c'est cette course qui produisait les écrans noirs.
+// (Le changelog de v2.08 dit d'ailleurs lui-même qu'un des écrans vides
+// n'était PAS un problème de cache : il a porté un chapeau de trop.)
+//
+// Ce qui change : sw.js est désormais GÉNÉRÉ (build-sw.js) avec une
+// empreinte des fichiers qu'il met en cache, et simulate.js REFUSE de
+// passer s'il est périmé. La version se règle donc toute seule, et le
+// worker n'a plus besoin d'être malin : sur le chemin normal il répond
+// depuis le cache sans courir après rien. Voir sw.template.js.
+//
+// Le filet de secours reste en place : la bannière d'erreur fatale
+// (plus haut) purge le cache ET désinstalle le worker avant de recharger.
+// C'est le seul recours si une version cassée entrait en cache, et c'est
+// pour ça qu'il ne doit jamais disparaître.
+//
+// Limite qu'aucun code ne peut lever : Safari vide le stockage de cache
+// après 7 jours sans ouvrir l'application (comportement documenté d'ITP).
+// Sur iPhone, le hors ligne est donc au mieux, jamais garanti.
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.getRegistrations()
-    .then((regs) => Promise.all(regs.map((r) => r.unregister())))
-    .catch(() => {});
-}
-if ("caches" in window) {
-  caches.keys().then((keys) => Promise.all(keys.map((k) => caches.delete(k)))).catch(() => {});
+  // Après le chargement : inutile de disputer la bande passante à la page
+  // elle-même, qui est de toute façon déjà là quand on en arrive ici.
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./sw.js").catch(() => { /* http:// local, navigateur sans support — le jeu marche sans */ });
+  });
 }
 
 // A newer index.html landing on the server doesn't change anything for a
@@ -15359,6 +15372,18 @@ async function checkForUpdate() {
 // their own normal fresh-game logic in that case, the reload replaces it
 function reloadIfUpdateAvailable() {
   if (!updateAvailable) return false;
+  // PIÈGE MAJEUR, attrapé en test avant livraison (2026-09-23) : quand un
+  // service worker contrôle la page, il répond depuis SON cache. Recharger
+  // ici rendrait donc l'ANCIENNE page — tout en ayant déjà enregistré
+  // l'empreinte de la nouvelle juste en dessous. Le jeu se croirait à jour
+  // en restant sur la version périmée, définitivement, puisque l'empreinte
+  // stockée correspondrait désormais à celle du serveur.
+  // C'est très exactement la panne qui a fait couper le cache en v1.98 :
+  // « un correctif publié qui n'atteint jamais le téléphone ».
+  // Quand un worker est aux commandes, c'est LUI la source de vérité de ce
+  // qui est servi : le rechargement est déclenché par sa propre relève
+  // (controllerchange, plus bas), une fois le nouveau cache en place.
+  if (navigator.serviceWorker && navigator.serviceWorker.controller) return false;
   // Loop guard: reported live as a PWA opening to a black-then-white blank
   // screen and never actually reaching the game — one plausible mechanism
   // is an ETag/Last-Modified that never settles to a stable match (a CDN
@@ -15381,6 +15406,29 @@ function reloadIfUpdateAvailable() {
 }
 checkForUpdate();
 document.addEventListener("visibilitychange", () => { if (!document.hidden) checkForUpdate(); });
+// Le chemin de mise à jour QUAND un worker est aux commandes (voir la note
+// dans reloadIfUpdateAvailable()). Le navigateur installe le worker neuf,
+// qui met en cache la nouvelle page puis prend la relève : c'est à cet
+// instant précis — et pas avant — qu'un rechargement rend la bonne version.
+if ("serviceWorker" in navigator) {
+  // La toute première prise de contrôle (aucun worker auparavant) ne
+  // remplace rien : il n'y a rien de périmé à recharger, et le faire
+  // infligerait un rechargement gratuit à chaque nouveau joueur.
+  let avaitUnControleur = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (!avaitUnControleur) { avaitUnControleur = true; return; }
+    // Même garde anti-boucle que reloadIfUpdateAvailable() : une relève qui
+    // se répéterait rechargerait sans fin, et le joueur n'atteindrait jamais
+    // la carte (c'est le mécanisme soupçonné derrière un des écrans noirs).
+    const now = Date.now();
+    let dernier = 0;
+    try { dernier = Number(sessionStorage.getItem("kw_lastUpdateReload")) || 0; } catch (e) { /* ignore */ }
+    if (now - dernier < 10000) return;
+    try { sessionStorage.setItem("kw_lastUpdateReload", String(now)); } catch (e) { /* ignore */ }
+    if (pendingVersionTag) { try { localStorage.setItem("kw_pageVersion", pendingVersionTag); } catch (e) { /* ignore */ } }
+    location.reload();
+  });
+}
 
 /* ---------- BOOT ---------- */
 let onboarding = false;

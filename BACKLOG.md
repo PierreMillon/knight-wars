@@ -55,6 +55,61 @@ ce qu'il contredit » juste après.
 - [ ] Assistance joueurs pour les bugs, PAS pour modifier le jeu de base ; si la demande
       est trop différente, proposer un nouveau jeu.
 
+- [x] **v2.74 — Le hors ligne rétabli, en réparant la vraie cause** (demandé par Pierre :
+  « analyse comment faire fonctionner le mode hors ligne dans les règles de la profession et
+  compare avec ce qu'on avait fait », puis « et faire un build ? » — c'est lui qui a proposé la
+  solution que j'avais écartée en la traitant comme une fatalité).
+
+  **Ce que disait vraiment l'historique** (retrouvé dans le changelog, pas de mémoire) :
+  v1.14 écran blanc iPhone · v1.15 worker bloqué sur une ancienne version · v1.21 icône bloquée
+  après mise à jour · v1.38 écran noir puis blanc · v1.41 écran blanc en PWA · **v1.98 cache mis
+  en pause** · v1.99 « c'était bien le cache le fautif » · **v2.08 « le bug d'écran vide… ce
+  n'était PAS un problème de cache »**. Correction au passage : j'avais dit à Pierre « désactivé
+  depuis v2.4x » — c'était v1.98, je n'avais pas vérifié.
+
+  1. **Le diagnostic de l'époque visait à côté.** Le coupable n'était pas le principe du cache :
+     c'est que le FICHIER du worker ne changeait jamais d'une publication à l'autre (son numéro,
+     `knight-wars-v6`, était incrémenté à la main). Fichier identique = aucun worker neuf aux
+     yeux du navigateur = le correctif n'atteint jamais le téléphone. Et pour compenser, le
+     worker faisait courir le réseau contre le cache à chaque navigation — c'est cette course
+     qui produisait les écrans noirs : une navigation dont la promesse ne se résout jamais est
+     une page blanche sans erreur et sans recours.
+  2. **La règle du métier** : la fraîcheur se règle par la VERSION du worker, jamais par de
+     l'astuce au moment de la requête. Chaque build produit un worker différent. Knight Wars
+     n'avait pas de build — je l'avais présenté comme structurel, Pierre a demandé pourquoi.
+  3. **Le build fait exactement une chose** : `sw.template.js` + empreinte(index.html, manifeste,
+     icônes) → `sw.js`. `index.html` reste écrit à la main, rien ne change dans la façon de
+     travailler, et le jeu reste un seul fichier. **Et le portail REFUSE de passer si `sw.js` est
+     périmé** — c'est le coeur : une règle tenue à la main n'est pas une règle, celle qu'on tenait
+     à la main est précisément celle qui a tout cassé.
+  4. **Le worker est redevenu muet** sur le chemin normal : il répond depuis le cache, sans
+     course, sans délai. Il ne reste de logique de temps que là où il n'y a RIEN en cache — un
+     chemin qui ne peut pas être servi depuis le cache par définition.
+  5. **PIÈGE MAJEUR, ATTRAPÉ EN TEST AVANT LIVRAISON — j'avais réintroduit la panne historique.**
+     `reloadIfUpdateAvailable()` enregistre la nouvelle empreinte PUIS recharge. Avec un worker
+     qui répond depuis le cache, ce rechargement rend l'ANCIENNE page — le jeu se croit alors à
+     jour en restant périmé, définitivement, puisque l'empreinte stockée correspond désormais à
+     celle du serveur. Mesuré : joueur en v2.73, serveur en v9.99, relance → toujours v2.73 et
+     empreinte marquée à jour. Corrigé : quand un worker contrôle la page, c'est LUI la source de
+     vérité, et le rechargement est déclenché par sa relève (`controllerchange`), une fois le
+     nouveau cache en place. Sans l'exigence de Pierre de prouver avant de livrer, c'était expédié.
+
+  **Preuves en navigateur réel** (les quatre pannes de l'historique rejouées) :
+  - premier lancement : jeu complet, worker actif, cache créé ✅
+  - **lancement en AVION : jeu complet** ✅
+  - **correctif publié → le joueur relance → il l'a** (v2.73 installé, v9.99 publié, relance =
+    v9.99, empreinte stockée cohérente) ✅ — c'est la panne qui avait fait couper le cache
+  - puis toujours en avion sur la NOUVELLE version ✅
+  - filet de secours : version cassée mise en cache de force → purge + désinstallation →
+    récupération ✅
+  - aucune erreur JS sur aucun des cas
+
+  **NON prouvé, et il faut le dire** : le cas « worker installé mais cache vidé par Safari après
+  7 jours » n'a pas pu être reproduit dans ce harnais — le navigateur sert la page par un autre
+  chemin quoi qu'on coupe. La page de secours a seulement été validée isolément (statut 200,
+  bouton « Réessayer » présent). Limite qu'aucun code ne lève : **sur iPhone le hors ligne est au
+  mieux, jamais garanti.**
+
 - [x] **v2.73 — Les cartes à collectionner** (choix de Pierre en QCM, forme arrêtée avant de
   coder — voir « Décision prise le 2026-09-21 » plus bas).
   1. **Une case GAGNÉE s'ouvre en carte** : illustration à 120 px (contre 30 dans la grille),

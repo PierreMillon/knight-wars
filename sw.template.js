@@ -1,4 +1,4 @@
-// FICHIER GÉNÉRÉ — ne pas éditer à la main, toute modification sera écrasée.
+// GABARIT — ne pas éditer sw.js directement, il est REGÉNÉRÉ.
 // Source : sw.template.js · Générateur : build-sw.js · Contrôlé par : simulate.js
 //
 // Pourquoi ce fichier est généré, et pourquoi c'est LA correction de fond.
@@ -20,9 +20,9 @@
 // besoin d'être malin. Sur le chemin normal il est MUET : il répond depuis
 // le cache, instantanément, sans courir après rien. Un worker qui ne court
 // après rien ne peut pas bloquer une navigation.
-const EMPREINTE = "325785f84c5a651b";
+const EMPREINTE = "__EMPREINTE__";
 const CACHE = "knight-wars-" + EMPREINTE;
-const COQUILLE = ["./","./index.html","./manifest.json","./icon-192.png","./icon-512.png"];
+const COQUILLE = __COQUILLE__;
 
 // Le SEUL endroit où il reste de la logique de temps : quand il n'y a RIEN
 // en cache (toute première visite, ou Safari qui a vidé le cache après 7
