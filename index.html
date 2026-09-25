@@ -2014,7 +2014,7 @@
 // before (CREATURE_IMG's own loadSprite() call, the changelog, etc.), not
 // redeclared.
 const CREATURE_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAANAAAADQCAYAAAB2pO90AAAC2klEQVR4nO3dQWoDMRAAwd3g/39ZOeQHahgroupuvF7TzGWQ3rXWw4z3fUde9lrrnfiend8z9WxTfr79APCfCQgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAg+336AE5y85LnzbJY855hAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEFx3MqlTOe/7PSf/pyYQBAKCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAiCd62RG9559pYimbOzgGoCQSAgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAguO5kUvbsLFJOLcdOPdvOZ0wgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAElkkZNbUYOvU9JhAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJAQBAICILrlkldJb9namHzZK65h2ECgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgrFl0pOvRD/Zbe/ttqVVEwgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAgEBMF1J5My57bF0B0mEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgq1lUlfJW6TkjwkEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJg7GTSnUXKqaXVqcXQk6+styC8xwSCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUHwccLmHO/tvhNdTSAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEASfkxf1OJsTUE0gSAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEY9fcw/OcfcroDhMIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgl9clHexCa709wAAAABJRU5ErkJggg==";
-const GAME_VERSION = "2.74";
+const GAME_VERSION = "2.75";
 document.getElementById("loadingKnight").src = CREATURE_IMG_SRC;
 document.getElementById("loadingVersion").textContent = `v${GAME_VERSION}`;
 document.getElementById("splashKnight").src = CREATURE_IMG_SRC;
@@ -6955,6 +6955,17 @@ let iosAudioSessionUnlocked = false;
 let iosSilentAudioEl = null; // kept around so a lost focus can restart the same loop instead of only ever trying once
 function unlockIOSAudioSession() {
   if (iosAudioSessionUnlocked) return;
+  // Ce contournement n'existe que pour garder les bruitages audibles malgré
+  // l'interrupteur muet — il n'a aucune raison d'exister pour un joueur qui
+  // a coupé le son (playTone() ne joue déjà plus rien dans ce cas, voir plus
+  // bas). Sans ce garde-fou il tournait quand même, en boucle, toute la
+  // session : un coût de batterie payé pour rien, contre l'invariant même
+  // que ce fichier documente juste au-dessus (« The only two conditions
+  // sound should ever depend on: soundEnabled, and actually being on
+  // screen »). Pas de { once: true } sur l'écouteur ci-dessous : si le son
+  // est coupé au premier appui, il faut qu'un appui ultérieur, une fois le
+  // son réactivé au réglage, puisse encore déclencher ce déverrouillage.
+  if (!soundEnabled) return;
   iosAudioSessionUnlocked = true;
   try {
     // ~0.1s of real silence (8kHz mono 8-bit PCM WAV), built at runtime
@@ -6979,7 +6990,7 @@ function unlockIOSAudioSession() {
     iosSilentAudioEl = audioEl;
   } catch (e) { /* not fatal — sound just stays subject to the mute switch on this device */ }
 }
-document.addEventListener("pointerdown", unlockIOSAudioSession, { once: true });
+document.addEventListener("pointerdown", unlockIOSAudioSession);
 // Switching away and back (another app, another Safari tab/window) can pause
 // this same silent loop — some form of background/inactive-tab media
 // throttling, not covered by anything above, which only ever handles
@@ -8052,17 +8063,35 @@ function allProvincesCapped(royId) {
 // otherwise trigger a fresh render() (the board can sit there fully
 // capped, idle, for a while) — self-perpetuating while at least one
 // royaume still qualifies, stops rescheduling itself the moment none do.
+// Mesuré (voir BACKLOG.md « mesure batterie ») : cette boucle redessinait
+// tout le plateau ~60 fois/s, aussi longtemps qu'un SEUL royaume — humain ou
+// IA, potentiellement de nombreux tours d'affilée — reste plafonné, pour un
+// effet purement décoratif (le pulse lui-même est lent : période ~1.63s,
+// voir render()'s `pulse = 0.72 + 0.28*sin(now/260)` et chipFullPulse plus
+// haut). render() ne s'exécute plus qu'~15 fois/s ; requestAnimationFrame
+// reste le SEUL mécanisme de programmation de la boucle (jamais setTimeout
+// ici) — c'est ce que simulate.js suppose de tout ce qui recourt sur rAF
+// (voir le commentaire sur requestAnimationFrame dans buildSandbox()) : son
+// bac à sable le laisse délibérément sans effet, alors qu'un setTimeout y
+// est mis en file et purgé aussitôt — cette boucle tournerait alors sans
+// jamais rendre la main tant qu'un royaume reste plafonné en simulation.
+// Le calcul du pulse repart à chaque appel de performance.now() : moins
+// d'images/s ne change rien à sa valeur, juste au nombre d'échantillons
+// dessinés d'une même sinusoïde.
 let capBonusPulseLoopRunning = false;
 function ensureCapBonusPulseLoop() {
   if (capBonusPulseLoopRunning) return;
   capBonusPulseLoopRunning = true;
+  const CAP_BONUS_PULSE_INTERVAL_MS = 66; // ~15 images/s
+  let lastRenderAt = 0;
   function step() {
     let stillActive = false;
     for (let royId = 0; royId < ROYAUME_COUNT - 1; royId++) {
       if (isAlive(royId) && allProvincesCapped(royId)) { stillActive = true; break; }
     }
     if (!stillActive || gameOver) { capBonusPulseLoopRunning = false; return; }
-    render();
+    const now = performance.now();
+    if (now - lastRenderAt >= CAP_BONUS_PULSE_INTERVAL_MS) { lastRenderAt = now; render(); }
     requestAnimationFrame(step);
   }
   requestAnimationFrame(step);
@@ -12873,6 +12902,13 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // add a new entry at the top whenever a future change is worth telling
 // players about.
 const CHANGELOG = [
+  {
+    version: "2.75",
+    notes: [
+      "Le jeu économise la batterie quand un royaume — le vôtre ou un adversaire — a toutes ses provinces au maximum : l'anneau doré qui pulse autour de son territoire redessinait tout l'écran en continu, bien plus souvent que nécessaire pour un effet aussi lent.",
+      "Sur iPhone, couper le son ne laisse plus tourner en silence, toute la partie, la petite astuce qui sert à le garder audible malgré l'interrupteur muet. Si le son est coupé, elle ne se déclenche plus du tout.",
+    ],
+  },
   {
     version: "2.74",
     notes: [

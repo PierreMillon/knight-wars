@@ -110,6 +110,63 @@ ce qu'il contredit » juste après.
   bouton « Réessayer » présent). Limite qu'aucun code ne lève : **sur iPhone le hors ligne est au
   mieux, jamais garanti.**
 
+- [x] **v2.75 — Mesure batterie** (demandé par Pierre : « Mesure batterie »).
+
+  **Méthode** : sur mobile, ce qui coûte cher n'est pas tant le calcul par image que la
+  FRÉQUENCE de réveil de l'appareil — le garder hors veille profonde. J'ai donc instrumenté
+  `requestAnimationFrame` dans un vrai Chromium headless (Playwright) pour compter les réveils
+  par seconde, plutôt que de deviner. Quatre scénarios où le joueur ne touche à rien :
+
+  | scénario | réveils/s mesurés |
+  |---|---|
+  | écran splash, intact | 0 |
+  | partie en cours, tour humain, rien ne se passe | 0 |
+  | un royaume (le sien ou une IA) atteint « bonus de 12 » (toutes provinces au max) | **59,8** |
+  | la condition retombe (province reprise) | 0 (la boucle s'arrête bien d'elle-même) |
+
+  Le jeu se comporte donc déjà bien PARTOUT sauf un point précis : `fxStep` (animations de
+  combat) et les autres boucles s'arrêtent seules dès qu'il n'y a plus rien à animer — vérifié,
+  pas supposé. Le seul cas réel : `ensureCapBonusPulseLoop()` redessinait tout le plateau à
+  ~60 images/s en continu, aussi longtemps qu'un SEUL royaume (même une IA, même sans que le
+  joueur agisse) reste plafonné — potentiellement de nombreux tours, écran par ailleurs figé.
+
+  1. **Corrigé sans poser de question à Pierre** : le réponse ne changeait rien à ce que le
+     joueur voit (l'anneau doré pulse à la même vitesse, `pulse = 0.72 + 0.28*sin(now/260)`
+     recalculé à chaque appel, période ~1,63 s) — juste moins d'images dessinées d'une même
+     sinusoïde. Aucun arbitrage de jeu là-dedans : décidé et signalé, pas demandé en QCM.
+     `render()` passe de ~60/s à **~15/s mesuré** (14,8 en pratique) dès que l'état se déclenche.
+  2. **Piège attrapé par le portail, pas en relecture.** Mon premier correctif espaçait la
+     boucle avec `setTimeout` au lieu de `requestAnimationFrame`. `simulate.js` fait tourner le
+     jeu dans un bac à sable Node où `requestAnimationFrame` est un no-op **délibéré** (pour
+     que ces boucles de pulsation restent inertes en simulation), alors que `setTimeout` y est
+     mis en vraie file et purgée en boucle. Résultat : la boucle se remettait en file toute
+     seule, sans jamais rendre la main tant qu'un royaume restait plafonné en simulation —
+     `stalled mid-turn` sur 14 des 27 parties de smoke, plus le défi du jour. Corrigé en gardant
+     `requestAnimationFrame` comme SEUL mécanisme de programmation de la boucle, et en filtrant
+     le vrai travail (le redessin) par le temps écoulé à l'intérieur — le réveil JS reste à 60/s
+     (un simple test de deux nombres, coût négligeable), mais l'opération coûteuse (le redessin
+     complet du plateau) ne s'exécute plus qu'à ~15/s. Reproverifié : portail vert, 27/27.
+  3. **Deuxième trouvaille, un bug contre l'invariant même que le code documentait.**
+     `unlockIOSAudioSession()` (contournement pour garder les bruitages audibles malgré
+     l'interrupteur muet sur iPhone) se déclenchait au tout premier appui, SANS vérifier
+     `soundEnabled` — donc même un joueur ayant coupé le son se voyait imposer une boucle audio
+     silencieuse tournant en continu toute la session, pour un bénéfice qu'il ne pouvait pas
+     entendre. Le commentaire du code lui-même disait : « The only two conditions sound should
+     ever depend on: soundEnabled, and actually being on screen. » Corrigé par un garde-fou
+     (`if (!soundEnabled) return;`) et le retrait de `{ once: true }` sur l'écouteur, pour
+     qu'un appui ultérieur puisse encore déclencher le déverrouillage si le son est réactivé en
+     cours de partie. Vérifié dans les deux sens en navigateur réel : son coupé → aucun élément
+     audio créé ; son réactivé puis appui suivant → déverrouillage effectif, lecture non
+     interrompue.
+  4. **CSS laissé tel quel, par choix** : l'anneau doré du petit cercle de statut
+     (`chipFullPulse`, box-shadow animée en CSS, ~1,63 s) pulse sur un élément de 11×11 px — sa
+     zone de peinture est minuscule comparée au plateau entier, et il n'existe pas de levier
+     JS pour cadencer une animation CSS. Coût jugé négligeable par la taille de la zone
+     repeinte, pas mesuré séparément — limite assumée, pas cachée.
+  5. Pas de fiche Astuces : aucune mécanique de jeu n'est touchée ni modifiée, c'est un
+     correctif d'efficacité invisible pour le joueur. Entrée de changelog écrite quand même,
+     pour que le joueur sache que son téléphone chauffe moins dans ce cas précis.
+
 - [x] **v2.73 — Les cartes à collectionner** (choix de Pierre en QCM, forme arrêtée avant de
   coder — voir « Décision prise le 2026-09-21 » plus bas).
   1. **Une case GAGNÉE s'ouvre en carte** : illustration à 120 px (contre 30 dans la grille),

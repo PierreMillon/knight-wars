@@ -67,3 +67,21 @@ langues et le nouveau en deux. Pierre l'a choisi en connaissance de cause.
 Développer sur la branche désignée, committer, et **sauvegarder le travail non commité en patch
 avant tout `reset --hard`** de resynchronisation post-fusion (leçon de v2.54 : la resynchronisation
 efface l'arbre).
+
+### Fusionner directement, sans attendre le feu vert de Pierre (consigne répétée, 2026-09-25)
+
+**Dès que le portail est vert et la CI passe, on fusionne — on ne s'arrête pas pour demander la
+permission.** Consigne de Pierre, redite en ces termes : « tu fais et tu fusionnes direct que je
+puisse tester [...] ne t'arrête plus jamais ». Sa façon de vérifier qu'un correctif marche, c'est
+de le tester en vrai — pas de relire un diff ni d'approuver une PR avant qu'elle existe en ligne.
+S'arrêter pour attendre son accord avant de fusionner, c'est lui retirer la seule vérification
+qu'il fait réellement.
+
+Cette consigne vaut pour **tous ses projets sur GitHub**, pas seulement Knight Wars — donc au-delà
+de ce fichier, qui ne couvre que ce dépôt.
+
+En pratique : le cycle reste gate (`node simulate.js`) → commit → push → PR (brouillon) →
+`subscribe_pr_activity` → CI verte → sortie de brouillon → **fusion immédiate**, sans étape
+d'attente entre « CI verte » et « fusionné ». Ce qui reste un vrai point d'arrêt — parce que ce
+n'est pas une question de vérification mais un choix de jeu ou de conception — passe par le QCM
+habituel, *avant* d'écrire le code, pas en aval d'une PR déjà ouverte.
