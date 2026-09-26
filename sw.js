@@ -20,7 +20,7 @@
 // besoin d'être malin. Sur le chemin normal il est MUET : il répond depuis
 // le cache, instantanément, sans courir après rien. Un worker qui ne court
 // après rien ne peut pas bloquer une navigation.
-const EMPREINTE = "2978218a193f92ac";
+const EMPREINTE = "ce94935a366c6668";
 const CACHE = "knight-wars-" + EMPREINTE;
 const COQUILLE = ["./","./index.html","./manifest.json","./icon-192.png","./icon-512.png"];
 
