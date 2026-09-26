@@ -166,7 +166,7 @@
      meaning, so its background is the player's own royaume color, not the
      shared parchment gold every other HUD button gets (see each button's
      own background rule below). */
-  #settingsBtn, #endturn, #rerollBtn, #surrenderBtn,
+  #settingsBtn, #endturn, #rerollBtn,
   #replayPauseBtn, #replayResumeHereBtn, #prevMapBtn {
     /* "Je valide" — dégradé radial + clous dorés (velours clouté), la 3e
        variante du preview HUD. Rayon des coins divisé par 3 (voir le
@@ -202,11 +202,12 @@
     pointer-events: auto; white-space: nowrap; text-align: center;
     /* background color is set inline in JS to match the player's chosen royaume */
     padding: 10px 12px; font-size: 15px; font-weight: 700;
-    /* same min-height as surrenderBtn (see its own rule) so the two
-       remaining bottom-row buttons line up at one consistent height — this
-       one can still grow taller on its own for the two-line "Statu quo dans
-       N tours" hint, min-height only sets the floor. gueuxBadge is a
-       separate, standalone element now, no longer sharing this row. */
+    /* seul bouton de la rangée depuis que surrenderBtn a rejoint le menu
+       (v2.77) — le floor de 44px reste, il n'a plus besoin d'aligner sur
+       un voisin qui n'y est plus. Peut toujours grandir tout seul pour le
+       texte deux lignes de "Statu quo dans N tours", min-height ne fixe
+       que le plancher. gueuxBadge est un élément séparé, autonome, ne
+       partage plus cette rangée depuis longtemps. */
     min-height: 44px; box-sizing: border-box;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     /* fills whatever's left in #bottomHudRow rather than sizing to its own
@@ -526,8 +527,8 @@
     padding: 8px 16px; font-size: 13px; white-space: nowrap; font-weight: 700;
     /* explicit shared floor — "les boutons du bas en replay doivent avoir
        la même hauteur" — same box-sizing/min-height convention as
-       #gueuxBadge/#endturn/#surrenderBtn (see their own note), belt-and-
-       braces alongside the identical padding/font-size these already share. */
+       #gueuxBadge/#endturn (see their own note), belt-and-braces alongside
+       the identical padding/font-size these already share. */
     box-sizing: border-box; min-height: 38px; display: inline-flex; align-items: center; justify-content: center;
   }
   /* sits directly left of #rerollBtn, same bottom — both right/bottom
@@ -666,7 +667,7 @@
   #surrenderConfirmOverlay {
     position: absolute; inset: 0; display: none;
     align-items: center; justify-content: center;
-    background: rgba(10,8,6,.88); text-align: center; z-index: 10;
+    background: rgba(10,8,6,.88); text-align: center; z-index: 11; /* above #settingsPanel (10) — v2.77, #surrenderBtn qui l'ouvre vit maintenant DANS le menu, même raison/même piège que #changelogOverlay juste au-dessus (voir sa propre note) : au même z-index que #settingsPanel, ses boutons devenaient inatteignables, interceptés par le menu resté ouvert derrière. Attrapé en testant, pas en relisant. */
   }
   #surrenderConfirmOverlay h2 { margin: 0 0 14px; font-size: 21px; }
   #surrenderConfirmOverlay p { font-size: 14px; line-height: 1.5; opacity: .9; margin: 0 0 18px; }
@@ -932,6 +933,12 @@
   #godPickerRow button { width: 100%; }
   #installRow { margin: 12px 0 4px; }
   #installRow button { width: 100%; }
+  /* v2.77 : surrenderBtn a quitté le HUD (voir son HTML) — même largeur
+     pleine que les autres actions du menu au lieu du bouton icône rond
+     qu'il était, plus de dégradé doré/clous ni de couleur de faction (voir
+     applyHudFactionColors(), qui ne le concerne plus) : c'est un bouton de
+     menu ordinaire maintenant, exactement comme installBtn ci-dessus. */
+  #surrenderRow button { width: 100%; }
   #conseilsOverlay {
     position: absolute; inset: 0; display: none;
     align-items: center; justify-content: center;
@@ -1062,34 +1069,11 @@
      flex-wrap is concerned. Natural/auto width instead, same fix
      #mapSizeLevels.levelBtn already uses for the same reason. */
   #langLevels .levelBtn { font-size: 13px; padding: 6px 10px; white-space: nowrap; flex: 0 0 auto; min-width: auto; }
-  /* plain icon button, main HUD, left end of #bottomHudRow's now-two-button
-     row (#gueuxBadge moved out to stand under #settingsBtn instead — see
-     its own note) — same circular gold treatment as #settingsBtn now
-     (it used to deliberately stay dark/unadorned as a "destructive action"
-     cue, but that read as visually inconsistent with the rest of the HUD
-     once every other button went gold — the button already requires an
-     actual tap to trigger, no confirmation dialog needed either way). */
-  #surrenderBtn {
-    pointer-events: auto; background: radial-gradient(circle at 35% 28%, #fff3c4, #e8c468 55%, #a97e2a 100%);
-    /* same floor as #endturn — the two remaining bottom buttons line up */
-    width: 44px; height: 44px; min-height: 44px; padding: 6px; box-sizing: border-box;
-    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-  }
-  /* pixel-art skull, same asset/style as the L1 Maths "creature-svgs" set —
-     shape-rendering:crispEdges keeps the low-res grid sharp instead of
-     getting antialiased into mush at this small size; color is set via
-     currentColor (the button's own text color) rather than baked into the
-     SVG so it stays consistent if the HUD palette ever shifts. */
-  /* :not(.hudStudSvg) — this generic "svg inside the button" selector used
-     to also match the gold-stud overlay <svg> (layoutButtonStuds() adds it
-     as a second, later svg child): an ID+tag selector beats the stud
-     overlay's own class rule (.hudStudSvg, lower specificity), squeezing
-     its width:100%/height:100% down to this icon's fixed 24px/auto — which
-     squashed the whole stud ring into a small square in the middle of the
-     button instead of tracing its actual edges ("la tête de mort a les
-     clous mal alignés", confirmed live: the right/bottom studs were being
-     rendered around the icon's own center instead of the button's border). */
-  #surrenderBtn svg:not(.hudStudSvg) { width: 24px; height: auto; color: #2b1d10; }
+  /* surrenderBtn (le crâne) a quitté le HUD pour le menu Réglages en
+     v2.77 — voir son HTML et #surrenderRow ci-dessus pour son style
+     actuel (un bouton de menu ordinaire, plus d'icône ni de dégradé doré
+     dédiés). Ce qui suivait ici (le rond doré 44×44 et l'icône SVG du
+     crâne) n'a plus de raison d'être. */
   /* the least essential action in the panel — a support link, not a game
      action — so a calm, muted button style (not the loud gold gradient the
      real settings buttons use), separated from "Partie en cours" by a thin
@@ -1329,14 +1313,12 @@
        instead of computing pixel offsets by hand in resize() and having
        that math fall short on a real device's actual measurements. -->
   <div id="bottomHudRow">
-    <!-- plain icon, no confirmation — surrenders immediately (see
-         surrenderGame()); landing on the loss screen already offers
-         "recommencer" right there, so a confirm dialog would be redundant.
-         Hidden until a camp is actually picked (see updateEndTurnButton())
-         — "le bouton abandonner ne doit pas apparaître avant qu'on ait
-         choisi une faction", surrenderGame() itself already no-ops during
-         awaitingFactionPick, this just stops offering it visually too. -->
-    <button id="surrenderBtn" aria-label="Abandonner"><svg viewBox="0 0 7 8" shape-rendering="crispEdges" fill="currentColor" aria-hidden="true"><rect x="1" y="0" width="1" height="1"/><rect x="2" y="0" width="1" height="1"/><rect x="3" y="0" width="1" height="1"/><rect x="4" y="0" width="1" height="1"/><rect x="5" y="0" width="1" height="1"/><rect x="0" y="1" width="1" height="1"/><rect x="1" y="1" width="1" height="1"/><rect x="2" y="1" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="1"/><rect x="6" y="1" width="1" height="1"/><rect x="0" y="2" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="3" y="2" width="1" height="1"/><rect x="4" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="6" y="2" width="1" height="1"/><rect x="0" y="3" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="2" y="3" width="1" height="1"/><rect x="3" y="3" width="1" height="1"/><rect x="4" y="3" width="1" height="1"/><rect x="5" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="0" y="4" width="1" height="1"/><rect x="3" y="4" width="1" height="1"/><rect x="6" y="4" width="1" height="1"/><rect x="0" y="5" width="1" height="1"/><rect x="3" y="5" width="1" height="1"/><rect x="6" y="5" width="1" height="1"/><rect x="1" y="6" width="1" height="1"/><rect x="2" y="6" width="1" height="1"/><rect x="4" y="6" width="1" height="1"/><rect x="5" y="6" width="1" height="1"/><rect x="2" y="7" width="1" height="1"/><rect x="3" y="7" width="1" height="1"/><rect x="4" y="7" width="1" height="1"/></svg></button>
+    <!-- surrenderBtn (le crâne) a déménagé dans le menu Réglages — v2.77,
+         demande de Pierre : « on va laisser que le bouton pour aller au
+         tour suivant [...] l'idée à terme c'est vraiment de simplifier
+         l'interface » (taper l'océan fait déjà tout ce que fait cette
+         rangée, voir handlePointer()). Voir #settingsScroll pour son
+         nouvel emplacement. -->
     <!-- "Excalibur" et "L'épée blanche" (v2.59) — placés ici avec les autres
          actions de combat, par choix de Pierre. Tous deux restent masqués
          tant que le trophée n'est pas gagné ET que le pouvoir n'a pas été
@@ -1800,18 +1782,23 @@
            content underneath is scrolled. -->
       <div id="settingsScroll">
 
-      <!-- "Abandonner" lives on the main HUD itself (a plain skull icon
-           between the gueux badge and "Fin de bataille" — no confirmation
-           needed, landing on the loss screen already offers "recommencer"
-           right there); "Nouveau royaume" (rerollBtn) covers rerolling the
-           map before a faction pick. The settings panel used to also carry
-           its own separate "Nouvelle guerre — abandonne et recommence"
-           button here, entirely redundant with those two — removed. No
-           "Réglages" title/section label above this any more — Tier 1
+      <!-- "Nouveau royaume" (rerollBtn) reste sur le HUD — il ne sert
+           qu'avant le choix d'une faction, pas en cours de partie.
+           "Abandonner" (surrenderBtn), lui, a rejoint ce menu en v2.77 :
+           demande de Pierre pour libérer la rangée du bas au profit du
+           seul bouton de fin de tour (« l'idée à terme c'est vraiment de
+           simplifier l'interface » — taper l'océan fait déjà tout ce que
+           fait cette rangée). Voir le fieldGroup juste après celui de la
+           difficulté, ci-dessous. Le menu avait DÉJÀ porté une "Nouvelle
+           guerre — abandonne et recommence" par le passé, retirée alors
+           pour cause de redondance avec le HUD — ce n'est donc pas une
+           idée neuve, juste son retour une fois le HUD simplifié.
+           No "Réglages" title/section label above this any more — Tier 1
            below is the very first thing in the panel, flush with the top
            of the ✕ (padding-top:10px above; see .box, and the
-           :first-of-type rule below that drops its own top border/padding
-           now that it's first). -->
+           .fieldGroup:first-child rule below that gives IT the top margin
+           now that it's first — pas le nouveau bloc Abandonner, placé
+           après exprès pour ne pas y toucher). -->
       <div class="fieldGroup">
         <div class="fieldLabel" id="difficultyFieldLabel"></div>
         <div id="difficultyLevels" class="levelRow">
@@ -1829,6 +1816,15 @@
                CTHULHU_LEVEL.value instead. -->
           <button id="cthulhuLevelBtn" class="levelBtn" style="display:none;"><span class="diffIcons"><img alt=""></span><span class="levelBtnText"></span></button>
         </div>
+      </div>
+      <!-- Même visibilité que l'ancien bouton HUD : masqué avant le choix
+           d'une faction, pendant un rejeu, ou une fois la partie finie
+           (voir son display toggle, partagé avec le reste du HUD dans la
+           même fonction). Comportement inchangé au clic (ouvre toujours
+           #surrenderConfirmOverlay, le même choix paix/abandon) — seul
+           l'emplacement bouge. -->
+      <div id="surrenderRow" class="fieldGroup">
+        <button id="surrenderBtn"></button>
       </div>
       <!-- was a plain on/off toggle — "curseur pour le volume du son qui
            devient bruitage" — a real slider now, 0 doubling as "off" so
@@ -2035,7 +2031,7 @@
 // before (CREATURE_IMG's own loadSprite() call, the changelog, etc.), not
 // redeclared.
 const CREATURE_IMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAANAAAADQCAYAAAB2pO90AAAC2klEQVR4nO3dQWoDMRAAwd3g/39ZOeQHahgroupuvF7TzGWQ3rXWw4z3fUde9lrrnfiend8z9WxTfr79APCfCQgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAg+336AE5y85LnzbJY855hAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEFx3MqlTOe/7PSf/pyYQBAKCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAiCd62RG9559pYimbOzgGoCQSAgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAguO5kUvbsLFJOLcdOPdvOZ0wgCAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAElkkZNbUYOvU9JhAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJAQBAICILrlkldJb9namHzZK65h2ECgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgrFl0pOvRD/Zbe/ttqVVEwgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUEgIAgEBMF1J5My57bF0B0mEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgq1lUlfJW6TkjwkEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEAoJg7GTSnUXKqaXVqcXQk6+styC8xwSCQEAQCAgCAUEgIAgEBIGAIBAQBAKCQEAQCAgCAUHwccLmHO/tvhNdTSAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEASfkxf1OJsTUE0gSAQEgYAgEBAEAoJAQBAICAIBQSAgCAQEgYAgEBAEY9fcw/OcfcroDhMIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIAgFBICAIBASBgCAQEAQCgkBAEAgIgl9clHexCa709wAAAABJRU5ErkJggg==";
-const GAME_VERSION = "2.76";
+const GAME_VERSION = "2.77";
 document.getElementById("loadingKnight").src = CREATURE_IMG_SRC;
 document.getElementById("loadingVersion").textContent = `v${GAME_VERSION}`;
 document.getElementById("splashKnight").src = CREATURE_IMG_SRC;
@@ -2977,12 +2973,10 @@ function resize() {
     prevMapEl.style.bottom = rerollEl.style.bottom;
     prevMapEl.style.right = (14 + rerollEl.offsetWidth + 8) + "px";
   }
-  // surrenderBtn's horizontal position is no longer computed here at all —
-  // it's a plain flex child of #bottomHudRow now (see its CSS), which
-  // guarantees it never overlaps endturn regardless of how wide either one
-  // gets, instead of computing that guarantee by hand from measured pixel
-  // rects. gueuxBadge is a separate, standalone element now (see its own
-  // note), not part of this row at all any more.
+  // #bottomHudRow ne contient plus que #endturn depuis que surrenderBtn a
+  // rejoint le menu Réglages (v2.77) — rien à calculer ici pour un seul
+  // bouton dans sa propre rangée. gueuxBadge est un élément séparé,
+  // autonome (voir sa propre note), pas dans cette rangée non plus.
   const availH = h - topInset - bottomInset;
   centerX = w / 2; centerY = topInset + availH / 2;
   // Fit to the map's *actual* generated extents (not a nominal guess) so it
@@ -12127,8 +12121,10 @@ function layoutButtonStuds(btn) {
 // guarded — simulate.js runs this same file in a minimal (non-browser) DOM
 // stub with no ResizeObserver, purely for game-logic determinism checks; the
 // studs are a rendering-only concern with nothing to verify there.
-const HUD_STUD_BUTTON_IDS = ["settingsBtn", "endturn", "rerollBtn", "surrenderBtn",
+const HUD_STUD_BUTTON_IDS = ["settingsBtn", "endturn", "rerollBtn",
   "replayPauseBtn", "replayResumeHereBtn", "prevMapBtn", "reviewBackBtn", "reviewReplayBtn"];
+// surrenderBtn en est sorti en v2.77 — parti pour le menu Réglages, un
+// bouton de menu ordinaire n'a plus rien à voir avec les clous dorés du HUD.
 if (typeof ResizeObserver !== "undefined") {
   const hudStudObserver = new ResizeObserver((entries) => {
     for (const entry of entries) layoutButtonStuds(entry.target);
@@ -12943,6 +12939,12 @@ document.getElementById("supportLink").addEventListener("click", () => { sfxTogg
 // add a new entry at the top whenever a future change is worth telling
 // players about.
 const CHANGELOG = [
+  {
+    version: "2.77",
+    notes: [
+      "La rangée du bas ne garde plus que le bouton de fin de tour — abandonner (le crâne) vit maintenant dans le menu Réglages, juste sous le choix de difficulté. Taper l'eau fait toujours tout ce que fait cette rangée, exactement comme avant.",
+    ],
+  },
   {
     version: "2.76",
     notes: [
@@ -14388,11 +14390,18 @@ document.getElementById("cancelSurrender").addEventListener("click", () => {
 });
 document.getElementById("proposePeaceBtn").addEventListener("click", () => {
   document.getElementById("surrenderConfirmOverlay").style.display = "none";
+  // v2.77 : ce bouton peut désormais s'ouvrir DEPUIS le menu Réglages
+  // (surrenderBtn y a déménagé) — sans ceci, le menu restait ouvert sous
+  // l'écran de fin de partie, tous deux au même z-index que #winbanner,
+  // rendant ses boutons inatteignables. Piège attrapé en testant, même
+  // famille que #changelogOverlay/#surrenderConfirmOverlay juste au-dessus.
+  closeSettingsPanel();
   sfxToggle();
   proposePeace();
 });
 document.getElementById("confirmSurrender").addEventListener("click", () => {
   document.getElementById("surrenderConfirmOverlay").style.display = "none";
+  closeSettingsPanel(); // voir la note de proposePeaceBtn juste au-dessus, même raison
   sfxToggle();
   surrenderGame();
 });
@@ -14431,6 +14440,10 @@ buildLangLevels();
 // fresh match, a win, a replay starting...), not on every render.
 function applyUiLanguage() {
   document.getElementById("settingsBtn").setAttribute("aria-label", t("settingsAria"));
+  // v2.77 : un vrai bouton de menu texte maintenant (voir son HTML), donc
+  // un textContent visible en plus de l'aria-label — même mot, réutilisé
+  // tel quel plutôt qu'une clé de plus pour la même chose.
+  document.getElementById("surrenderBtn").textContent = "💀 " + t("surrenderAria");
   document.getElementById("surrenderBtn").setAttribute("aria-label", t("surrenderAria"));
   document.getElementById("versionBtn").setAttribute("aria-label", t("versionAria"));
   document.getElementById("backLoreToSettings").setAttribute("aria-label", t("backToSettingsAria"));
@@ -14876,15 +14889,16 @@ function shadeColor(hex, amt) {
   const toHex = (v) => clamp(v).toString(16).padStart(2, "0");
   return `#${toHex(mix(r))}${toHex(mix(g))}${toHex(mix(b))}`;
 }
-// Every persistent HUD button — settings, end-turn, reroll, gueux, surrender
-// — shares this one gradient recipe once a camp is picked (awaitingFactionPick
-// keeps them on the neutral gold default, set directly in CSS, since there's
-// no royaume color to draw from yet). Called from updateEndTurnButton() so
-// it stays reactive to the same triggers that already keep endturn's own
-// color current.
+// Every persistent HUD button — settings, end-turn, reroll, gueux — shares
+// this one gradient recipe once a camp is picked (awaitingFactionPick keeps
+// them on the neutral gold default, set directly in CSS, since there's no
+// royaume color to draw from yet). Called from updateEndTurnButton() so it
+// stays reactive to the same triggers that already keep endturn's own color
+// current. surrenderEl en faisait partie jusqu'en v2.77 — parti pour le
+// menu Réglages, un bouton de menu ordinaire n'a plus de couleur de
+// faction à porter, comme aucun des autres boutons de ce menu.
 function applyHudFactionColors() {
   const settingsEl = document.getElementById("settingsBtn");
-  const surrenderEl = document.getElementById("surrenderBtn");
   // "passe leur couleur de noir à celle qu'on choisit en choisissant la
   // faction" — the desktop-only side-art (gueux/chevalier) are plain black
   // by default (see .sideArt's own background-color) and get recolored to
@@ -14893,17 +14907,14 @@ function applyHudFactionColors() {
   const sideGueuxEl = document.getElementById("sideGueux");
   const sideKnightEl = document.getElementById("sideKnight");
   if (awaitingFactionPick) {
-    for (const el of [settingsEl, surrenderEl]) el.style.background = "";
-    surrenderEl.querySelector("svg").style.color = "";
+    settingsEl.style.background = "";
     sideGueuxEl.style.backgroundColor = "";
     sideKnightEl.style.backgroundColor = "";
     return;
   }
   const base = ROYAUMES[humanRoyId].color;
   const grad = `radial-gradient(circle at 35% 28%, ${shadeColor(base, 0.45)}, ${base} 55%, ${shadeColor(base, -0.35)} 100%)`;
-  const textColor = textColorFor(base);
-  for (const el of [settingsEl, surrenderEl]) el.style.background = grad;
-  surrenderEl.querySelector("svg").style.color = textColor;
+  settingsEl.style.background = grad;
   sideGueuxEl.style.backgroundColor = base;
   sideKnightEl.style.backgroundColor = base;
 }
